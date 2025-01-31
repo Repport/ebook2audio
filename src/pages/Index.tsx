@@ -13,9 +13,10 @@ const Index = () => {
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
+    const fileType = file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB';
     toast({
       title: "File selected",
-      description: `${file.name} is ready for conversion`,
+      description: `${file.name} (${fileType}) is ready for conversion`,
     });
   };
 
@@ -59,8 +60,8 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">EPUB to MP3 Converter</h1>
-          <p className="text-lg text-gray-600">Convert your EPUB books to MP3 audio files</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">eBook to MP3 Converter</h1>
+          <p className="text-lg text-gray-600">Convert your EPUB and PDF books to MP3 audio files</p>
         </div>
 
         <div className="space-y-8">
