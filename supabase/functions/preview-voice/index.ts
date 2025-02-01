@@ -22,7 +22,7 @@ serve(async (req) => {
     }
 
     console.log('Making request to ElevenLabs API...')
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
@@ -30,13 +30,11 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        text: "Hello!", // Reduced text to minimize credit usage
+        text: "Hello! This is a preview of my voice.",
         model_id: "eleven_monolingual_v1",
         voice_settings: {
           stability: 0.5,
-          similarity_boost: 0.5,
-          style: 0,
-          use_speaker_boost: true
+          similarity_boost: 0.5
         }
       })
     })
@@ -50,13 +48,10 @@ serve(async (req) => {
         const errorJson = JSON.parse(errorText)
         if (errorJson.detail?.status === 'quota_exceeded') {
           return new Response(
-            JSON.stringify({ 
-              error: 'API quota exceeded. Please check your ElevenLabs account credits.',
-              details: errorJson.detail.message 
-            }),
+            JSON.stringify({ error: 'quota exceeded' }),
             {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 429 // Too Many Requests
+              status: 429
             }
           )
         }
@@ -64,32 +59,29 @@ serve(async (req) => {
         // If error parsing fails, continue with generic error
       }
       
-      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`)
+      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`)
     }
 
-    console.log('Successfully received response from ElevenLabs')
+    // Get the audio data as an array buffer
     const audioBuffer = await response.arrayBuffer()
-    console.log('Audio buffer size:', audioBuffer.byteLength)
+    
+    // Convert to base64
+    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)))
 
-    return new Response(audioBuffer, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'audio/mpeg'
+    return new Response(
+      JSON.stringify({ audioContent: base64Audio }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    })
+    )
+
   } catch (error) {
     console.error('Preview voice error:', error)
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        details: error.stack 
-      }), 
+      JSON.stringify({ error: error.message }),
       {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 400
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }

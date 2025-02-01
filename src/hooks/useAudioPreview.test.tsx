@@ -2,7 +2,6 @@ import { renderHook, act } from '@testing-library/react';
 import { useAudioPreview } from './useAudioPreview';
 import { supabase } from "@/integrations/supabase/client";
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import type { Mock } from 'vitest';
 
 // Mock the supabase client
 vi.mock("@/integrations/supabase/client", () => ({
@@ -49,27 +48,30 @@ const mockAtob = vi.fn();
 
 // Define global types for the mocks
 declare global {
-  var Audio: {
-    new (src?: string): HTMLAudioElement;
-  };
-  var URL: {
-    createObjectURL(obj: Blob | MediaSource): string;
-    revokeObjectURL(url: string): void;
-  };
+  interface Window {
+    Audio: new (src?: string) => HTMLAudioElement;
+    URL: {
+      createObjectURL(obj: Blob | MediaSource): string;
+      revokeObjectURL(url: string): void;
+    };
+  }
 }
 
 // Assign mocks to global object
-globalThis.Audio = vi.fn(() => mockAudio) as unknown as { new (src?: string): HTMLAudioElement };
-globalThis.URL = {
+vi.stubGlobal('Audio', vi.fn(() => mockAudio));
+vi.stubGlobal('URL', {
   createObjectURL: mockCreateObjectURL,
-  revokeObjectURL: mockRevokeObjectURL
-};
+  revokeObjectURL: mockRevokeObjectURL,
+  prototype: {} as URL,
+  canParse: () => false,
+  parse: (url: string) => new URL(url)
+});
 vi.stubGlobal('atob', mockAtob);
 
 describe('useAudioPreview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAudio.play.mockReset();
+    (mockAudio.play as ReturnType<typeof vi.fn>).mockReset();
     mockAudio.onended = null;
     mockAudio.onerror = null;
   });
@@ -82,7 +84,7 @@ describe('useAudioPreview', () => {
     mockAtob.mockReturnValue('binary-data');
     
     // Mock successful API response
-    (supabase.functions.invoke as Mock).mockResolvedValue({
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
@@ -91,7 +93,7 @@ describe('useAudioPreview', () => {
     mockCreateObjectURL.mockReturnValue('blob:mock-url');
 
     // Mock successful audio playback
-    mockAudio.play.mockResolvedValue(undefined);
+    (mockAudio.play as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useAudioPreview());
 
@@ -109,7 +111,7 @@ describe('useAudioPreview', () => {
     });
 
     // Verify audio setup
-    expect(globalThis.Audio).toHaveBeenCalledWith('blob:mock-url');
+    expect(vi.mocked(Audio)).toHaveBeenCalledWith('blob:mock-url');
     expect(mockAudio.play).toHaveBeenCalled();
 
     // Simulate playback end
@@ -126,7 +128,7 @@ describe('useAudioPreview', () => {
     const mockVoiceId = 'test-voice-id';
     
     // Mock API error response
-    (supabase.functions.invoke as Mock).mockResolvedValue({
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: null,
       error: { message: 'quota exceeded' }
     });
@@ -148,7 +150,7 @@ describe('useAudioPreview', () => {
     const mockVoiceId = 'test-voice-id';
     
     // Mock successful API response
-    (supabase.functions.invoke as Mock).mockResolvedValue({
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
@@ -157,7 +159,7 @@ describe('useAudioPreview', () => {
     mockCreateObjectURL.mockReturnValue('blob:mock-url');
 
     // Mock failed audio playback
-    mockAudio.play.mockRejectedValue(new Error('Audio playback failed'));
+    (mockAudio.play as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Audio playback failed'));
 
     const { result } = renderHook(() => useAudioPreview());
 
