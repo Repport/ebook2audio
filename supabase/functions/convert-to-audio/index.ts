@@ -37,8 +37,9 @@ serve(async (req) => {
 
     console.log('ElevenLabs API connection test successful');
 
+    // Make the text-to-speech request
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
       {
         method: 'POST',
         headers: {
