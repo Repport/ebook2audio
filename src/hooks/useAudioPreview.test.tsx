@@ -103,7 +103,7 @@ describe('useAudioPreview', () => {
     // Verify initial state
     expect(result.current.isPlaying).toBe(null);
 
-    // Trigger preview
+    // Trigger preview with required voiceId parameter
     await act(async () => {
       await result.current.playPreview(mockVoiceId);
     });
@@ -138,7 +138,7 @@ describe('useAudioPreview', () => {
 
     const { result } = renderHook(() => useAudioPreview());
 
-    // Trigger preview
+    // Trigger preview with required voiceId parameter
     await act(async () => {
       await result.current.playPreview(mockVoiceId);
     });
@@ -169,7 +169,7 @@ describe('useAudioPreview', () => {
 
     const { result } = renderHook(() => useAudioPreview());
 
-    // Trigger preview
+    // Trigger preview with required voiceId parameter
     await act(async () => {
       await result.current.playPreview(mockVoiceId);
     });

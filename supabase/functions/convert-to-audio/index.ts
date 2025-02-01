@@ -33,7 +33,9 @@ serve(async (req) => {
     }
 
     console.log('Converting text to speech with ElevenLabs');
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
+    console.log('Using voice ID:', voiceId);
+    
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
@@ -70,7 +72,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
-        status: error.message?.includes('quota exceeded') ? 429 : 500,
+        status: error.message?.includes('401') ? 401 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
