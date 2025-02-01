@@ -18,6 +18,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
   const previewVoice = async (voiceId: string, name: string) => {
     setIsPlaying(voiceId);
     let audio: HTMLAudioElement | null = null;
+    let audioUrl: string | null = null;
     
     try {
       console.log('Starting voice preview for:', voiceId)
@@ -27,7 +28,6 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
 
       if (error) {
         console.error('Supabase function error:', error)
-        // Check for quota exceeded error
         if (error.message?.includes('quota exceeded')) {
           toast({
             title: "API Quota Exceeded",
@@ -46,35 +46,46 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
 
       // Create blob directly from the response data
       const audioBlob = new Blob([data], { type: 'audio/mpeg' });
-      const audioUrl = URL.createObjectURL(audioBlob);
+      audioUrl = URL.createObjectURL(audioBlob);
       
-      audio = new Audio();
+      audio = new Audio(audioUrl);
       
-      // Set up event handlers before setting the source
+      // Set up event handlers before playing
       audio.onended = () => {
+        console.log('Audio playback completed successfully');
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
         setIsPlaying(null);
-        URL.revokeObjectURL(audioUrl);
       };
 
       audio.onerror = (e) => {
         console.error('Audio playback error:', e);
-        throw new Error('Failed to play audio');
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
+        setIsPlaying(null);
+        toast({
+          title: "Preview Failed",
+          description: "Failed to play voice preview. Please try again.",
+          variant: "destructive",
+        });
       };
 
-      // Set the source and load the audio
-      audio.src = audioUrl;
-      await audio.load();
-      
-      console.log('Playing audio preview');
+      // Load and play the audio
       await audio.play();
+      console.log('Audio playback started successfully');
     } catch (error) {
       console.error('Preview voice error:', error);
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+      setIsPlaying(null);
       toast({
         title: "Preview Failed",
         description: "Failed to play voice preview. Please try again.",
         variant: "destructive",
       });
-      setIsPlaying(null);
       
       if (audio) {
         audio.pause();
