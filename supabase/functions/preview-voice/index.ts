@@ -28,7 +28,8 @@ serve(async (req) => {
     const testResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
       headers: {
         'Accept': 'application/json',
-        'xi-api-key': apiKey
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json'
       }
     })
 
@@ -77,12 +78,18 @@ serve(async (req) => {
     })
   } catch (error) {
     console.error('Preview voice error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      },
-      status: 400
-    })
+    return new Response(
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack 
+      }), 
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: 400
+      }
+    )
   }
 })
