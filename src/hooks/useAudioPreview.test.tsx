@@ -164,6 +164,9 @@ describe('useAudioPreview', () => {
     // Mock URL creation
     mockCreateObjectURL.mockReturnValue('blob:mock-url');
 
+    // Create an error event
+    const errorEvent = new Event('error');
+
     // Mock failed audio playback
     (mockAudio.play as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Audio playback failed'));
 
@@ -172,6 +175,11 @@ describe('useAudioPreview', () => {
     // Trigger preview
     await act(async () => {
       await result.current.playPreview(mockVoiceId);
+    });
+
+    // Simulate error event
+    act(() => {
+      if (mockAudio.onerror) mockAudio.onerror(errorEvent);
     });
 
     // Verify error handling
