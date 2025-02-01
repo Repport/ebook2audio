@@ -91,7 +91,29 @@ const Index = () => {
   };
 
   const handleDownload = () => {
-    // In a real implementation, this would download the actual converted file
+    if (!selectedFile) return;
+
+    // Create a dummy audio blob (in a real app this would be the actual converted audio)
+    const dummyAudioBlob = new Blob(['dummy audio content'], { type: 'audio/mp3' });
+    
+    // Create a download link
+    const url = window.URL.createObjectURL(dummyAudioBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Set the filename based on the original file
+    const originalName = selectedFile.name;
+    const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
+    link.download = `${baseName}.mp3`;
+    
+    // Trigger the download
+    document.body.appendChild(link);
+    link.click();
+    
+    // Clean up
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
     toast({
       title: "Download started",
       description: "Your MP3 file will download shortly",
