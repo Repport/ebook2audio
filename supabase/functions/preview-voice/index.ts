@@ -21,6 +21,8 @@ serve(async (req) => {
       throw new Error('ElevenLabs API key is missing')
     }
 
+    console.log('API Key found, length:', apiKey.length)
+
     // First, let's test the API connection by getting voice settings
     console.log('Testing API connection...')
     const testResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
