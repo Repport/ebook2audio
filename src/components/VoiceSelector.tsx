@@ -34,37 +34,50 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
         throw new Error('No audio data received')
       }
 
-      const audioBlob = new Blob([data], { type: 'audio/mpeg' })
-      const audioUrl = URL.createObjectURL(audioBlob)
-      audio = new Audio(audioUrl)
-      
-      audio.onended = () => {
-        setIsPlaying(null)
-        URL.revokeObjectURL(audioUrl)
+      // Convert base64 to binary
+      const binaryString = atob(data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
       }
 
-      audio.onerror = (e) => {
-        console.error('Audio playback error:', e)
-        throw new Error('Failed to play audio')
-      }
+      const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(audioBlob);
       
-      console.log('Playing audio preview')
-      await audio.play()
+      audio = new Audio();
+      
+      // Set up event handlers before setting the source
+      audio.onended = () => {
+        setIsPlaying(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
+        throw new Error('Failed to play audio');
+      };
+
+      // Set the source and load the audio
+      audio.src = audioUrl;
+      await audio.load();
+      
+      console.log('Playing audio preview');
+      await audio.play();
     } catch (error) {
-      console.error('Preview voice error:', error)
+      console.error('Preview voice error:', error);
       toast({
         title: "Preview Failed",
         description: "Failed to play voice preview. Please try again.",
         variant: "destructive",
-      })
-      setIsPlaying(null)
+      });
+      setIsPlaying(null);
       
       if (audio) {
-        audio.pause()
-        audio.src = ''
+        audio.pause();
+        audio.src = '';
       }
     }
-  }
+  };
 
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -107,7 +120,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
         </div>
       </RadioGroup>
     </div>
-  )
-}
+  );
+};
 
-export default VoiceSelector
+export default VoiceSelector;
