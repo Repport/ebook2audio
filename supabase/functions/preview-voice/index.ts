@@ -1,7 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { corsHeaders } from '../_shared/cors.ts'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -17,7 +22,9 @@ serve(async (req) => {
     }
 
     console.log('Making request to ElevenLabs API...')
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
+    
+    // Using the non-streaming endpoint for simplicity
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
@@ -41,10 +48,10 @@ serve(async (req) => {
     }
 
     console.log('Successfully received response from ElevenLabs')
-    const audioData = await response.arrayBuffer()
-    console.log('Successfully processed audio data, size:', audioData.byteLength)
-    
-    return new Response(audioData, {
+    const audioBuffer = await response.arrayBuffer()
+    console.log('Audio buffer size:', audioBuffer.byteLength)
+
+    return new Response(audioBuffer, {
       headers: {
         ...corsHeaders,
         'Content-Type': 'audio/mpeg'
