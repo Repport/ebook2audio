@@ -72,6 +72,8 @@ vi.stubGlobal('URL', {
 vi.stubGlobal('atob', mockAtob);
 
 describe('useAudioPreview', () => {
+  const mockVoiceId = 'test-voice-id';
+  
   beforeEach(() => {
     vi.clearAllMocks();
     (mockAudio.play as ReturnType<typeof vi.fn>).mockReset();
@@ -81,7 +83,6 @@ describe('useAudioPreview', () => {
 
   it('should handle successful audio preview', async () => {
     const mockAudioContent = 'mock-audio-content';
-    const mockVoiceId = 'test-voice-id';
     
     // Mock the base64 to binary conversion
     mockAtob.mockReturnValue('binary-data');
@@ -128,8 +129,6 @@ describe('useAudioPreview', () => {
   });
 
   it('should handle API error with quota exceeded', async () => {
-    const mockVoiceId = 'test-voice-id';
-    
     // Mock API error response
     (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: null,
@@ -150,7 +149,6 @@ describe('useAudioPreview', () => {
 
   it('should handle audio playback error', async () => {
     const mockAudioContent = 'mock-audio-content';
-    const mockVoiceId = 'test-voice-id';
     
     // Mock successful API response
     (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
