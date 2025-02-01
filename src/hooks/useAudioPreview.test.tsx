@@ -57,8 +57,14 @@ declare global {
   }
 }
 
+// Create a mock Audio constructor that returns our mockAudio
+const MockAudio = vi.fn((src?: string) => {
+  mockAudio.src = src || '';
+  return mockAudio;
+});
+
 // Assign mocks to global object
-vi.stubGlobal('Audio', vi.fn(() => mockAudio));
+vi.stubGlobal('Audio', MockAudio);
 vi.stubGlobal('URL', {
   createObjectURL: mockCreateObjectURL,
   revokeObjectURL: mockRevokeObjectURL,
@@ -111,7 +117,7 @@ describe('useAudioPreview', () => {
     });
 
     // Verify audio setup
-    expect(vi.mocked(Audio)).toHaveBeenCalledWith('blob:mock-url');
+    expect(MockAudio).toHaveBeenCalledWith('blob:mock-url');
     expect(mockAudio.play).toHaveBeenCalled();
 
     // Simulate playback end

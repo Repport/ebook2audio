@@ -1,4 +1,4 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,23 +42,6 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('ElevenLabs API error response:', errorText)
-      
-      // Parse error response to check for quota exceeded
-      try {
-        const errorJson = JSON.parse(errorText)
-        if (errorJson.detail?.status === 'quota_exceeded') {
-          return new Response(
-            JSON.stringify({ error: 'quota exceeded' }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 429
-            }
-          )
-        }
-      } catch (e) {
-        // If error parsing fails, continue with generic error
-      }
-      
       throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`)
     }
 
