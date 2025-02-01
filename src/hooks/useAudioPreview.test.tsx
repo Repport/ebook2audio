@@ -2,6 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useAudioPreview } from './useAudioPreview';
 import { supabase } from "@/integrations/supabase/client";
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import type { Mock } from 'vitest';
 
 // Mock the supabase client
 vi.mock("@/integrations/supabase/client", () => ({
@@ -29,7 +30,7 @@ const mockAtob = vi.fn();
 // Define global types for the mocks
 declare global {
   interface Window {
-    Audio: jest.Mock;
+    Audio: Mock;
     URL: {
       createObjectURL: typeof mockCreateObjectURL;
       revokeObjectURL: typeof mockRevokeObjectURL;
@@ -59,7 +60,7 @@ describe('useAudioPreview', () => {
     mockAtob.mockReturnValue('binary-data');
     
     // Mock successful API response
-    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (supabase.functions.invoke as Mock).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
@@ -103,7 +104,7 @@ describe('useAudioPreview', () => {
     const mockVoiceId = 'test-voice-id';
     
     // Mock API error response
-    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (supabase.functions.invoke as Mock).mockResolvedValue({
       data: null,
       error: { message: 'quota exceeded' }
     });
@@ -125,7 +126,7 @@ describe('useAudioPreview', () => {
     const mockVoiceId = 'test-voice-id';
     
     // Mock successful API response
-    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (supabase.functions.invoke as Mock).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
