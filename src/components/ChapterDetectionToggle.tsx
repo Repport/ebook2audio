@@ -9,7 +9,7 @@ interface ChapterDetectionToggleProps {
 
 const ChapterDetectionToggle = ({ detectChapters, onToggle }: ChapterDetectionToggleProps) => {
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center justify-center space-x-2">
       <Switch
         id="chapter-detection"
         checked={detectChapters}
