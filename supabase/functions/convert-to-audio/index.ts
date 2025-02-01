@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,11 +10,11 @@ const MODEL_ID = "eleven_monolingual_v1";
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Starting file conversion process');
+    console.log('Starting text to speech conversion');
     const { voiceId, text } = await req.json();
 
     if (!voiceId || !text) {
