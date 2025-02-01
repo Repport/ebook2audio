@@ -4,12 +4,13 @@ import { Loader2 } from 'lucide-react';
 interface ConversionStatusProps {
   status: 'idle' | 'converting' | 'completed' | 'error';
   progress?: number;
+  fileType?: 'PDF' | 'EPUB';
 }
 
-const ConversionStatus = ({ status, progress = 0 }: ConversionStatusProps) => {
+const ConversionStatus = ({ status, progress = 0, fileType = 'EPUB' }: ConversionStatusProps) => {
   const statusMessages = {
     idle: 'Ready to convert',
-    converting: 'Converting your EPUB to MP3...',
+    converting: `Converting your ${fileType} to MP3...`,
     completed: 'Conversion completed!',
     error: 'Conversion failed'
   };

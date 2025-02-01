@@ -13,9 +13,13 @@ const Index = () => {
   const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL'); // Default to Sarah (female)
   const { toast } = useToast();
 
+  const getFileType = (fileName: string): 'PDF' | 'EPUB' => {
+    return fileName.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB';
+  };
+
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
-    const fileType = file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB';
+    const fileType = getFileType(file.name);
     toast({
       title: "File selected",
       description: `${file.name} (${fileType}) is ready for conversion`,
@@ -84,7 +88,11 @@ const Index = () => {
                 onVoiceChange={handleVoiceChange}
               />
               
-              <ConversionStatus status={conversionStatus} progress={progress} />
+              <ConversionStatus 
+                status={conversionStatus} 
+                progress={progress}
+                fileType={getFileType(selectedFile.name)}
+              />
               
               <div className="flex justify-center mt-6 space-x-4">
                 {conversionStatus === 'idle' && (
