@@ -18,10 +18,16 @@ serve(async (req) => {
     const apiKey = Deno.env.get('ELEVEN_LABS_API_KEY')
     if (!apiKey) {
       console.error('ElevenLabs API key is not configured')
-      throw new Error('ElevenLabs API key is missing')
+      return new Response(
+        JSON.stringify({ error: 'ElevenLabs API key is missing' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
-    console.log('Making request to ElevenLabs API with configured API key...')
+    console.log('Making request to ElevenLabs API...')
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: {
@@ -86,7 +92,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error.message }),
       {
-        status: 400,
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
