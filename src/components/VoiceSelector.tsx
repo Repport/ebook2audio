@@ -17,19 +17,26 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
 
   const previewVoice = async (voiceId: string, name: string) => {
     setIsPlaying(voiceId);
+    let audio: HTMLAudioElement | null = null;
+    
     try {
+      console.log('Starting voice preview for:', voiceId)
       const { data, error } = await supabase.functions.invoke('preview-voice', {
         body: { voiceId }
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase function error:', error)
+        throw error
+      }
 
-      const response = await fetch(data)
-      if (!response.ok) throw new Error('Failed to fetch audio data')
+      if (!data) {
+        throw new Error('No audio data received')
+      }
 
-      const audioBlob = await response.blob()
+      const audioBlob = new Blob([data], { type: 'audio/mpeg' })
       const audioUrl = URL.createObjectURL(audioBlob)
-      const audio = new Audio(audioUrl)
+      audio = new Audio(audioUrl)
       
       audio.onended = () => {
         setIsPlaying(null)
@@ -41,6 +48,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
         throw new Error('Failed to play audio')
       }
       
+      console.log('Playing audio preview')
       await audio.play()
     } catch (error) {
       console.error('Preview voice error:', error)
@@ -50,6 +58,11 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
         variant: "destructive",
       })
       setIsPlaying(null)
+      
+      if (audio) {
+        audio.pause()
+        audio.src = ''
+      }
     }
   }
 

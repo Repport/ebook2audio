@@ -8,8 +8,9 @@ serve(async (req) => {
 
   try {
     const { voiceId } = await req.json()
+    console.log('Previewing voice:', voiceId)
 
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
@@ -32,6 +33,7 @@ serve(async (req) => {
     }
 
     const audioData = await response.arrayBuffer()
+    console.log('Successfully generated audio preview')
     
     return new Response(audioData, {
       headers: {
