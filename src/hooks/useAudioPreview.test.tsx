@@ -13,14 +13,34 @@ vi.mock("@/integrations/supabase/client", () => ({
   }
 }));
 
-// Mock the Audio API
+// Mock the Audio API with minimal required properties
 const mockAudio = {
   play: vi.fn(),
   pause: vi.fn(),
   onended: null as (() => void) | null,
   onerror: null as ((e: Event) => void) | null,
-  src: ''
-};
+  src: '',
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  // Add minimal required properties to satisfy HTMLAudioElement interface
+  NETWORK_EMPTY: 0,
+  NETWORK_IDLE: 1,
+  NETWORK_LOADING: 2,
+  NETWORK_NO_SOURCE: 3,
+  HAVE_NOTHING: 0,
+  HAVE_METADATA: 1,
+  HAVE_CURRENT_DATA: 2,
+  HAVE_FUTURE_DATA: 3,
+  HAVE_ENOUGH_DATA: 4,
+  error: null,
+  networkState: 0,
+  readyState: 0,
+  seeking: false,
+  currentTime: 0,
+  duration: 0,
+  paused: true,
+  ended: false,
+} as unknown as HTMLAudioElement;
 
 // Setup global mocks
 const mockCreateObjectURL = vi.fn();
@@ -29,17 +49,21 @@ const mockAtob = vi.fn();
 
 // Define global types for the mocks
 declare global {
-  var Audio: Mock;
+  var Audio: {
+    new (src?: string): HTMLAudioElement;
+  };
   var URL: {
-    createObjectURL: typeof mockCreateObjectURL;
-    revokeObjectURL: typeof mockRevokeObjectURL;
+    createObjectURL(obj: Blob | MediaSource): string;
+    revokeObjectURL(url: string): void;
   };
 }
 
 // Assign mocks to global object
-globalThis.Audio = vi.fn(() => mockAudio);
-globalThis.URL.createObjectURL = mockCreateObjectURL;
-globalThis.URL.revokeObjectURL = mockRevokeObjectURL;
+globalThis.Audio = vi.fn(() => mockAudio) as unknown as { new (src?: string): HTMLAudioElement };
+globalThis.URL = {
+  createObjectURL: mockCreateObjectURL,
+  revokeObjectURL: mockRevokeObjectURL
+};
 vi.stubGlobal('atob', mockAtob);
 
 describe('useAudioPreview', () => {
