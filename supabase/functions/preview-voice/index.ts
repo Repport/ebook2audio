@@ -27,6 +27,7 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
+      console.error('ElevenLabs API error:', await response.text())
       throw new Error('Failed to generate voice preview')
     }
 
@@ -39,6 +40,7 @@ serve(async (req) => {
       }
     })
   } catch (error) {
+    console.error('Preview voice error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       headers: {
         ...corsHeaders,

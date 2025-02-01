@@ -18,12 +18,14 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
   const previewVoice = async (voiceId: string, name: string) => {
     setIsPlaying(voiceId);
     try {
-      const { data: { url } } = await supabase.functions.invoke('preview-voice', {
+      const { data, error } = await supabase.functions.invoke('preview-voice', {
         body: { voiceId }
       })
 
-      const response = await fetch(url)
-      if (!response.ok) throw new Error('Failed to generate voice preview')
+      if (error) throw error
+
+      const response = await fetch(data)
+      if (!response.ok) throw new Error('Failed to fetch audio data')
 
       const audioBlob = await response.blob()
       const audioUrl = URL.createObjectURL(audioBlob)
@@ -33,9 +35,15 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
         setIsPlaying(null)
         URL.revokeObjectURL(audioUrl)
       }
+
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e)
+        throw new Error('Failed to play audio')
+      }
       
       await audio.play()
     } catch (error) {
+      console.error('Preview voice error:', error)
       toast({
         title: "Preview Failed",
         description: "Failed to play voice preview. Please try again.",
@@ -89,4 +97,4 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
   )
 }
 
-export default VoiceSelector;
+export default VoiceSelector
