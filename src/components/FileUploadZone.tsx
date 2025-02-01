@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from './ui/button';
 
 interface FileUploadZoneProps {
-  onFileSelect: (file: File) => void;
+  onFileSelect: (file: File | null) => void;
 }
 
 const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
@@ -20,7 +20,16 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
 
-  const validateFile = (file: File): boolean => {
+  const validateFile = (file: File | null): boolean => {
+    if (!file) {
+      toast({
+        title: "Invalid file",
+        description: "No file was provided",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     const fileExtension = file.name.toLowerCase().split('.').pop();
     const validExtensions = ['epub', 'pdf'];
     
@@ -56,7 +65,17 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
+    const file = acceptedFiles[0] || null;
+    
+    if (!file) {
+      toast({
+        title: "Error",
+        description: "No file was received",
+        variant: "destructive",
+      });
+      return;
+    }
+
     console.log('File received:', { name: file.name, size: formatFileSize(file.size) });
     
     if (validateFile(file)) {
@@ -71,7 +90,7 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
-    onFileSelect(null as any);
+    onFileSelect(null);
     toast({
       title: "File removed",
       description: "You can now upload a new file",
