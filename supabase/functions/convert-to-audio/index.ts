@@ -21,6 +21,22 @@ serve(async (req) => {
       throw new Error('ElevenLabs API key is missing');
     }
 
+    // Test API connection first
+    console.log('Testing ElevenLabs API connection...');
+    const testResponse = await fetch('https://api.elevenlabs.io/v1/voices', {
+      headers: {
+        'xi-api-key': apiKey,
+      }
+    });
+
+    if (!testResponse.ok) {
+      const errorText = await testResponse.text();
+      console.error('ElevenLabs API connection test failed:', errorText);
+      throw new Error(`ElevenLabs API connection test failed: ${testResponse.status} ${testResponse.statusText}`);
+    }
+
+    console.log('ElevenLabs API connection test successful');
+
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
