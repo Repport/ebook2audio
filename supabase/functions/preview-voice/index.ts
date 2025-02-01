@@ -12,9 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    const { voiceId } = await req.json()
-    console.log('Previewing voice:', voiceId)
-
     const apiKey = Deno.env.get('ELEVEN_LABS_API_KEY')
     if (!apiKey) {
       console.error('ElevenLabs API key is not configured')
@@ -27,7 +24,32 @@ serve(async (req) => {
       )
     }
 
-    console.log('Making request to ElevenLabs API...')
+    // Test API connection first
+    console.log('Testing ElevenLabs API connection...')
+    const testResponse = await fetch('https://api.elevenlabs.io/v1/voices', {
+      headers: {
+        'xi-api-key': apiKey,
+      }
+    })
+
+    if (!testResponse.ok) {
+      const errorText = await testResponse.text()
+      console.error('ElevenLabs API connection test failed:', errorText)
+      return new Response(
+        JSON.stringify({ error: `ElevenLabs API connection test failed: ${testResponse.status} ${testResponse.statusText}` }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: testResponse.status
+        }
+      )
+    }
+
+    console.log('ElevenLabs API connection test successful')
+
+    // Continue with voice preview if connection test passed
+    const { voiceId } = await req.json()
+    console.log('Previewing voice:', voiceId)
+
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: {
@@ -49,7 +71,6 @@ serve(async (req) => {
       const errorText = await response.text()
       console.error('ElevenLabs API error response:', errorText, 'Status:', response.status)
       
-      // Parse error response to check for specific error types
       try {
         const errorJson = JSON.parse(errorText)
         if (errorJson.detail?.status === 'quota_exceeded') {
@@ -74,10 +95,7 @@ serve(async (req) => {
       )
     }
 
-    // Get the audio data as an array buffer
     const audioBuffer = await response.arrayBuffer()
-    
-    // Convert to base64
     const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)))
 
     return new Response(
