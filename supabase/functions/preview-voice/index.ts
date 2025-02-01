@@ -10,12 +10,19 @@ serve(async (req) => {
     const { voiceId } = await req.json()
     console.log('Previewing voice:', voiceId)
 
+    const apiKey = Deno.env.get('ELEVEN_LABS_API_KEY')
+    if (!apiKey) {
+      console.error('ElevenLabs API key is not configured')
+      throw new Error('ElevenLabs API key is missing')
+    }
+
+    console.log('Making request to ElevenLabs API...')
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
-        'xi-api-key': Deno.env.get('ELEVEN_LABS_API_KEY')!
+        'xi-api-key': apiKey
       },
       body: JSON.stringify({
         text: "Hello! This is a preview of my voice. I hope you like it!",
@@ -28,12 +35,14 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      console.error('ElevenLabs API error:', await response.text())
-      throw new Error('Failed to generate voice preview')
+      const errorText = await response.text()
+      console.error('ElevenLabs API error response:', errorText)
+      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`)
     }
 
+    console.log('Successfully received response from ElevenLabs')
     const audioData = await response.arrayBuffer()
-    console.log('Successfully generated audio preview')
+    console.log('Successfully processed audio data, size:', audioData.byteLength)
     
     return new Response(audioData, {
       headers: {
