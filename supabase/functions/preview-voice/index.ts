@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const PREVIEW_TEXT = "Hello! This is a preview of my voice.";
+const MODEL_ID = "eleven_monolingual_v1";
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -15,13 +18,7 @@ serve(async (req) => {
     const apiKey = Deno.env.get('ELEVEN_LABS_API_KEY')
     if (!apiKey) {
       console.error('ElevenLabs API key is not configured')
-      return new Response(
-        JSON.stringify({ error: 'ElevenLabs API key is missing' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+      throw new Error('ElevenLabs API key is missing');
     }
 
     // Test API connection first
@@ -33,15 +30,9 @@ serve(async (req) => {
     })
 
     if (!testResponse.ok) {
-      const errorText = await testResponse.text()
-      console.error('ElevenLabs API connection test failed:', errorText)
-      return new Response(
-        JSON.stringify({ error: `ElevenLabs API connection test failed: ${testResponse.status} ${testResponse.statusText}` }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: testResponse.status
-        }
-      )
+      const errorText = await testResponse.text();
+      console.error('ElevenLabs API connection test failed:', errorText);
+      throw new Error(`ElevenLabs API connection test failed: ${testResponse.status} ${testResponse.statusText}`);
     }
 
     console.log('ElevenLabs API connection test successful')
@@ -58,8 +49,8 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        text: "Hello! This is a preview of my voice.",
-        model_id: "eleven_monolingual_v1",
+        text: PREVIEW_TEXT,
+        model_id: MODEL_ID,
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.5
@@ -68,31 +59,19 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('ElevenLabs API error response:', errorText, 'Status:', response.status)
+      const errorText = await response.text();
+      console.error('ElevenLabs API error response:', errorText, 'Status:', response.status);
       
       try {
-        const errorJson = JSON.parse(errorText)
+        const errorJson = JSON.parse(errorText);
         if (errorJson.detail?.status === 'quota_exceeded') {
-          return new Response(
-            JSON.stringify({ error: 'quota exceeded' }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 429
-            }
-          )
+          throw new Error('quota exceeded');
         }
       } catch (e) {
-        console.error('Error parsing error response:', e)
+        console.error('Error parsing error response:', e);
       }
       
-      return new Response(
-        JSON.stringify({ error: `ElevenLabs API error: ${response.status} ${response.statusText}` }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: response.status
-        }
-      )
+      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
     }
 
     const audioBuffer = await response.arrayBuffer()
@@ -110,7 +89,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error.message }),
       {
-        status: 500,
+        status: error.message?.includes('quota exceeded') ? 429 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )

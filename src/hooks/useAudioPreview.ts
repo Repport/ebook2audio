@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { previewVoice } from "@/services/voiceService";
 
 export const useAudioPreview = () => {
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
@@ -13,27 +13,7 @@ export const useAudioPreview = () => {
     
     try {
       console.log('Starting voice preview for:', voiceId);
-      const { data, error } = await supabase.functions.invoke('preview-voice', {
-        body: { voiceId }
-      });
-
-      if (error) {
-        console.error('Supabase function error:', error);
-        if (error.message?.includes('quota exceeded')) {
-          toast({
-            title: "API Quota Exceeded",
-            description: "The voice preview feature is currently unavailable due to API limits. Please try again later.",
-            variant: "destructive",
-          });
-        } else {
-          throw error;
-        }
-        return;
-      }
-
-      if (!data?.audioContent) {
-        throw new Error('No audio data received');
-      }
+      const data = await previewVoice(voiceId);
 
       // Convert base64 to blob
       const binaryString = atob(data.audioContent);
@@ -76,9 +56,14 @@ export const useAudioPreview = () => {
         URL.revokeObjectURL(audioUrl);
       }
       setIsPlaying(null);
+
+      const errorMessage = error.message?.includes('quota exceeded')
+        ? "The voice preview feature is currently unavailable due to API limits. Please try again later."
+        : "Failed to play voice preview. Please try again.";
+
       toast({
         title: "Preview Failed",
-        description: "Failed to play voice preview. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       

@@ -2,6 +2,7 @@ import { RadioGroup } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAudioPreview } from "@/hooks/useAudioPreview";
 import VoiceOption from "./VoiceOption";
+import { VOICES } from "@/constants/voices";
 
 interface VoiceSelectorProps {
   selectedVoice: string;
@@ -11,11 +12,6 @@ interface VoiceSelectorProps {
 const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => {
   const { isPlaying, playPreview } = useAudioPreview();
 
-  const voices = [
-    { id: "EXAVITQu4vr4xnSDxMaL", label: "Female (Sarah)" },
-    { id: "IKne3meq5aSn9XLyUdCD", label: "Male (Charlie)" }
-  ];
-
   return (
     <div className="w-full max-w-xl mx-auto">
       <Label className="text-base font-medium mb-4 block text-center">Select Voice Type</Label>
@@ -24,7 +20,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
         onValueChange={onVoiceChange}
         className="flex flex-col items-center gap-4"
       >
-        {voices.map((voice) => (
+        {VOICES.map((voice) => (
           <VoiceOption
             key={voice.id}
             voiceId={voice.id}
