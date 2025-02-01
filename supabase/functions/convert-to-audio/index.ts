@@ -5,8 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const MODEL_ID = "eleven_monolingual_v1";
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -14,16 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting text to speech conversion');
-    const { voiceId, text } = await req.json();
-
-    if (!voiceId || !text) {
-      console.error('Missing required parameters');
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
-    }
+    const { text, voiceId } = await req.json();
+    console.log('Converting text to audio with voice ID:', voiceId);
 
     const apiKey = Deno.env.get('ELEVEN_LABS_API_KEY');
     if (!apiKey) {
@@ -31,25 +21,25 @@ serve(async (req) => {
       throw new Error('ElevenLabs API key is missing');
     }
 
-    console.log('Converting text to speech with ElevenLabs');
-    console.log('Using voice ID:', voiceId);
-    
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'audio/mpeg',
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        text,
-        model_id: MODEL_ID,
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5
-        }
-      })
-    });
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_monolingual_v1",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.5,
+          }
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -58,11 +48,10 @@ serve(async (req) => {
     }
 
     const audioBuffer = await response.arrayBuffer();
-    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
 
-    console.log('Conversion completed successfully');
     return new Response(
-      JSON.stringify({ audioContent: base64Audio }),
+      JSON.stringify({ audioContent: audioBase64 }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
