@@ -14,7 +14,7 @@ export const convertToAudio = async (text: string, voiceId: string): Promise<Arr
     throw new Error('No audio data received');
   }
 
-  // Convert base64 to ArrayBuffer
+  // Convert base64 to ArrayBuffer (same as in preview)
   const binaryString = atob(data.audioContent);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
