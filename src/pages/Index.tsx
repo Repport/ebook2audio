@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import ConversionControls from '@/components/ConversionControls';
+import { convertToAudio } from '@/services/conversionService';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -15,6 +16,7 @@ const Index = () => {
   const [detectChapters, setDetectChapters] = useState(true);
   const [chaptersFound, setChaptersFound] = useState(0);
   const [detectingChapters, setDetectingChapters] = useState(false);
+  const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
   const { toast } = useToast();
 
   const getFileType = (fileName: string): 'PDF' | 'EPUB' => {
@@ -59,23 +61,20 @@ const Index = () => {
     if (!selectedFile) return;
 
     setConversionStatus('converting');
+    setProgress(0);
     
-    if (detectChapters) {
-      await simulateChapterDetection();
-    }
-    
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 500);
+    try {
+      if (detectChapters) {
+        await simulateChapterDetection();
+      }
 
-    setTimeout(() => {
-      clearInterval(interval);
+      // Read the file content
+      const text = await selectedFile.text();
+      
+      // Start conversion
+      const audio = await convertToAudio(text, selectedVoice);
+      setAudioData(audio);
+      
       setConversionStatus('completed');
       setProgress(100);
       toast({
@@ -84,24 +83,31 @@ const Index = () => {
           ? "Your MP3 file is ready for download with chapter markers"
           : "Your MP3 file is ready for download",
       });
-    }, 5000);
+    } catch (error) {
+      console.error('Conversion error:', error);
+      setConversionStatus('error');
+      toast({
+        title: "Conversion failed",
+        description: error.message || "An error occurred during conversion",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDownload = () => {
-    if (!selectedFile) return;
+    if (!audioData) return;
 
-    const dummyAudioBlob = new Blob(['dummy audio content'], { type: 'audio/mp3' });
-    const url = window.URL.createObjectURL(dummyAudioBlob);
+    const blob = new Blob([audioData], { type: 'audio/mpeg' });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     
-    const originalName = selectedFile.name;
+    const originalName = selectedFile?.name || 'converted';
     const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
     link.download = `${baseName}.mp3`;
     
     document.body.appendChild(link);
     link.click();
-    
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
     

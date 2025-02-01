@@ -58,10 +58,7 @@ declare global {
 }
 
 // Create a mock Audio constructor that returns our mockAudio
-const MockAudio = vi.fn((src?: string) => {
-  mockAudio.src = src || '';
-  return mockAudio;
-});
+const MockAudio = vi.fn(() => mockAudio);
 
 // Assign mocks to global object
 vi.stubGlobal('Audio', MockAudio);
@@ -70,7 +67,7 @@ vi.stubGlobal('URL', {
   revokeObjectURL: mockRevokeObjectURL,
   prototype: {} as URL,
   canParse: () => false,
-  parse: (url: string) => new URL(url)
+  parse: (url: string | URL) => new URL(url)
 });
 vi.stubGlobal('atob', mockAtob);
 
