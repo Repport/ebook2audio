@@ -5,12 +5,17 @@ import VoiceSelector from '@/components/VoiceSelector';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL'); // Default to Sarah (female)
+  const [detectChapters, setDetectChapters] = useState(true);
+  const [chaptersFound, setChaptersFound] = useState(0);
+  const [detectingChapters, setDetectingChapters] = useState(false);
   const { toast } = useToast();
 
   const getFileType = (fileName: string): 'PDF' | 'EPUB' => {
@@ -34,10 +39,31 @@ const Index = () => {
     });
   };
 
+  const simulateChapterDetection = () => {
+    setDetectingChapters(true);
+    let chapters = 0;
+    const interval = setInterval(() => {
+      chapters += 1;
+      setChaptersFound(chapters);
+      if (chapters >= 10) {
+        clearInterval(interval);
+        setDetectingChapters(false);
+        toast({
+          title: "Chapters detected",
+          description: `Found ${chapters} chapters in your document`,
+        });
+      }
+    }, 500);
+  };
+
   const handleConversion = async () => {
     if (!selectedFile) return;
 
     setConversionStatus('converting');
+    
+    if (detectChapters) {
+      await simulateChapterDetection();
+    }
     
     // Simulate conversion progress
     const interval = setInterval(() => {
@@ -57,7 +83,9 @@ const Index = () => {
       setProgress(100);
       toast({
         title: "Conversion completed",
-        description: "Your MP3 file is ready for download",
+        description: detectChapters 
+          ? "Your MP3 file is ready for download with chapter markers"
+          : "Your MP3 file is ready for download",
       });
     }, 5000);
   };
@@ -87,11 +115,24 @@ const Index = () => {
                 selectedVoice={selectedVoice} 
                 onVoiceChange={handleVoiceChange}
               />
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="chapter-detection"
+                  checked={detectChapters}
+                  onCheckedChange={setDetectChapters}
+                />
+                <Label htmlFor="chapter-detection">
+                  Detect and mark chapters in audio
+                </Label>
+              </div>
               
               <ConversionStatus 
                 status={conversionStatus} 
                 progress={progress}
                 fileType={getFileType(selectedFile.name)}
+                chaptersFound={chaptersFound}
+                detectingChapters={detectingChapters}
               />
               
               <div className="flex justify-center mt-6 space-x-4">

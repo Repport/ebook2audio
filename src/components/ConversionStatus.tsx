@@ -5,9 +5,17 @@ interface ConversionStatusProps {
   status: 'idle' | 'converting' | 'completed' | 'error';
   progress?: number;
   fileType?: 'PDF' | 'EPUB';
+  chaptersFound?: number;
+  detectingChapters?: boolean;
 }
 
-const ConversionStatus = ({ status, progress = 0, fileType = 'EPUB' }: ConversionStatusProps) => {
+const ConversionStatus = ({ 
+  status, 
+  progress = 0, 
+  fileType = 'EPUB',
+  chaptersFound = 0,
+  detectingChapters = false 
+}: ConversionStatusProps) => {
   const statusMessages = {
     idle: 'Ready to convert',
     converting: `Converting your ${fileType} to MP3...`,
@@ -21,6 +29,11 @@ const ConversionStatus = ({ status, progress = 0, fileType = 'EPUB' }: Conversio
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       )}
       <p className="text-lg font-medium text-gray-900">{statusMessages[status]}</p>
+      {detectingChapters && (
+        <p className="text-sm text-gray-600">
+          Detecting chapters... Found {chaptersFound} chapters
+        </p>
+      )}
       {status === 'converting' && (
         <div className="w-full max-w-xs bg-gray-200 rounded-full h-2.5">
           <div
