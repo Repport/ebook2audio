@@ -1,8 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const convertToAudio = async (text: string, voiceId: string): Promise<ArrayBuffer> => {
+  // Clean and prepare the text
+  const cleanedText = text.trim();
+  console.log('Converting text length:', cleanedText.length);
+
   const { data, error } = await supabase.functions.invoke('convert-to-audio', {
-    body: { text, voiceId }
+    body: { text: cleanedText, voiceId }
   });
 
   if (error) {

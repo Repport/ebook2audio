@@ -13,7 +13,7 @@ serve(async (req) => {
 
   try {
     const { text, voiceId } = await req.json();
-    console.log('Converting text to audio with voice ID:', voiceId);
+    console.log('Converting text length:', text.length, 'with voice ID:', voiceId);
 
     const apiKey = Deno.env.get('ELEVEN_LABS_API_KEY');
     if (!apiKey) {
@@ -37,6 +37,12 @@ serve(async (req) => {
 
     console.log('ElevenLabs API connection test successful');
 
+    // Prepare the text for conversion
+    const cleanedText = text.trim();
+    if (!cleanedText) {
+      throw new Error('No text content to convert');
+    }
+
     // Make the text-to-speech request
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -48,7 +54,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text,
+          text: cleanedText,
           model_id: "eleven_monolingual_v1",
           voice_settings: {
             stability: 0.5,
