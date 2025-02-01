@@ -12,25 +12,65 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
+
+  const validateFile = (file: File): boolean => {
     const fileExtension = file.name.toLowerCase().split('.').pop();
+    const validExtensions = ['epub', 'pdf'];
     
-    if (fileExtension === 'epub' || fileExtension === 'pdf') {
-      setSelectedFile(file);
-      onFileSelect(file);
-    } else {
+    if (!validExtensions.includes(fileExtension || '')) {
       toast({
         title: "Invalid file",
         description: "Please upload an EPUB or PDF file",
         variant: "destructive",
+      });
+      return false;
+    }
+
+    if (file.size === 0) {
+      toast({
+        title: "Invalid file",
+        description: "The file appears to be empty",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Please upload a file smaller than 100MB",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    console.log('File received:', { name: file.name, size: formatFileSize(file.size) });
+    
+    if (validateFile(file)) {
+      setSelectedFile(file);
+      onFileSelect(file);
+      toast({
+        title: "File accepted",
+        description: `${file.name} (${formatFileSize(file.size)}) is ready for conversion`,
       });
     }
   }, [onFileSelect, toast]);
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
-    // Notify parent component that file was removed
     onFileSelect(null as any);
     toast({
       title: "File removed",
@@ -44,7 +84,8 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       'application/epub+zip': ['.epub'],
       'application/pdf': ['.pdf']
     },
-    multiple: false
+    multiple: false,
+    maxSize: 100 * 1024 * 1024 // 100MB
   });
 
   if (selectedFile) {
@@ -57,7 +98,7 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
               <div>
                 <p className="font-medium text-gray-900">{selectedFile.name}</p>
                 <p className="text-sm text-gray-500">
-                  {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                  {formatFileSize(selectedFile.size)}
                 </p>
               </div>
             </div>
@@ -89,6 +130,7 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
             {isDragActive ? 'Drop the file here' : 'Drag & drop your EPUB or PDF file here'}
           </p>
           <p className="text-sm text-gray-500">or click to select a file</p>
+          <p className="mt-2 text-xs text-gray-400">Maximum file size: 100MB</p>
         </div>
       </div>
     </div>
