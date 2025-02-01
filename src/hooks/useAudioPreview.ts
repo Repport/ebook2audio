@@ -31,11 +31,19 @@ export const useAudioPreview = () => {
         return;
       }
 
-      if (!data) {
+      if (!data?.audioContent) {
         throw new Error('No audio data received');
       }
 
-      const audioBlob = new Blob([data], { type: 'audio/mpeg' });
+      // Convert base64 to blob
+      const binaryString = atob(data.audioContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+      
+      // Create URL and audio element
       audioUrl = URL.createObjectURL(audioBlob);
       audio = new Audio(audioUrl);
       
