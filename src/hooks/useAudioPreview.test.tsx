@@ -29,19 +29,17 @@ const mockAtob = vi.fn();
 
 // Define global types for the mocks
 declare global {
-  interface Window {
-    Audio: Mock;
-    URL: {
-      createObjectURL: typeof mockCreateObjectURL;
-      revokeObjectURL: typeof mockRevokeObjectURL;
-    };
-  }
+  var Audio: Mock;
+  var URL: {
+    createObjectURL: typeof mockCreateObjectURL;
+    revokeObjectURL: typeof mockRevokeObjectURL;
+  };
 }
 
 // Assign mocks to global object
-window.Audio = vi.fn().mockImplementation(() => mockAudio);
-window.URL.createObjectURL = mockCreateObjectURL;
-window.URL.revokeObjectURL = mockRevokeObjectURL;
+globalThis.Audio = vi.fn(() => mockAudio);
+globalThis.URL.createObjectURL = mockCreateObjectURL;
+globalThis.URL.revokeObjectURL = mockRevokeObjectURL;
 vi.stubGlobal('atob', mockAtob);
 
 describe('useAudioPreview', () => {
@@ -87,7 +85,7 @@ describe('useAudioPreview', () => {
     });
 
     // Verify audio setup
-    expect(window.Audio).toHaveBeenCalledWith('blob:mock-url');
+    expect(globalThis.Audio).toHaveBeenCalledWith('blob:mock-url');
     expect(mockAudio.play).toHaveBeenCalled();
 
     // Simulate playback end
