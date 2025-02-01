@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Volume2 } from "lucide-react"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/integrations/supabase/client"
 
 interface VoiceSelectorProps {
   selectedVoice: string;
@@ -15,55 +16,34 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
   const { toast } = useToast();
 
   const previewVoice = async (voiceId: string, name: string) => {
-    if (!process.env.ELEVEN_LABS_API_KEY) {
-      toast({
-        title: "API Key Missing",
-        description: "Please set your Eleven Labs API key to preview voices",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsPlaying(voiceId);
     try {
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'audio/mpeg',
-          'Content-Type': 'application/json',
-          'xi-api-key': process.env.ELEVEN_LABS_API_KEY!
-        },
-        body: JSON.stringify({
-          text: "Hello! This is a preview of my voice. I hope you like it!",
-          model_id: "eleven_monolingual_v1",
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.5
-          }
-        })
-      });
+      const { data: { url } } = await supabase.functions.invoke('preview-voice', {
+        body: { voiceId }
+      })
 
-      if (!response.ok) throw new Error('Failed to generate voice preview');
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Failed to generate voice preview')
 
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio(audioUrl)
       
       audio.onended = () => {
-        setIsPlaying(null);
-        URL.revokeObjectURL(audioUrl);
-      };
+        setIsPlaying(null)
+        URL.revokeObjectURL(audioUrl)
+      }
       
-      await audio.play();
+      await audio.play()
     } catch (error) {
       toast({
         title: "Preview Failed",
         description: "Failed to play voice preview. Please try again.",
         variant: "destructive",
-      });
-      setIsPlaying(null);
+      })
+      setIsPlaying(null)
     }
-  };
+  }
 
   return (
     <div className="w-full max-w-xl mx-auto">
