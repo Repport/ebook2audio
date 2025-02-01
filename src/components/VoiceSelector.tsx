@@ -27,7 +27,17 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }: VoiceSelectorProps) => 
 
       if (error) {
         console.error('Supabase function error:', error)
-        throw error
+        // Check for quota exceeded error
+        if (error.message?.includes('quota exceeded')) {
+          toast({
+            title: "API Quota Exceeded",
+            description: "The voice preview feature is currently unavailable due to API limits. Please try again later.",
+            variant: "destructive",
+          });
+        } else {
+          throw error
+        }
+        return
       }
 
       if (!data) {

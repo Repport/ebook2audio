@@ -30,7 +30,7 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        text: "Hello! This is a preview of my voice. I hope you like it!",
+        text: "Hello!", // Reduced text to minimize credit usage
         model_id: "eleven_monolingual_v1",
         voice_settings: {
           stability: 0.5,
@@ -44,6 +44,26 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('ElevenLabs API error response:', errorText)
+      
+      // Parse error response to check for quota exceeded
+      try {
+        const errorJson = JSON.parse(errorText)
+        if (errorJson.detail?.status === 'quota_exceeded') {
+          return new Response(
+            JSON.stringify({ 
+              error: 'API quota exceeded. Please check your ElevenLabs account credits.',
+              details: errorJson.detail.message 
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 429 // Too Many Requests
+            }
+          )
+        }
+      } catch (e) {
+        // If error parsing fails, continue with generic error
+      }
+      
       throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`)
     }
 
