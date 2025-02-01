@@ -21,7 +21,7 @@ serve(async (req) => {
       throw new Error('ElevenLabs API key is missing')
     }
 
-    console.log('Making request to ElevenLabs API...')
+    console.log('Making request to ElevenLabs API with configured API key...')
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: {
@@ -41,9 +41,9 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('ElevenLabs API error response:', errorText)
+      console.error('ElevenLabs API error response:', errorText, 'Status:', response.status)
       
-      // Parse error response to check for quota exceeded
+      // Parse error response to check for specific error types
       try {
         const errorJson = JSON.parse(errorText)
         if (errorJson.detail?.status === 'quota_exceeded') {
@@ -56,10 +56,16 @@ serve(async (req) => {
           )
         }
       } catch (e) {
-        // If error parsing fails, continue with generic error
+        console.error('Error parsing error response:', e)
       }
       
-      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`)
+      return new Response(
+        JSON.stringify({ error: `ElevenLabs API error: ${response.status} ${response.statusText}` }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: response.status
+        }
+      )
     }
 
     // Get the audio data as an array buffer
