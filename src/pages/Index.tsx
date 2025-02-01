@@ -2,17 +2,16 @@ import React, { useState } from 'react';
 import FileUploadZone from '@/components/FileUploadZone';
 import ConversionStatus from '@/components/ConversionStatus';
 import VoiceSelector from '@/components/VoiceSelector';
-import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import Header from '@/components/Header';
+import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
+import ConversionControls from '@/components/ConversionControls';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
-  const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL'); // Default to Sarah (female)
+  const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL');
   const [detectChapters, setDetectChapters] = useState(true);
   const [chaptersFound, setChaptersFound] = useState(0);
   const [detectingChapters, setDetectingChapters] = useState(false);
@@ -39,7 +38,7 @@ const Index = () => {
     });
   };
 
-  const simulateChapterDetection = () => {
+  const simulateChapterDetection = async () => {
     setDetectingChapters(true);
     let chapters = 0;
     const interval = setInterval(() => {
@@ -65,7 +64,6 @@ const Index = () => {
       await simulateChapterDetection();
     }
     
-    // Simulate conversion progress
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
@@ -76,7 +74,6 @@ const Index = () => {
       });
     }, 500);
 
-    // Simulate conversion process
     setTimeout(() => {
       clearInterval(interval);
       setConversionStatus('completed');
@@ -93,24 +90,18 @@ const Index = () => {
   const handleDownload = () => {
     if (!selectedFile) return;
 
-    // Create a dummy audio blob (in a real app this would be the actual converted audio)
     const dummyAudioBlob = new Blob(['dummy audio content'], { type: 'audio/mp3' });
-    
-    // Create a download link
     const url = window.URL.createObjectURL(dummyAudioBlob);
     const link = document.createElement('a');
     link.href = url;
     
-    // Set the filename based on the original file
     const originalName = selectedFile.name;
     const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
     link.download = `${baseName}.mp3`;
     
-    // Trigger the download
     document.body.appendChild(link);
     link.click();
     
-    // Clean up
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
     
@@ -123,10 +114,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-12 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">eBook to MP3 Converter</h1>
-          <p className="text-lg text-gray-600">Convert your EPUB and PDF books to MP3 audio files</p>
-        </div>
+        <Header />
 
         <div className="space-y-8">
           <FileUploadZone onFileSelect={handleFileSelect} />
@@ -138,16 +126,10 @@ const Index = () => {
                 onVoiceChange={handleVoiceChange}
               />
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="chapter-detection"
-                  checked={detectChapters}
-                  onCheckedChange={setDetectChapters}
-                />
-                <Label htmlFor="chapter-detection">
-                  Detect and mark chapters in audio
-                </Label>
-              </div>
+              <ChapterDetectionToggle 
+                detectChapters={detectChapters}
+                onToggle={setDetectChapters}
+              />
               
               <ConversionStatus 
                 status={conversionStatus} 
@@ -157,20 +139,11 @@ const Index = () => {
                 detectingChapters={detectingChapters}
               />
               
-              <div className="flex justify-center mt-6 space-x-4">
-                {conversionStatus === 'idle' && (
-                  <Button onClick={handleConversion} className="bg-primary hover:bg-primary/90">
-                    Start Conversion
-                  </Button>
-                )}
-                
-                {conversionStatus === 'completed' && (
-                  <Button onClick={handleDownload} className="bg-primary hover:bg-primary/90">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download MP3
-                  </Button>
-                )}
-              </div>
+              <ConversionControls 
+                status={conversionStatus}
+                onConvert={handleConversion}
+                onDownload={handleDownload}
+              />
             </div>
           )}
         </div>
