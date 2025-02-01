@@ -21,10 +21,26 @@ const mockAudio = {
   src: ''
 };
 
+// Setup global mocks
+const mockCreateObjectURL = vi.fn();
+const mockRevokeObjectURL = vi.fn();
+const mockAtob = vi.fn();
+
+// Define global types for the mocks
+declare global {
+  var Audio: any;
+  var URL: {
+    createObjectURL: typeof mockCreateObjectURL;
+    revokeObjectURL: typeof mockRevokeObjectURL;
+  };
+  var atob: typeof mockAtob;
+}
+
+// Assign mocks to global object
 global.Audio = vi.fn().mockImplementation(() => mockAudio);
-global.URL.createObjectURL = vi.fn();
-global.URL.revokeObjectURL = vi.fn();
-global.atob = vi.fn();
+global.URL.createObjectURL = mockCreateObjectURL;
+global.URL.revokeObjectURL = mockRevokeObjectURL;
+global.atob = mockAtob;
 
 describe('useAudioPreview', () => {
   beforeEach(() => {
@@ -39,16 +55,16 @@ describe('useAudioPreview', () => {
     const mockVoiceId = 'test-voice-id';
     
     // Mock the base64 to binary conversion
-    global.atob.mockReturnValue('binary-data');
+    mockAtob.mockReturnValue('binary-data');
     
     // Mock successful API response
-    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
 
     // Mock URL creation
-    global.URL.createObjectURL.mockReturnValue('blob:mock-url');
+    mockCreateObjectURL.mockReturnValue('blob:mock-url');
 
     // Mock successful audio playback
     mockAudio.play.mockResolvedValue(undefined);
@@ -78,7 +94,7 @@ describe('useAudioPreview', () => {
     });
 
     // Verify cleanup
-    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+    expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
     expect(result.current.isPlaying).toBe(null);
   });
 
@@ -86,7 +102,7 @@ describe('useAudioPreview', () => {
     const mockVoiceId = 'test-voice-id';
     
     // Mock API error response
-    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: null,
       error: { message: 'quota exceeded' }
     });
@@ -108,13 +124,13 @@ describe('useAudioPreview', () => {
     const mockVoiceId = 'test-voice-id';
     
     // Mock successful API response
-    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
 
     // Mock URL creation
-    global.URL.createObjectURL.mockReturnValue('blob:mock-url');
+    mockCreateObjectURL.mockReturnValue('blob:mock-url');
 
     // Mock failed audio playback
     mockAudio.play.mockRejectedValue(new Error('Audio playback failed'));
@@ -128,6 +144,6 @@ describe('useAudioPreview', () => {
 
     // Verify error handling
     expect(result.current.isPlaying).toBe(null);
-    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+    expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
   });
 });
