@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import FileUploadZone from '@/components/FileUploadZone';
 import ConversionStatus from '@/components/ConversionStatus';
+import VoiceSelector from '@/components/VoiceSelector';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -9,6 +10,7 @@ const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
+  const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL'); // Default to Sarah (female)
   const { toast } = useToast();
 
   const handleFileSelect = (file: File) => {
@@ -17,6 +19,14 @@ const Index = () => {
     toast({
       title: "File selected",
       description: `${file.name} (${fileType}) is ready for conversion`,
+    });
+  };
+
+  const handleVoiceChange = (value: string) => {
+    setSelectedVoice(value);
+    toast({
+      title: "Voice updated",
+      description: `Voice has been updated to ${value === 'EXAVITQu4vr4xnSDxMaL' ? 'Sarah' : 'Charlie'}`,
     });
   };
 
@@ -68,7 +78,12 @@ const Index = () => {
           <FileUploadZone onFileSelect={handleFileSelect} />
 
           {selectedFile && (
-            <div className="animate-fade-up">
+            <div className="animate-fade-up space-y-8">
+              <VoiceSelector 
+                selectedVoice={selectedVoice} 
+                onVoiceChange={handleVoiceChange}
+              />
+              
               <ConversionStatus status={conversionStatus} progress={progress} />
               
               <div className="flex justify-center mt-6 space-x-4">
