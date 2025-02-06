@@ -18,24 +18,22 @@ serve(async (req) => {
     const apiKey = Deno.env.get('ELEVEN_LABS_API_KEY');
     if (!apiKey) {
       console.error('ElevenLabs API key is not configured');
-      throw new Error('ElevenLabs API key is missing');
+      throw new Error('ElevenLabs API key is missing. Please configure it in Supabase Edge Function secrets.');
     }
 
-    // Test API connection first
-    console.log('Testing ElevenLabs API connection...');
+    // Test API connection first with a simpler endpoint
     const testResponse = await fetch('https://api.elevenlabs.io/v1/voices', {
       headers: {
         'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
       }
     });
 
     if (!testResponse.ok) {
       const errorText = await testResponse.text();
-      console.error('ElevenLabs API connection test failed:', errorText);
-      throw new Error(`ElevenLabs API connection test failed: ${testResponse.status} ${testResponse.statusText}`);
+      console.error('ElevenLabs API test failed:', errorText);
+      throw new Error(`Invalid ElevenLabs API key or API error. Please verify your API key.`);
     }
-
-    console.log('ElevenLabs API connection test successful');
 
     // Prepare the text for conversion
     const cleanedText = text.trim();
@@ -66,8 +64,8 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs API error:', errorText);
-      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
+      console.error('ElevenLabs conversion failed:', errorText);
+      throw new Error(`ElevenLabs conversion failed: ${response.status} ${response.statusText}`);
     }
 
     const audioBuffer = await response.arrayBuffer();
@@ -83,7 +81,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
-        status: error.message?.includes('401') ? 401 : 500,
+        status: error.message?.includes('API key') ? 401 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
