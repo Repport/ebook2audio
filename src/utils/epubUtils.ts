@@ -15,7 +15,11 @@ export const extractEpubText = async (file: File): Promise<string> => {
     for (const spineItem of spine) {
       try {
         const contents = await book.load(spineItem.href);
-        const doc = new DOMParser().parseFromString(contents, 'text/html');
+        // Ensure contents is a string before parsing
+        const contentString = contents instanceof Document ? 
+          contents.documentElement.outerHTML : 
+          contents.toString();
+        const doc = new DOMParser().parseFromString(contentString, 'text/html');
         fullText += doc.body.textContent + '\n\n';
       } catch (error) {
         console.warn(`Failed to load spine item: ${spineItem.href}`, error);
