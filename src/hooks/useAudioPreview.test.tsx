@@ -103,6 +103,11 @@ describe('useAudioPreview', () => {
     // Verify initial state
     expect(result.current.isPlaying).toBe(null);
 
+    // Call playPreview with required voiceId argument
+    await act(async () => {
+      await result.current.playPreview('test-voice-id');
+    });
+
     // Simulate playback end
     act(() => {
       if (mockAudio.onended) mockAudio.onended();
@@ -121,6 +126,11 @@ describe('useAudioPreview', () => {
     });
 
     const { result } = renderHook(() => useAudioPreview());
+
+    // Call playPreview with required voiceId argument
+    await act(async () => {
+      await result.current.playPreview('test-voice-id');
+    });
 
     // Verify error handling
     expect(result.current.isPlaying).toBe(null);
@@ -146,6 +156,11 @@ describe('useAudioPreview', () => {
     (mockAudio.play as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Audio playback failed'));
 
     const { result } = renderHook(() => useAudioPreview());
+
+    // Call playPreview with required voiceId argument
+    await act(async () => {
+      await result.current.playPreview('test-voice-id');
+    });
 
     // Simulate error event
     act(() => {

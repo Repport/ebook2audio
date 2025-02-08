@@ -41,12 +41,12 @@ serve(async (req) => {
       throw new Error('No text content to convert');
     }
 
-    // Prepare request to Google Cloud Text-to-Speech API
+    // Prepare request to Google Cloud Text-to-Speech API using standard voice
     const requestBody = {
       input: { text: cleanedText },
       voice: {
         languageCode: 'en-US',
-        name: 'en-US-Neural2-F', // Female voice
+        name: 'en-US-Standard-C', // Standard female voice instead of Neural
         ssmlGender: 'FEMALE'
       },
       audioConfig: {
@@ -101,3 +101,4 @@ serve(async (req) => {
     );
   }
 });
+
