@@ -1,23 +1,50 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createJWT } from "https://deno.land/x/djwt@v2.8/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const chunks: string[] = [];
-  const chunkSize = 8192;
-  const uint8Array = new Uint8Array(buffer);
-  
-  for (let i = 0; i < uint8Array.length; i += chunkSize) {
-    const chunk = uint8Array.slice(i, i + chunkSize);
-    const binary = String.fromCharCode.apply(null, [...chunk]);
-    chunks.push(btoa(binary));
+async function getAccessToken(credentials: any): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const client_email = credentials.client_email;
+  const private_key = credentials.private_key;
+
+  // Create JWT
+  const jwt = await createJWT({
+    header: { alg: "RS256", typ: "JWT" },
+    payload: {
+      iss: client_email,
+      scope: 'https://www.googleapis.com/auth/cloud-platform',
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: now + 3600,
+      iat: now,
+    },
+    key: private_key,
+  });
+
+  // Exchange JWT for access token
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    const error = await tokenResponse.text();
+    console.error('Failed to get access token:', error);
+    throw new Error('Failed to get access token');
   }
-  
-  return chunks.join('');
+
+  const { access_token } = await tokenResponse.json();
+  return access_token;
 }
 
 serve(async (req) => {
@@ -34,6 +61,9 @@ serve(async (req) => {
       console.error('Google Cloud credentials are not configured');
       throw new Error('Google Cloud credentials are missing');
     }
+
+    const parsedCredentials = JSON.parse(credentials);
+    const accessToken = await getAccessToken(parsedCredentials);
 
     // Clean and prepare the text
     const cleanedText = text.trim();
@@ -63,7 +93,7 @@ serve(async (req) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${JSON.parse(credentials).private_key}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify(requestBody),
       }
@@ -77,17 +107,10 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    
-    // Google Cloud returns base64 directly, but we need to decode it first
-    // to get the actual audio buffer for our player
-    const audioBuffer = Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0)).buffer;
-    
-    // Convert back to our expected format
-    const audioBase64 = arrayBufferToBase64(audioBuffer);
     console.log('Audio data processed, sending response...');
 
     return new Response(
-      JSON.stringify({ audioContent: audioBase64 }),
+      JSON.stringify({ audioContent: data.audioContent }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
