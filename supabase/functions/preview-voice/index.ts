@@ -75,11 +75,22 @@ serve(async (req) => {
     const parsedCredentials = JSON.parse(credentials);
     console.log('Credentials parsed successfully');
 
-    const { voiceId } = await req.json();
-    if (!voiceId) {
-      throw new Error('Voice ID is required');
+    const requestData = await req.json();
+    console.log('Request data:', requestData);
+
+    if (!requestData || typeof requestData.voiceId !== 'string') {
+      console.error('Invalid or missing voiceId in request');
+      throw new Error('Invalid voice ID format');
     }
+
+    const { voiceId } = requestData;
     console.log('Previewing voice:', voiceId);
+
+    // Validate voiceId format
+    if (!voiceId.startsWith('en-US-Standard-')) {
+      console.error('Invalid voice ID format:', voiceId);
+      throw new Error('Invalid voice ID format');
+    }
 
     const accessToken = await getAccessToken(parsedCredentials);
     console.log('Access token obtained successfully');
