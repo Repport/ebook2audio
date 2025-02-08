@@ -42,6 +42,12 @@ serve(async (req) => {
     const response = await synthesizeSpeech(accessToken, requestBody);
     const data = await response.json();
 
+    if (!data.audioContent) {
+      console.error('No audio content in response:', data);
+      throw new Error('No audio content received from speech service');
+    }
+
+    console.log('Successfully generated audio preview');
     return new Response(
       JSON.stringify({ audioContent: data.audioContent }),
       {

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { previewVoice } from "@/services/voiceService";
@@ -14,9 +15,13 @@ export const useAudioPreview = () => {
     try {
       console.log('Starting voice preview for:', voiceId);
       const data = await previewVoice(voiceId);
+      
+      if (!data.audioContent) {
+        throw new Error('No audio content received');
+      }
 
       // Convert base64 to blob
-      const binaryString = atob(data.audioContent);
+      const binaryString = window.atob(data.audioContent);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
@@ -28,7 +33,7 @@ export const useAudioPreview = () => {
       audio = new Audio(audioUrl);
       
       audio.onended = () => {
-        console.log('Audio playback completed successfully');
+        console.log('Audio playback completed');
         if (audioUrl) {
           URL.revokeObjectURL(audioUrl);
         }
@@ -48,6 +53,7 @@ export const useAudioPreview = () => {
         });
       };
 
+      console.log('Starting audio playback');
       await audio.play();
       console.log('Audio playback started successfully');
     } catch (error) {
