@@ -6,6 +6,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Convert ArrayBuffer to base64 in chunks to prevent stack overflow
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const chunks: string[] = [];
+  const chunkSize = 8192; // Process 8KB at a time
+  const uint8Array = new Uint8Array(buffer);
+  
+  for (let i = 0; i < uint8Array.length; i += chunkSize) {
+    const chunk = uint8Array.slice(i, i + chunkSize);
+    const binary = String.fromCharCode.apply(null, [...chunk]);
+    chunks.push(btoa(binary));
+  }
+  
+  return chunks.join('');
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -78,7 +93,10 @@ serve(async (req) => {
 
     console.log('Conversion successful, processing audio data...');
     const audioBuffer = await response.arrayBuffer();
-    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    console.log('Audio buffer size:', audioBuffer.byteLength, 'bytes');
+    
+    // Use the chunked conversion method
+    const audioBase64 = arrayBufferToBase64(audioBuffer);
     console.log('Audio data processed, sending response...');
 
     return new Response(
