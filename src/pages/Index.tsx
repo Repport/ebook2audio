@@ -8,6 +8,7 @@ import ConversionControls from '@/components/ConversionControls';
 import VoiceSelector from '@/components/VoiceSelector';
 import { convertToAudio } from '@/services/conversionService';
 import { VOICES } from '@/constants/voices';
+import { processFile } from '@/utils/textExtraction';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
