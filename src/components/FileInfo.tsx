@@ -3,6 +3,7 @@ import React from 'react';
 import { FileText, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { formatFileSize } from '@/utils/fileUtils';
+import { processFile } from '@/utils/textExtraction';
 
 interface FileInfoProps {
   file: File;
@@ -15,8 +16,8 @@ const FileInfo = ({ file, onRemove }: FileInfoProps) => {
   React.useEffect(() => {
     const countCharacters = async () => {
       try {
-        const text = await file.text();
-        setCharacterCount(text.length);
+        const result = await processFile(file);
+        setCharacterCount(result.metadata?.totalCharacters || null);
       } catch (error) {
         console.error('Error counting characters:', error);
       }
