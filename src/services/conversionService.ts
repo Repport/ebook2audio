@@ -1,12 +1,13 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
-export const convertToAudio = async (text: string, voiceId: string): Promise<ArrayBuffer> => {
+export const convertToAudio = async (text: string): Promise<ArrayBuffer> => {
   // Clean and prepare the text
   const cleanedText = text.trim();
   console.log('Converting text length:', cleanedText.length);
 
   const { data, error } = await supabase.functions.invoke('convert-to-audio', {
-    body: { text: cleanedText, voiceId }
+    body: { text: cleanedText }
   });
 
   if (error) {
@@ -18,7 +19,7 @@ export const convertToAudio = async (text: string, voiceId: string): Promise<Arr
     throw new Error('No audio data received');
   }
 
-  // Convert base64 to ArrayBuffer (same as in preview)
+  // Convert base64 to ArrayBuffer
   const binaryString = atob(data.audioContent);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {

@@ -1,7 +1,7 @@
+
 import React, { useState } from 'react';
 import FileUploadZone from '@/components/FileUploadZone';
 import ConversionStatus from '@/components/ConversionStatus';
-import VoiceSelector from '@/components/VoiceSelector';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
@@ -12,7 +12,6 @@ const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
-  const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL');
   const [detectChapters, setDetectChapters] = useState(true);
   const [chaptersFound, setChaptersFound] = useState(0);
   const [detectingChapters, setDetectingChapters] = useState(false);
@@ -29,14 +28,6 @@ const Index = () => {
     toast({
       title: "File selected",
       description: `${file.name} (${fileType}) is ready for conversion`,
-    });
-  };
-
-  const handleVoiceChange = (value: string) => {
-    setSelectedVoice(value);
-    toast({
-      title: "Voice updated",
-      description: `Voice has been updated to ${value === 'EXAVITQu4vr4xnSDxMaL' ? 'Sarah' : 'Charlie'}`,
     });
   };
 
@@ -72,7 +63,7 @@ const Index = () => {
       const text = await selectedFile.text();
       
       // Start conversion
-      const audio = await convertToAudio(text, selectedVoice);
+      const audio = await convertToAudio(text);
       setAudioData(audio);
       
       setConversionStatus('completed');
@@ -127,11 +118,6 @@ const Index = () => {
 
           {selectedFile && (
             <div className="animate-fade-up space-y-8">
-              <VoiceSelector 
-                selectedVoice={selectedVoice} 
-                onVoiceChange={handleVoiceChange}
-              />
-
               <ChapterDetectionToggle 
                 detectChapters={detectChapters}
                 onToggle={setDetectChapters}
