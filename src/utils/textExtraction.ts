@@ -20,6 +20,10 @@ export type Chapter = {
 export const processFile = async (file: File): Promise<FileProcessingResult> => {
   const fileType = file.name.toLowerCase().split('.').pop();
   
+  if (!fileType || !['pdf', 'epub'].includes(fileType)) {
+    throw new Error(`Unsupported file type: ${fileType}`);
+  }
+
   try {
     let text = '';
     let chapters: Chapter[] = [];
@@ -78,4 +82,3 @@ function detectLanguage(text: string): string {
   // Always return a language, even if confidence is low
   return result.language;
 }
-

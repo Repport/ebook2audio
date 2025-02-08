@@ -28,6 +28,19 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       return;
     }
 
+    // Get file extension
+    const fileExtension = file.name.toLowerCase().split('.').pop();
+    
+    // Validate file type first
+    if (!['pdf', 'epub'].includes(fileExtension || '')) {
+      toast({
+        title: "Invalid File Type",
+        description: `File type .${fileExtension} is not supported. Please upload a PDF or EPUB file.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const validation = validateFile(file);
     if (!validation.isValid && validation.error) {
       toast({
@@ -42,9 +55,11 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     setIsProcessing(true);
 
     try {
+      const fileType = fileExtension === 'pdf' ? 'PDF' : 'EPUB';
+      
       toast({
         title: "Processing File",
-        description: `Extracting text from ${file.name}...`,
+        description: `Extracting text from ${fileType} file: ${file.name}...`,
       });
       
       const result = await processFile(file);
@@ -59,7 +74,6 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
 
       onFileSelect(textFile);
       
-      const fileType = file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB';
       const languageDisplay = result.metadata?.language 
         ? result.metadata.language.charAt(0).toUpperCase() + result.metadata.language.slice(1)
         : 'Unknown';
