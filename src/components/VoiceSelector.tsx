@@ -25,7 +25,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: Voice
       <RadioGroup
         defaultValue={selectedVoice}
         onValueChange={onVoiceChange}
-        className="flex flex-col items-center gap-4"
+        className="flex justify-center gap-6"
       >
         {availableVoices.map((voice) => (
           <VoiceOption

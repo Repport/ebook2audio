@@ -1,20 +1,20 @@
 
 export const VOICES = {
   english: [
-    { id: "en-US-Standard-C", label: "English - Female (Standard)" },
-    { id: "en-US-Standard-B", label: "English - Male (Standard)" }
+    { id: "en-US-Standard-C", label: "English - Female" },
+    { id: "en-US-Standard-B", label: "English - Male" }
   ],
   spanish: [
-    { id: "es-US-Standard-A", label: "Spanish - Female (Standard)" },
-    { id: "es-US-Standard-B", label: "Spanish - Male (Standard)" }
+    { id: "es-US-Standard-A", label: "Spanish - Female" },
+    { id: "es-US-Standard-B", label: "Spanish - Male" }
   ],
   french: [
-    { id: "fr-FR-Standard-A", label: "French - Female (Standard)" },
-    { id: "fr-FR-Standard-B", label: "French - Male (Standard)" }
+    { id: "fr-FR-Standard-A", label: "French - Female" },
+    { id: "fr-FR-Standard-B", label: "French - Male" }
   ],
   german: [
-    { id: "de-DE-Standard-A", label: "German - Female (Standard)" },
-    { id: "de-DE-Standard-B", label: "German - Male (Standard)" }
+    { id: "de-DE-Standard-A", label: "German - Female" },
+    { id: "de-DE-Standard-B", label: "German - Male" }
   ]
 } as const;
 

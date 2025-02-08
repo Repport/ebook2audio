@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -13,16 +14,17 @@ interface VoiceOptionProps {
 
 const VoiceOption = ({ voiceId, label, isPlaying, onPreview }: VoiceOptionProps) => {
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex items-center space-x-2">
+    <div className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50">
+      <div className="flex items-center gap-2 mb-2">
         <RadioGroupItem value={voiceId} id={voiceId} />
-        <Label htmlFor={voiceId} className="text-sm font-normal">{label}</Label>
+        <Label htmlFor={voiceId} className="text-sm font-medium">{label}</Label>
       </div>
       <Button
         variant="outline"
         size="sm"
         onClick={onPreview}
         disabled={isPlaying}
+        className="w-full"
       >
         <Volume2 className="w-4 h-4 mr-1" />
         {isPlaying ? "Playing..." : "Preview"}
