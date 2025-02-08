@@ -29,13 +29,16 @@ serve(async (req) => {
       throw new Error('No text content to convert');
     }
 
+    // Determine voice gender based on voice ID
+    const ssmlGender = voiceId.includes('Standard-C') ? 'FEMALE' : 'MALE';
+
     // Prepare request to Google Cloud Text-to-Speech API
     const requestBody = {
       input: { text: cleanedText },
       voice: {
         languageCode: 'en-US',
         name: voiceId,
-        ssmlGender: voiceId.includes('Standard-C') ? 'FEMALE' : 'MALE'
+        ssmlGender
       },
       audioConfig: {
         audioEncoding: 'MP3',
@@ -44,7 +47,7 @@ serve(async (req) => {
       }
     };
 
-    console.log('Making request to Google Cloud Text-to-Speech API...');
+    console.log('Making request to Google Cloud Text-to-Speech API with body:', JSON.stringify(requestBody));
     const response = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
       {
@@ -64,6 +67,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    console.log('Successfully received response from Google Cloud API');
     
     // Google Cloud returns base64 directly, but we need to decode it first
     // to get the actual audio buffer for our player
@@ -89,3 +93,4 @@ serve(async (req) => {
     );
   }
 });
+
