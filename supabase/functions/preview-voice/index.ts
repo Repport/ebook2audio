@@ -78,22 +78,13 @@ serve(async (req) => {
     const requestData = await req.json();
     console.log('Request data:', requestData);
 
-    if (!requestData || !requestData.voiceId) {
-      console.error('Invalid request data:', requestData);
-      throw new Error('Invalid request: voiceId is required');
-    }
-
     const { voiceId } = requestData;
-    console.log('Processing request for voice:', voiceId);
-
-    // Validate voiceId format
-    if (!voiceId.match(/^[a-z]{2}-[A-Z]{2}-Standard-[A-Z]$/)) {
-      console.error('Invalid voice ID format:', voiceId);
-      throw new Error('Invalid voice ID format');
+    if (!voiceId) {
+      console.error('No voiceId provided in request data:', requestData);
+      throw new Error('voiceId is required');
     }
 
-    const accessToken = await getAccessToken(parsedCredentials);
-    console.log('Access token obtained successfully');
+    console.log('Processing request for voice:', voiceId);
 
     // Clean and prepare the text
     const PREVIEW_TEXT = "Hello! This is a preview of my voice.";
@@ -102,14 +93,20 @@ serve(async (req) => {
       throw new Error('No text content to convert');
     }
 
-    // Determine voice gender based on voice ID
-    const ssmlGender = voiceId.endsWith('-C') ? 'FEMALE' : 'MALE';
+    const accessToken = await getAccessToken(parsedCredentials);
+    console.log('Access token obtained successfully');
+
+    // Extract language code from voiceId (e.g., "en-US" from "en-US-Standard-A")
+    const languageCode = voiceId.split('-').slice(0, 2).join('-');
+    
+    // Determine voice gender based on the last character of voiceId
+    const ssmlGender = voiceId.endsWith('C') ? 'FEMALE' : 'MALE';
 
     // Prepare request to Google Cloud Text-to-Speech API
     const requestBody = {
       input: { text: cleanedText },
       voice: {
-        languageCode: voiceId.substring(0, 5),
+        languageCode,
         name: voiceId,
         ssmlGender
       },
@@ -168,4 +165,3 @@ serve(async (req) => {
     );
   }
 });
-
