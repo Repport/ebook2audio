@@ -11,12 +11,16 @@ export const extractEpubText = async (file: File): Promise<string> => {
     const spine = await book.loaded.spine;
     let fullText = '';
     
-    // Correctly handle spine items array
-    for (let i = 0; i < spine.length; i++) {
-      const item = spine[i];
-      const contents = await item.load();
-      const doc = new DOMParser().parseFromString(contents, 'text/html');
-      fullText += doc.body.textContent + '\n\n';
+    // Iterate through spine items correctly
+    for (const item of spine.items) {
+      try {
+        const contents = await book.load(item.href);
+        const doc = new DOMParser().parseFromString(contents, 'text/html');
+        fullText += doc.body.textContent + '\n\n';
+      } catch (error) {
+        console.warn(`Failed to load spine item: ${item.href}`, error);
+        continue;
+      }
     }
     
     console.log('EPUB text extraction completed, total length:', fullText.length);
