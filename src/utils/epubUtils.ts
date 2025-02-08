@@ -11,7 +11,9 @@ export const extractEpubText = async (file: File): Promise<string> => {
     const spine = await book.loaded.spine;
     let fullText = '';
     
-    for (const item of spine.items) {
+    // Correctly handle spine items array
+    for (let i = 0; i < spine.length; i++) {
+      const item = spine[i];
       const contents = await item.load();
       const doc = new DOMParser().parseFromString(contents, 'text/html');
       fullText += doc.body.textContent + '\n\n';
