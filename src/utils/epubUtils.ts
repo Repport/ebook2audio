@@ -1,40 +1,26 @@
-
 import ePub, { Book } from 'epubjs';
 import { Chapter } from './textExtraction';
-
-// Define our own Spine interface since epubjs doesn't export it directly
-interface Spine {
-  spineItems: any[];
-  version: string;
-  hooks: any;
-}
-
-// Add type definition for our extended Spine interface
-interface ExtendedSpine extends Spine {
-  load: () => Promise<any>;
-  items: Array<{
-    href: string;
-  }>;
-}
 
 export const extractEpubText = async (file: File): Promise<{ text: string; chapters: Chapter[] }> => {
   try {
     console.log('Starting EPUB text extraction with chapter detection...');
     const arrayBuffer = await file.arrayBuffer();
-    const book = ePub(arrayBuffer) as Book & { spine: ExtendedSpine };
+    const book = ePub(arrayBuffer);
     
     // Wait for book to be ready
     await book.ready;
     
-    // Load the spine properly
-    await book.spine.load();
     let fullText = '';
     const chapters: Chapter[] = [];
     
-    // Iterate through spine items correctly using items array
-    for (const item of book.spine.items) {
+    // Get spine items directly from the book's spine
+    const spine = book.spine;
+    console.log('Spine loaded:', spine);
+    
+    // Iterate through spine items
+    for (const section of spine.spineItems) {
       try {
-        const contents = await book.load(item.href);
+        const contents = await book.load(section.href);
         // Ensure contents is a string before parsing
         const contentString = contents instanceof Document ? 
           contents.documentElement.outerHTML : 
@@ -50,13 +36,18 @@ export const extractEpubText = async (file: File): Promise<{ text: string; chapt
         fullText += text + '\n\n';
         chapters.push(...newChapters);
       } catch (error) {
-        console.warn(`Failed to load spine item: ${item.href}`, error);
+        console.warn(`Failed to load spine item: ${section.href}`, error);
         continue;
       }
     }
     
     console.log('EPUB text extraction completed, total length:', fullText.length);
     console.log('Chapters detected:', chapters.length);
+    
+    if (!fullText.trim()) {
+      throw new Error('No text content extracted from EPUB');
+    }
+    
     return { text: fullText.trim(), chapters };
   } catch (error) {
     console.error('EPUB extraction error:', error);
