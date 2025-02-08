@@ -8,7 +8,13 @@ export type FileProcessingResult = {
     totalCharacters: number;
     processedPages?: number;
     language?: string;
+    chapters?: Chapter[];
   };
+};
+
+export type Chapter = {
+  title: string;
+  startIndex: number;
 };
 
 export const processFile = async (file: File): Promise<FileProcessingResult> => {
@@ -16,26 +22,31 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
   
   try {
     let text = '';
+    let chapters: Chapter[] = [];
     
     switch (fileType) {
       case 'pdf':
-        text = await extractPdfText(file);
+        const pdfResult = await extractPdfText(file);
+        text = pdfResult.text;
+        chapters = pdfResult.chapters;
         break;
       case 'epub':
-        text = await extractEpubText(file);
+        const epubResult = await extractEpubText(file);
+        text = epubResult.text;
+        chapters = epubResult.chapters;
         break;
       default:
         throw new Error(`Unsupported file type: ${fileType}`);
     }
 
-    // Simple language detection based on common words and characters
     const language = detectLanguage(text);
 
     return {
       text,
       metadata: {
         totalCharacters: text.length,
-        language
+        language,
+        chapters
       }
     };
   } catch (error) {
