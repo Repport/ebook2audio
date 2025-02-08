@@ -1,9 +1,11 @@
 
 import React from 'react';
 import { Upload } from 'lucide-react';
-import { DropzoneProps } from 'react-dropzone';
+import { DropzoneProps, DropzoneRootProps, DropzoneInputProps } from 'react-dropzone';
 
-interface CustomDropZoneProps extends Pick<DropzoneProps, 'getRootProps' | 'getInputProps'> {
+interface CustomDropZoneProps {
+  getRootProps: () => DropzoneRootProps;
+  getInputProps: () => DropzoneInputProps;
   isDragActive: boolean;
 }
 
