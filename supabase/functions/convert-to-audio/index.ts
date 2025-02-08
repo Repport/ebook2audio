@@ -7,6 +7,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function cleanText(text: string): string {
+  return text
+    // Replace multiple newlines with a single one
+    .replace(/\n+/g, '\n')
+    // Replace multiple spaces with a single space
+    .replace(/\s+/g, ' ')
+    // Remove any non-printable characters
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+    // Remove common PDF artifacts
+    .replace(/\[pdf\]/gi, '')
+    .replace(/\[page\s*\d*\]/gi, '')
+    // Replace unicode quotes with standard quotes
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    // Add proper punctuation for better speech synthesis
+    .replace(/([.!?])\s*(\w)/g, '$1 $2')
+    // Trim extra whitespace
+    .trim();
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -28,7 +48,9 @@ serve(async (req) => {
     console.log('✅ Successfully obtained access token');
 
     // Clean and prepare the text
-    const cleanedText = text.trim();
+    const cleanedText = cleanText(text);
+    console.log('Cleaned text sample:', cleanedText.substring(0, 100) + '...');
+    
     if (!cleanedText) {
       throw new Error('No text content to convert');
     }
@@ -45,6 +67,8 @@ serve(async (req) => {
         audioEncoding: 'MP3',
         speakingRate: 1.0,
         pitch: 0.0,
+        // Add emphasis on punctuation for better story narration
+        effectsProfileId: ['handset-class-device'],
       }
     };
 
