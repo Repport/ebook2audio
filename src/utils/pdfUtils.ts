@@ -1,6 +1,5 @@
 
 import * as pdfjs from 'pdfjs-dist';
-import { PDFWorker } from 'pdfjs-dist/types/src/display/worker_options';
 
 // Initialize PDF.js worker
 if (typeof window !== 'undefined') {
