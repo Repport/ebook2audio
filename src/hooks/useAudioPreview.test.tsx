@@ -103,9 +103,9 @@ describe('useAudioPreview', () => {
     // Verify initial state
     expect(result.current.isPlaying).toBe(null);
 
-    // Call playPreview with a valid ElevenLabs voice ID
+    // Call playPreview with a valid voice ID
     await act(async () => {
-      await result.current.playPreview('21m00Tcm4TlvDq8ikWAM');
+      await result.current.playPreview('en-US-Standard-C');
     });
 
     // Simulate playback end
@@ -127,9 +127,9 @@ describe('useAudioPreview', () => {
 
     const { result } = renderHook(() => useAudioPreview());
 
-    // Call playPreview with a valid ElevenLabs voice ID
+    // Call playPreview with a valid voice ID
     await act(async () => {
-      await result.current.playPreview('21m00Tcm4TlvDq8ikWAM');
+      await result.current.playPreview('en-US-Standard-C');
     });
 
     // Verify error handling
@@ -157,9 +157,9 @@ describe('useAudioPreview', () => {
 
     const { result } = renderHook(() => useAudioPreview());
 
-    // Call playPreview with a valid ElevenLabs voice ID
+    // Call playPreview with a valid voice ID
     await act(async () => {
-      await result.current.playPreview('21m00Tcm4TlvDq8ikWAM');
+      await result.current.playPreview('en-US-Standard-C');
     });
 
     // Simulate error event
@@ -172,4 +172,3 @@ describe('useAudioPreview', () => {
     expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
   });
 });
-

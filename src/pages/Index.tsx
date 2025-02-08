@@ -18,7 +18,7 @@ const Index = () => {
   const [chaptersFound, setChaptersFound] = useState(0);
   const [detectingChapters, setDetectingChapters] = useState(false);
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState(VOICES[0].id);
+  const [selectedVoice, setSelectedVoice] = useState<string>(VOICES[0].id);
   const { toast } = useToast();
 
   const getFileType = (fileName: string): 'PDF' | 'EPUB' => {
@@ -123,7 +123,7 @@ const Index = () => {
             <div className="animate-fade-up space-y-8">
               <VoiceSelector 
                 selectedVoice={selectedVoice}
-                onVoiceChange={setSelectedVoice}
+                onVoiceChange={(value: string) => setSelectedVoice(value)}
               />
               
               <ChapterDetectionToggle 
