@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -48,7 +49,7 @@ const TermsDialog = ({ open, onClose, onAccept }: TermsDialogProps) => {
               <span className="font-semibold">Liability Disclaimer:</span> Our service does not store, review, or monitor the content of uploaded files. We assume no responsibility for the misuse of the service or any legal claims arising from the processed content.
             </li>
             <li className="text-sm">
-              <span className="font-semibold">Privacy Policy:</span> Uploaded files and generated audio may be automatically deleted after a set period. Please refer to our privacy policy for more details.
+              <span className="font-semibold">Privacy Policy:</span> Uploaded files and generated audio may be automatically deleted after a set period. Please refer to our <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank">privacy policy</Link> for more details.
             </li>
             <li className="text-sm">
               <span className="font-semibold">Terms of Use:</span> We reserve the right to suspend or terminate access to this service in case of misuse or violation of these terms.
