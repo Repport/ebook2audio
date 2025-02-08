@@ -1,4 +1,7 @@
 
+import { extractPdfText } from './pdfUtils';
+import { extractEpubText } from './epubUtils';
+
 export type FileProcessingResult = {
   text: string;
   metadata?: {
@@ -64,3 +67,4 @@ function detectLanguage(text: string): string {
   // Only return a language if we have a reasonable confidence
   return result.score > 3 ? result.language : 'unknown';
 }
+
