@@ -15,7 +15,18 @@ function cleanPrivateKey(key: string): string {
   // Remove any extra whitespace and ensure proper PEM format
   return key
     .replace(/\\n/g, '\n')
-    .replace(/^\s+|\s+$/g, '');
+    .replace(/^\s+|\s+$/g, '')
+    .replace('-----BEGIN PRIVATE KEY-----\n', '')
+    .replace('\n-----END PRIVATE KEY-----', '');
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
 }
 
 export async function getAccessToken(): Promise<string> {
@@ -46,8 +57,9 @@ export async function getAccessToken(): Promise<string> {
       throw new Error('Invalid service account format - missing required fields');
     }
 
-    // Clean and format the private key
-    const privateKey = cleanPrivateKey(credentials.private_key);
+    // Clean and decode the private key
+    const cleanedKey = cleanPrivateKey(credentials.private_key);
+    const keyData = base64ToArrayBuffer(cleanedKey);
     
     // Create the JWT claims
     const claims = {
@@ -62,7 +74,7 @@ export async function getAccessToken(): Promise<string> {
       // Sign the JWT
       const key = await crypto.subtle.importKey(
         'pkcs8',
-        new TextEncoder().encode(privateKey),
+        keyData,
         {
           name: 'RSASSA-PKCS1-v1_5',
           hash: 'SHA-256',
