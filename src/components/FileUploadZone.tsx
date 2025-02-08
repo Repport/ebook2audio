@@ -4,6 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { validateFile } from '@/utils/fileUtils';
 import { extractPdfText } from '@/utils/pdfUtils';
+import { extractEpubText } from '@/utils/epubUtils';
 import FileInfo from './FileInfo';
 import DropZone from './DropZone';
 
@@ -42,35 +43,34 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     setIsProcessing(true);
 
     try {
+      let text = '';
       if (file.name.toLowerCase().endsWith('.pdf')) {
         toast({
           title: "Processing PDF",
           description: "Extracting text from PDF...",
         });
-        
-        const text = await extractPdfText(file);
-        console.log('Text extracted successfully, length:', text.length);
-        
-        if (!text.trim()) {
-          throw new Error('No text could be extracted from the PDF');
-        }
-        
-        const textFile = new File([text], file.name.replace('.pdf', '.txt'), {
-          type: 'text/plain',
-        });
-        
-        onFileSelect(textFile); // Pass text file for processing
+        text = await extractPdfText(file);
+      } else if (file.name.toLowerCase().endsWith('.epub')) {
         toast({
-          title: "PDF Processed",
-          description: `Successfully extracted ${text.length} characters from PDF`,
+          title: "Processing EPUB",
+          description: "Extracting text from EPUB...",
         });
-      } else {
-        onFileSelect(file);
-        toast({
-          title: "File accepted",
-          description: `${file.name} is ready for conversion`,
-        });
+        text = await extractEpubText(file);
       }
+
+      if (!text.trim()) {
+        throw new Error('No text could be extracted from the file');
+      }
+
+      const textFile = new File([text], file.name.replace(/\.(pdf|epub)$/, '.txt'), {
+        type: 'text/plain',
+      });
+
+      onFileSelect(textFile);
+      toast({
+        title: "File Processed",
+        description: `Successfully extracted ${text.length} characters from file`,
+      });
     } catch (error) {
       console.error('Error processing file:', error);
       toast({
