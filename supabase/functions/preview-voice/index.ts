@@ -9,8 +9,13 @@ const corsHeaders = {
 
 async function getAccessToken(credentials: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  const client_email = credentials.client_email;
-  const private_key = credentials.private_key;
+  
+  if (!credentials || !credentials.client_email || !credentials.private_key) {
+    console.error('Invalid credentials:', credentials);
+    throw new Error('Invalid Google Cloud credentials configuration');
+  }
+
+  const { client_email, private_key } = credentials;
 
   try {
     console.log('Getting access token for:', client_email);
@@ -57,10 +62,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: {
-        ...corsHeaders,
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      },
+      headers: corsHeaders,
     });
   }
 
@@ -72,8 +74,14 @@ serve(async (req) => {
       throw new Error('Google Cloud credentials are missing');
     }
 
-    const parsedCredentials = JSON.parse(credentials);
-    console.log('Credentials parsed successfully');
+    let parsedCredentials;
+    try {
+      parsedCredentials = JSON.parse(credentials);
+      console.log('Credentials parsed successfully');
+    } catch (error) {
+      console.error('Failed to parse Google Cloud credentials:', error);
+      throw new Error('Invalid Google Cloud credentials format');
+    }
 
     const requestData = await req.json();
     console.log('Request data:', requestData);
