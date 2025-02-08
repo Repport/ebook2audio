@@ -13,16 +13,26 @@ vi.mock("@/integrations/supabase/client", () => ({
   }
 }));
 
-// Mock the Audio API with minimal required properties
-const mockAudio = {
+// Create a typed mock audio interface
+interface MockAudio extends Partial<HTMLAudioElement> {
+  play: jest.Mock;
+  pause: jest.Mock;
+  onended: (() => void) | null;
+  onerror: ((e: Event) => void) | null;
+  src: string;
+  addEventListener: jest.Mock;
+  removeEventListener: jest.Mock;
+}
+
+// Create mock audio with required properties
+const createMockAudio = (): MockAudio => ({
   play: vi.fn(),
   pause: vi.fn(),
-  onended: null as (() => void) | null,
-  onerror: null as ((e: Event) => void) | null,
+  onended: null,
+  onerror: null,
   src: '',
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
-  // Add minimal required properties to satisfy HTMLAudioElement interface
   NETWORK_EMPTY: 0,
   NETWORK_IDLE: 1,
   NETWORK_LOADING: 2,
@@ -40,99 +50,87 @@ const mockAudio = {
   duration: 0,
   paused: true,
   ended: false,
-} as unknown as HTMLAudioElement;
+});
+
+const mockAudio = createMockAudio();
 
 // Setup global mocks
 const mockCreateObjectURL = vi.fn();
 const mockRevokeObjectURL = vi.fn();
 const mockAtob = vi.fn();
 
-// Define global types for the mocks
+// Define window interface for type safety
 declare global {
   interface Window {
-    Audio: new (src?: string) => HTMLAudioElement;
+    Audio: new () => MockAudio;
     URL: {
       createObjectURL(obj: Blob | MediaSource): string;
       revokeObjectURL(url: string): void;
+      parse(url: string): URL;
     };
   }
 }
 
-// Create a mock Audio constructor that returns our mockAudio
+// Setup global mocks
 const MockAudio = vi.fn(() => mockAudio);
 
-// Assign mocks to global object
 vi.stubGlobal('Audio', MockAudio);
 vi.stubGlobal('URL', {
   createObjectURL: mockCreateObjectURL,
   revokeObjectURL: mockRevokeObjectURL,
   prototype: {} as URL,
   canParse: () => false,
-  parse: () => new URL('http://localhost')
+  parse: (url: string) => new URL(url)
 });
 vi.stubGlobal('atob', mockAtob);
 
 describe('useAudioPreview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (mockAudio.play as ReturnType<typeof vi.fn>).mockReset();
     mockAudio.onended = null;
     mockAudio.onerror = null;
+    mockAudio.play.mockReset();
   });
 
   it('should handle successful audio preview', async () => {
     const mockAudioContent = 'mock-audio-content';
-    
-    // Mock the base64 to binary conversion
     mockAtob.mockReturnValue('binary-data');
     
-    // Mock successful API response
-    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
 
-    // Mock URL creation
     mockCreateObjectURL.mockReturnValue('blob:mock-url');
-
-    // Mock successful audio playback
-    (mockAudio.play as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    mockAudio.play.mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useAudioPreview());
-
-    // Verify initial state
     expect(result.current.isPlaying).toBe(null);
 
-    // Call playPreview with a valid voice ID
     await act(async () => {
       await result.current.playPreview('en-US-Standard-C');
     });
 
-    // Simulate playback end
     act(() => {
-      if (mockAudio.onended) mockAudio.onended();
+      mockAudio.onended?.();
     });
 
-    // Verify cleanup
     expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
     expect(result.current.isPlaying).toBe(null);
   });
 
   it('should handle API error with quota exceeded', async () => {
-    // Mock API error response
-    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
       data: null,
       error: { message: 'quota exceeded' }
     });
 
     const { result } = renderHook(() => useAudioPreview());
 
-    // Call playPreview with a valid voice ID
     await act(async () => {
       await result.current.playPreview('en-US-Standard-C');
     });
 
-    // Verify error handling
     expect(result.current.isPlaying).toBe(null);
     expect(mockAudio.play).not.toHaveBeenCalled();
   });
@@ -140,34 +138,25 @@ describe('useAudioPreview', () => {
   it('should handle audio playback error', async () => {
     const mockAudioContent = 'mock-audio-content';
     
-    // Mock successful API response
-    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
 
-    // Mock URL creation
     mockCreateObjectURL.mockReturnValue('blob:mock-url');
-
-    // Create an error event
-    const errorEvent = new Event('error');
-
-    // Mock failed audio playback
-    (mockAudio.play as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Audio playback failed'));
+    mockAudio.play.mockRejectedValue(new Error('Audio playback failed'));
 
     const { result } = renderHook(() => useAudioPreview());
 
-    // Call playPreview with a valid voice ID
     await act(async () => {
       await result.current.playPreview('en-US-Standard-C');
     });
 
-    // Simulate error event
+    const errorEvent = new Event('error');
     act(() => {
-      if (mockAudio.onerror) mockAudio.onerror(errorEvent);
+      mockAudio.onerror?.(errorEvent);
     });
 
-    // Verify error handling
     expect(result.current.isPlaying).toBe(null);
     expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
   });
