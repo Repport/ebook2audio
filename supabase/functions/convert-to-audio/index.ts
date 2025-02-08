@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createJWT } from "https://deno.land/x/djwt@v2.8/mod.ts"
+import { create as createJWT } from "https://deno.land/x/djwt@v2.8/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,17 +13,17 @@ async function getAccessToken(credentials: any): Promise<string> {
   const private_key = credentials.private_key;
 
   // Create JWT
-  const jwt = await createJWT({
-    header: { alg: "RS256", typ: "JWT" },
-    payload: {
+  const jwt = await createJWT(
+    { alg: "RS256", typ: "JWT" },
+    {
       iss: client_email,
       scope: 'https://www.googleapis.com/auth/cloud-platform',
       aud: 'https://oauth2.googleapis.com/token',
       exp: now + 3600,
       iat: now,
     },
-    key: private_key,
-  });
+    private_key
+  );
 
   // Exchange JWT for access token
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -48,8 +48,15 @@ async function getAccessToken(credentials: any): Promise<string> {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 204,
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      }
+    });
   }
 
   try {
@@ -111,7 +118,12 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ audioContent: data.audioContent }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        } 
+      }
     );
 
   } catch (error) {
@@ -120,7 +132,10 @@ serve(async (req) => {
       JSON.stringify({ error: error.message }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        }
       }
     );
   }
