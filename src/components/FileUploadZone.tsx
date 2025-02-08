@@ -71,15 +71,18 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     } catch (error) {
       console.error('Error processing file:', error);
       
-      // Only show error toast if we actually failed to process the file
-      if (!error.message.includes('language')) {
+      // Only show error toast if it's not related to language detection and it's a real processing error
+      if (!error.message?.toLowerCase().includes('language') && !error.message?.toLowerCase().includes('unknown')) {
         toast({
           title: "Error",
           description: "Failed to process file. Please try a different file.",
           variant: "destructive",
         });
       }
-      setSelectedFile(null);
+      
+      if (error.message === 'No text could be extracted from the file') {
+        setSelectedFile(null);
+      }
     } finally {
       setIsProcessing(false);
     }
