@@ -58,17 +58,27 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       });
 
       onFileSelect(textFile);
+      
+      const fileType = file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB';
+      const languageDisplay = result.metadata?.language 
+        ? result.metadata.language.charAt(0).toUpperCase() + result.metadata.language.slice(1)
+        : 'Unknown';
+      
       toast({
         title: "File Processed",
-        description: `Successfully extracted ${result.metadata?.totalCharacters} characters`,
+        description: `${fileType} processed (${languageDisplay}). ${result.metadata?.totalCharacters} characters extracted.`,
       });
     } catch (error) {
       console.error('Error processing file:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to process the file. Please try again.",
-        variant: "destructive",
-      });
+      
+      // Only show error toast if we actually failed to process the file
+      if (!error.message.includes('language')) {
+        toast({
+          title: "Error",
+          description: "Failed to process file. Please try a different file.",
+          variant: "destructive",
+        });
+      }
       setSelectedFile(null);
     } finally {
       setIsProcessing(false);
