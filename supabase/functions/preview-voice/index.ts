@@ -36,93 +36,98 @@ async function getAccessToken(): Promise<string> {
       throw new Error('Invalid credentials format');
     }
 
-    // Convert private key to proper PEM format
-    const privateKeyPEM = parsedCredentials.private_key
+    // First decode the private key and remove any wrapping quotes
+    const privateKey = parsedCredentials.private_key
       .replace(/\\n/g, '\n')
       .replace(/^"|"$/g, '');
 
-    // Prepare the JWT claims
+    // Create JWT payload
     const now = Math.floor(Date.now() / 1000);
-    const exp = now + 3600; // Token expires in 1 hour
-
-    // Create the JWT header and payload
-    const header = {
-      alg: 'RS256',
-      typ: 'JWT',
-    };
-
     const payload = {
       iss: parsedCredentials.client_email,
       scope: 'https://www.googleapis.com/auth/cloud-platform',
       aud: 'https://oauth2.googleapis.com/token',
-      exp,
+      exp: now + 3600,
       iat: now,
     };
 
-    // Base64url encode header and payload
-    const base64Header = btoa(JSON.stringify(header))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-    
-    const base64Payload = btoa(JSON.stringify(payload))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
+    // Prepare the JWT header
+    const header = { 
+      alg: 'RS256', 
+      typ: 'JWT' 
+    };
+
+    // Base64url encode the header and payload
+    const encodeBase64Url = (input: string): string => {
+      return btoa(input)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    };
+
+    const encodedHeader = encodeBase64Url(JSON.stringify(header));
+    const encodedPayload = encodeBase64Url(JSON.stringify(payload));
 
     // Create the signing input
-    const signInput = `${base64Header}.${base64Payload}`;
+    const signInput = `${encodedHeader}.${encodedPayload}`;
 
-    // Import the private key for signing
-    const binaryKey = new TextEncoder().encode(privateKeyPEM);
-    const cryptoKey = await crypto.subtle.importKey(
-      'pkcs8',
-      binaryKey,
-      {
-        name: 'RSASSA-PKCS1-v1_5',
-        hash: 'SHA-256',
-      },
-      false,
-      ['sign']
-    );
+    // Convert PEM key to ArrayBuffer
+    const binaryKey = new TextEncoder().encode(privateKey);
 
-    // Sign the input
-    const signatureBuffer = await crypto.subtle.sign(
-      'RSASSA-PKCS1-v1_5',
-      cryptoKey,
-      new TextEncoder().encode(signInput)
-    );
+    try {
+      // Import the private key
+      const cryptoKey = await crypto.subtle.importKey(
+        'pkcs8',
+        binaryKey,
+        {
+          name: 'RSASSA-PKCS1-v1_5',
+          hash: 'SHA-256',
+        },
+        false,
+        ['sign']
+      );
 
-    // Convert signature to base64url
-    const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
+      // Sign the input
+      const signature = await crypto.subtle.sign(
+        'RSASSA-PKCS1-v1_5',
+        cryptoKey,
+        new TextEncoder().encode(signInput)
+      );
 
-    // Combine to create the full JWT
-    const jwt = `${base64Header}.${base64Payload}.${signatureBase64}`;
+      // Convert the signature to base64url
+      const encodedSignature = encodeBase64Url(
+        String.fromCharCode(...new Uint8Array(signature))
+      );
 
-    // Exchange JWT for access token
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: jwt,
-      }),
-    });
+      // Create the complete JWT
+      const jwt = `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
 
-    if (!tokenResponse.ok) {
-      const error = await tokenResponse.text();
-      console.error('Token request failed:', error);
-      throw new Error('Failed to get access token');
+      // Exchange JWT for access token
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+          assertion: jwt,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const error = await tokenResponse.text();
+        console.error('Token request failed:', error);
+        throw new Error('Failed to get access token');
+      }
+
+      const { access_token } = await tokenResponse.json();
+      console.log('Successfully obtained access token');
+      return access_token;
+
+    } catch (error) {
+      console.error('Error during key operations:', error);
+      throw new Error(`Key operation failed: ${error.message}`);
     }
-
-    const { access_token } = await tokenResponse.json();
-    console.log('Successfully obtained access token');
-    return access_token;
 
   } catch (error) {
     console.error('Error in getAccessToken:', error);
@@ -212,3 +217,4 @@ serve(async (req) => {
     );
   }
 });
+
