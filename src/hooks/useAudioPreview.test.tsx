@@ -15,13 +15,13 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 // Create a typed mock audio interface
 interface MockAudio extends Partial<HTMLAudioElement> {
-  play: jest.Mock;
-  pause: jest.Mock;
+  play: ReturnType<typeof vi.fn>;
+  pause: ReturnType<typeof vi.fn>;
   onended: (() => void) | null;
   onerror: ((e: Event) => void) | null;
   src: string;
-  addEventListener: jest.Mock;
-  removeEventListener: jest.Mock;
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
 }
 
 // Create mock audio with required properties
@@ -96,7 +96,7 @@ describe('useAudioPreview', () => {
     const mockAudioContent = 'mock-audio-content';
     mockAtob.mockReturnValue('binary-data');
     
-    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
@@ -120,7 +120,7 @@ describe('useAudioPreview', () => {
   });
 
   it('should handle API error with quota exceeded', async () => {
-    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: null,
       error: { message: 'quota exceeded' }
     });
@@ -138,7 +138,7 @@ describe('useAudioPreview', () => {
   it('should handle audio playback error', async () => {
     const mockAudioContent = 'mock-audio-content';
     
-    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+    (supabase.functions.invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { audioContent: mockAudioContent },
       error: null
     });
