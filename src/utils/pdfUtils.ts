@@ -1,7 +1,7 @@
 
 import * as pdfjs from 'pdfjs-dist';
 
-// Initialize PDF.js worker
+// Initialize PDF.js worker with a data URI worker
 pdfjs.GlobalWorkerOptions.workerSrc = `data:application/javascript;base64,${btoa(
   '/* This is a dummy worker script */'
 )}`;
