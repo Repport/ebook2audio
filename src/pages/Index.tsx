@@ -9,6 +9,7 @@ import ConversionControls from '@/components/ConversionControls';
 import VoiceSelector from '@/components/VoiceSelector';
 import { convertToAudio } from '@/services/conversionService';
 import { VOICES } from '@/constants/voices';
+import { Chapter } from '@/utils/textExtraction';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -16,42 +17,34 @@ const Index = () => {
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [detectChapters, setDetectChapters] = useState(true);
-  const [chaptersFound, setChaptersFound] = useState(0);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [detectingChapters, setDetectingChapters] = useState(false);
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const { toast } = useToast();
 
-  const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string } | null) => {
+  const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
     if (!fileInfo) {
       setSelectedFile(null);
       setExtractedText('');
+      setChapters([]);
       return;
     }
 
     setSelectedFile(fileInfo.file);
     setExtractedText(fileInfo.text);
+    setChapters(fileInfo.chapters || []);
     setDetectedLanguage(fileInfo.language || 'english');
     const languageVoices = VOICES[fileInfo.language as keyof typeof VOICES] || VOICES.english;
     setSelectedVoice(languageVoices[0].id);
-  };
 
-  const simulateChapterDetection = async () => {
-    setDetectingChapters(true);
-    let chapters = 0;
-    const interval = setInterval(() => {
-      chapters += 1;
-      setChaptersFound(chapters);
-      if (chapters >= 10) {
-        clearInterval(interval);
-        setDetectingChapters(false);
-        toast({
-          title: "Chapters detected",
-          description: `Found ${chapters} chapters in your document`,
-        });
-      }
-    }, 500);
+    if (fileInfo.chapters?.length) {
+      toast({
+        title: "Chapters detected",
+        description: `Found ${fileInfo.chapters.length} chapters in your document`,
+      });
+    }
   };
 
   const handleConversion = async () => {
@@ -61,19 +54,34 @@ const Index = () => {
     setProgress(0);
     
     try {
-      if (detectChapters) {
-        await simulateChapterDetection();
-      }
+      setDetectingChapters(true);
+      
+      // Calculate estimated chapter timestamps (assuming 150 words per minute reading speed)
+      const WORDS_PER_MINUTE = 150;
+      const chaptersWithTimestamps = chapters.map(chapter => {
+        const textBeforeChapter = extractedText.substring(0, chapter.startIndex);
+        const wordCount = textBeforeChapter.split(/\s+/).length;
+        const minutesMark = Math.floor(wordCount / WORDS_PER_MINUTE);
+        return {
+          ...chapter,
+          timestamp: minutesMark
+        };
+      });
 
-      const audio = await convertToAudio(extractedText, selectedVoice);
+      const audio = await convertToAudio(extractedText, selectedVoice, detectChapters ? chaptersWithTimestamps : undefined);
       setAudioData(audio);
       
       setConversionStatus('completed');
       setProgress(100);
+
+      const chaptersList = chaptersWithTimestamps
+        .map(ch => `${ch.title} (starts at ${ch.timestamp} minutes)`)
+        .join('\n');
+
       toast({
         title: "Conversion completed",
         description: detectChapters 
-          ? "Your MP3 file is ready for download with chapter markers"
+          ? `Your MP3 file is ready with ${chapters.length} chapter markers:\n${chaptersList}`
           : "Your MP3 file is ready for download",
       });
     } catch (error) {
@@ -84,6 +92,8 @@ const Index = () => {
         description: error.message || "An error occurred during conversion",
         variant: "destructive",
       });
+    } finally {
+      setDetectingChapters(false);
     }
   };
 
@@ -129,13 +139,14 @@ const Index = () => {
               <ChapterDetectionToggle 
                 detectChapters={detectChapters}
                 onToggle={setDetectChapters}
+                chaptersFound={chapters.length}
               />
               
               <ConversionStatus 
                 status={conversionStatus} 
                 progress={progress}
                 fileType={selectedFile.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
-                chaptersFound={chaptersFound}
+                chaptersFound={chapters.length}
                 detectingChapters={detectingChapters}
               />
               
@@ -153,4 +164,3 @@ const Index = () => {
 };
 
 export default Index;
-

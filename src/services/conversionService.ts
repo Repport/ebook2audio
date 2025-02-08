@@ -1,17 +1,33 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { Chapter } from "@/utils/textExtraction";
 
-export const convertToAudio = async (text: string, voiceId: string): Promise<ArrayBuffer> => {
-  // If the text starts with %PDF, it means we're getting raw PDF data
+interface ChapterWithTimestamp extends Chapter {
+  timestamp: number;
+}
+
+export const convertToAudio = async (
+  text: string, 
+  voiceId: string,
+  chapters?: ChapterWithTimestamp[]
+): Promise<ArrayBuffer> => {
   if (text.startsWith('%PDF')) {
     console.error('Received raw PDF data instead of text content');
     throw new Error('Invalid text content: Raw PDF data received. Please check PDF text extraction.');
   }
 
   console.log('Converting text length:', text.length, 'with voice:', voiceId);
+  console.log('Chapters:', chapters?.length || 0);
 
   const { data, error } = await supabase.functions.invoke('convert-to-audio', {
-    body: { text, voiceId }
+    body: { 
+      text, 
+      voiceId,
+      chapters: chapters?.map(ch => ({
+        title: ch.title,
+        timestamp: ch.timestamp
+      }))
+    }
   });
 
   if (error) {
