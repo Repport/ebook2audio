@@ -2,13 +2,7 @@
 import * as pdfjs from 'pdfjs-dist';
 
 // Initialize PDF.js worker
-const workerSrc = `
-  importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');
-`;
-
-const workerBlob = new Blob([workerSrc], { type: 'application/javascript' });
-const workerUrl = URL.createObjectURL(workerBlob);
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 export const extractPdfText = async (file: File): Promise<string> => {
   try {
@@ -36,8 +30,5 @@ export const extractPdfText = async (file: File): Promise<string> => {
   } catch (error) {
     console.error('PDF extraction error:', error);
     throw new Error('Failed to extract text from PDF');
-  } finally {
-    // Clean up the worker URL
-    URL.revokeObjectURL(workerUrl);
   }
 };
