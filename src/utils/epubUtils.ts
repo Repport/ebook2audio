@@ -17,8 +17,8 @@ export const extractEpubText = async (file: File): Promise<{ text: string; chapt
     const spine = book.spine;
     console.log('Spine loaded:', spine);
     
-    // Iterate through spine items
-    for (const section of spine.spineItems) {
+    // Iterate through spine items using the correct property
+    for (const section of spine.items) {
       try {
         const contents = await book.load(section.href);
         // Ensure contents is a string before parsing
