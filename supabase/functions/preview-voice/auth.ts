@@ -16,10 +16,22 @@ export async function getAccessToken(): Promise<string> {
       throw new Error('GCP service account credentials are missing');
     }
 
-    const credentials: ServiceAccountCredentials = JSON.parse(serviceAccount);
+    let credentials: ServiceAccountCredentials;
+    try {
+      credentials = JSON.parse(serviceAccount);
+    } catch (e) {
+      console.error('Failed to parse GCP service account credentials:', e);
+      throw new Error('Invalid GCP service account credentials format');
+    }
     
     if (!credentials.client_email || !credentials.private_key) {
-      throw new Error('Invalid service account format');
+      console.error('Missing required fields in credentials:', 
+        {
+          hasEmail: !!credentials.client_email,
+          hasKey: !!credentials.private_key
+        }
+      );
+      throw new Error('Invalid service account format - missing required fields');
     }
 
     const now = Math.floor(Date.now() / 1000);
