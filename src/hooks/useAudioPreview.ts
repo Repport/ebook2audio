@@ -2,19 +2,23 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { previewVoice } from "@/services/voiceService";
+import { DEFAULT_PREVIEW_TEXTS } from "@/constants/voices";
 
 export const useAudioPreview = () => {
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const playPreview = async (voiceId: string) => {
+  const playPreview = async (voiceId: string, language: string = 'english') => {
     setIsPlaying(voiceId);
     let audio: HTMLAudioElement | null = null;
     let audioUrl: string | null = null;
     
     try {
-      console.log('Starting voice preview for:', voiceId);
-      const data = await previewVoice(voiceId);
+      console.log('Starting voice preview for:', voiceId, 'in language:', language);
+      const previewText = DEFAULT_PREVIEW_TEXTS[language as keyof typeof DEFAULT_PREVIEW_TEXTS] || 
+                         DEFAULT_PREVIEW_TEXTS.english;
+      
+      const data = await previewVoice(voiceId, previewText);
       
       if (!data.audioContent) {
         throw new Error('No audio content received');

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import FileUploadZone from '@/components/FileUploadZone';
 import ConversionStatus from '@/components/ConversionStatus';
@@ -18,20 +17,35 @@ const Index = () => {
   const [chaptersFound, setChaptersFound] = useState(0);
   const [detectingChapters, setDetectingChapters] = useState(false);
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState<string>(VOICES[0].id);
+  const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
+  const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const { toast } = useToast();
 
   const getFileType = (fileName: string): 'PDF' | 'EPUB' => {
     return fileName.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB';
   };
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     setSelectedFile(file);
-    const fileType = getFileType(file.name);
-    toast({
-      title: "File selected",
-      description: `${file.name} (${fileType}) is ready for conversion`,
-    });
+    try {
+      const result = await processFile(file);
+      setDetectedLanguage(result.metadata?.language || 'english');
+      const languageVoices = VOICES[result.metadata?.language as keyof typeof VOICES] || VOICES.english;
+      setSelectedVoice(languageVoices[0].id);
+      
+      const fileType = getFileType(file.name);
+      toast({
+        title: "File selected",
+        description: `${file.name} (${fileType}) is ready for conversion`,
+      });
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process file language",
+        variant: "destructive",
+      });
+    }
   };
 
   const simulateChapterDetection = async () => {
@@ -62,10 +76,8 @@ const Index = () => {
         await simulateChapterDetection();
       }
 
-      // Read the file content
       const text = await selectedFile.text();
       
-      // Start conversion with selected voice
       const audio = await convertToAudio(text, selectedVoice);
       setAudioData(audio);
       
@@ -124,6 +136,7 @@ const Index = () => {
               <VoiceSelector 
                 selectedVoice={selectedVoice}
                 onVoiceChange={(value: string) => setSelectedVoice(value)}
+                detectedLanguage={detectedLanguage}
               />
               
               <ChapterDetectionToggle 

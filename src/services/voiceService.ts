@@ -5,11 +5,14 @@ export interface VoicePreviewResponse {
   audioContent: string;
 }
 
-export const previewVoice = async (voiceId: string): Promise<VoicePreviewResponse> => {
+export const previewVoice = async (voiceId: string, previewText?: string): Promise<VoicePreviewResponse> => {
   console.log('Starting voice preview request for:', voiceId);
   
   const { data, error } = await supabase.functions.invoke('preview-voice', {
-    body: { voiceId }
+    body: { 
+      voiceId,
+      previewText 
+    }
   });
 
   if (error) {
