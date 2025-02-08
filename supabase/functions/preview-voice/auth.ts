@@ -1,4 +1,6 @@
 
+import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
+
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -38,14 +40,32 @@ export async function getAccessToken(): Promise<string> {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const jwt = {
+    const exp = now + 3600; // Token expires in 1 hour
+
+    // Create the JWT claims
+    const claims = {
       iss: credentials.client_email,
       scope: 'https://www.googleapis.com/auth/cloud-platform',
       aud: 'https://oauth2.googleapis.com/token',
-      exp: now + 3600,
-      iat: now,
+      exp: getNumericDate(3600), // 1 hour from now
+      iat: getNumericDate(0),
     };
 
+    // Sign the JWT
+    const key = await crypto.subtle.importKey(
+      'pkcs8',
+      new TextEncoder().encode(credentials.private_key),
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256',
+      },
+      false,
+      ['sign']
+    );
+
+    const jwt = await create({ alg: 'RS256', typ: 'JWT' }, claims, key);
+
+    // Exchange the JWT for an access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -53,7 +73,7 @@ export async function getAccessToken(): Promise<string> {
       },
       body: new URLSearchParams({
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: jwt.toString(),
+        assertion: jwt,
       }),
     });
 
@@ -64,7 +84,7 @@ export async function getAccessToken(): Promise<string> {
     }
 
     const { access_token } = await tokenResponse.json();
-    console.log('Successfully obtained access token');
+    console.log('✅ Successfully obtained access token');
     return access_token;
 
   } catch (error) {
