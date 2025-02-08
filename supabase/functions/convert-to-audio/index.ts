@@ -26,8 +26,8 @@ serve(async (req) => {
   }
 
   try {
-    const { text } = await req.json();
-    console.log('Request received with text length:', text.length);
+    const { text, voiceId = 'en-US-Standard-C' } = await req.json();
+    console.log('Request received with text length:', text.length, 'and voice:', voiceId);
 
     const apiKey = Deno.env.get('GOOGLE_CLOUD_API_KEY');
     if (!apiKey) {
@@ -41,13 +41,13 @@ serve(async (req) => {
       throw new Error('No text content to convert');
     }
 
-    // Prepare request to Google Cloud Text-to-Speech API using standard voice
+    // Prepare request to Google Cloud Text-to-Speech API
     const requestBody = {
       input: { text: cleanedText },
       voice: {
         languageCode: 'en-US',
-        name: 'en-US-Standard-C', // Standard female voice instead of Neural
-        ssmlGender: 'FEMALE'
+        name: voiceId,
+        ssmlGender: voiceId.includes('Standard-C') ? 'FEMALE' : 'MALE'
       },
       audioConfig: {
         audioEncoding: 'MP3',
@@ -101,4 +101,3 @@ serve(async (req) => {
     );
   }
 });
-

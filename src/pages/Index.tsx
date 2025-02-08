@@ -6,7 +6,9 @@ import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import ConversionControls from '@/components/ConversionControls';
+import VoiceSelector from '@/components/VoiceSelector';
 import { convertToAudio } from '@/services/conversionService';
+import { VOICES } from '@/constants/voices';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -16,6 +18,7 @@ const Index = () => {
   const [chaptersFound, setChaptersFound] = useState(0);
   const [detectingChapters, setDetectingChapters] = useState(false);
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState(VOICES[0].id);
   const { toast } = useToast();
 
   const getFileType = (fileName: string): 'PDF' | 'EPUB' => {
@@ -62,8 +65,8 @@ const Index = () => {
       // Read the file content
       const text = await selectedFile.text();
       
-      // Start conversion
-      const audio = await convertToAudio(text);
+      // Start conversion with selected voice
+      const audio = await convertToAudio(text, selectedVoice);
       setAudioData(audio);
       
       setConversionStatus('completed');
@@ -118,6 +121,11 @@ const Index = () => {
 
           {selectedFile && (
             <div className="animate-fade-up space-y-8">
+              <VoiceSelector 
+                selectedVoice={selectedVoice}
+                onVoiceChange={setSelectedVoice}
+              />
+              
               <ChapterDetectionToggle 
                 detectChapters={detectChapters}
                 onToggle={setDetectChapters}
