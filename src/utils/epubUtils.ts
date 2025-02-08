@@ -1,8 +1,15 @@
 
-import ePub, { Book, Spine } from 'epubjs';
+import ePub, { Book } from 'epubjs';
 import { Chapter } from './textExtraction';
 
-// Add type definition for Spine to include the properties we need
+// Define our own Spine interface since epubjs doesn't export it directly
+interface Spine {
+  spineItems: any[];
+  version: string;
+  hooks: any;
+}
+
+// Add type definition for our extended Spine interface
 interface ExtendedSpine extends Spine {
   load: () => Promise<any>;
   items: Array<{
