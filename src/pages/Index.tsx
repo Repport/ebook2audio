@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import ConversionControls from '@/components/ConversionControls';
 import VoiceSelector from '@/components/VoiceSelector';
+import TermsDialog from '@/components/TermsDialog';
 import { convertToAudio } from '@/services/conversionService';
 import { VOICES } from '@/constants/voices';
 import { Chapter } from '@/utils/textExtraction';
@@ -22,6 +23,7 @@ const Index = () => {
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
+  const [showTerms, setShowTerms] = useState(false);
   const { toast } = useToast();
 
   const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
@@ -47,6 +49,10 @@ const Index = () => {
     }
   };
 
+  const initiateConversion = () => {
+    setShowTerms(true);
+  };
+
   const handleConversion = async () => {
     if (!selectedFile || !extractedText) return;
 
@@ -56,7 +62,6 @@ const Index = () => {
     try {
       setDetectingChapters(true);
       
-      // Calculate estimated chapter timestamps (assuming 150 words per minute reading speed)
       const WORDS_PER_MINUTE = 150;
       const chaptersWithTimestamps = chapters.map(chapter => {
         const textBeforeChapter = extractedText.substring(0, chapter.startIndex);
@@ -152,8 +157,14 @@ const Index = () => {
               
               <ConversionControls 
                 status={conversionStatus}
-                onConvert={handleConversion}
+                onConvert={initiateConversion}
                 onDownload={handleDownload}
+              />
+
+              <TermsDialog 
+                open={showTerms}
+                onClose={() => setShowTerms(false)}
+                onAccept={handleConversion}
               />
             </div>
           )}
