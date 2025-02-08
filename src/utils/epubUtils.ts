@@ -1,18 +1,26 @@
 
-import ePub from 'epubjs';
+import ePub, { Book, Spine } from 'epubjs';
 import { Chapter } from './textExtraction';
+
+// Add type definition for Spine to include the properties we need
+interface ExtendedSpine extends Spine {
+  load: () => Promise<any>;
+  items: Array<{
+    href: string;
+  }>;
+}
 
 export const extractEpubText = async (file: File): Promise<{ text: string; chapters: Chapter[] }> => {
   try {
     console.log('Starting EPUB text extraction with chapter detection...');
     const arrayBuffer = await file.arrayBuffer();
-    const book = ePub(arrayBuffer);
+    const book = ePub(arrayBuffer) as Book & { spine: ExtendedSpine };
     
     // Wait for book to be ready
     await book.ready;
     
     // Load the spine properly
-    const spine = await book.spine.load();
+    await book.spine.load();
     let fullText = '';
     const chapters: Chapter[] = [];
     
