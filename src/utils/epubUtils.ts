@@ -1,5 +1,16 @@
+
 import ePub, { Book } from 'epubjs';
 import { Chapter } from './textExtraction';
+
+// Define types for spine items
+interface SpineItem {
+  href: string;
+  // Add other properties if needed
+}
+
+interface ExtendedSpine {
+  items: SpineItem[];
+}
 
 export const extractEpubText = async (file: File): Promise<{ text: string; chapters: Chapter[] }> => {
   try {
@@ -14,7 +25,7 @@ export const extractEpubText = async (file: File): Promise<{ text: string; chapt
     const chapters: Chapter[] = [];
     
     // Get spine items directly from the book's spine
-    const spine = book.spine;
+    const spine = book.spine as unknown as ExtendedSpine;
     console.log('Spine loaded:', spine);
     
     // Iterate through spine items using the correct property
