@@ -8,7 +8,7 @@ import FileInfo from './FileInfo';
 import DropZone from './DropZone';
 
 interface FileUploadZoneProps {
-  onFileSelect: (file: File | null) => void;
+  onFileSelect: (fileInfo: { file: File, text: string, language?: string } | null) => void;
 }
 
 const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
@@ -28,7 +28,6 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       return;
     }
 
-    // Extract file extension more robustly
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
     
     if (!fileExtension) {
@@ -40,7 +39,6 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       return;
     }
 
-    // Validate file type first
     if (!['pdf', 'epub'].includes(fileExtension)) {
       toast({
         title: "Invalid File Type",
@@ -77,11 +75,11 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
         throw new Error('No text could be extracted from the file');
       }
 
-      const textFile = new File([result.text], file.name.replace(/\.(pdf|epub)$/i, '.txt'), {
-        type: 'text/plain',
+      onFileSelect({
+        file,
+        text: result.text,
+        language: result.metadata?.language
       });
-
-      onFileSelect(textFile);
       
       const languageDisplay = result.metadata?.language 
         ? result.metadata.language.charAt(0).toUpperCase() + result.metadata.language.slice(1)
@@ -94,7 +92,6 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     } catch (error) {
       console.error('Error processing file:', error);
       
-      // Only show error toast if it's not related to language detection
       if (!error.message?.toLowerCase().includes('language')) {
         toast({
           title: "Error",

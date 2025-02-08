@@ -8,7 +8,6 @@ import ConversionControls from '@/components/ConversionControls';
 import VoiceSelector from '@/components/VoiceSelector';
 import { convertToAudio } from '@/services/conversionService';
 import { VOICES } from '@/constants/voices';
-import { processFile } from '@/utils/textExtraction';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -22,31 +21,16 @@ const Index = () => {
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const { toast } = useToast();
 
-  const getFileType = (fileName: string): 'PDF' | 'EPUB' => {
-    return fileName.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB';
-  };
-
-  const handleFileSelect = async (file: File) => {
-    setSelectedFile(file);
-    try {
-      const result = await processFile(file);
-      setDetectedLanguage(result.metadata?.language || 'english');
-      const languageVoices = VOICES[result.metadata?.language as keyof typeof VOICES] || VOICES.english;
-      setSelectedVoice(languageVoices[0].id);
-      
-      const fileType = getFileType(file.name);
-      toast({
-        title: "File selected",
-        description: `${file.name} (${fileType}) is ready for conversion`,
-      });
-    } catch (error) {
-      console.error('Error processing file:', error);
-      toast({
-        title: "Error",
-        description: "Failed to process file language",
-        variant: "destructive",
-      });
+  const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string } | null) => {
+    if (!fileInfo) {
+      setSelectedFile(null);
+      return;
     }
+
+    setSelectedFile(fileInfo.file);
+    setDetectedLanguage(fileInfo.language || 'english');
+    const languageVoices = VOICES[fileInfo.language as keyof typeof VOICES] || VOICES.english;
+    setSelectedVoice(languageVoices[0].id);
   };
 
   const simulateChapterDetection = async () => {
@@ -148,7 +132,7 @@ const Index = () => {
               <ConversionStatus 
                 status={conversionStatus} 
                 progress={progress}
-                fileType={getFileType(selectedFile.name)}
+                fileType={selectedFile.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
                 chaptersFound={chaptersFound}
                 detectingChapters={detectingChapters}
               />
