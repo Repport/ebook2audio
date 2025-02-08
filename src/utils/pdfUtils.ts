@@ -1,8 +1,14 @@
 
 import * as pdfjs from 'pdfjs-dist';
+import { PDFWorker } from 'pdfjs-dist/types/src/display/worker_options';
 
 // Initialize PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+if (typeof window !== 'undefined') {
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.js',
+    import.meta.url,
+  ).toString();
+}
 
 export const extractPdfText = async (file: File): Promise<string> => {
   try {
