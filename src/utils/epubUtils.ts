@@ -1,27 +1,58 @@
 
-import ePub, { Book } from 'epubjs';
+import ePub from 'epubjs';
 import { Chapter } from './textExtraction';
+import { SpineItem, ExtendedSpine, ProcessedChunk } from './epubTypes';
+import { detectChaptersInEpub } from './epubChapterDetection';
 
-// Define types for spine items with all possible properties
-interface SpineItem {
-  href: string;
-  id?: string;
-  linear?: boolean;
-  properties?: string[];
-  index?: number;
-}
+const CHUNK_SIZE = 5; // Number of spine items to process in parallel
 
-interface ExtendedSpine {
-  items: SpineItem[];
-}
+const validateInputFile = (file: File): void => {
+  if (!file || !(file instanceof File)) {
+    throw new Error('Invalid file provided');
+  }
+
+  if (!file.name.toLowerCase().endsWith('.epub')) {
+    throw new Error('File must be an EPUB document');
+  }
+};
+
+const processSpineChunk = async (
+  chunk: SpineItem[],
+  book: any,
+  currentTextLength: number
+): Promise<ProcessedChunk[]> => {
+  return Promise.all(
+    chunk.map(async (section) => {
+      try {
+        if (!section.href) {
+          console.warn('Section missing href, skipping');
+          return { text: '', newChapters: [] };
+        }
+
+        const contents = await book.load(section.href);
+        const contentString = contents instanceof Document ? 
+          contents.documentElement.outerHTML : 
+          contents.toString();
+
+        if (!contentString.trim()) {
+          console.warn(`Empty content in section: ${section.href}`);
+          return { text: '', newChapters: [] };
+        }
+
+        const doc = new DOMParser().parseFromString(contentString, 'text/html');
+        return detectChaptersInEpub(doc, currentTextLength);
+      } catch (error) {
+        console.warn(`Failed to process section ${section.href}:`, error);
+        return { text: '', newChapters: [] };
+      }
+    })
+  );
+};
 
 export const extractEpubText = async (file: File): Promise<{ text: string; chapters: Chapter[] }> => {
   try {
     console.log('Starting EPUB text extraction with chapter detection...');
-    
-    if (!file || !(file instanceof File)) {
-      throw new Error('Invalid file provided');
-    }
+    validateInputFile(file);
 
     const arrayBuffer = await file.arrayBuffer();
     if (!arrayBuffer || arrayBuffer.byteLength === 0) {
@@ -41,36 +72,10 @@ export const extractEpubText = async (file: File): Promise<{ text: string; chapt
       throw new Error('No content found in EPUB file');
     }
 
-    // Process spine items in parallel with a limit of 5 concurrent operations
-    const chunkSize = 5;
-    for (let i = 0; i < spine.items.length; i += chunkSize) {
-      const chunk = spine.items.slice(i, i + chunkSize);
-      const results = await Promise.all(
-        chunk.map(async (section) => {
-          try {
-            if (!section.href) {
-              console.warn('Section missing href, skipping');
-              return { text: '', newChapters: [] };
-            }
-
-            const contents = await book.load(section.href);
-            const contentString = contents instanceof Document ? 
-              contents.documentElement.outerHTML : 
-              contents.toString();
-
-            if (!contentString.trim()) {
-              console.warn(`Empty content in section: ${section.href}`);
-              return { text: '', newChapters: [] };
-            }
-
-            const doc = new DOMParser().parseFromString(contentString, 'text/html');
-            return detectChaptersInEpub(doc, fullText.length);
-          } catch (error) {
-            console.warn(`Failed to process section ${section.href}:`, error);
-            return { text: '', newChapters: [] };
-          }
-        })
-      );
+    // Process spine items in parallel with chunk size limit
+    for (let i = 0; i < spine.items.length; i += CHUNK_SIZE) {
+      const chunk = spine.items.slice(i, i + CHUNK_SIZE);
+      const results = await processSpineChunk(chunk, book, fullText.length);
 
       // Aggregate results from the chunk
       results.forEach(({ text, newChapters }) => {
@@ -95,49 +100,5 @@ export const extractEpubText = async (file: File): Promise<{ text: string; chapt
   } catch (error) {
     console.error('EPUB extraction error:', error);
     throw new Error(error instanceof Error ? error.message : 'Failed to extract text from EPUB');
-  }
-};
-
-const detectChaptersInEpub = (doc: Document, startIndex: number): { text: string; newChapters: Chapter[] } => {
-  const newChapters: Chapter[] = [];
-  let text = '';
-
-  try {
-    // Common chapter heading selectors in priority order
-    const headingSelectors = [
-      'h1',
-      'h2',
-      '[class*="chapter"]',
-      '[class*="title"]',
-      '[role="heading"]',
-      'h3'
-    ];
-
-    // Find potential chapter headings
-    for (const selector of headingSelectors) {
-      const elements = doc.querySelectorAll(selector);
-      elements.forEach(element => {
-        const title = element.textContent?.trim();
-        if (title && title.length < 100) { // Reasonable title length
-          const chapterPattern = /^(chapter|section|part)\s+(\d+|[IVXLC]+)|^\d+\./i;
-          if (chapterPattern.test(title) || element.tagName.toLowerCase() === 'h1') {
-            newChapters.push({
-              title,
-              startIndex: startIndex + text.length
-            });
-          }
-        }
-      });
-    }
-
-    // Extract text content more efficiently
-    const textContent = doc.body?.textContent || '';
-    text = textContent.replace(/\s+/g, ' ').trim();
-
-    return { text, newChapters };
-  } catch (error) {
-    console.warn('Error in chapter detection:', error);
-    // Return empty result on error rather than throwing
-    return { text: '', newChapters: [] };
   }
 };

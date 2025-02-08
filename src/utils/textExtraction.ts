@@ -17,6 +17,26 @@ export type Chapter = {
   startIndex: number;
 };
 
+const LANGUAGE_PATTERNS = {
+  english: /\b(the|and|is|in|to|of)\b/gi,
+  spanish: /\b(el|la|los|las|en|de|y)\b/gi,
+  french: /\b(le|la|les|dans|et|de)\b/gi,
+  german: /\b(der|die|das|und|in|zu)\b/gi,
+} as const;
+
+const detectLanguage = (text: string): string => {
+  const sampleText = text.slice(0, 1000);
+  
+  const scores = Object.entries(LANGUAGE_PATTERNS).map(([language, pattern]) => ({
+    language,
+    score: (sampleText.match(pattern) || []).length
+  }));
+
+  return scores.reduce((max, current) => 
+    current.score > max.score ? current : max
+  , { language: 'english', score: 0 }).language;
+};
+
 export const processFile = async (file: File): Promise<FileProcessingResult> => {
   const fileExtension = file.name.split('.').pop()?.toLowerCase();
   
@@ -29,31 +49,15 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
   }
 
   try {
-    let text = '';
-    let chapters: Chapter[] = [];
-    
-    switch (fileExtension) {
-      case 'pdf':
-        const pdfResult = await extractPdfText(file);
-        text = pdfResult.text;
-        chapters = pdfResult.chapters;
-        break;
-      case 'epub':
-        const epubResult = await extractEpubText(file);
-        text = epubResult.text;
-        chapters = epubResult.chapters;
-        break;
-      default:
-        throw new Error(`Unsupported file type: ${fileExtension}`);
-    }
-
-    const language = detectLanguage(text);
+    const { text, chapters } = fileExtension === 'pdf' 
+      ? await extractPdfText(file)
+      : await extractEpubText(file);
 
     return {
       text,
       metadata: {
         totalCharacters: text.length,
-        language,
+        language: detectLanguage(text),
         chapters
       }
     };
@@ -62,27 +66,3 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
     throw error;
   }
 };
-
-function detectLanguage(text: string): string {
-  // Sample of common words/patterns for different languages
-  const patterns = {
-    english: /\b(the|and|is|in|to|of)\b/gi,
-    spanish: /\b(el|la|los|las|en|de|y)\b/gi,
-    french: /\b(le|la|les|dans|et|de)\b/gi,
-    german: /\b(der|die|das|und|in|zu)\b/gi,
-  };
-
-  const sampleText = text.slice(0, 1000); // Use first 1000 characters for detection
-  
-  const scores = Object.entries(patterns).map(([language, pattern]) => {
-    const matches = (sampleText.match(pattern) || []).length;
-    return { language, score: matches };
-  });
-
-  const result = scores.reduce((max, current) => 
-    current.score > max.score ? current : max
-  , { language: 'english', score: 0 }); // Default to English if no clear match
-
-  // Always return a language, even if confidence is low
-  return result.language;
-}
