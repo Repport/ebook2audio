@@ -2,12 +2,16 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const convertToAudio = async (text: string, voiceId: string): Promise<ArrayBuffer> => {
-  // Clean and prepare the text
-  const cleanedText = text.trim();
-  console.log('Converting text length:', cleanedText.length, 'with voice:', voiceId);
+  // If the text starts with %PDF, it means we're getting raw PDF data
+  if (text.startsWith('%PDF')) {
+    console.error('Received raw PDF data instead of text content');
+    throw new Error('Invalid text content: Raw PDF data received. Please check PDF text extraction.');
+  }
+
+  console.log('Converting text length:', text.length, 'with voice:', voiceId);
 
   const { data, error } = await supabase.functions.invoke('convert-to-audio', {
-    body: { text: cleanedText, voiceId }
+    body: { text, voiceId }
   });
 
   if (error) {
