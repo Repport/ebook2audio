@@ -73,9 +73,9 @@ function detectLanguage(text: string): string {
 
   const result = scores.reduce((max, current) => 
     current.score > max.score ? current : max
-  , { language: 'unknown', score: 0 });
+  , { language: 'english', score: 0 }); // Default to English if no clear match
 
-  // Only return a language if we have a reasonable confidence
-  return result.score > 3 ? result.language : 'unknown';
+  // Always return a language, even if confidence is low
+  return result.language;
 }
 
