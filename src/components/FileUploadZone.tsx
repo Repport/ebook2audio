@@ -1,14 +1,11 @@
+
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from './ui/button';
-import * as pdfjs from 'pdfjs-dist';
-
-// Initialize PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `data:application/javascript;base64,${btoa(
-  '/* This is a dummy worker script */'
-)}`;
+import { validateFile } from '@/utils/fileUtils';
+import { extractPdfText } from '@/utils/pdfUtils';
+import FileInfo from './FileInfo';
+import DropZone from './DropZone';
 
 interface FileUploadZoneProps {
   onFileSelect: (file: File | null) => void;
@@ -17,80 +14,6 @@ interface FileUploadZoneProps {
 const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-  };
-
-  const extractPdfText = async (file: File): Promise<string> => {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-      let fullText = '';
-      
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
-        fullText += pageText + '\n\n';
-      }
-      
-      return fullText.trim();
-    } catch (error) {
-      console.error('PDF extraction error:', error);
-      throw new Error('Failed to extract text from PDF');
-    }
-  };
-
-  const validateFile = (file: File | null): boolean => {
-    if (!file) {
-      toast({
-        title: "Invalid file",
-        description: "No file was provided",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    const fileExtension = file.name.toLowerCase().split('.').pop();
-    const validExtensions = ['epub', 'pdf'];
-    
-    if (!validExtensions.includes(fileExtension || '')) {
-      toast({
-        title: "Invalid file",
-        description: "Please upload an EPUB or PDF file",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (file.size === 0) {
-      toast({
-        title: "Invalid file",
-        description: "The file appears to be empty",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    const maxSize = 100 * 1024 * 1024; // 100MB
-    if (file.size > maxSize) {
-      toast({
-        title: "File too large",
-        description: "Please upload a file smaller than 100MB",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    return true;
-  };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0] || null;
@@ -104,40 +27,45 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       return;
     }
 
-    console.log('File received:', { name: file.name, size: formatFileSize(file.size) });
-    
-    if (validateFile(file)) {
-      try {
-        if (file.name.toLowerCase().endsWith('.pdf')) {
-          toast({
-            title: "Processing PDF",
-            description: "Extracting text from PDF...",
-          });
-          
-          const text = await extractPdfText(file);
-          // Create a new File object with the extracted text
-          const textFile = new File([text], file.name.replace('.pdf', '.txt'), {
-            type: 'text/plain',
-          });
-          setSelectedFile(file); // Keep original file for display
-          onFileSelect(textFile); // Pass text file for processing
-        } else {
-          setSelectedFile(file);
-          onFileSelect(file);
-        }
+    const validation = validateFile(file);
+    if (!validation.isValid && validation.error) {
+      toast({
+        title: validation.error.title,
+        description: validation.error.description,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        toast({
+          title: "Processing PDF",
+          description: "Extracting text from PDF...",
+        });
         
-        toast({
-          title: "File accepted",
-          description: `${file.name} (${formatFileSize(file.size)}) is ready for conversion`,
+        const text = await extractPdfText(file);
+        const textFile = new File([text], file.name.replace('.pdf', '.txt'), {
+          type: 'text/plain',
         });
-      } catch (error) {
-        console.error('Error processing file:', error);
-        toast({
-          title: "Error",
-          description: "Failed to process the file. Please try again.",
-          variant: "destructive",
-        });
+        setSelectedFile(file); // Keep original file for display
+        onFileSelect(textFile); // Pass text file for processing
+      } else {
+        setSelectedFile(file);
+        onFileSelect(file);
       }
+      
+      toast({
+        title: "File accepted",
+        description: `${file.name} is ready for conversion`,
+      });
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process the file. Please try again.",
+        variant: "destructive",
+      });
     }
   }, [onFileSelect, toast]);
 
@@ -161,51 +89,15 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   });
 
   if (selectedFile) {
-    return (
-      <div className="flex justify-center w-full">
-        <div className="w-full max-w-xl p-6 border-2 rounded-lg border-primary/20 bg-primary/5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText className="w-8 h-8 text-primary" />
-              <div>
-                <p className="font-medium text-gray-900">{selectedFile.name}</p>
-                <p className="text-sm text-gray-500">
-                  {formatFileSize(selectedFile.size)}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleRemoveFile}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+    return <FileInfo file={selectedFile} onRemove={handleRemoveFile} />;
   }
 
   return (
-    <div className="flex justify-center w-full">
-      <div
-        {...getRootProps()}
-        className={`w-full max-w-xl p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors
-          ${isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary'}`}
-      >
-        <input {...getInputProps()} />
-        <div className="flex flex-col items-center justify-center text-center">
-          <Upload className="w-12 h-12 mb-4 text-gray-400" />
-          <p className="mb-2 text-lg font-medium text-gray-900">
-            {isDragActive ? 'Drop the file here' : 'Drag & drop your EPUB or PDF file here'}
-          </p>
-          <p className="text-sm text-gray-500">or click to select a file</p>
-          <p className="mt-2 text-xs text-gray-400">Maximum file size: 100MB</p>
-        </div>
-      </div>
-    </div>
+    <DropZone
+      getRootProps={getRootProps}
+      getInputProps={getInputProps}
+      isDragActive={isDragActive}
+    />
   );
 };
 
