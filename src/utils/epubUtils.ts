@@ -7,16 +7,19 @@ export const extractEpubText = async (file: File): Promise<{ text: string; chapt
     console.log('Starting EPUB text extraction with chapter detection...');
     const arrayBuffer = await file.arrayBuffer();
     const book = ePub(arrayBuffer);
+    
+    // Wait for book to be ready
     await book.ready;
     
-    const spine = await book.loaded.spine;
+    // Load the spine properly
+    const spine = await book.spine.load();
     let fullText = '';
     const chapters: Chapter[] = [];
     
-    // Iterate through spine items correctly
-    for (const spineItem of spine) {
+    // Iterate through spine items correctly using items array
+    for (const item of book.spine.items) {
       try {
-        const contents = await book.load(spineItem.href);
+        const contents = await book.load(item.href);
         // Ensure contents is a string before parsing
         const contentString = contents instanceof Document ? 
           contents.documentElement.outerHTML : 
@@ -32,7 +35,7 @@ export const extractEpubText = async (file: File): Promise<{ text: string; chapt
         fullText += text + '\n\n';
         chapters.push(...newChapters);
       } catch (error) {
-        console.warn(`Failed to load spine item: ${spineItem.href}`, error);
+        console.warn(`Failed to load spine item: ${item.href}`, error);
         continue;
       }
     }
