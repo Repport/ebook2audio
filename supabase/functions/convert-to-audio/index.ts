@@ -29,10 +29,10 @@ serve(async (req) => {
     const { text, voiceId = 'en-US-Standard-C' } = await req.json();
     console.log('Request received with text length:', text.length, 'and voice:', voiceId);
 
-    const apiKey = Deno.env.get('GOOGLE_CLOUD_API_KEY');
-    if (!apiKey) {
-      console.error('Google Cloud API key is not configured');
-      throw new Error('Google Cloud API key is missing');
+    const credentials = Deno.env.get('GOOGLE_CLOUD_CREDENTIALS');
+    if (!credentials) {
+      console.error('Google Cloud credentials are not configured');
+      throw new Error('Google Cloud credentials are missing');
     }
 
     // Clean and prepare the text
@@ -58,11 +58,12 @@ serve(async (req) => {
 
     console.log('Making request to Google Cloud Text-to-Speech API...');
     const response = await fetch(
-      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
+      'https://texttospeech.googleapis.com/v1/text:synthesize',
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${JSON.parse(credentials).private_key}`,
         },
         body: JSON.stringify(requestBody),
       }
