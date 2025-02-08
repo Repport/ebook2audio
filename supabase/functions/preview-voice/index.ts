@@ -36,39 +36,48 @@ async function getAccessToken(): Promise<string> {
       throw new Error('Invalid credentials format');
     }
 
-    const scope = 'https://www.googleapis.com/auth/cloud-platform';
-    const now = Math.floor(Date.now() / 1000);
-    const expiryTime = now + 3600;
+    // Convert private key to proper PEM format
+    const privateKeyPEM = parsedCredentials.private_key
+      .replace(/\\n/g, '\n')
+      .replace(/^"|"$/g, '');
 
-    // Create JWT header and claims
-    const jwtHeader = {
+    // Prepare the JWT claims
+    const now = Math.floor(Date.now() / 1000);
+    const exp = now + 3600; // Token expires in 1 hour
+
+    // Create the JWT header and payload
+    const header = {
       alg: 'RS256',
       typ: 'JWT',
     };
-    
-    const jwtClaimSet = {
+
+    const payload = {
       iss: parsedCredentials.client_email,
-      scope: scope,
+      scope: 'https://www.googleapis.com/auth/cloud-platform',
       aud: 'https://oauth2.googleapis.com/token',
-      exp: expiryTime,
+      exp,
       iat: now,
     };
 
-    // Encode header and claims
-    const base64Header = btoa(JSON.stringify(jwtHeader));
-    const base64Claims = btoa(JSON.stringify(jwtClaimSet));
+    // Base64url encode header and payload
+    const base64Header = btoa(JSON.stringify(header))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
     
-    // Create signature input
-    const signatureInput = `${base64Header}.${base64Claims}`;
-    
-    // Create signature using crypto subtle
-    const privateKey = parsedCredentials.private_key
-      .replace(/\\n/g, '\n')
-      .replace(/["']/g, '');
+    const base64Payload = btoa(JSON.stringify(payload))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
 
-    const keyObject = await crypto.subtle.importKey(
+    // Create the signing input
+    const signInput = `${base64Header}.${base64Payload}`;
+
+    // Import the private key for signing
+    const binaryKey = new TextEncoder().encode(privateKeyPEM);
+    const cryptoKey = await crypto.subtle.importKey(
       'pkcs8',
-      new TextEncoder().encode(privateKey),
+      binaryKey,
       {
         name: 'RSASSA-PKCS1-v1_5',
         hash: 'SHA-256',
@@ -77,14 +86,21 @@ async function getAccessToken(): Promise<string> {
       ['sign']
     );
 
-    const signature = await crypto.subtle.sign(
+    // Sign the input
+    const signatureBuffer = await crypto.subtle.sign(
       'RSASSA-PKCS1-v1_5',
-      keyObject,
-      new TextEncoder().encode(signatureInput)
+      cryptoKey,
+      new TextEncoder().encode(signInput)
     );
 
-    const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)));
-    const jwt = `${base64Header}.${base64Claims}.${base64Signature}`;
+    // Convert signature to base64url
+    const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+
+    // Combine to create the full JWT
+    const jwt = `${base64Header}.${base64Payload}.${signatureBase64}`;
 
     // Exchange JWT for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
