@@ -3,8 +3,7 @@ import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { validateFile } from '@/utils/fileUtils';
-import { extractPdfText } from '@/utils/pdfUtils';
-import { extractEpubText } from '@/utils/epubUtils';
+import { processFile } from '@/utils/textExtraction';
 import FileInfo from './FileInfo';
 import DropZone from './DropZone';
 
@@ -43,33 +42,25 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     setIsProcessing(true);
 
     try {
-      let text = '';
-      if (file.name.toLowerCase().endsWith('.pdf')) {
-        toast({
-          title: "Processing PDF",
-          description: "Extracting text from PDF...",
-        });
-        text = await extractPdfText(file);
-      } else if (file.name.toLowerCase().endsWith('.epub')) {
-        toast({
-          title: "Processing EPUB",
-          description: "Extracting text from EPUB...",
-        });
-        text = await extractEpubText(file);
-      }
-
-      if (!text.trim()) {
+      toast({
+        title: "Processing File",
+        description: `Extracting text from ${file.name}...`,
+      });
+      
+      const result = await processFile(file);
+      
+      if (!result.text.trim()) {
         throw new Error('No text could be extracted from the file');
       }
 
-      const textFile = new File([text], file.name.replace(/\.(pdf|epub)$/, '.txt'), {
+      const textFile = new File([result.text], file.name.replace(/\.(pdf|epub)$/, '.txt'), {
         type: 'text/plain',
       });
 
       onFileSelect(textFile);
       toast({
         title: "File Processed",
-        description: `Successfully extracted ${text.length} characters from file`,
+        description: `Successfully extracted ${result.metadata?.totalCharacters} characters`,
       });
     } catch (error) {
       console.error('Error processing file:', error);
