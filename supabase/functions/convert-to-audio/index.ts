@@ -9,26 +9,18 @@ const corsHeaders = {
 
 function cleanText(text: string): string {
   return text
-    // Replace multiple newlines with a single one
     .replace(/\n+/g, '\n')
-    // Replace multiple spaces with a single space
     .replace(/\s+/g, ' ')
-    // Remove any non-printable characters
     .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
-    // Remove common PDF artifacts
     .replace(/\[pdf\]/gi, '')
     .replace(/\[page\s*\d*\]/gi, '')
-    // Replace unicode quotes with standard quotes
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201C\u201D]/g, '"')
-    // Add proper punctuation for better speech synthesis
     .replace(/([.!?])\s*(\w)/g, '$1 $2')
-    // Trim extra whitespace
     .trim();
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       status: 204,
@@ -40,14 +32,12 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId = 'en-US-Standard-C' } = await req.json();
-    console.log('Request received with text length:', text.length, 'and voice:', voiceId);
+    const { text, voiceId = 'en-US-Standard-C', chapters } = await req.json();
+    console.log('Request received with text length:', text.length, 'voice:', voiceId, 'chapters:', chapters?.length || 0);
 
-    // Get access token using the shared authentication module
     const accessToken = await getAccessToken();
     console.log('✅ Successfully obtained access token');
 
-    // Clean and prepare the text
     const cleanedText = cleanText(text);
     console.log('Cleaned text sample:', cleanedText.substring(0, 100) + '...');
     
@@ -55,9 +45,23 @@ serve(async (req) => {
       throw new Error('No text content to convert');
     }
 
-    // Prepare request to Google Cloud Text-to-Speech API
+    // Add SSML markers for chapters if provided
+    let ssmlText = cleanedText;
+    if (chapters && chapters.length > 0) {
+      ssmlText = `<speak>
+        ${chapters.map((chapter, index) => {
+          const nextIndex = index < chapters.length - 1 ? chapters[index + 1].timestamp : null;
+          return `
+            <mark name="chapter${index}"/>
+            ${chapter.title && `<break time="1s"/><emphasis level="strong">${chapter.title}</emphasis><break time="1s"/>`}
+            ${cleanedText.substring(chapter.startIndex, nextIndex !== null ? chapters[index + 1].startIndex : undefined)}
+          `;
+        }).join('\n')}
+      </speak>`;
+    }
+
     const requestBody = {
-      input: { text: cleanedText },
+      input: { ssml: ssmlText },
       voice: {
         languageCode: 'en-US',
         name: voiceId,
@@ -67,7 +71,6 @@ serve(async (req) => {
         audioEncoding: 'MP3',
         speakingRate: 1.0,
         pitch: 0.0,
-        // Add emphasis on punctuation for better story narration
         effectsProfileId: ['handset-class-device'],
       }
     };
