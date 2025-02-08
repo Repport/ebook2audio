@@ -1,12 +1,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export interface VoicePreviewResponse {
+export interface VoicePrelistenResponse {
   audioContent: string;
 }
 
-export const previewVoice = async (voiceId: string, previewText?: string): Promise<VoicePreviewResponse> => {
-  console.log('Starting voice preview request for:', voiceId);
+export const prelistenVoice = async (voiceId: string, previewText?: string): Promise<VoicePrelistenResponse> => {
+  console.log('Starting voice prelisten request for:', voiceId);
   
   const { data, error } = await supabase.functions.invoke('preview-voice', {
     body: { 
@@ -16,7 +16,7 @@ export const previewVoice = async (voiceId: string, previewText?: string): Promi
   });
 
   if (error) {
-    console.error('Voice preview error:', error);
+    console.error('Voice prelisten error:', error);
     throw error;
   }
 
@@ -25,6 +25,6 @@ export const previewVoice = async (voiceId: string, previewText?: string): Promi
     throw new Error('No audio data received');
   }
 
-  console.log('Voice preview data received successfully');
+  console.log('Voice prelisten data received successfully');
   return data;
 };

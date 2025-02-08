@@ -9,10 +9,10 @@ interface VoiceOptionProps {
   voiceId: string;
   label: string;
   isPlaying: boolean;
-  onPreview: () => void;
+  onPrelisten: () => void;
 }
 
-const VoiceOption = ({ voiceId, label, isPlaying, onPreview }: VoiceOptionProps) => {
+const VoiceOption = ({ voiceId, label, isPlaying, onPrelisten }: VoiceOptionProps) => {
   return (
     <div className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50">
       <div className="flex items-center gap-2 mb-2">
@@ -22,12 +22,12 @@ const VoiceOption = ({ voiceId, label, isPlaying, onPreview }: VoiceOptionProps)
       <Button
         variant="outline"
         size="sm"
-        onClick={onPreview}
+        onClick={onPrelisten}
         disabled={isPlaying}
         className="w-full"
       >
         <Volume2 className="w-4 h-4 mr-1" />
-        {isPlaying ? "Playing..." : "Preview"}
+        {isPlaying ? "Playing..." : "Prelisten"}
       </Button>
     </div>
   );

@@ -1,7 +1,7 @@
 
 import { RadioGroup } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { useAudioPreview } from "@/hooks/useAudioPreview";
+import { useAudioPrelisten } from "@/hooks/useAudioPrelisten";
 import VoiceOption from "./VoiceOption";
 import { VOICES } from "@/constants/voices";
 
@@ -12,7 +12,7 @@ interface VoiceSelectorProps {
 }
 
 const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: VoiceSelectorProps) => {
-  const { isPlaying, playPreview } = useAudioPreview();
+  const { isPlaying, playPrelisten } = useAudioPrelisten();
 
   // Get available voices for the detected language or fallback to English
   const availableVoices = VOICES[detectedLanguage as keyof typeof VOICES] || VOICES.english;
@@ -33,7 +33,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: Voice
             voiceId={voice.id}
             label={voice.label}
             isPlaying={isPlaying === voice.id}
-            onPreview={() => playPreview(voice.id, detectedLanguage)}
+            onPrelisten={() => playPrelisten(voice.id, detectedLanguage)}
           />
         ))}
       </RadioGroup>
