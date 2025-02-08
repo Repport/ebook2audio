@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { previewVoice } from "@/services/voiceService";
+import { prelistenVoice } from "@/services/voiceService";
 import { DEFAULT_PREVIEW_TEXTS } from "@/constants/voices";
 
 export const useAudioPreview = () => {
@@ -18,7 +18,7 @@ export const useAudioPreview = () => {
       const previewText = DEFAULT_PREVIEW_TEXTS[language as keyof typeof DEFAULT_PREVIEW_TEXTS] || 
                          DEFAULT_PREVIEW_TEXTS.english;
       
-      const data = await previewVoice(voiceId, previewText);
+      const data = await prelistenVoice(voiceId, previewText);
       
       if (!data.audioContent) {
         throw new Error('No audio content received');
