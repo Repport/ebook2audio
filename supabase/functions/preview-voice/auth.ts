@@ -11,16 +11,19 @@ interface ServiceAccountCredentials {
 
 export async function getAccessToken(): Promise<string> {
   try {
-    const serviceAccount = Deno.env.get('GCP_SERVICE_ACCOUNT');
-    if (!serviceAccount) {
+    const serviceAccountBase64 = Deno.env.get('GCP_SERVICE_ACCOUNT');
+    if (!serviceAccountBase64) {
       throw new Error('GCP service account credentials are missing');
     }
 
     let credentials: ServiceAccountCredentials;
     try {
-      credentials = JSON.parse(serviceAccount);
+      // Decode Base64 to JSON
+      const serviceAccountJSON = atob(serviceAccountBase64);
+      credentials = JSON.parse(serviceAccountJSON);
+      console.log("✅ Google Cloud Service Account loaded successfully");
     } catch (e) {
-      console.error('Failed to parse GCP service account credentials:', e);
+      console.error('❌ Failed to parse GCP service account credentials:', e);
       throw new Error('Invalid GCP service account credentials format');
     }
     
