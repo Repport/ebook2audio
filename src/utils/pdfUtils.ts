@@ -1,8 +1,12 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
+import { PDFDocumentProxy } from 'pdfjs-dist';
 
-// Initialize PDF.js worker with complete HTTPS URL
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Initialize PDF.js worker directly from node_modules
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).toString();
 
 export const extractPdfText = async (file: File): Promise<string> => {
   try {
