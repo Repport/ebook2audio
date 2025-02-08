@@ -14,6 +14,7 @@ interface FileUploadZoneProps {
 const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = React.useState(false);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0] || null;
@@ -37,6 +38,9 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       return;
     }
 
+    setSelectedFile(file);
+    setIsProcessing(true);
+
     try {
       if (file.name.toLowerCase().endsWith('.pdf')) {
         toast({
@@ -45,27 +49,38 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
         });
         
         const text = await extractPdfText(file);
+        console.log('Text extracted successfully, length:', text.length);
+        
+        if (!text.trim()) {
+          throw new Error('No text could be extracted from the PDF');
+        }
+        
         const textFile = new File([text], file.name.replace('.pdf', '.txt'), {
           type: 'text/plain',
         });
-        setSelectedFile(file); // Keep original file for display
+        
         onFileSelect(textFile); // Pass text file for processing
+        toast({
+          title: "PDF Processed",
+          description: `Successfully extracted ${text.length} characters from PDF`,
+        });
       } else {
-        setSelectedFile(file);
         onFileSelect(file);
+        toast({
+          title: "File accepted",
+          description: `${file.name} is ready for conversion`,
+        });
       }
-      
-      toast({
-        title: "File accepted",
-        description: `${file.name} is ready for conversion`,
-      });
     } catch (error) {
       console.error('Error processing file:', error);
       toast({
         title: "Error",
-        description: "Failed to process the file. Please try again.",
+        description: error.message || "Failed to process the file. Please try again.",
         variant: "destructive",
       });
+      setSelectedFile(null);
+    } finally {
+      setIsProcessing(false);
     }
   }, [onFileSelect, toast]);
 
