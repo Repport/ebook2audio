@@ -11,6 +11,13 @@ interface ServiceAccountCredentials {
   private_key: string;
 }
 
+function cleanPrivateKey(key: string): string {
+  // Remove any extra whitespace and ensure proper PEM format
+  return key
+    .replace(/\\n/g, '\n')
+    .replace(/^\s+|\s+$/g, '');
+}
+
 export async function getAccessToken(): Promise<string> {
   try {
     const serviceAccountBase64 = Deno.env.get('GCP_SERVICE_ACCOUNT');
@@ -39,9 +46,9 @@ export async function getAccessToken(): Promise<string> {
       throw new Error('Invalid service account format - missing required fields');
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const exp = now + 3600; // Token expires in 1 hour
-
+    // Clean and format the private key
+    const privateKey = cleanPrivateKey(credentials.private_key);
+    
     // Create the JWT claims
     const claims = {
       iss: credentials.client_email,
@@ -51,41 +58,48 @@ export async function getAccessToken(): Promise<string> {
       iat: getNumericDate(0),
     };
 
-    // Sign the JWT
-    const key = await crypto.subtle.importKey(
-      'pkcs8',
-      new TextEncoder().encode(credentials.private_key),
-      {
-        name: 'RSASSA-PKCS1-v1_5',
-        hash: 'SHA-256',
-      },
-      false,
-      ['sign']
-    );
+    try {
+      // Sign the JWT
+      const key = await crypto.subtle.importKey(
+        'pkcs8',
+        new TextEncoder().encode(privateKey),
+        {
+          name: 'RSASSA-PKCS1-v1_5',
+          hash: 'SHA-256',
+        },
+        false,
+        ['sign']
+      );
 
-    const jwt = await create({ alg: 'RS256', typ: 'JWT' }, claims, key);
+      const jwt = await create({ alg: 'RS256', typ: 'JWT' }, claims, key);
+      console.log('✅ JWT created successfully');
 
-    // Exchange the JWT for an access token
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: jwt,
-      }),
-    });
+      // Exchange the JWT for an access token
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+          assertion: jwt,
+        }),
+      });
 
-    if (!tokenResponse.ok) {
-      const error = await tokenResponse.text();
-      console.error('Token request failed:', error);
-      throw new Error(`Failed to get access token: ${error}`);
+      if (!tokenResponse.ok) {
+        const error = await tokenResponse.text();
+        console.error('Token request failed:', error);
+        throw new Error(`Failed to get access token: ${error}`);
+      }
+
+      const { access_token } = await tokenResponse.json();
+      console.log('✅ Successfully obtained access token');
+      return access_token;
+
+    } catch (e) {
+      console.error('Failed to create or exchange JWT:', e);
+      throw e;
     }
-
-    const { access_token } = await tokenResponse.json();
-    console.log('✅ Successfully obtained access token');
-    return access_token;
 
   } catch (error) {
     console.error('Error in getAccessToken:', error);
