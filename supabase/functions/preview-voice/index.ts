@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { create as createJWT } from "https://deno.land/x/djwt@v2.8/mod.ts"
+import { create } from "https://deno.land/x/djwt@v2.8/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,8 +13,8 @@ async function getAccessToken(credentials: any): Promise<string> {
   const private_key = credentials.private_key;
 
   try {
-    // Create JWT
-    const jwt = await createJWT(
+    console.log('Getting access token for:', client_email);
+    const jwt = await create(
       { alg: "RS256", typ: "JWT" },
       {
         iss: client_email,
@@ -26,7 +26,6 @@ async function getAccessToken(credentials: any): Promise<string> {
       private_key
     );
 
-    // Exchange JWT for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -45,6 +44,7 @@ async function getAccessToken(credentials: any): Promise<string> {
     }
 
     const { access_token } = await tokenResponse.json();
+    console.log('Successfully obtained access token');
     return access_token;
   } catch (error) {
     console.error('Error getting access token:', error);
@@ -78,16 +78,16 @@ serve(async (req) => {
     const requestData = await req.json();
     console.log('Request data:', requestData);
 
-    if (!requestData || typeof requestData.voiceId !== 'string') {
-      console.error('Invalid or missing voiceId in request');
-      throw new Error('Invalid voice ID format');
+    if (!requestData || !requestData.voiceId) {
+      console.error('Invalid request data:', requestData);
+      throw new Error('Invalid request: voiceId is required');
     }
 
     const { voiceId } = requestData;
-    console.log('Previewing voice:', voiceId);
+    console.log('Processing request for voice:', voiceId);
 
     // Validate voiceId format
-    if (!voiceId.startsWith('en-US-Standard-')) {
+    if (!voiceId.match(/^[a-z]{2}-[A-Z]{2}-Standard-[A-Z]$/)) {
       console.error('Invalid voice ID format:', voiceId);
       throw new Error('Invalid voice ID format');
     }
@@ -103,13 +103,13 @@ serve(async (req) => {
     }
 
     // Determine voice gender based on voice ID
-    const ssmlGender = voiceId.includes('Standard-C') ? 'FEMALE' : 'MALE';
+    const ssmlGender = voiceId.endsWith('-C') ? 'FEMALE' : 'MALE';
 
     // Prepare request to Google Cloud Text-to-Speech API
     const requestBody = {
       input: { text: cleanedText },
       voice: {
-        languageCode: 'en-US',
+        languageCode: voiceId.substring(0, 5),
         name: voiceId,
         ssmlGender
       },
@@ -168,3 +168,4 @@ serve(async (req) => {
     );
   }
 });
+

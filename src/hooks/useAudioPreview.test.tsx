@@ -68,7 +68,7 @@ vi.stubGlobal('URL', {
   revokeObjectURL: mockRevokeObjectURL,
   prototype: {} as URL,
   canParse: () => false,
-  parse: (url: string) => new URL(url)
+  parse: (url: string, base?: string) => new URL(url, base)
 });
 vi.stubGlobal('atob', mockAtob);
 
