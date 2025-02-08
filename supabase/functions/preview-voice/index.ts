@@ -1,15 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { create } from "https://deno.land/x/djwt@v2.8/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-interface GoogleCloudCredentials {
-  client_email: string;
-  private_key: string;
 }
 
 interface TextToSpeechRequest {
@@ -30,32 +24,70 @@ interface TextToSpeechRequest {
 
 const PREVIEW_TEXT = "Hello! This is a preview of my voice.";
 
-async function getAccessToken(credentials: GoogleCloudCredentials): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  
-  if (!credentials?.client_email || !credentials?.private_key) {
-    console.error('Invalid credentials provided:', { 
-      hasEmail: !!credentials?.client_email, 
-      hasKey: !!credentials?.private_key 
-    });
-    throw new Error('Invalid Google Cloud credentials configuration');
-  }
-
+async function getAccessToken(): Promise<string> {
   try {
-    console.log('Getting access token for:', credentials.client_email);
-    const jwt = await create(
-      { alg: "RS256", typ: "JWT" },
+    const credentials = Deno.env.get('GOOGLE_CLOUD_CREDENTIALS');
+    if (!credentials) {
+      throw new Error('Google Cloud credentials are missing');
+    }
+
+    const parsedCredentials = JSON.parse(credentials);
+    if (!parsedCredentials.client_email || !parsedCredentials.private_key) {
+      throw new Error('Invalid credentials format');
+    }
+
+    const scope = 'https://www.googleapis.com/auth/cloud-platform';
+    const now = Math.floor(Date.now() / 1000);
+    const expiryTime = now + 3600;
+
+    // Create JWT header and claims
+    const jwtHeader = {
+      alg: 'RS256',
+      typ: 'JWT',
+    };
+    
+    const jwtClaimSet = {
+      iss: parsedCredentials.client_email,
+      scope: scope,
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: expiryTime,
+      iat: now,
+    };
+
+    // Encode header and claims
+    const base64Header = btoa(JSON.stringify(jwtHeader));
+    const base64Claims = btoa(JSON.stringify(jwtClaimSet));
+    
+    // Create signature input
+    const signatureInput = `${base64Header}.${base64Claims}`;
+    
+    // Create signature using crypto subtle
+    const privateKey = parsedCredentials.private_key
+      .replace(/\\n/g, '\n')
+      .replace(/["']/g, '');
+
+    const keyObject = await crypto.subtle.importKey(
+      'pkcs8',
+      new TextEncoder().encode(privateKey),
       {
-        iss: credentials.client_email,
-        scope: 'https://www.googleapis.com/auth/cloud-platform',
-        aud: 'https://oauth2.googleapis.com/token',
-        exp: now + 3600,
-        iat: now,
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256',
       },
-      credentials.private_key
+      false,
+      ['sign']
     );
 
-    const response = await fetch('https://oauth2.googleapis.com/token', {
+    const signature = await crypto.subtle.sign(
+      'RSASSA-PKCS1-v1_5',
+      keyObject,
+      new TextEncoder().encode(signatureInput)
+    );
+
+    const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)));
+    const jwt = `${base64Header}.${base64Claims}.${base64Signature}`;
+
+    // Exchange JWT for access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -66,15 +98,16 @@ async function getAccessToken(credentials: GoogleCloudCredentials): Promise<stri
       }),
     });
 
-    if (!response.ok) {
-      const error = await response.text();
+    if (!tokenResponse.ok) {
+      const error = await tokenResponse.text();
       console.error('Token request failed:', error);
       throw new Error('Failed to get access token');
     }
 
-    const { access_token } = await response.json();
+    const { access_token } = await tokenResponse.json();
     console.log('Successfully obtained access token');
     return access_token;
+
   } catch (error) {
     console.error('Error in getAccessToken:', error);
     throw error;
@@ -119,13 +152,6 @@ serve(async (req) => {
 
   try {
     console.log('Processing voice preview request');
-    const credentials = Deno.env.get('GOOGLE_CLOUD_CREDENTIALS');
-    
-    if (!credentials) {
-      throw new Error('Google Cloud credentials are missing');
-    }
-
-    const parsedCredentials = JSON.parse(credentials);
     const { voiceId } = await req.json();
 
     if (!voiceId) {
@@ -148,7 +174,7 @@ serve(async (req) => {
       }
     };
 
-    const accessToken = await getAccessToken(parsedCredentials);
+    const accessToken = await getAccessToken();
     const response = await synthesizeSpeech(accessToken, requestBody);
     const data = await response.json();
 
