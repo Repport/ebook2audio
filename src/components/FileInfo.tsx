@@ -10,6 +10,21 @@ interface FileInfoProps {
 }
 
 const FileInfo = ({ file, onRemove }: FileInfoProps) => {
+  const [characterCount, setCharacterCount] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    const countCharacters = async () => {
+      try {
+        const text = await file.text();
+        setCharacterCount(text.length);
+      } catch (error) {
+        console.error('Error counting characters:', error);
+      }
+    };
+
+    countCharacters();
+  }, [file]);
+
   return (
     <div className="flex justify-center w-full">
       <div className="w-full max-w-xl p-6 border-2 rounded-lg border-primary/20 bg-primary/5">
@@ -18,9 +33,16 @@ const FileInfo = ({ file, onRemove }: FileInfoProps) => {
             <FileText className="w-8 h-8 text-primary" />
             <div>
               <p className="font-medium text-gray-900">{file.name}</p>
-              <p className="text-sm text-gray-500">
-                {formatFileSize(file.size)}
-              </p>
+              <div className="space-y-1">
+                <p className="text-sm text-gray-500">
+                  {formatFileSize(file.size)}
+                </p>
+                {characterCount !== null && (
+                  <p className="text-sm text-gray-500">
+                    {characterCount.toLocaleString()} characters
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           <Button
