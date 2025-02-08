@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import FileUploadZone from '@/components/FileUploadZone';
 import ConversionStatus from '@/components/ConversionStatus';
@@ -11,6 +12,7 @@ import { VOICES } from '@/constants/voices';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [extractedText, setExtractedText] = useState<string>('');
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [detectChapters, setDetectChapters] = useState(true);
@@ -24,10 +26,12 @@ const Index = () => {
   const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string } | null) => {
     if (!fileInfo) {
       setSelectedFile(null);
+      setExtractedText('');
       return;
     }
 
     setSelectedFile(fileInfo.file);
+    setExtractedText(fileInfo.text);
     setDetectedLanguage(fileInfo.language || 'english');
     const languageVoices = VOICES[fileInfo.language as keyof typeof VOICES] || VOICES.english;
     setSelectedVoice(languageVoices[0].id);
@@ -51,7 +55,7 @@ const Index = () => {
   };
 
   const handleConversion = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !extractedText) return;
 
     setConversionStatus('converting');
     setProgress(0);
@@ -61,9 +65,7 @@ const Index = () => {
         await simulateChapterDetection();
       }
 
-      const text = await selectedFile.text();
-      
-      const audio = await convertToAudio(text, selectedVoice);
+      const audio = await convertToAudio(extractedText, selectedVoice);
       setAudioData(audio);
       
       setConversionStatus('completed');
@@ -151,3 +153,4 @@ const Index = () => {
 };
 
 export default Index;
+
