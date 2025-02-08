@@ -28,11 +28,20 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       return;
     }
 
-    // Get file extension
-    const fileExtension = file.name.toLowerCase().split('.').pop();
+    // Extract file extension more robustly
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
     
+    if (!fileExtension) {
+      toast({
+        title: "Invalid File",
+        description: "Unable to determine file type. Please ensure your file has a valid extension.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate file type first
-    if (!['pdf', 'epub'].includes(fileExtension || '')) {
+    if (!['pdf', 'epub'].includes(fileExtension)) {
       toast({
         title: "Invalid File Type",
         description: `File type .${fileExtension} is not supported. Please upload a PDF or EPUB file.`,
@@ -68,7 +77,7 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
         throw new Error('No text could be extracted from the file');
       }
 
-      const textFile = new File([result.text], file.name.replace(/\.(pdf|epub)$/, '.txt'), {
+      const textFile = new File([result.text], file.name.replace(/\.(pdf|epub)$/i, '.txt'), {
         type: 'text/plain',
       });
 
@@ -85,11 +94,11 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     } catch (error) {
       console.error('Error processing file:', error);
       
-      // Only show error toast if it's not related to language detection and it's a real processing error
-      if (!error.message?.toLowerCase().includes('language') && !error.message?.toLowerCase().includes('unknown')) {
+      // Only show error toast if it's not related to language detection
+      if (!error.message?.toLowerCase().includes('language')) {
         toast({
           title: "Error",
-          description: "Failed to process file. Please try a different file.",
+          description: error.message || "Failed to process file. Please try a different file.",
           variant: "destructive",
         });
       }

@@ -18,17 +18,21 @@ export type Chapter = {
 };
 
 export const processFile = async (file: File): Promise<FileProcessingResult> => {
-  const fileType = file.name.toLowerCase().split('.').pop();
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
   
-  if (!fileType || !['pdf', 'epub'].includes(fileType)) {
-    throw new Error(`Unsupported file type: ${fileType}`);
+  if (!fileExtension) {
+    throw new Error('Unable to determine file type');
+  }
+
+  if (!['pdf', 'epub'].includes(fileExtension)) {
+    throw new Error(`Unsupported file type: ${fileExtension}`);
   }
 
   try {
     let text = '';
     let chapters: Chapter[] = [];
     
-    switch (fileType) {
+    switch (fileExtension) {
       case 'pdf':
         const pdfResult = await extractPdfText(file);
         text = pdfResult.text;
@@ -40,7 +44,7 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
         chapters = epubResult.chapters;
         break;
       default:
-        throw new Error(`Unsupported file type: ${fileType}`);
+        throw new Error(`Unsupported file type: ${fileExtension}`);
     }
 
     const language = detectLanguage(text);
@@ -54,7 +58,7 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
       }
     };
   } catch (error) {
-    console.error(`Error processing ${fileType} file:`, error);
+    console.error(`Error processing ${fileExtension} file:`, error);
     throw error;
   }
 };
