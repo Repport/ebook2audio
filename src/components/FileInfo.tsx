@@ -12,19 +12,32 @@ interface FileInfoProps {
 
 const FileInfo = ({ file, onRemove }: FileInfoProps) => {
   const [characterCount, setCharacterCount] = React.useState<number | null>(null);
+  const [language, setLanguage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const countCharacters = async () => {
+    const processFileInfo = async () => {
       try {
         const result = await processFile(file);
         setCharacterCount(result.metadata?.totalCharacters || null);
+        setLanguage(result.metadata?.language || null);
       } catch (error) {
-        console.error('Error counting characters:', error);
+        console.error('Error processing file:', error);
       }
     };
 
-    countCharacters();
+    processFileInfo();
   }, [file]);
+
+  const formatLanguage = (lang: string): string => {
+    const languages: Record<string, string> = {
+      english: 'English',
+      spanish: 'Spanish',
+      french: 'French',
+      german: 'German',
+      unknown: 'Unknown'
+    };
+    return languages[lang] || 'Unknown';
+  };
 
   return (
     <div className="flex justify-center w-full">
@@ -41,6 +54,11 @@ const FileInfo = ({ file, onRemove }: FileInfoProps) => {
                 {characterCount !== null && (
                   <p className="text-sm text-gray-500">
                     {characterCount.toLocaleString()} characters
+                  </p>
+                )}
+                {language && (
+                  <p className="text-sm text-gray-500">
+                    Language: {formatLanguage(language)}
                   </p>
                 )}
               </div>
