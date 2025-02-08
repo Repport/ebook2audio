@@ -5,9 +5,10 @@ import { Upload, X, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from './ui/button';
 import * as pdfjs from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
 
 // Initialize PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 interface FileUploadZoneProps {
   onFileSelect: (file: File | null) => void;
@@ -26,20 +27,25 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   };
 
   const extractPdfText = async (file: File): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-    let fullText = '';
-    
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      fullText += pageText + '\n\n';
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += pageText + '\n\n';
+      }
+      
+      return fullText.trim();
+    } catch (error) {
+      console.error('PDF extraction error:', error);
+      throw new Error('Failed to extract text from PDF');
     }
-    
-    return fullText.trim();
   };
 
   const validateFile = (file: File | null): boolean => {
