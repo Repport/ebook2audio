@@ -15,6 +15,15 @@ interface ConvertToAudioResponse {
   error: Error | null;
 }
 
+interface ChunkUpdate {
+  chunk_text: string;
+  conversion_id: string;
+  chunk_index: number;
+  status: string;
+  audio_path?: string;
+  error_message?: string;
+}
+
 export async function processChunks(
   chunks: string[], 
   voiceId: string,
@@ -29,6 +38,19 @@ export async function processChunks(
   if (onProgressUpdate) {
     onProgressUpdate(0, chunks.length, 0);
   }
+
+  const updateChunkStatus = async (update: ChunkUpdate) => {
+    const { error } = await supabase
+      .from('conversion_chunks')
+      .upsert(update)
+      .eq('conversion_id', update.conversion_id)
+      .eq('chunk_index', update.chunk_index);
+
+    if (error) {
+      console.error('Error updating chunk status:', error);
+      throw error;
+    }
+  };
 
   const processChunk = async (index: number): Promise<void> => {
     if (index >= chunks.length) return;
@@ -47,21 +69,12 @@ export async function processChunks(
         const obfuscatedVoiceId = obfuscateData(voiceId);
 
         // Update chunk status to processing
-        const { error: updateError } = await supabase
-          .from('conversion_chunks')
-          .upsert({
-            conversion_id: conversionId,
-            chunk_index: index,
-            status: 'processing',
-            chunk_text: chunks[index]
-          })
-          .eq('conversion_id', conversionId)
-          .eq('chunk_index', index);
-
-        if (updateError) {
-          console.error('Error updating chunk status:', updateError);
-          throw updateError;
-        }
+        await updateChunkStatus({
+          conversion_id: conversionId,
+          chunk_index: index,
+          status: 'processing',
+          chunk_text: chunks[index]
+        });
 
         const { data, error } = await supabase.functions.invoke<ConvertToAudioResponse>('convert-to-audio', {
           body: { 
@@ -105,22 +118,13 @@ export async function processChunks(
           completed++;
 
           // Update chunk status to completed
-          const { error: completeError } = await supabase
-            .from('conversion_chunks')
-            .upsert({
-              conversion_id: conversionId,
-              chunk_index: index,
-              status: 'completed',
-              audio_path: `chunk_${index}.mp3`,
-              chunk_text: chunks[index]
-            })
-            .eq('conversion_id', conversionId)
-            .eq('chunk_index', index);
-
-          if (completeError) {
-            console.error('Error updating chunk completion status:', completeError);
-            throw completeError;
-          }
+          await updateChunkStatus({
+            conversion_id: conversionId,
+            chunk_index: index,
+            status: 'completed',
+            audio_path: `chunk_${index}.mp3`,
+            chunk_text: chunks[index]
+          });
 
           if (onProgressUpdate) {
             const progressPercentage = Math.round((completed / chunks.length) * 100);
@@ -151,21 +155,13 @@ export async function processChunks(
       console.error(`Error processing chunk ${index}, attempt ${retryCount + 1}:`, error);
       
       // Update chunk status to failed
-      const { error: failureError } = await supabase
-        .from('conversion_chunks')
-        .upsert({
-          conversion_id: conversionId,
-          chunk_index: index,
-          status: 'failed',
-          error_message: error.message,
-          chunk_text: chunks[index]
-        })
-        .eq('conversion_id', conversionId)
-        .eq('chunk_index', index);
-
-      if (failureError) {
-        console.error('Error updating chunk failure status:', failureError);
-      }
+      await updateChunkStatus({
+        conversion_id: conversionId,
+        chunk_index: index,
+        status: 'failed',
+        error_message: error.message,
+        chunk_text: chunks[index]
+      });
 
       const jitter = Math.random() * 1000;
       const delay = Math.min(
