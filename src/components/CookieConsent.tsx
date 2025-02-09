@@ -70,8 +70,15 @@ const CookieConsentBanner = () => {
       }}
     >
       <p className="text-sm text-white mb-4">
-        We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. 
-        By clicking "Accept All Cookies", you consent to our use of cookies. Read more about our cookie policy in our{" "}
+        We use cookies to enhance your browsing experience and provide personalized services. These include:
+      </p>
+      <ul className="text-sm text-white mb-4 list-disc pl-6 space-y-2">
+        <li><strong>Necessary cookies:</strong> Essential for website functionality and security</li>
+        <li><strong>Analytics cookies:</strong> Help us understand how you use our website</li>
+        <li><strong>Advertising cookies:</strong> Allow us to show you relevant advertisements</li>
+      </ul>
+      <p className="text-sm text-white">
+        By clicking "Accept All Cookies", you consent to our use of all cookies. Click "Accept Necessary Only" to reject analytics and advertising cookies. Read more in our{" "}
         <a href="/privacy" className="underline hover:text-primary">
           Privacy Policy
         </a>
