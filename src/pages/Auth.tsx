@@ -9,11 +9,14 @@ import { Label } from "@/components/ui/label";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
+import TermsCheckbox from "@/components/TermsCheckbox";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -67,6 +70,15 @@ const Auth = () => {
       return;
     }
 
+    if (!termsAccepted) {
+      toast({
+        title: "Terms not accepted",
+        description: "Please accept the terms and conditions to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { data: { user: newUser }, error } = await supabase.auth.signUp({
@@ -74,7 +86,9 @@ const Auth = () => {
         password,
         options: {
           data: {
-            email: email // Include email in user metadata
+            email: email, // Include email in user metadata
+            terms_accepted: true,
+            terms_accepted_at: new Date().toISOString()
           }
         }
       });
@@ -174,15 +188,22 @@ const Auth = () => {
             >
               {loading ? "Signing in..." : "Sign in"}
             </Button>
-            <Button
-              type="button"
-              onClick={handleEmailSignUp}
-              variant="outline"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? "Creating account..." : "Sign up"}
-            </Button>
+            <div className="space-y-4">
+              <TermsCheckbox
+                accepted={termsAccepted}
+                isVerifying={isVerifying}
+                onCheckedChange={setTermsAccepted}
+              />
+              <Button
+                type="button"
+                onClick={handleEmailSignUp}
+                variant="outline"
+                className="w-full"
+                disabled={loading}
+              >
+                {loading ? "Creating account..." : "Sign up"}
+              </Button>
+            </div>
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
