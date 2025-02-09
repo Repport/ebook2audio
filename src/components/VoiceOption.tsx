@@ -14,7 +14,7 @@ interface VoiceOptionProps {
 
 const VoiceOption = ({ voiceId, label, isPlaying, onPrelisten }: VoiceOptionProps) => {
   return (
-    <div className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50">
+    <div className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
       <div className="flex items-center gap-2 mb-2">
         <RadioGroupItem value={voiceId} id={voiceId} />
         <Label htmlFor={voiceId} className="text-sm font-medium">{label}</Label>
@@ -24,7 +24,7 @@ const VoiceOption = ({ voiceId, label, isPlaying, onPrelisten }: VoiceOptionProp
         size="sm"
         onClick={onPrelisten}
         disabled={isPlaying}
-        className="w-full"
+        className="w-full hover:text-foreground dark:hover:text-white dark:hover:bg-gray-700 transition-colors"
       >
         <Volume2 className="w-4 h-4 mr-1" />
         {isPlaying ? "Playing..." : "Prelisten"}
