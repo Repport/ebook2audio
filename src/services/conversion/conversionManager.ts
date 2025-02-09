@@ -28,40 +28,36 @@ export async function createConversion(
       return existingConversion.id;
     }
 
-    // First perform the upsert without returning data
-    const { error: insertError } = await supabase
+    // If no existing conversion, try to create a new one with upsert
+    const { data: newConversion, error: insertError } = await supabase
       .from('text_conversions')
-      .upsert({
-        text_hash: textHash,
-        file_name: fileName,
-        user_id: userId,
-        status: 'pending',
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-      });
+      .upsert(
+        {
+          text_hash: textHash,
+          file_name: fileName,
+          user_id: userId,
+          status: 'pending',
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+        },
+        { 
+          onConflict: 'text_hash',
+          ignoreDuplicates: false // We want to update if exists
+        }
+      )
+      .select('id')
+      .single();
 
     if (insertError) {
       console.error('Error creating conversion:', insertError);
       throw insertError;
     }
 
-    // Then fetch the record (whether it was just inserted or already existed)
-    const { data: conversion, error: selectError } = await supabase
-      .from('text_conversions')
-      .select()
-      .eq('text_hash', textHash)
-      .maybeSingle();
-
-    if (selectError) {
-      console.error('Error fetching conversion after upsert:', selectError);
-      throw selectError;
+    if (!newConversion) {
+      throw new Error('Failed to create conversion record');
     }
 
-    if (!conversion) {
-      throw new Error('Failed to create or find conversion record');
-    }
-
-    console.log('Using conversion record:', conversion.id);
-    return conversion.id;
+    console.log('Created/updated conversion record:', newConversion.id);
+    return newConversion.id;
   } catch (error) {
     console.error('Error in createConversion:', error);
     throw error;
