@@ -31,25 +31,31 @@ serve(async (req) => {
     try {
       const decodedKey = atob(encodedKey);
       credentials = JSON.parse(decodedKey);
-      if (!credentials.type || credentials.type !== 'service_account') {
-        throw new Error('Invalid credentials format: missing or incorrect type field');
+      
+      // Validate the credentials format
+      if (!credentials.project_id || !credentials.private_key || !credentials.client_email) {
+        throw new Error('Invalid credentials format: missing required fields');
       }
-      console.log('✅ Service account credentials decoded and validated successfully');
-      console.log('Project ID from credentials:', credentials.project_id);
+      
+      console.log('✅ Service account credentials decoded successfully');
+      console.log('Project ID:', credentials.project_id);
     } catch (parseError) {
       console.error('Error decoding/parsing credentials:', parseError);
       throw new Error('Invalid service account credentials format');
     }
 
-    console.log('Initializing RecaptchaEnterpriseServiceClient...');
+    console.log('Creating RecaptchaEnterpriseServiceClient...');
     
     const client = new RecaptchaEnterpriseServiceClient({
-      credentials,
-      projectId: credentials.project_id
+      credentials: {
+        client_email: credentials.client_email,
+        private_key: credentials.private_key,
+      },
+      projectId: credentials.project_id,
     });
-    
+
     const projectPath = `projects/${credentials.project_id}`;
-    console.log('Creating assessment for project:', projectPath);
+    console.log('Creating assessment for project path:', projectPath);
 
     const [assessment] = await client.createAssessment({
       parent: projectPath,
@@ -62,15 +68,17 @@ serve(async (req) => {
       },
     });
 
-    console.log('Assessment created:', {
+    console.log('Assessment response:', {
       score: assessment.riskAnalysis?.score,
       valid: assessment.tokenProperties?.valid,
+      action: assessment.tokenProperties?.action,
     });
 
     return new Response(
       JSON.stringify({
         score: assessment.riskAnalysis?.score,
         valid: assessment.tokenProperties?.valid,
+        action: assessment.tokenProperties?.action,
       }),
       {
         headers: {
