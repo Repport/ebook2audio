@@ -72,41 +72,41 @@ export async function processChunks(
           throw new Error('No audio content received');
         }
 
-        try {
-          results[index] = decodeBase64Audio(data.data.audioContent);
-          completed++;
-
-          // Update chunk status to completed
-          await updateChunkStatus({
-            conversion_id: conversionId,
-            chunk_index: index,
-            status: 'completed',
-            audio_path: `chunk_${index}.mp3`,
-            chunk_text: chunks[index]
-          });
-
-          if (onProgressUpdate) {
-            const progressPercentage = Math.round((completed / chunks.length) * 100);
-            onProgressUpdate(progressPercentage, chunks.length, completed);
-          }
-
-          processing.delete(index);
-          failedAttempts.delete(index);
-          
-          // Process next chunk if under concurrent limit
-          const nextAvailableIndex = chunks.findIndex((_, i) => 
-            !processing.has(i) && !results[i] && (!failedAttempts.has(i) || failedAttempts.get(i)! < MAX_RETRIES)
-          );
-
-          if (nextAvailableIndex !== -1 && processing.size < MAX_CONCURRENT_REQUESTS) {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay between chunks
-            processChunk(nextAvailableIndex);
-          }
-
-        } catch (decodeError) {
-          console.error(`Error decoding base64 for chunk ${index}:`, decodeError);
-          throw new Error(`Failed to decode audio content: ${decodeError.message}`);
+        const audioBuffer = decodeBase64Audio(data.data.audioContent);
+        if (!audioBuffer || audioBuffer.byteLength === 0) {
+          throw new Error('Invalid audio data received');
         }
+
+        results[index] = audioBuffer;
+        completed++;
+
+        // Update chunk status to completed
+        await updateChunkStatus({
+          conversion_id: conversionId,
+          chunk_index: index,
+          status: 'completed',
+          audio_path: `chunk_${index}.mp3`,
+          chunk_text: chunks[index]
+        });
+
+        if (onProgressUpdate) {
+          const progressPercentage = Math.round((completed / chunks.length) * 100);
+          onProgressUpdate(progressPercentage, chunks.length, completed);
+        }
+
+        processing.delete(index);
+        failedAttempts.delete(index);
+        
+        // Process next chunk if under concurrent limit
+        const nextAvailableIndex = chunks.findIndex((_, i) => 
+          !processing.has(i) && !results[i] && (!failedAttempts.has(i) || failedAttempts.get(i)! < MAX_RETRIES)
+        );
+
+        if (nextAvailableIndex !== -1 && processing.size < MAX_CONCURRENT_REQUESTS) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay between chunks
+          processChunk(nextAvailableIndex);
+        }
+
       } finally {
         clearTimeout(timeoutId);
       }
@@ -157,6 +157,12 @@ export async function processChunks(
         await processChunk(i);
       }
     }
+
+    // Validate all chunks were processed successfully
+    const hasFailedChunks = results.some(chunk => !chunk || chunk.byteLength === 0);
+    if (hasFailedChunks) {
+      throw new Error('Some chunks failed to process correctly');
+    }
     
     return results;
   } catch (error) {
@@ -166,4 +172,3 @@ export async function processChunks(
 }
 
 export { combineAudioChunks } from '../utils/audioUtils';
-
