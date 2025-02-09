@@ -8,18 +8,19 @@ export async function createConversion(
   userId: string | undefined
 ): Promise<string> {
   // Check if conversion record already exists
-  const { data: existingConversion, error: existingError } = await supabase
+  const { data: existingConversions, error: existingError } = await supabase
     .from('text_conversions')
     .select()
     .eq('text_hash', textHash)
-    .maybeSingle();
+    .order('created_at', { ascending: false })
+    .limit(1);
 
   if (existingError) {
     throw existingError;
   }
 
-  if (existingConversion) {
-    return existingConversion.id;
+  if (existingConversions && existingConversions.length > 0) {
+    return existingConversions[0].id;
   }
 
   // Create new conversion record
@@ -38,3 +39,4 @@ export async function createConversion(
   
   return newConversion.id;
 }
+

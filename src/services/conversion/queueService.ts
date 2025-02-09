@@ -12,12 +12,13 @@ export async function addToQueue(textHash: string, userId: string | undefined): 
     .select()
     .eq('text_hash', textHash)
     .eq('status', 'pending')
-    .maybeSingle();
+    .order('created_at', { ascending: false })
+    .limit(1);
 
   if (queueCheckError) throw queueCheckError;
 
-  if (existingQueue) {
-    return existingQueue;
+  if (existingQueue && existingQueue.length > 0) {
+    return existingQueue[0];
   }
 
   return await retryOperation(async () => {
@@ -58,3 +59,4 @@ export async function updateQueueStatus(
     if (updateError) throw updateError;
   });
 }
+

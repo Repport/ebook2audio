@@ -46,8 +46,10 @@ export async function getExistingChunks(conversionId: string): Promise<number[]>
   const { data: existingChunks, error: chunksError } = await supabase
     .from('conversion_chunks')
     .select('chunk_index')
-    .eq('conversion_id', conversionId);
+    .eq('conversion_id', conversionId)
+    .order('chunk_index', { ascending: true });
 
   if (chunksError) throw chunksError;
   return (existingChunks || []).map(chunk => chunk.chunk_index);
 }
+
