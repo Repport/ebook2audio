@@ -20,7 +20,9 @@ serve(async (req) => {
     console.log('Received token:', token ? 'present' : 'missing');
     console.log('Expected action:', expectedAction);
     
-    const client = new RecaptchaEnterpriseServiceClient();
+    const client = new RecaptchaEnterpriseServiceClient({
+      credentials: JSON.parse(Deno.env.get('RECAPTCHA_SECRET_KEY') || '{}')
+    });
     const projectPath = `projects/ambient-tuner-450319-g2`;
 
     console.log('Creating assessment for project:', projectPath);
@@ -31,7 +33,7 @@ serve(async (req) => {
         event: {
           token: token,
           expectedAction: expectedAction,
-          siteKey: '6LcXU9EqAAAAAElRyhh7eJESVVY6pHOnt2XRfYIQ', // Updated site key
+          siteKey: '6LcXU9EqAAAAAElRyhh7eJESVVY6pHOnt2XRfYIQ',
         },
       },
     });
