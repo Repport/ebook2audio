@@ -92,6 +92,45 @@ export type Database = {
         }
         Relationships: []
       }
+      conversion_queue: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          priority: number | null
+          retries: number | null
+          started_at: string | null
+          status: string | null
+          text_hash: string
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          priority?: number | null
+          retries?: number | null
+          started_at?: string | null
+          status?: string | null
+          text_hash: string
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          priority?: number | null
+          retries?: number | null
+          started_at?: string | null
+          status?: string | null
+          text_hash?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       email_change_history: {
         Row: {
           changed_at: string | null

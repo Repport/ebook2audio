@@ -4,6 +4,9 @@ import { generateHash, splitTextIntoChunks } from "./conversion/utils";
 import { checkCache, fetchFromCache, saveToCache } from "./conversion/cacheService";
 import { processChunks, combineAudioChunks } from "./conversion/chunkProcessor";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
+
+type ConversionQueue = Database['public']['Tables']['conversion_queue']['Row'];
 
 const MAX_TEXT_SIZE = 30 * 1024 * 1024; // 30MB
 
@@ -51,12 +54,14 @@ export const convertToAudio = async (
     .insert({
       text_hash: textHash,
       user_id: (await supabase.auth.getUser()).data.user?.id,
-      priority: 1 // Default priority
+      priority: 1, // Default priority
+      status: 'pending'
     })
-    .select()
+    .select<'conversion_queue', ConversionQueue>()
     .single();
 
   if (queueError) throw queueError;
+  if (!queueItem) throw new Error('Failed to create queue item');
 
   // Create a new conversion record linked to the queue item
   const { data: conversion, error: conversionError } = await supabase
@@ -65,12 +70,12 @@ export const convertToAudio = async (
       text_hash: textHash,
       file_name: fileName,
       user_id: (await supabase.auth.getUser()).data.user?.id,
-      queue_id: queueItem.id
     })
     .select()
     .single();
 
   if (conversionError) throw conversionError;
+  if (!conversion) throw new Error('Failed to create conversion record');
 
   // Process text in chunks
   const textChunks = splitTextIntoChunks(text);
@@ -114,7 +119,7 @@ export const convertToAudio = async (
       .update({
         status: 'failed',
         error_message: error.message,
-        retries: queueItem.retries + 1
+        retries: (queueItem.retries || 0) + 1
       })
       .eq('id', queueItem.id);
 
@@ -126,3 +131,4 @@ export const convertToAudio = async (
     throw error;
   }
 };
+
