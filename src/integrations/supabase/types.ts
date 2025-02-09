@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       email_preferences: {
         Row: {
+          hashed_email: string | null
           id: string
           marketing_emails: boolean | null
           newsletter: boolean | null
@@ -19,6 +20,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          hashed_email?: string | null
           id?: string
           marketing_emails?: boolean | null
           newsletter?: boolean | null
@@ -27,6 +29,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          hashed_email?: string | null
           id?: string
           marketing_emails?: boolean | null
           newsletter?: boolean | null
