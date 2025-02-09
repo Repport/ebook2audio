@@ -100,7 +100,7 @@ export const useCaptcha = (isDialogOpen: boolean) => {
 
       console.log('Executing hCaptcha...');
       const widgetId = window.hcaptcha.render(container, {
-        sitekey: process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY,
+        sitekey: 'b20a64e8-120e-42d2-b6dc-f932e96201a8',
         theme: 'light',
         callback: (token: string) => {
           console.log('hCaptcha callback received');
