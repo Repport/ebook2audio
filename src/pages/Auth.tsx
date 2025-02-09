@@ -41,12 +41,16 @@ const Auth = () => {
           });
         } else if (error.message.includes("captcha verification")) {
           toast({
-            title: "Authentication Error",
-            description: "Please try again in a few minutes. If the problem persists, contact support.",
+            title: "Verification Required",
+            description: "Please try again. If the problem persists, contact support.",
             variant: "destructive",
           });
         } else {
-          throw error;
+          toast({
+            title: "Error signing in",
+            description: error.message,
+            variant: "destructive",
+          });
         }
       } else {
         navigate("/");
@@ -66,7 +70,6 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // First check if the user already exists, using maybeSingle instead of single
       const { data: existingUser, error: queryError } = await supabase
         .from('email_preferences')
         .select('clear_email')
@@ -79,6 +82,7 @@ const Auth = () => {
           description: "Please try again later.",
           variant: "destructive",
         });
+        setLoading(false);
         return;
       }
 
@@ -88,23 +92,28 @@ const Auth = () => {
           description: "An account with this email already exists. Please sign in instead.",
           variant: "destructive",
         });
+        setLoading(false);
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
       
-      if (error) {
-        if (error.message.includes("captcha verification")) {
+      if (signUpError) {
+        if (signUpError.message.includes("captcha verification")) {
           toast({
-            title: "Authentication Error",
-            description: "Please try again in a few minutes. If the problem persists, contact support.",
+            title: "Verification Required",
+            description: "Please try again. If the problem persists, contact support.",
             variant: "destructive",
           });
         } else {
-          throw error;
+          toast({
+            title: "Error signing up",
+            description: signUpError.message,
+            variant: "destructive",
+          });
         }
       } else {
         toast({
@@ -131,7 +140,13 @@ const Auth = () => {
           redirectTo: window.location.origin,
         }
       });
-      if (error) throw error;
+      if (error) {
+        toast({
+          title: "Error signing in with Google",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error signing in with Google",
