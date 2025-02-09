@@ -26,6 +26,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   const handleAccept = () => {
     if (accepted) {
       onAccept();
+      onClose(); // Add this line to close the dialog after accepting
     }
   };
 
