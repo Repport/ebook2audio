@@ -29,18 +29,22 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   const [captchaValue, setCaptchaValue] = React.useState<string | null>(null);
   const { toast } = useToast();
 
-  const { data: reCaptchaKey } = useQuery({
+  const { data: reCaptchaKey, isError } = useQuery({
     queryKey: ['recaptcha-site-key'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('site_config')
         .select('value')
         .eq('key', 'recaptcha_site_key')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching reCAPTCHA site key:', error);
         throw error;
+      }
+
+      if (!data) {
+        throw new Error('ReCAPTCHA site key not found in configuration');
       }
 
       return data.value;
@@ -142,13 +146,18 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               I accept the terms and conditions and confirm that I have the legal rights to the content of the uploaded file.
             </label>
           </div>
-          {accepted && reCaptchaKey && (
+          {accepted && reCaptchaKey && !isError && (
             <div className="flex justify-center">
               <ReCAPTCHA
                 sitekey={reCaptchaKey}
                 onChange={handleCaptchaChange}
                 theme="light"
               />
+            </div>
+          )}
+          {isError && (
+            <div className="text-red-500 text-sm text-center">
+              Error loading CAPTCHA verification. Please try again later.
             </div>
           )}
         </div>
@@ -167,4 +176,3 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
 };
 
 export default TermsDialog;
-
