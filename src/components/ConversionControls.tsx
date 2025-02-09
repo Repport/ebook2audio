@@ -27,10 +27,16 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
 
   return (
     <div className="flex flex-col items-center mt-6 space-y-4">
-      {status === 'idle' && (
+      {(status === 'idle' || status === 'error') && (
         <Button onClick={onConvert} className="bg-primary hover:bg-primary/90">
-          Start Conversion
+          {status === 'error' ? 'Retry Conversion' : 'Start Conversion'}
         </Button>
+      )}
+      
+      {status === 'converting' && (
+        <div className="text-sm text-muted-foreground">
+          Converting...
+        </div>
       )}
       
       {status === 'completed' && (
@@ -51,3 +57,4 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
 };
 
 export default ConversionControls;
+

@@ -9,6 +9,7 @@ import TermsDialog from '@/components/TermsDialog';
 import { Chapter } from '@/utils/textExtraction';
 import { VOICES } from '@/constants/voices';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
+import { useToast } from '@/hooks/use-toast';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
@@ -23,6 +24,7 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const [showTerms, setShowTerms] = useState(false);
+  const { toast } = useToast();
 
   const {
     conversionStatus,
@@ -34,14 +36,32 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
   } = useAudioConversion();
 
   const initiateConversion = () => {
+    if (!selectedFile || !extractedText) {
+      toast({
+        title: "Error",
+        description: "Please select a file first",
+        variant: "destructive",
+      });
+      return;
+    }
     setShowTerms(true);
   };
 
   const handleAcceptTerms = async () => {
     if (!selectedFile || !extractedText) return;
     setDetectingChapters(true);
-    await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
-    setDetectingChapters(false);
+    try {
+      await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
+    } catch (error) {
+      toast({
+        title: "Conversion failed",
+        description: error.message || "An error occurred during conversion",
+        variant: "destructive",
+      });
+    } finally {
+      setDetectingChapters(false);
+      setShowTerms(false);
+    }
   };
 
   const handleDownloadClick = () => {
@@ -97,3 +117,4 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
 };
 
 export default FileProcessor;
+
