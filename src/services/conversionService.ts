@@ -110,14 +110,14 @@ export const convertToAudio = async (
   }
 
   try {
+    // First check if we have an active session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Authentication required. Please log in.');
+    }
+
     const obfuscatedText = obfuscateData(text);
     const obfuscatedVoiceId = obfuscateData(voiceId);
-
-    // Get the current session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) {
-      throw new Error('Authentication required');
-    }
 
     const { data, error } = await supabase.functions.invoke('convert-to-audio', {
       body: { 
@@ -130,7 +130,7 @@ export const convertToAudio = async (
         }))
       },
       headers: {
-        Authorization: `Bearer ${session?.access_token}`
+        Authorization: `Bearer ${session.access_token}`
       }
     });
 
