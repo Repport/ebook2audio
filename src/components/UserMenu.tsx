@@ -39,10 +39,6 @@ const UserMenu = ({ user }: UserMenuProps) => {
     }
   };
 
-  const handleNavigate = (path: string) => {
-    navigate(path);
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -57,14 +53,32 @@ const UserMenu = ({ user }: UserMenuProps) => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => handleNavigate("/conversions")}>
-          My Conversions
+        <DropdownMenuItem asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => navigate("/conversions")}
+          >
+            My Conversions
+          </Button>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleNavigate("/settings")}>
-          Settings
+        <DropdownMenuItem asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => navigate("/settings")}
+          >
+            Settings
+          </Button>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleSignOut}>
-          Sign out
+        <DropdownMenuItem asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={handleSignOut}
+          >
+            Sign out
+          </Button>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
