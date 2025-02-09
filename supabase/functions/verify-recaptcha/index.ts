@@ -33,11 +33,11 @@ serve(async (req) => {
     console.log('Starting reCAPTCHA Enterprise verification with:', {
       tokenLength: token.length,
       expectedAction,
+      projectId: 'ambient-tuner-450319-g2'
     });
 
     // Verify the token using reCAPTCHA Enterprise verification endpoint
     const verificationURL = 'https://recaptchaenterprise.googleapis.com/v1/assessment';
-    const projectId = Deno.env.get('RECAPTCHA_PROJECT_ID');
     
     const response = await fetch(`${verificationURL}?key=${secretKey}`, {
       method: 'POST',
@@ -50,7 +50,7 @@ serve(async (req) => {
           expectedAction,
           siteKey: Deno.env.get('RECAPTCHA_SITE_KEY'),
         },
-        project_id: projectId,
+        project_id: 'ambient-tuner-450319-g2',
       }),
     });
 
