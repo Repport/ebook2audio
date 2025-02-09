@@ -23,7 +23,7 @@ export const useAudioConversion = () => {
     if (storedState) {
       console.log('Loaded stored conversion state:', storedState);
       setConversionStatus(storedState.status);
-      setProgress(storedState.progress);
+      setProgress(Math.min(storedState.progress, 100)); // Ensure progress never exceeds 100%
       setCurrentFileName(storedState.fileName || null);
       if (storedState.audioData) {
         try {
@@ -47,14 +47,14 @@ export const useAudioConversion = () => {
     
     console.log('Saving conversion state:', {
       status: conversionStatus,
-      progress,
+      progress: Math.min(progress, 100), // Ensure progress never exceeds 100%
       fileName: currentFileName,
       hasAudioData: !!audioData
     });
 
     saveConversionState({
       status: conversionStatus,
-      progress,
+      progress: Math.min(progress, 100), // Ensure progress never exceeds 100%
       audioDuration,
       fileName: currentFileName || undefined,
       audioData: audioData ? convertArrayBufferToBase64(audioData) : undefined
@@ -97,11 +97,18 @@ export const useAudioConversion = () => {
         detectChapters ? chaptersWithTimestamps : undefined, 
         fileName,
         (progressValue, totalChunks, completedChunks) => {
-          const chunkProgress = Math.round((completedChunks / totalChunks) * 100);
+          const chunkProgress = Math.min(
+            Math.round((completedChunks / totalChunks) * 100),
+            100
+          );
           setProgress(chunkProgress);
         }
       );
       
+      if (!audio) {
+        throw new Error('No audio data received from conversion');
+      }
+
       console.log('Conversion completed, processing audio data');
       setAudioData(audio);
       
@@ -129,7 +136,9 @@ export const useAudioConversion = () => {
     } catch (error) {
       console.error('Conversion error:', error);
       setConversionStatus('error');
+      setProgress(0); // Reset progress on error
       setCurrentFileName(null);
+      setAudioData(null); // Clear any partial audio data
       toast({
         title: "Conversion failed",
         description: (error as Error).message || "An error occurred during conversion",
@@ -172,3 +181,4 @@ export const useAudioConversion = () => {
     resetConversion
   };
 };
+
