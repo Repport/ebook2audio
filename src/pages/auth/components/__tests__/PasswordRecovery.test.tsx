@@ -1,6 +1,6 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import PasswordRecovery from '../PasswordRecovery';
 import { supabase } from '@/integrations/supabase/client';
 

@@ -1,6 +1,6 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import EmailSignInForm from '../EmailSignInForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useCaptcha } from '@/hooks/useCaptcha';
@@ -132,7 +132,6 @@ describe('EmailSignInForm', () => {
     
     fireEvent.click(recoveryButton);
     
-    // Should show success message when email is provided
     await fillForm('user@example.com', '');
     
     await waitFor(() => {
