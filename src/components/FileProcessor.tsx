@@ -1,5 +1,6 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import VoiceSelector from '@/components/VoiceSelector';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import ConversionStatus from '@/components/ConversionStatus';
@@ -8,6 +9,8 @@ import TermsDialog from '@/components/TermsDialog';
 import { Chapter } from '@/utils/textExtraction';
 import { VOICES } from '@/constants/voices';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
@@ -27,6 +30,9 @@ const FileProcessor = ({
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const [showTerms, setShowTerms] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   const {
     conversionStatus,
@@ -38,8 +44,17 @@ const FileProcessor = ({
   } = useAudioConversion();
 
   const initiateConversion = useCallback(() => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to convert text to audio.",
+        variant: "destructive",
+      });
+      navigate('/auth');
+      return;
+    }
     setShowTerms(true);
-  }, []);
+  }, [user, navigate, toast]);
 
   const handleAcceptTerms = useCallback(async () => {
     if (!selectedFile || !extractedText) return;
@@ -51,7 +66,7 @@ const FileProcessor = ({
         selectedVoice, 
         detectChapters, 
         chapters, 
-        selectedFile.name // Pass the actual filename here
+        selectedFile.name
       );
     } finally {
       setDetectingChapters(false);
