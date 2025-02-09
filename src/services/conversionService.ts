@@ -9,6 +9,27 @@ import { Database } from "@/integrations/supabase/types";
 type ConversionQueue = Database['public']['Tables']['conversion_queue']['Row'];
 
 const MAX_TEXT_SIZE = 30 * 1024 * 1024; // 30MB
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
+
+async function retryOperation<T>(
+  operation: () => Promise<T>,
+  retryCount = 0
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (retryCount >= MAX_RETRIES) {
+      throw error;
+    }
+
+    const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount) + Math.random() * 1000;
+    console.log(`Retry attempt ${retryCount + 1} after ${delay}ms`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    return retryOperation(operation, retryCount + 1);
+  }
+}
 
 export const convertToAudio = async (
   text: string, 
@@ -31,7 +52,7 @@ export const convertToAudio = async (
 
   const textHash = await generateHash(text, voiceId);
 
-  // Check cache first
+  // Check cache first with retries
   const { storagePath, error: cacheError } = await checkCache(textHash);
   if (cacheError) throw cacheError;
 
@@ -48,31 +69,35 @@ export const convertToAudio = async (
     return audioData;
   }
 
-  // Add to queue first
-  const { data: queueItem, error: queueError } = await supabase
-    .from('conversion_queue')
-    .insert({
-      text_hash: textHash,
-      user_id: (await supabase.auth.getUser()).data.user?.id,
-      priority: 1, // Default priority
-      status: 'pending'
-    })
-    .select<'conversion_queue', ConversionQueue>()
-    .single();
+  // Add to queue with retries
+  const { data: queueItem, error: queueError } = await retryOperation(() =>
+    supabase
+      .from('conversion_queue')
+      .insert({
+        text_hash: textHash,
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+        priority: 1,
+        status: 'pending'
+      })
+      .select()
+      .single()
+  );
 
   if (queueError) throw queueError;
   if (!queueItem) throw new Error('Failed to create queue item');
 
-  // Create a new conversion record linked to the queue item
-  const { data: conversion, error: conversionError } = await supabase
-    .from('text_conversions')
-    .insert({
-      text_hash: textHash,
-      file_name: fileName,
-      user_id: (await supabase.auth.getUser()).data.user?.id,
-    })
-    .select()
-    .single();
+  // Create conversion record with retries
+  const { data: conversion, error: conversionError } = await retryOperation(() =>
+    supabase
+      .from('text_conversions')
+      .insert({
+        text_hash: textHash,
+        file_name: fileName,
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+      })
+      .select()
+      .single()
+  );
 
   if (conversionError) throw conversionError;
   if (!conversion) throw new Error('Failed to create conversion record');
@@ -88,20 +113,22 @@ export const convertToAudio = async (
     // Combine audio chunks
     const combinedBuffer = combineAudioChunks(audioChunks);
 
-    // Store in cache
+    // Store in cache with retries
     const { error: saveError } = await saveToCache(textHash, combinedBuffer, fileName);
     if (saveError) {
       console.error('Error storing conversion:', saveError);
     }
 
-    // Update queue status
-    const { error: updateError } = await supabase
-      .from('conversion_queue')
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString()
-      })
-      .eq('id', queueItem.id);
+    // Update queue status with retries
+    const { error: updateError } = await retryOperation(() =>
+      supabase
+        .from('conversion_queue')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', queueItem.id)
+    );
 
     if (updateError) {
       console.error('Error updating queue status:', updateError);
@@ -113,15 +140,17 @@ export const convertToAudio = async (
 
     return combinedBuffer;
   } catch (error) {
-    // Update queue status on failure
-    const { error: updateError } = await supabase
-      .from('conversion_queue')
-      .update({
-        status: 'failed',
-        error_message: error.message,
-        retries: (queueItem.retries || 0) + 1
-      })
-      .eq('id', queueItem.id);
+    // Update queue status on failure with retries
+    const { error: updateError } = await retryOperation(() =>
+      supabase
+        .from('conversion_queue')
+        .update({
+          status: 'failed',
+          error_message: error.message,
+          retries: (queueItem.retries || 0) + 1
+        })
+        .eq('id', queueItem.id)
+    );
 
     if (updateError) {
       console.error('Error updating queue status:', updateError);
@@ -131,4 +160,3 @@ export const convertToAudio = async (
     throw error;
   }
 };
-
