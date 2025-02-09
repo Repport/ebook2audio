@@ -1,13 +1,13 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import FormFields from "./FormFields";
 import PasswordRecovery from "./PasswordRecovery";
 import { validateSignInForm } from "@/utils/authValidation";
-import { useRecaptcha } from "@/hooks/useRecaptcha";
-import { useRecaptchaVerification } from "@/hooks/useRecaptchaVerification";
+import { useCaptcha } from "@/hooks/useCaptcha";
+import { useCaptchaVerification } from "@/hooks/useCaptchaVerification";
 
 interface EmailSignInFormProps {
   onSuccess: () => void;
@@ -19,8 +19,9 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { executeRecaptcha, isEnabled } = useRecaptcha(true);
-  const { verifyRecaptcha } = useRecaptchaVerification();
+  const captchaRef = useRef<HTMLDivElement>(null);
+  const { executeCaptcha, isEnabled } = useCaptcha(true);
+  const { verifyCaptcha } = useCaptchaVerification();
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,8 +34,8 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
     try {
       console.log("Starting sign-in process...");
       
-      // Execute reCAPTCHA verification
-      const token = await executeRecaptcha();
+      // Execute hCaptcha verification
+      const token = captchaRef.current ? await executeCaptcha(captchaRef.current.id) : null;
       if (!token) {
         toast({
           title: "Verification Failed",
@@ -45,15 +46,18 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
       }
 
       // Verify the token
-      const verification = await verifyRecaptcha(token);
+      const verification = await verifyCaptcha(token);
       if (!verification || !verification.success) {
-        return; // Error toast is handled in verifyRecaptcha
+        return; // Error toast is handled in verifyCaptcha
       }
 
       console.log("Attempting sign in with:", { email: email.trim() });
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
+        options: {
+          captchaToken: token
+        }
       });
 
       if (error) {
@@ -110,6 +114,13 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
         disabled={loading}
       />
       <PasswordRecovery email={email} />
+      {isEnabled && (
+        <div 
+          id="hcaptcha-container" 
+          ref={captchaRef} 
+          className="flex justify-center"
+        />
+      )}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Signing in..." : "Sign in"}
       </Button>
