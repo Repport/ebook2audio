@@ -390,6 +390,10 @@ export type Database = {
             }
             Returns: boolean
           }
+      set_statement_timeout: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       update_chunk_status: {
         Args: {
           p_chunk_id: string

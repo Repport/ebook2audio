@@ -29,6 +29,9 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
     console.log('Checking cache for text hash:', textHash);
     
     const result = await retryOperation(async () => {
+      // Set statement timeout before query
+      await supabase.rpc('set_statement_timeout');
+      
       const { data, error } = await supabase
         .from('text_conversions')
         .select('storage_path')
@@ -116,6 +119,9 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
     console.log('Successfully uploaded audio to storage');
 
     const insertResult = await retryOperation(async () => {
+      // Set statement timeout before query
+      await supabase.rpc('set_statement_timeout');
+      
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
       
       const { error } = await supabase
