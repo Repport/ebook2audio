@@ -16,14 +16,25 @@ const CookieConsentBanner = () => {
             ip_address: 'anonymous', // We'll get the IP on the server side
             cookies_all_accepted: allAccepted,
             cookies_necessary_only: !allAccepted,
+            cookies_acceptance_date: new Date().toISOString()
           }
         ]);
 
       if (error) {
         console.error('Error logging cookie preference:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save cookie preferences",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error logging cookie preference:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save cookie preferences",
+        variant: "destructive",
+      });
     }
   };
 
