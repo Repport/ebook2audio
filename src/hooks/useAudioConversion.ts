@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { convertToAudio } from '@/services/conversionService';
 import { Chapter } from '@/utils/textExtraction';
@@ -40,6 +40,14 @@ export const useAudioConversion = () => {
       audioData: audioData ? convertArrayBufferToBase64(audioData) : undefined
     });
   }, [conversionStatus, progress, audioData, audioDuration]);
+
+  const resetConversion = useCallback(() => {
+    setConversionStatus('idle');
+    setProgress(0);
+    setAudioData(null);
+    setAudioDuration(0);
+    sessionStorage.removeItem('conversionState');
+  }, []);
 
   const handleConversion = async (
     extractedText: string,
@@ -134,5 +142,6 @@ export const useAudioConversion = () => {
     audioDuration,
     handleConversion,
     handleDownload,
+    resetConversion
   };
 };

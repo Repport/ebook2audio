@@ -1,6 +1,5 @@
 
-import React, { useState } from 'react';
-import FileUploadZone from '@/components/FileUploadZone';
+import React, { useState, useEffect } from 'react';
 import VoiceSelector from '@/components/VoiceSelector';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import ConversionStatus from '@/components/ConversionStatus';
@@ -32,8 +31,16 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
     audioData,
     audioDuration,
     handleConversion,
-    handleDownload
+    handleDownload,
+    resetConversion
   } = useAudioConversion();
+
+  // Reset conversion state when a new file is selected
+  useEffect(() => {
+    if (selectedFile) {
+      resetConversion();
+    }
+  }, [selectedFile, resetConversion]);
 
   const initiateConversion = () => {
     if (!selectedFile || !extractedText) {
@@ -117,4 +124,3 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
 };
 
 export default FileProcessor;
-
