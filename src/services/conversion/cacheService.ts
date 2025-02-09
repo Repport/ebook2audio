@@ -36,19 +36,13 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
         .from('text_conversions')
         .select('storage_path')
         .eq('text_hash', textHash)
-        .eq('status', 'completed')  // Only get completed conversions
+        .eq('status', 'completed')
         .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })  // Get most recent first
-        .limit(1)  // Only get one record
-        .maybeSingle();
+        .maybeSingle(); // Using maybeSingle instead of single due to unique constraint
       
-      return { data, error };
+      if (error) throw error;
+      return { data, error: null };
     });
-
-    if (result.error) {
-      console.error('Cache check error:', result.error);
-      return { storagePath: null, error: result.error };
-    }
 
     // Log whether we found a cached version or not
     if (result.data?.storage_path) {
@@ -76,12 +70,13 @@ export async function fetchFromCache(storagePath: string): Promise<{ data: Array
         .from('audio_cache')
         .download(storagePath);
       
-      return { data, error };
+      if (error) throw error;
+      return { data, error: null };
     });
 
-    if (result.error) {
-      console.error('Cache fetch error:', result.error);
-      return { data: null, error: result.error };
+    if (!result.data) {
+      console.error('No data found in cache');
+      return { data: null, error: new Error('No data found in cache') };
     }
 
     console.log('Successfully fetched cached audio data');
@@ -100,6 +95,7 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
     const storagePath = `${textHash}.mp3`;
     console.log('Saving to cache with storage path:', storagePath);
 
+    // First try to upload to storage
     const uploadResult = await retryOperation(async () => {
       const { error } = await supabase.storage
         .from('audio_cache')
@@ -108,16 +104,13 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
           upsert: true
         });
       
-      return { error };
+      if (error) throw error;
+      return { error: null };
     });
-
-    if (uploadResult.error) {
-      console.error('Cache storage error:', uploadResult.error);
-      return { error: uploadResult.error };
-    }
 
     console.log('Successfully uploaded audio to storage');
 
+    // Then create the database record
     const insertResult = await retryOperation(async () => {
       // Set statement timeout before query
       await supabase.rpc('set_statement_timeout');
@@ -132,16 +125,17 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
           file_name: fileName,
           file_size: audioBuffer.byteLength,
           expires_at: expiresAt,
-          status: 'completed'  // Mark as completed immediately
-        });
+          status: 'completed'
+        })
+        .select()
+        .maybeSingle();
       
-      return { error };
+      if (error && error.code !== '23505') { // Ignore unique violation errors
+        throw error;
+      }
+      
+      return { error: null };
     });
-
-    if (insertResult.error) {
-      console.error('Cache database error:', insertResult.error);
-      return { error: insertResult.error };
-    }
 
     console.log('Successfully saved cache record to database');
     return { error: null };

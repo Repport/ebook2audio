@@ -390,6 +390,10 @@ export type Database = {
             }
             Returns: boolean
           }
+      cleanup_duplicate_conversions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       set_statement_timeout: {
         Args: Record<PropertyKey, never>
         Returns: undefined
