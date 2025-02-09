@@ -30,7 +30,7 @@ export async function processChunks(
     onProgressUpdate(0, chunks.length, 0);
   }
 
-  // Initialize chunks in database
+  // Initialize chunks in database with queue status tracking
   await Promise.all(chunks.map((chunk, index) => 
     supabase.from('conversion_chunks').insert({
       conversion_id: conversionId,

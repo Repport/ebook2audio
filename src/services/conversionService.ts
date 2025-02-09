@@ -45,13 +45,27 @@ export const convertToAudio = async (
     return audioData;
   }
 
-  // Create a new conversion record
+  // Add to queue first
+  const { data: queueItem, error: queueError } = await supabase
+    .from('conversion_queue')
+    .insert({
+      text_hash: textHash,
+      user_id: (await supabase.auth.getUser()).data.user?.id,
+      priority: 1 // Default priority
+    })
+    .select()
+    .single();
+
+  if (queueError) throw queueError;
+
+  // Create a new conversion record linked to the queue item
   const { data: conversion, error: conversionError } = await supabase
     .from('text_conversions')
     .insert({
       text_hash: textHash,
       file_name: fileName,
-      user_id: (await supabase.auth.getUser()).data.user?.id
+      user_id: (await supabase.auth.getUser()).data.user?.id,
+      queue_id: queueItem.id
     })
     .select()
     .single();
@@ -75,12 +89,39 @@ export const convertToAudio = async (
       console.error('Error storing conversion:', saveError);
     }
 
+    // Update queue status
+    const { error: updateError } = await supabase
+      .from('conversion_queue')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString()
+      })
+      .eq('id', queueItem.id);
+
+    if (updateError) {
+      console.error('Error updating queue status:', updateError);
+    }
+
     if (onProgressUpdate) {
       onProgressUpdate(100, textChunks.length, textChunks.length);
     }
 
     return combinedBuffer;
   } catch (error) {
+    // Update queue status on failure
+    const { error: updateError } = await supabase
+      .from('conversion_queue')
+      .update({
+        status: 'failed',
+        error_message: error.message,
+        retries: queueItem.retries + 1
+      })
+      .eq('id', queueItem.id);
+
+    if (updateError) {
+      console.error('Error updating queue status:', updateError);
+    }
+
     console.error('Conversion error:', error);
     throw error;
   }
