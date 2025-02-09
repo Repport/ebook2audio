@@ -20,6 +20,8 @@ export async function insertChunksBatch(
     return;
   }
 
+  console.log(`Attempting to insert ${newChunks.length} new chunks`);
+
   const batches = [];
   for (let i = 0; i < newChunks.length; i += BATCH_SIZE) {
     batches.push(newChunks.slice(i, i + BATCH_SIZE));
@@ -29,13 +31,17 @@ export async function insertChunksBatch(
     await retryOperation(async () => {
       const { error } = await supabase
         .from('conversion_chunks')
-        .insert(
+        .upsert(
           batch.map(chunk => ({
             conversion_id: conversionId,
             chunk_text: chunk.chunk_text,
             chunk_index: chunk.chunk_index,
             status: 'pending'
-          }))
+          })),
+          {
+            onConflict: 'conversion_id,chunk_index',
+            ignoreDuplicates: true
+          }
         );
 
       if (error) {
