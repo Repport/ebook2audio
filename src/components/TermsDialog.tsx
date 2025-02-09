@@ -64,7 +64,8 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
             user_agent: navigator.userAgent,
             file_name: fileName,
             file_type: fileType,
-            captcha_token: captchaValue
+            captcha_token: captchaValue,
+            retention_period_accepted: true
           }
         ]);
 
@@ -125,7 +126,10 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               <span className="font-semibold">Liability Disclaimer:</span> Our service does not store, review, or monitor the content of uploaded files. We assume no responsibility for the misuse of the service or any legal claims arising from the processed content.
             </li>
             <li className="text-sm">
-              <span className="font-semibold">Privacy Policy:</span> Uploaded files and generated audio may be automatically deleted after a set period. Please refer to our <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank">privacy policy</Link> for more details.
+              <span className="font-semibold">Data Retention:</span> For technical support and claim resolution purposes, we retain conversion data and generated audio files for a period of 30 days. After this period, all data is automatically deleted.
+            </li>
+            <li className="text-sm">
+              <span className="font-semibold">Privacy Policy:</span> Please refer to our <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank">privacy policy</Link> for more details about data handling and retention.
             </li>
             <li className="text-sm">
               <span className="font-semibold">Terms of Use:</span> We reserve the right to suspend or terminate access to this service in case of misuse or violation of these terms.
@@ -143,7 +147,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               htmlFor="terms" 
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              I accept the terms and conditions and confirm that I have the legal rights to the content of the uploaded file.
+              I accept the terms and conditions, including the 30-day data retention period, and confirm that I have the legal rights to the content of the uploaded file.
             </label>
           </div>
           {accepted && reCaptchaKey && !isError && (

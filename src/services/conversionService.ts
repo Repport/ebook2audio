@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Chapter } from "@/utils/textExtraction";
+import { createHash } from 'crypto';
 
 interface ChapterWithTimestamp extends Chapter {
   timestamp: number;
@@ -16,6 +17,10 @@ function obfuscateData(data: string): string {
   return result;
 }
 
+function generateTextHash(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
 const validateInput = (text: string, voiceId: string): void => {
   if (!text?.trim()) {
     throw new Error('Text content is required');
@@ -27,6 +32,43 @@ const validateInput = (text: string, voiceId: string): void => {
 
   if (text.startsWith('%PDF')) {
     throw new Error('Invalid text content: Raw PDF data received');
+  }
+};
+
+const checkExistingConversion = async (textHash: string): Promise<ArrayBuffer | null> => {
+  const { data: existingConversion, error } = await supabase
+    .from('text_conversions')
+    .select('audio_content')
+    .eq('text_hash', textHash)
+    .gt('expires_at', new Date().toISOString())
+    .single();
+
+  if (error || !existingConversion) {
+    return null;
+  }
+
+  // Convert Uint8Array to ArrayBuffer
+  return new Uint8Array(existingConversion.audio_content).buffer;
+};
+
+const storeConversion = async (
+  textHash: string,
+  audioContent: ArrayBuffer,
+  fileName: string,
+  duration: number
+) => {
+  const { error } = await supabase
+    .from('text_conversions')
+    .insert({
+      text_hash: textHash,
+      file_name: fileName,
+      audio_content: new Uint8Array(audioContent),
+      file_size: audioContent.byteLength,
+      duration: duration
+    });
+
+  if (error) {
+    console.error('Error storing conversion:', error);
   }
 };
 
@@ -44,6 +86,14 @@ export const convertToAudio = async (
   });
 
   validateInput(text, voiceId);
+  const textHash = generateTextHash(text);
+
+  // Check for existing conversion
+  const existingAudio = await checkExistingConversion(textHash);
+  if (existingAudio) {
+    console.log('Found existing conversion, returning cached audio');
+    return existingAudio;
+  }
 
   try {
     const obfuscatedText = obfuscateData(text);
@@ -80,8 +130,13 @@ export const convertToAudio = async (
       bytes[i] = binaryString.charCodeAt(i);
     }
     
+    const audioBuffer = bytes.buffer;
+
+    // Store the conversion for future use
+    await storeConversion(textHash, audioBuffer, fileName || 'untitled', data.duration || 0);
+    
     console.log('Conversion completed successfully');
-    return bytes.buffer;
+    return audioBuffer;
   } catch (error) {
     console.error('Conversion failed:', error);
     throw error;

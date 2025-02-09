@@ -127,6 +127,7 @@ export type Database = {
           file_type: string | null
           id: string
           ip_address: string
+          retention_period_accepted: boolean | null
           user_agent: string | null
         }
         Insert: {
@@ -138,6 +139,7 @@ export type Database = {
           file_type?: string | null
           id?: string
           ip_address: string
+          retention_period_accepted?: boolean | null
           user_agent?: string | null
         }
         Update: {
@@ -149,7 +151,44 @@ export type Database = {
           file_type?: string | null
           id?: string
           ip_address?: string
+          retention_period_accepted?: boolean | null
           user_agent?: string | null
+        }
+        Relationships: []
+      }
+      text_conversions: {
+        Row: {
+          audio_content: string | null
+          audio_url: string | null
+          created_at: string
+          duration: number | null
+          expires_at: string
+          file_name: string | null
+          file_size: number | null
+          id: string
+          text_hash: string
+        }
+        Insert: {
+          audio_content?: string | null
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          expires_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          text_hash: string
+        }
+        Update: {
+          audio_content?: string | null
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          expires_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          text_hash?: string
         }
         Relationships: []
       }
