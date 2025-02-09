@@ -24,6 +24,7 @@ const Index = () => {
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const [showTerms, setShowTerms] = useState(false);
+  const [audioDuration, setAudioDuration] = useState<number>(0);
   const { toast } = useToast();
 
   const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
@@ -53,6 +54,32 @@ const Index = () => {
     setShowTerms(true);
   };
 
+  const calculateAudioDuration = (buffer: ArrayBuffer) => {
+    // Create a temporary audio element to get duration
+    const blob = new Blob([buffer], { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    
+    return new Promise<number>((resolve) => {
+      audio.addEventListener('loadedmetadata', () => {
+        const duration = audio.duration;
+        URL.revokeObjectURL(url);
+        resolve(duration);
+      });
+    });
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(1)} MB`;
+  };
+
   const handleConversion = async () => {
     if (!selectedFile || !extractedText) return;
 
@@ -76,6 +103,10 @@ const Index = () => {
       const audio = await convertToAudio(extractedText, selectedVoice, detectChapters ? chaptersWithTimestamps : undefined);
       setAudioData(audio);
       
+      // Calculate audio duration
+      const duration = await calculateAudioDuration(audio);
+      setAudioDuration(duration);
+      
       setConversionStatus('completed');
       setProgress(100);
 
@@ -85,9 +116,9 @@ const Index = () => {
 
       toast({
         title: "Conversion completed",
-        description: detectChapters 
-          ? `Your MP3 file is ready with ${chapters.length} chapter markers:\n${chaptersList}`
-          : "Your MP3 file is ready for download",
+        description: `Your MP3 file is ready (${formatFileSize(audio.byteLength)}, ${formatDuration(duration)})${
+          detectChapters && chapters.length ? `\n\nChapters:\n${chaptersList}` : ''
+        }`,
       });
     } catch (error) {
       console.error('Conversion error:', error);
@@ -121,7 +152,7 @@ const Index = () => {
     
     toast({
       title: "Download started",
-      description: "Your MP3 file will download shortly",
+      description: `Your MP3 file (${formatFileSize(audioData.byteLength)}, ${formatDuration(audioDuration)}) will download shortly`,
     });
   };
 
@@ -177,3 +208,4 @@ const Index = () => {
 };
 
 export default Index;
+
