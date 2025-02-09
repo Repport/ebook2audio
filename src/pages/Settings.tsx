@@ -2,17 +2,18 @@
 import AccountSettings from "@/components/AccountSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Settings = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!user) {
-      navigate("/auth");
+      navigate("/auth", { state: { from: location } });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location]);
 
   if (!user) {
     return null;
