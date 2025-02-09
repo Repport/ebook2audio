@@ -9,6 +9,23 @@ export const useEmailAuth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const validatePassword = (password: string) => {
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+    const errors = [];
+    if (password.length < minLength) errors.push(`at least ${minLength} characters`);
+    if (!hasUpperCase) errors.push("an uppercase letter");
+    if (!hasLowerCase) errors.push("a lowercase letter");
+    if (!hasNumbers) errors.push("a number");
+    if (!hasSpecialChar) errors.push("a special character");
+
+    return errors;
+  };
+
   const handleEmailSignIn = async (email: string, password: string) => {
     setLoading(true);
     try {
@@ -78,6 +95,17 @@ export const useEmailAuth = () => {
       toast({
         title: "Missing credentials",
         description: "Please provide both email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password
+    const passwordErrors = validatePassword(password);
+    if (passwordErrors.length > 0) {
+      toast({
+        title: "Invalid password",
+        description: `Password must contain ${passwordErrors.join(", ")}.`,
         variant: "destructive",
       });
       return;
