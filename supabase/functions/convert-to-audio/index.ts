@@ -87,7 +87,7 @@ serve(async (req) => {
     }
 
     const { audioContent } = await ttsResponse.json();
-
+    
     console.log('Successfully generated audio content');
     
     return new Response(
@@ -138,14 +138,22 @@ async function createJWT(credentials: any) {
 
   // Create signature
   const encoder = new TextEncoder();
-  const privateKeyPEM = credentials.private_key
+  
+  // Convert PEM to binary
+  const pemHeader = '-----BEGIN PRIVATE KEY-----';
+  const pemFooter = '-----END PRIVATE KEY-----';
+  const pemContents = credentials.private_key
     .replace(/\\n/g, '\n')
-    .replace(/["']/g, ''); // Clean up any quotes and handle newlines
+    .replace(pemHeader, '')
+    .replace(pemFooter, '')
+    .replace(/\s/g, '');
+  
+  const binaryDer = base64ToArrayBuffer(pemContents);
 
   // Import the private key
   const privateKey = await crypto.subtle.importKey(
     'pkcs8',
-    str2ab(privateKeyPEM),
+    binaryDer,
     {
       name: 'RSASSA-PKCS1-v1_5',
       hash: 'SHA-256',
@@ -164,12 +172,13 @@ async function createJWT(credentials: any) {
   return `${signatureInput}.${encodedSignature}`;
 }
 
-// Helper function to convert string to ArrayBuffer
-function str2ab(str: string): ArrayBuffer {
-  const buf = new ArrayBuffer(str.length);
-  const bufView = new Uint8Array(buf);
-  for (let i = 0, strLen = str.length; i < strLen; i++) {
-    bufView[i] = str.charCodeAt(i);
+// Helper function to convert base64 to ArrayBuffer
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
-  return buf;
+  return bytes.buffer;
 }
+
