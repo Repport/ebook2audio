@@ -7,7 +7,7 @@ import { Chapter } from '@/utils/textExtraction';
 interface StoredConversionState {
   status: 'idle' | 'converting' | 'completed' | 'error';
   progress: number;
-  audioData?: ArrayBuffer;
+  audioData?: string; // Changed to string since we store base64
   audioDuration: number;
 }
 
