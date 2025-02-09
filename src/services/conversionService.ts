@@ -72,9 +72,29 @@ export const convertToAudio = async (
   }
 
   let queueEntryResult: ConversionQueue | null = null;
+  let conversionId: string | null = null;
 
   try {
-    // Add to queue with retries
+    // Create main conversion record first
+    const conversionResult = await retryOperation(async () => {
+      const { data, error } = await supabase
+        .from('text_conversions')
+        .insert({
+          text_hash: textHash,
+          file_name: fileName,
+          user_id: userId,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    });
+
+    if (!conversionResult) throw new Error('Failed to create conversion record');
+    conversionId = conversionResult.id;
+
+    // Add to queue
     queueEntryResult = await retryOperation(async () => {
       const { data, error } = await supabase
         .from('conversion_queue')
@@ -92,30 +112,12 @@ export const convertToAudio = async (
       return data;
     });
 
-    // Create conversion record with retries
-    const conversionResult = await retryOperation(async () => {
-      const { data, error } = await supabase
-        .from('text_conversions')
-        .insert({
-          text_hash: textHash,
-          file_name: fileName,
-          user_id: userId,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    });
-
-    if (!conversionResult) throw new Error('Failed to create conversion record');
-
     // Process text in chunks
     const textChunks = splitTextIntoChunks(text);
     console.log(`Split text into ${textChunks.length} chunks for parallel processing`);
 
     // Process all chunks
-    const audioChunks = await processChunks(textChunks, voiceId, conversionResult.id, onProgressUpdate);
+    const audioChunks = await processChunks(textChunks, voiceId, conversionId, onProgressUpdate);
 
     // Combine audio chunks
     const combinedBuffer = combineAudioChunks(audioChunks);
@@ -150,7 +152,7 @@ export const convertToAudio = async (
     // Capture the error first
     const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
     
-    // Update queue status on failure with retries
+    // Update queue status on failure
     if (queueEntryResult) {
       try {
         await retryOperation(async () => {
