@@ -39,7 +39,7 @@ export async function processChunks(
         const obfuscatedText = obfuscateData(chunks[index]);
         const obfuscatedVoiceId = obfuscateData(voiceId);
 
-        const response = await Promise.race([
+        const { data, error } = await Promise.race([
           supabase.functions.invoke<ConvertToAudioResponse>('convert-to-audio', {
             body: { 
               text: obfuscatedText, 
@@ -48,16 +48,14 @@ export async function processChunks(
               isChunk: true
             }
           }),
-          new Promise((_, reject) => 
+          new Promise<never>((_, reject) => 
             setTimeout(() => reject(new Error('Request timeout')), REQUEST_TIMEOUT)
           )
         ]);
 
         clearTimeout(timeoutId);
 
-        if (response.error) throw new Error(response.error.message);
-
-        const { data } = response;
+        if (error) throw new Error(error.message);
         if (!data?.audioContent) throw new Error('No audio content received');
 
         // Convert base64 to ArrayBuffer
