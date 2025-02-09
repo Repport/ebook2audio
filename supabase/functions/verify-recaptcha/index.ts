@@ -20,26 +20,28 @@ serve(async (req) => {
     console.log('Received token:', token ? 'present' : 'missing');
     console.log('Expected action:', expectedAction);
     
-    // Get the secret key from environment
-    const secretKey = Deno.env.get('RECAPTCHA_SECRET_KEY');
-    if (!secretKey) {
+    // Get the base64 encoded secret key from environment
+    const encodedKey = Deno.env.get('RECAPTCHA_SECRET_KEY');
+    if (!encodedKey) {
       throw new Error('RECAPTCHA_SECRET_KEY not found in environment');
+    }
+
+    // Decode base64 to get the service account JSON
+    let credentials;
+    try {
+      const decodedKey = atob(encodedKey);
+      credentials = JSON.parse(decodedKey);
+      if (!credentials.type || credentials.type !== 'service_account') {
+        throw new Error('Invalid credentials format: missing or incorrect type field');
+      }
+      console.log('✅ Service account credentials decoded and validated successfully');
+    } catch (parseError) {
+      console.error('Error decoding/parsing credentials:', parseError);
+      throw new Error('Invalid service account credentials format');
     }
 
     console.log('Initializing RecaptchaEnterpriseServiceClient...');
     
-    // Parse and validate the service account credentials
-    let credentials;
-    try {
-      credentials = JSON.parse(secretKey);
-      if (!credentials.type || credentials.type !== 'service_account') {
-        throw new Error('Invalid credentials format: missing or incorrect type field');
-      }
-    } catch (parseError) {
-      console.error('Error parsing credentials:', parseError);
-      throw new Error('Invalid service account credentials format');
-    }
-
     const client = new RecaptchaEnterpriseServiceClient({
       credentials
     });
