@@ -35,7 +35,10 @@ const Auth = () => {
         <div className="mt-8 space-y-6">
           {mode === 'signin' ? (
             <>
-              <EmailSignInForm onSuccess={() => navigate("/")} />
+              <EmailSignInForm 
+                onSuccess={() => navigate("/")} 
+                onSwitchToSignUp={() => setMode('signup')}
+              />
               <p className="text-center text-sm text-gray-600 dark:text-gray-400">
                 Don't have an account?{' '}
                 <Button

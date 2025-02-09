@@ -7,9 +7,10 @@ import FormFields from "./FormFields";
 
 interface EmailSignInFormProps {
   onSuccess: () => void;
+  onSwitchToSignUp?: () => void;  // Added to handle switching to signup
 }
 
-const EmailSignInForm = ({ onSuccess }: EmailSignInFormProps) => {
+const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,15 +60,26 @@ const EmailSignInForm = ({ onSuccess }: EmailSignInFormProps) => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(), // Remove any whitespace
+        email: email.trim(),
         password,
       });
 
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
           toast({
-            title: "Invalid credentials",
-            description: "Please check your email and password and try again.",
+            title: "Account not found",
+            description: (
+              <div className="space-y-2">
+                <p>No account found with these credentials.</p>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => onSwitchToSignUp?.()}
+                >
+                  Create an account
+                </Button>
+              </div>
+            ),
             variant: "destructive",
           });
         } else {
