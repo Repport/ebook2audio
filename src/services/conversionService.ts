@@ -1,7 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Chapter } from "@/utils/textExtraction";
-import { createHash } from 'crypto';
 
 interface ChapterWithTimestamp extends Chapter {
   timestamp: number;
@@ -17,10 +16,14 @@ function obfuscateData(data: string): string {
   return result;
 }
 
-// Generate hash for text content
-function generateHash(text: string, voiceId: string): string {
+// Generate hash for text content using Web Crypto API
+async function generateHash(text: string, voiceId: string): Promise<string> {
   const data = `${text}-${voiceId}`;
-  return createHash('sha256').update(data).digest('hex');
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export const convertToAudio = async (
@@ -38,7 +41,7 @@ export const convertToAudio = async (
   console.log('Chapters:', chapters?.length || 0);
 
   // Generate hash for the text and voice combination
-  const textHash = generateHash(text, voiceId);
+  const textHash = await generateHash(text, voiceId);
 
   // Check if we have a cached version
   const { data: existingConversion } = await supabase
