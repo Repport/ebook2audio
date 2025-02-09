@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import FormFields from "./FormFields";
 import PasswordRecovery from "./PasswordRecovery";
 import { validateSignInForm } from "@/utils/authValidation";
+import { useRecaptcha } from "@/hooks/useRecaptcha";
+import { useRecaptchaVerification } from "@/hooks/useRecaptchaVerification";
 
 interface EmailSignInFormProps {
   onSuccess: () => void;
@@ -17,6 +19,8 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { executeRecaptcha } = useRecaptcha(true);
+  const { verifyRecaptcha } = useRecaptchaVerification();
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,10 +31,32 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
 
     setLoading(true);
     try {
+      console.log("Starting sign-in process...");
+      
+      // Execute reCAPTCHA verification
+      const token = await executeRecaptcha();
+      if (!token) {
+        toast({
+          title: "Verification Failed",
+          description: "Unable to complete security verification. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Verify the token
+      const verification = await verifyRecaptcha(token);
+      if (!verification || !verification.success) {
+        return; // Error toast is handled in verifyRecaptcha
+      }
+
       console.log("Attempting sign in with:", { email: email.trim() });
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
+        options: {
+          captchaToken: token
+        }
       });
 
       if (error) {
@@ -94,4 +120,3 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
 };
 
 export default EmailSignInForm;
-
