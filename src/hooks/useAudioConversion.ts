@@ -1,8 +1,15 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { convertToAudio } from '@/services/conversionService';
 import { Chapter } from '@/utils/textExtraction';
+
+interface StoredConversionState {
+  status: 'idle' | 'converting' | 'completed' | 'error';
+  progress: number;
+  audioData?: ArrayBuffer;
+  audioDuration: number;
+}
 
 export const useAudioConversion = () => {
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
@@ -10,6 +17,47 @@ export const useAudioConversion = () => {
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const { toast } = useToast();
+
+  // Load stored state on mount
+  useEffect(() => {
+    const storedState = sessionStorage.getItem('conversionState');
+    if (storedState) {
+      const parsed = JSON.parse(storedState);
+      setConversionStatus(parsed.status);
+      setProgress(parsed.progress);
+      if (parsed.audioData) {
+        // Convert stored base64 back to ArrayBuffer
+        const binaryString = atob(parsed.audioData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        setAudioData(bytes.buffer);
+      }
+      setAudioDuration(parsed.audioDuration);
+    }
+  }, []);
+
+  // Save state changes to storage
+  useEffect(() => {
+    const state: StoredConversionState = {
+      status: conversionStatus,
+      progress,
+      audioDuration,
+    };
+
+    if (audioData) {
+      // Convert ArrayBuffer to base64 for storage
+      const bytes = new Uint8Array(audioData);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      state.audioData = btoa(binary);
+    }
+
+    sessionStorage.setItem('conversionState', JSON.stringify(state));
+  }, [conversionStatus, progress, audioData, audioDuration]);
 
   const calculateAudioDuration = (buffer: ArrayBuffer) => {
     const blob = new Blob([buffer], { type: 'audio/mpeg' });
@@ -64,7 +112,6 @@ export const useAudioConversion = () => {
         detectChapters ? chaptersWithTimestamps : undefined, 
         fileName,
         (progressValue, totalChunks, completedChunks) => {
-          // Calculate progress based on chunks
           const chunkProgress = Math.round((completedChunks / totalChunks) * 100);
           setProgress(chunkProgress);
         }
