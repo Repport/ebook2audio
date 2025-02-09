@@ -19,6 +19,11 @@ const CookieConsentBanner = () => {
   const { translations } = useLanguage();
   const [showDetails, setShowDetails] = useState(false);
 
+  // Check if cookies were already accepted
+  if (document.cookie.includes('cookieConsent=true')) {
+    return null;
+  }
+
   const logCookiePreference = async (allAccepted: boolean) => {
     try {
       const { error } = await supabase
@@ -154,4 +159,3 @@ const CookieConsentBanner = () => {
 };
 
 export default CookieConsentBanner;
-
