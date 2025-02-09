@@ -31,7 +31,7 @@ serve(async (req) => {
         event: {
           token: token,
           expectedAction: expectedAction,
-          siteKey: '6LcXU9EqAAAAAElRyhh7eJESVVY6pHOnt2XRfYIQ',
+          siteKey: '6LcXU9EqAAAAAElRyhh7eJESVVY6pHOnt2XRfYIQ', // Updated site key
         },
       },
     });
