@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      conversion_logs: {
+        Row: {
+          conversion_timestamp: string | null
+          file_name: string | null
+          file_size: number | null
+          id: string
+          ip_address: string
+          output_duration: number | null
+          successful: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          conversion_timestamp?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          ip_address: string
+          output_duration?: number | null
+          successful?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          conversion_timestamp?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          ip_address?: string
+          output_duration?: number | null
+          successful?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       email_preferences: {
         Row: {
           clear_email: string | null
@@ -137,7 +170,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_conversion_rate_limit: {
+        Args: {
+          p_ip_address: string
+          max_conversions?: number
+          window_hours?: number
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

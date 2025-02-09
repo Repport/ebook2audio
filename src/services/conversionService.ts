@@ -8,7 +8,7 @@ interface ChapterWithTimestamp extends Chapter {
 
 // Simple XOR-based obfuscation
 function obfuscateData(data: string): string {
-  const key = 'epub2audio'; // Simple key for XOR operation
+  const key = 'epub2audio';
   let result = '';
   for (let i = 0; i < data.length; i++) {
     result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
@@ -19,7 +19,8 @@ function obfuscateData(data: string): string {
 export const convertToAudio = async (
   text: string, 
   voiceId: string,
-  chapters?: ChapterWithTimestamp[]
+  chapters?: ChapterWithTimestamp[],
+  fileName?: string
 ): Promise<ArrayBuffer> => {
   if (text.startsWith('%PDF')) {
     console.error('Received raw PDF data instead of text content');
@@ -37,6 +38,7 @@ export const convertToAudio = async (
     body: { 
       text: obfuscatedText, 
       voiceId: obfuscatedVoiceId,
+      fileName,
       chapters: chapters?.map(ch => ({
         title: ch.title,
         timestamp: ch.timestamp
@@ -45,6 +47,9 @@ export const convertToAudio = async (
   });
 
   if (error) {
+    if (error.message.includes('rate limit exceeded')) {
+      throw new Error('You have exceeded the maximum number of conversions allowed in 24 hours. Please try again later.');
+    }
     console.error('Conversion error:', error);
     throw error;
   }
