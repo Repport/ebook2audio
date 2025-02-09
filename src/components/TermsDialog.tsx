@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import ReCAPTCHA from "react-google-recaptcha";
@@ -15,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface TermsDialogProps {
   open: boolean;
@@ -28,6 +28,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   const [accepted, setAccepted] = React.useState(false);
   const [captchaValue, setCaptchaValue] = React.useState<string | null>(null);
   const { toast } = useToast();
+  const { translations } = useLanguage();
 
   const { data: reCaptchaKey, isError } = useQuery({
     queryKey: ['recaptcha-site-key'],
@@ -123,10 +124,10 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               <span className="font-semibold">Copyright Compliance:</span> Uploading copyrighted content without explicit authorization from the rights holder is strictly prohibited. The user is solely responsible for any infringement.
             </li>
             <li className="text-sm">
-              <span className="font-semibold">Liability Disclaimer:</span> While our service retains conversion data and files for 30 days for technical support purposes, we do not actively review or monitor the content of uploaded files. We assume no responsibility for the misuse of the service or any legal claims arising from the processed content.
+              <span className="font-semibold">{translations.liabilityDisclaimer}</span>
             </li>
             <li className="text-sm">
-              <span className="font-semibold">Data Retention:</span> For technical support and claim resolution purposes, we retain conversion data and generated audio files for a period of 30 days. After this period, all data is automatically deleted.
+              <span className="font-semibold">Data Retention:</span> {translations.dataRetentionDesc}
             </li>
             <li className="text-sm">
               <span className="font-semibold">Privacy Policy:</span> Please refer to our <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank">privacy policy</Link> for more details about data handling and retention.

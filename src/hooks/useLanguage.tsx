@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode } from 'react';
 
 type Language = 'english' | 'spanish' | 'french' | 'german';
@@ -34,7 +33,15 @@ const translations = {
     "cookiesAccepted": "Cookies accepted",
     "cookiesAcceptedDesc": "Thank you for accepting cookies. Your preferences have been saved.",
     "preferencesDesc": "Only necessary cookies will be used. You can change this anytime.",
-    "preferencesSaved": "Preferences saved"
+    "preferencesSaved": "Preferences saved",
+    "liabilityDisclaimer": "While our service retains conversion data and files for 30 days for technical support purposes, we do not actively review or monitor the content of uploaded files. We assume no responsibility for the misuse of the service or any legal claims arising from the processed content.",
+    "dataRetentionTitle": "Data Retention",
+    "dataRetentionDesc": "Your files and conversion data are retained for 30 days for technical support and claim resolution purposes. This retention period allows us to:",
+    "supportAssistance": "Provide technical support and troubleshooting assistance",
+    "qualityIssues": "Address any conversion quality issues",
+    "copyrightClaims": "Handle potential copyright or content-related claims",
+    "serviceQuality": "Ensure service quality and maintain conversion history",
+    "retentionNotice": "After the 30-day retention period, both the original and converted files are permanently deleted from our servers through an automated process."
   },
   spanish: {
     "signIn": "Iniciar sesión",
@@ -60,7 +67,15 @@ const translations = {
     "cookiesAccepted": "Cookies aceptadas",
     "cookiesAcceptedDesc": "Gracias por aceptar las cookies. Sus preferencias han sido guardadas.",
     "preferencesDesc": "Solo se utilizarán las cookies necesarias. Puede cambiar esto en cualquier momento.",
-    "preferencesSaved": "Preferencias guardadas"
+    "preferencesSaved": "Preferencias guardadas",
+    "liabilityDisclaimer": "Si bien nuestro servicio conserva los datos de conversión y archivos durante 30 días para fines de soporte técnico, no revisamos ni monitoreamos activamente el contenido de los archivos cargados. No asumimos ninguna responsabilidad por el mal uso del servicio o cualquier reclamo legal que surja del contenido procesado.",
+    "dataRetentionTitle": "Retención de Datos",
+    "dataRetentionDesc": "Sus archivos y datos de conversión se conservan durante 30 días para fines de soporte técnico y resolución de reclamos. Este período de retención nos permite:",
+    "supportAssistance": "Proporcionar asistencia técnica y solución de problemas",
+    "qualityIssues": "Abordar cualquier problema de calidad de conversión",
+    "copyrightClaims": "Manejar posibles reclamos relacionados con derechos de autor o contenido",
+    "serviceQuality": "Asegurar la calidad del servicio y mantener el historial de conversiones",
+    "retentionNotice": "Después del período de retención de 30 días, tanto los archivos originales como los convertidos se eliminan permanentemente de nuestros servidores mediante un proceso automatizado."
   },
   french: {
     "signIn": "Se connecter",
@@ -86,7 +101,15 @@ const translations = {
     "cookiesAccepted": "Cookies acceptés",
     "cookiesAcceptedDesc": "Merci d'avoir accepté les cookies. Vos préférences ont été enregistrées.",
     "preferencesDesc": "Seuls les cookies nécessaires seront utilisés. Vous pouvez modifier cela à tout moment.",
-    "preferencesSaved": "Préférences enregistrées"
+    "preferencesSaved": "Préférences enregistrées",
+    "liabilityDisclaimer": "Bien que notre service conserve les données de conversion et les fichiers pendant 30 jours à des fins de support technique, nous ne révisons ni ne surveillons activement le contenu des fichiers téléchargés. Nous n'assumons aucune responsabilité pour l'utilisation abusive du service ou toute réclamation légale découlant du contenu traité.",
+    "dataRetentionTitle": "Conservation des Données",
+    "dataRetentionDesc": "Vos fichiers et données de conversion sont conservés pendant 30 jours à des fins de support technique et de résolution des réclamations. Cette période de conservation nous permet de :",
+    "supportAssistance": "Fournir une assistance technique et un dépannage",
+    "qualityIssues": "Traiter les problèmes de qualité de conversion",
+    "copyrightClaims": "Gérer les réclamations potentielles liées aux droits d'auteur ou au contenu",
+    "serviceQuality": "Assurer la qualité du service et maintenir l'historique des conversions",
+    "retentionNotice": "Après la période de conservation de 30 jours, les fichiers originaux et convertis sont définitivement supprimés de nos serveurs par un processus automatisé."
   },
   german: {
     "signIn": "Anmelden",
@@ -112,7 +135,15 @@ const translations = {
     "cookiesAccepted": "Cookies akzeptiert",
     "cookiesAcceptedDesc": "Vielen Dank für die Annahme der Cookies. Ihre Einstellungen wurden gespeichert.",
     "preferencesDesc": "Es werden nur notwendige Cookies verwendet. Sie können dies jederzeit ändern.",
-    "preferencesSaved": "Einstellungen gespeichert"
+    "preferencesSaved": "Einstellungen gespeichert",
+    "liabilityDisclaimer": "Während unser Service Konvertierungsdaten und Dateien für 30 Tage zu technischen Supportzwecken speichert, überprüfen oder überwachen wir den Inhalt der hochgeladenen Dateien nicht aktiv. Wir übernehmen keine Verantwortung für den Missbrauch des Dienstes oder rechtliche Ansprüche, die sich aus dem verarbeiteten Inhalt ergeben.",
+    "dataRetentionTitle": "Datenspeicherung",
+    "dataRetentionDesc": "Ihre Dateien und Konvertierungsdaten werden 30 Tage lang für technischen Support und Reklamationsbearbeitung aufbewahrt. Diese Aufbewahrungsfrist ermöglicht uns:",
+    "supportAssistance": "Technischen Support und Fehlerbehebung anzubieten",
+    "qualityIssues": "Probleme mit der Konvertierungsqualität zu beheben",
+    "copyrightClaims": "Potenzielle Urheberrechts- oder inhaltsbezogene Ansprüche zu bearbeiten",
+    "serviceQuality": "Die Servicequalität sicherzustellen und den Konvertierungsverlauf zu verwalten",
+    "retentionNotice": "Nach der 30-tägigen Aufbewahrungsfrist werden sowohl die Original- als auch die konvertierten Dateien durch einen automatisierten Prozess permanent von unseren Servern gelöscht."
   }
 };
 
