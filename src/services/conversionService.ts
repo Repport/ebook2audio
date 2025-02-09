@@ -51,15 +51,18 @@ export const convertToAudio = async (
     .gt('expires_at', new Date().toISOString())
     .maybeSingle();
 
-  if (existingConversion?.audio_content) {
-    console.log('Found cached conversion, returning existing audio');
-    // Convert base64 to ArrayBuffer
-    const binaryString = atob(existingConversion.audio_content);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+  if (existingConversion?.storage_path) {
+    console.log('Found cached conversion, fetching from storage');
+    const { data: audioData, error: downloadError } = await supabase.storage
+      .from('audio_cache')
+      .download(existingConversion.storage_path);
+
+    if (downloadError) {
+      console.error('Error downloading cached audio:', downloadError);
+      throw downloadError;
     }
-    return bytes.buffer;
+
+    return await audioData.arrayBuffer();
   }
 
   // Obfuscate sensitive data before sending
@@ -90,26 +93,43 @@ export const convertToAudio = async (
     throw new Error('No audio data received');
   }
 
-  // Store the conversion in the database
+  // Convert base64 to Uint8Array for storage
+  const binaryString = atob(data.audioContent);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  // Generate a unique filename for storage
+  const storagePath = `${textHash}.mp3`;
+
+  // Upload to storage bucket
+  const { error: uploadError } = await supabase.storage
+    .from('audio_cache')
+    .upload(storagePath, bytes.buffer, {
+      contentType: 'audio/mpeg',
+      upsert: true // Override if exists
+    });
+
+  if (uploadError) {
+    console.error('Error uploading to storage:', uploadError);
+    throw uploadError;
+  }
+
+  // Store the conversion record in the database
   const { error: insertError } = await supabase
     .from('text_conversions')
     .insert({
       text_hash: textHash,
-      audio_content: data.audioContent,
+      storage_path: storagePath,
       file_name: fileName,
-      file_size: data.audioContent.length,
+      file_size: bytes.length,
       duration: data.duration || null
     });
 
   if (insertError) {
     console.error('Error storing conversion:', insertError);
-  }
-
-  // Convert base64 to ArrayBuffer
-  const binaryString = atob(data.audioContent);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+    // Don't throw here as the file is already in storage
   }
   
   return bytes.buffer;
