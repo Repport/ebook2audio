@@ -39,21 +39,13 @@ export async function insertChunksBatch(
             status: 'pending'
           })),
           {
-            onConflict: 'conversion_id,chunk_index',
-            ignoreDuplicates: true
+            onConflict: 'conversion_id,chunk_index'
           }
         );
 
       if (error) {
-        if (error.code === '57014') { // Statement timeout error
-          console.error('Timeout error during chunk insertion, will retry with smaller batch');
-          const midPoint = Math.floor(batch.length / 2);
-          await insertChunksBatch(batch.slice(0, midPoint), conversionId);
-          await insertChunksBatch(batch.slice(midPoint), conversionId);
-        } else {
-          console.error('Error inserting chunks:', error);
-          throw error;
-        }
+        console.error('Error inserting chunks:', error);
+        throw error;
       }
     }, { maxRetries: 3, initialDelay: 1000 });
     
