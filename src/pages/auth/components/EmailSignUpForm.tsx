@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import TermsCheckbox from "@/components/TermsCheckbox";
 import FormFields, { validatePassword } from "./FormFields";
+import { useNavigate } from "react-router-dom";
 
 interface EmailSignUpFormProps {
   email: string;
@@ -12,6 +13,7 @@ interface EmailSignUpFormProps {
 }
 
 const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
+  const navigate = useNavigate();
   const [localEmail, setLocalEmail] = useState(email);
   const [localPassword, setLocalPassword] = useState(password);
   const [loading, setLoading] = useState(false);
@@ -69,14 +71,14 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
     setLoading(true);
     try {
       const { data: { user: newUser }, error } = await supabase.auth.signUp({
-        email: localEmail,
+        email: localEmail.trim(),
         password: localPassword,
         options: {
           data: {
-            email: localEmail,
             terms_accepted: true,
             terms_accepted_at: new Date().toISOString()
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/auth`
         }
       });
       
@@ -98,11 +100,14 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
           title: "Success",
           description: "Check your email for the confirmation link.",
         });
+        // Redirect to main page since the user is now signed up
+        navigate("/");
       }
     } catch (error: any) {
+      console.error("Signup error:", error);
       toast({
         title: "Error signing up",
-        description: error.message,
+        description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -128,7 +133,6 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
       <Button
         type="button"
         onClick={handleEmailSignUp}
-        variant="outline"
         className="w-full"
         disabled={loading}
       >
