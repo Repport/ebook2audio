@@ -117,7 +117,7 @@ export const convertToAudio = async (
       body: { 
         text: obfuscatedText, 
         voiceId: obfuscatedVoiceId,
-        fileName,
+        fileName: fileName || 'untitled',
         chapters: chapters?.map(ch => ({
           title: ch.title,
           timestamp: ch.timestamp

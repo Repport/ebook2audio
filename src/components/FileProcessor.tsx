@@ -51,7 +51,7 @@ const FileProcessor = ({
         selectedVoice, 
         detectChapters, 
         chapters, 
-        selectedFile.name
+        selectedFile.name // Pass the actual filename here
       );
     } finally {
       setDetectingChapters(false);
