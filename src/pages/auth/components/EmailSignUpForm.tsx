@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import TermsCheckbox from "@/components/TermsCheckbox";
+import FormFields from "./FormFields";
 
 interface EmailSignUpFormProps {
   email: string;
@@ -11,13 +12,15 @@ interface EmailSignUpFormProps {
 }
 
 const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
+  const [localEmail, setLocalEmail] = useState(email);
+  const [localPassword, setLocalPassword] = useState(password);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const { toast } = useToast();
 
   const handleEmailSignUp = async () => {
-    if (!email || !password) {
+    if (!localEmail || !localPassword) {
       toast({
         title: "Missing fields",
         description: "Please fill in both email and password.",
@@ -38,11 +41,11 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
     setLoading(true);
     try {
       const { data: { user: newUser }, error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: localEmail,
+        password: localPassword,
         options: {
           data: {
-            email: email,
+            email: localEmail,
             terms_accepted: true,
             terms_accepted_at: new Date().toISOString()
           }
@@ -81,6 +84,13 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
 
   return (
     <div className="space-y-4">
+      <FormFields
+        email={localEmail}
+        password={localPassword}
+        onEmailChange={setLocalEmail}
+        onPasswordChange={setLocalPassword}
+        disabled={loading}
+      />
       <TermsCheckbox
         accepted={termsAccepted}
         isVerifying={isVerifying}

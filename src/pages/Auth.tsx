@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import EmailSignInForm from "./auth/components/EmailSignInForm";
@@ -7,8 +7,6 @@ import EmailSignUpForm from "./auth/components/EmailSignUpForm";
 import GoogleSignInButton from "./auth/components/GoogleSignInButton";
 
 const Auth = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -32,7 +30,7 @@ const Auth = () => {
         
         <div className="mt-8 space-y-6">
           <EmailSignInForm onSuccess={() => navigate("/")} />
-          <EmailSignUpForm email={email} password={password} />
+          <EmailSignUpForm email="" password="" />
           
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

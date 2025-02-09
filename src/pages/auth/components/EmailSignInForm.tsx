@@ -1,10 +1,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import FormFields from "./FormFields";
 
 interface EmailSignInFormProps {
   onSuccess: () => void;
@@ -50,30 +49,13 @@ const EmailSignInForm = ({ onSuccess }: EmailSignInFormProps) => {
 
   return (
     <form onSubmit={handleEmailSignIn} className="space-y-4">
-      <div>
-        <Label htmlFor="email">Email address</Label>
-        <Input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={loading}
-          className="w-full"
-        />
-      </div>
-      <div>
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          disabled={loading}
-          className="w-full"
-        />
-      </div>
+      <FormFields
+        email={email}
+        password={password}
+        onEmailChange={setEmail}
+        onPasswordChange={setPassword}
+        disabled={loading}
+      />
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Signing in..." : "Sign in"}
       </Button>
