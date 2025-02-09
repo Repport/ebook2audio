@@ -77,8 +77,25 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
     }
   };
 
-  // Calculate estimated time based on text length (rough estimate)
-  const estimatedSeconds = Math.ceil(extractedText.length / 20); // Assuming ~20 characters per second processing speed
+  // Calculate estimated time based on text length and chunk processing
+  const calculateEstimatedSeconds = () => {
+    if (!extractedText) return 0;
+    
+    // Base processing time per character (tuned based on typical processing speed)
+    const baseTimePerChar = 0.015; // 15ms per character
+    
+    // Additional overhead for initialization and finalization
+    const overhead = 5; // 5 seconds base overhead
+    
+    // Factor in chunk processing overhead
+    const chunkSize = 5000; // characters per chunk
+    const numberOfChunks = Math.ceil(extractedText.length / chunkSize);
+    const chunkOverhead = numberOfChunks * 0.5; // 0.5 seconds per chunk overhead
+    
+    return Math.ceil((extractedText.length * baseTimePerChar) + overhead + chunkOverhead);
+  };
+
+  const estimatedSeconds = calculateEstimatedSeconds();
 
   return (
     <div className="animate-fade-up space-y-8">
@@ -124,3 +141,4 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
 };
 
 export default FileProcessor;
+

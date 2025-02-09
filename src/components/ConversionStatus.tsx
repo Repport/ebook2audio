@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { Progress } from "@/components/ui/progress";
 import {
   Accordion,
   AccordionContent,
@@ -55,16 +56,28 @@ const ConversionStatus = ({
     return `${hours}h ${remainingMinutes}m`;
   };
 
+  const getEstimatedTimeRemaining = () => {
+    if (status !== 'converting' || progress >= 100 || !estimatedSeconds) {
+      return null;
+    }
+    
+    const remainingProgress = 100 - progress;
+    const remainingTime = Math.ceil((estimatedSeconds * remainingProgress) / 100);
+    return formatTimeRemaining(remainingTime);
+  };
+
+  const timeRemaining = getEstimatedTimeRemaining();
+
   return (
-    <div className="flex flex-col items-center space-y-4 animate-fade-up">
+    <div className="flex flex-col items-center space-y-4 animate-fade-up w-full max-w-md">
       {status === 'converting' && (
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       )}
       <p className="text-lg font-medium text-gray-900">{statusMessages[status]}</p>
       
-      {status === 'converting' && estimatedSeconds > 0 && (
+      {timeRemaining && (
         <p className="text-sm text-gray-600">
-          Estimated time remaining: {formatTimeRemaining(estimatedSeconds * (1 - progress / 100))}
+          Estimated time remaining: {timeRemaining}
         </p>
       )}
 
@@ -75,7 +88,7 @@ const ConversionStatus = ({
       )}
       
       {chapters.length > 0 && (
-        <Accordion type="single" collapsible className="w-full max-w-md">
+        <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="chapters">
             <AccordionTrigger className="text-sm">
               {chapters.length} Chapters Found
@@ -97,11 +110,9 @@ const ConversionStatus = ({
       )}
 
       {status === 'converting' && (
-        <div className="w-full max-w-xs bg-gray-200 rounded-full h-2.5">
-          <div
-            className="bg-primary h-2.5 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
+        <div className="w-full">
+          <Progress value={progress} className="h-2" />
+          <p className="text-sm text-gray-600 mt-1 text-center">{Math.round(progress)}%</p>
         </div>
       )}
     </div>
@@ -109,3 +120,4 @@ const ConversionStatus = ({
 };
 
 export default ConversionStatus;
+
