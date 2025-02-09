@@ -7,6 +7,7 @@ import { ConvertToAudioResponse, ProgressCallback } from "../types/chunks";
 const MAX_CONCURRENT_REQUESTS = 8;
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 2000;
+const CHUNK_DELAY = 200; // Reduced delay between chunks
 
 export async function processChunks(
   chunks: string[], 
@@ -18,102 +19,86 @@ export async function processChunks(
   const processing = new Set<number>();
   let completed = 0;
   let failedAttempts = new Map<number, number>();
-
-  if (onProgressUpdate) {
-    onProgressUpdate(0, chunks.length, 0);
-  }
+  
+  // Create a queue for managing chunks
+  const queue = chunks.map((_, index) => index);
+  const activePromises = new Set<Promise<void>>();
 
   const processChunk = async (index: number): Promise<void> => {
-    if (index >= chunks.length) return;
-
+    if (processing.has(index)) return;
+    
     processing.add(index);
     const retryCount = failedAttempts.get(index) || 0;
 
     try {
-      console.log(`Processing chunk ${index + 1}/${chunks.length}, size: ${chunks[index].length} characters`);
+      console.log(`Processing chunk ${index + 1}/${chunks.length}`);
       
       // Get chunk timeout from database
-      const { data: chunkData, error: chunkError } = await supabase
+      const { data: chunkData } = await supabase
         .from('conversion_chunks')
         .select('timeout_ms')
         .eq('conversion_id', conversionId)
         .eq('chunk_index', index)
         .single();
 
-      if (chunkError) throw chunkError;
-
-      const timeout = chunkData?.timeout_ms || 120000; // Default to 120s if not set
+      const timeout = chunkData?.timeout_ms || 120000;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      try {
-        // Update chunk status to processing
-        await updateChunkStatus({
-          conversion_id: conversionId,
-          chunk_index: index,
-          status: 'processing',
-          chunk_text: chunks[index]
-        });
+      // Update chunk status to processing
+      await updateChunkStatus({
+        conversion_id: conversionId,
+        chunk_index: index,
+        status: 'processing',
+        chunk_text: chunks[index]
+      });
 
-        const { data, error } = await supabase.functions.invoke<ConvertToAudioResponse>('convert-to-audio', {
+      const { data, error } = await supabase.functions.invoke<ConvertToAudioResponse>(
+        'convert-to-audio',
+        {
           body: { 
             text: chunks[index], 
             voiceId,
             fileName: `chunk_${index}`,
             isChunk: true
           }
-        });
-
-        clearTimeout(timeoutId);
-
-        if (error) throw new Error(error.message);
-        if (!data?.data?.audioContent) {
-          console.error('No audio content in response:', data);
-          throw new Error('No audio content received');
         }
+      );
 
-        const audioBuffer = decodeBase64Audio(data.data.audioContent);
-        if (!audioBuffer || audioBuffer.byteLength === 0) {
-          throw new Error('Invalid audio data received');
-        }
+      clearTimeout(timeoutId);
 
-        results[index] = audioBuffer;
-        completed++;
-
-        // Update chunk status to completed
-        await updateChunkStatus({
-          conversion_id: conversionId,
-          chunk_index: index,
-          status: 'completed',
-          audio_path: `chunk_${index}.mp3`,
-          chunk_text: chunks[index]
-        });
-
-        if (onProgressUpdate) {
-          const progressPercentage = Math.round((completed / chunks.length) * 100);
-          onProgressUpdate(progressPercentage, chunks.length, completed);
-        }
-
-        processing.delete(index);
-        failedAttempts.delete(index);
-        
-        // Process next chunk if under concurrent limit
-        const nextAvailableIndex = chunks.findIndex((_, i) => 
-          !processing.has(i) && !results[i] && (!failedAttempts.has(i) || failedAttempts.get(i)! < MAX_RETRIES)
-        );
-
-        if (nextAvailableIndex !== -1 && processing.size < MAX_CONCURRENT_REQUESTS) {
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay between chunks
-          processChunk(nextAvailableIndex);
-        }
-
-      } finally {
-        clearTimeout(timeoutId);
+      if (error) throw new Error(error.message);
+      if (!data?.data?.audioContent) {
+        throw new Error('No audio content received');
       }
+
+      const audioBuffer = decodeBase64Audio(data.data.audioContent);
+      if (!audioBuffer || audioBuffer.byteLength === 0) {
+        throw new Error('Invalid audio data received');
+      }
+
+      results[index] = audioBuffer;
+      completed++;
+
+      await updateChunkStatus({
+        conversion_id: conversionId,
+        chunk_index: index,
+        status: 'completed',
+        audio_path: `chunk_${index}.mp3`,
+        chunk_text: chunks[index]
+      });
+
+      if (onProgressUpdate) {
+        const progressPercentage = Math.round((completed / chunks.length) * 100);
+        onProgressUpdate(progressPercentage, chunks.length, completed);
+      }
+
+      processing.delete(index);
+      failedAttempts.delete(index);
+
     } catch (error) {
-      console.error(`Error processing chunk ${index}, attempt ${retryCount + 1}:`, error);
+      console.error(`Error processing chunk ${index}:`, error);
       
-      // Update chunk status to failed
       await updateChunkStatus({
         conversion_id: conversionId,
         chunk_index: index,
@@ -129,46 +114,41 @@ export async function processChunks(
       );
 
       failedAttempts.set(index, retryCount + 1);
+      processing.delete(index);
 
       if (retryCount < MAX_RETRIES) {
-        console.log(`Retrying chunk ${index} in ${Math.round(delay)}ms...`);
+        console.log(`Retrying chunk ${index} in ${Math.round(delay)}ms`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return processChunk(index);
+        queue.unshift(index); // Add back to queue for retry
       } else {
         throw new Error(`Failed to process chunk ${index} after ${MAX_RETRIES} attempts`);
       }
     }
   };
 
-  try {
-    // Start initial batch of concurrent requests
-    const initialBatch = Math.min(chunks.length, MAX_CONCURRENT_REQUESTS);
-    const initialPromises = [];
-    
-    for (let i = 0; i < initialBatch; i++) {
-      initialPromises.push(processChunk(i));
+  // Process chunks in parallel with controlled concurrency
+  while (queue.length > 0 || activePromises.size > 0) {
+    while (queue.length > 0 && activePromises.size < MAX_CONCURRENT_REQUESTS) {
+      const index = queue.shift()!;
+      const promise = processChunk(index)
+        .then(() => activePromises.delete(promise));
+      activePromises.add(promise);
+      
+      // Small delay between starting new chunks to prevent rate limiting
+      await new Promise(resolve => setTimeout(resolve, CHUNK_DELAY));
     }
     
-    await Promise.all(initialPromises);
-    
-    // Process remaining chunks as slots become available
-    for (let i = initialBatch; i < chunks.length; i++) {
-      if (processing.size < MAX_CONCURRENT_REQUESTS) {
-        await processChunk(i);
-      }
+    // Wait for at least one promise to complete before continuing
+    if (activePromises.size >= MAX_CONCURRENT_REQUESTS || (queue.length === 0 && activePromises.size > 0)) {
+      await Promise.race(Array.from(activePromises));
     }
-
-    // Validate all chunks were processed successfully
-    const hasFailedChunks = results.some(chunk => !chunk || chunk.byteLength === 0);
-    if (hasFailedChunks) {
-      throw new Error('Some chunks failed to process correctly');
-    }
-    
-    return results;
-  } catch (error) {
-    console.error('Fatal error in chunk processing:', error);
-    throw new Error(`Conversion failed: ${error.message}`);
   }
-}
 
-export { combineAudioChunks } from '../utils/audioUtils';
+  // Validate all chunks were processed successfully
+  const missingChunks = results.findIndex(chunk => !chunk || chunk.byteLength === 0);
+  if (missingChunks !== -1) {
+    throw new Error(`Chunk ${missingChunks} failed to process correctly`);
+  }
+
+  return results;
+}
