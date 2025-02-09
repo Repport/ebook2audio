@@ -45,6 +45,15 @@ export const useEmailAuth = () => {
   };
 
   const handleEmailSignUp = async (email: string, password: string) => {
+    if (!email || !password) {
+      toast({
+        title: "Missing credentials",
+        description: "Please provide both email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
     try {
       const { data: existingUser, error: queryError } = await supabase
@@ -73,9 +82,12 @@ export const useEmailAuth = () => {
         return;
       }
 
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: window.location.origin
+        }
       });
       
       if (signUpError) {
