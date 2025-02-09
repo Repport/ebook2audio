@@ -7,11 +7,13 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useLanguage } from "@/hooks/useLanguage";
 
 const Settings = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { translations } = useLanguage();
 
   useEffect(() => {
     if (!user) {
@@ -29,11 +31,11 @@ const Settings = () => {
         <Link to="/">
           <Button variant="ghost" size="sm" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back to Home
+            {translations.backToHome}
           </Button>
         </Link>
       </div>
-      <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
+      <h1 className="text-3xl font-bold mb-8">{translations.accountSettings}</h1>
       
       <div className="space-y-8">
         <AccountSettings />

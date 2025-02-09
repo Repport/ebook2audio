@@ -6,10 +6,12 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/hooks/useLanguage";
 
 const AccountCredentials = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { translations } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -20,8 +22,8 @@ const AccountCredentials = () => {
     e.preventDefault();
     if (newPassword !== confirmNewPassword) {
       toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match.",
+        title: translations.passwordsDontMatch,
+        description: translations.passwordsMatchError,
         variant: "destructive",
       });
       return;
@@ -36,8 +38,8 @@ const AccountCredentials = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Your password has been updated successfully.",
+        title: translations.success,
+        description: translations.passwordUpdated,
       });
       
       // Clear form
@@ -46,7 +48,7 @@ const AccountCredentials = () => {
       setConfirmNewPassword("");
     } catch (error: any) {
       toast({
-        title: "Error updating password",
+        title: translations.errorUpdatingPassword,
         description: error.message,
         variant: "destructive",
       });
@@ -79,15 +81,15 @@ const AccountCredentials = () => {
       if (historyError) throw historyError;
 
       toast({
-        title: "Verification email sent",
-        description: "Please check your new email address to confirm the change.",
+        title: translations.emailVerificationSent,
+        description: translations.checkEmail,
       });
       
       // Clear form
       setNewEmail("");
     } catch (error: any) {
       toast({
-        title: "Error updating email",
+        title: translations.errorUpdatingEmail,
         description: error.message,
         variant: "destructive",
       });
@@ -99,10 +101,10 @@ const AccountCredentials = () => {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Change Password</h2>
+        <h2 className="text-2xl font-bold">{translations.changePassword}</h2>
         <form onSubmit={handleUpdatePassword} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="new-password">New Password</Label>
+            <Label htmlFor="new-password">{translations.newPassword}</Label>
             <Input
               id="new-password"
               type="password"
@@ -112,7 +114,7 @@ const AccountCredentials = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm New Password</Label>
+            <Label htmlFor="confirm-password">{translations.confirmNewPassword}</Label>
             <Input
               id="confirm-password"
               type="password"
@@ -122,16 +124,16 @@ const AccountCredentials = () => {
             />
           </div>
           <Button type="submit" disabled={loading}>
-            {loading ? "Updating..." : "Update Password"}
+            {loading ? translations.updating : translations.updatePassword}
           </Button>
         </form>
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Change Email</h2>
+        <h2 className="text-2xl font-bold">{translations.changeEmail}</h2>
         <form onSubmit={handleUpdateEmail} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="current-email">Current Email</Label>
+            <Label htmlFor="current-email">{translations.currentEmail}</Label>
             <Input
               id="current-email"
               type="email"
@@ -140,7 +142,7 @@ const AccountCredentials = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="new-email">New Email</Label>
+            <Label htmlFor="new-email">{translations.newEmail}</Label>
             <Input
               id="new-email"
               type="email"
@@ -150,7 +152,7 @@ const AccountCredentials = () => {
             />
           </div>
           <Button type="submit" disabled={loading}>
-            {loading ? "Updating..." : "Update Email"}
+            {loading ? translations.updating : translations.updateEmail}
           </Button>
         </form>
       </div>
