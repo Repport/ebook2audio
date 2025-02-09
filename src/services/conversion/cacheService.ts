@@ -140,7 +140,7 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
 
     if (insertResult.error) {
       console.error('Cache database error:', insertResult.error);
-      return { error: insertResult.error };
+      return { error: insertError };
     }
 
     console.log('Successfully saved cache record to database');
