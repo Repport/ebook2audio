@@ -13,6 +13,7 @@ export const useAudioConversion = () => {
   const [progress, setProgress] = useState(0);
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
   const [audioDuration, setAudioDuration] = useState<number>(0);
+  const [currentFileName, setCurrentFileName] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -20,32 +21,52 @@ export const useAudioConversion = () => {
   useEffect(() => {
     const storedState = loadConversionState();
     if (storedState) {
+      console.log('Loaded stored conversion state:', storedState);
       setConversionStatus(storedState.status);
       setProgress(storedState.progress);
+      setCurrentFileName(storedState.fileName || null);
       if (storedState.audioData) {
-        setAudioData(convertBase64ToArrayBuffer(storedState.audioData));
+        try {
+          const audio = convertBase64ToArrayBuffer(storedState.audioData);
+          setAudioData(audio);
+          setAudioDuration(storedState.audioDuration || 0);
+        } catch (error) {
+          console.error('Error loading stored audio data:', error);
+          sessionStorage.removeItem('conversionState');
+        }
       }
-      setAudioDuration(storedState.audioDuration);
     }
   }, []);
 
   // Save state changes to storage
   useEffect(() => {
-    if (conversionStatus === 'idle') return;
+    if (conversionStatus === 'idle') {
+      sessionStorage.removeItem('conversionState');
+      return;
+    }
     
+    console.log('Saving conversion state:', {
+      status: conversionStatus,
+      progress,
+      fileName: currentFileName,
+      hasAudioData: !!audioData
+    });
+
     saveConversionState({
       status: conversionStatus,
       progress,
       audioDuration,
+      fileName: currentFileName || undefined,
       audioData: audioData ? convertArrayBufferToBase64(audioData) : undefined
     });
-  }, [conversionStatus, progress, audioData, audioDuration]);
+  }, [conversionStatus, progress, audioData, audioDuration, currentFileName]);
 
   const resetConversion = useCallback(() => {
     setConversionStatus('idle');
     setProgress(0);
     setAudioData(null);
     setAudioDuration(0);
+    setCurrentFileName(null);
     sessionStorage.removeItem('conversionState');
   }, []);
 
@@ -58,8 +79,10 @@ export const useAudioConversion = () => {
   ) => {
     setConversionStatus('converting');
     setProgress(0);
+    setCurrentFileName(fileName);
     
     try {
+      console.log('Starting conversion for file:', fileName);
       const WORDS_PER_MINUTE = 150;
       const chaptersWithTimestamps = chapters.map(chapter => ({
         ...chapter,
@@ -79,12 +102,14 @@ export const useAudioConversion = () => {
         }
       );
       
+      console.log('Conversion completed, processing audio data');
       setAudioData(audio);
       
       const duration = await calculateAudioDuration(audio);
       setAudioDuration(duration);
       
       if (user) {
+        console.log('Saving to Supabase for user:', user.id);
         await saveToSupabase(audio, extractedText, duration, fileName, user.id);
       }
       
@@ -104,6 +129,7 @@ export const useAudioConversion = () => {
     } catch (error) {
       console.error('Conversion error:', error);
       setConversionStatus('error');
+      setCurrentFileName(null);
       toast({
         title: "Conversion failed",
         description: (error as Error).message || "An error occurred during conversion",
@@ -120,8 +146,8 @@ export const useAudioConversion = () => {
     const link = document.createElement('a');
     link.href = url;
     
-    const originalName = fileName;
-    const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
+    const originalName = fileName || currentFileName || 'converted';
+    const baseName = originalName.substring(0, originalName.lastIndexOf('.') || originalName.length);
     link.download = `${baseName}.mp3`;
     
     document.body.appendChild(link);
@@ -140,6 +166,7 @@ export const useAudioConversion = () => {
     progress,
     audioData,
     audioDuration,
+    currentFileName,
     handleConversion,
     handleDownload,
     resetConversion
