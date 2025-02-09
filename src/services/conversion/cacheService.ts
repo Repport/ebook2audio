@@ -26,12 +26,17 @@ async function retryOperation<T>(
 
 export async function checkCache(textHash: string): Promise<{ storagePath: string | null; error: Error | null }> {
   try {
+    console.log('Checking cache for text hash:', textHash);
+    
     const result = await retryOperation(async () => {
       const { data, error } = await supabase
         .from('text_conversions')
         .select('storage_path')
         .eq('text_hash', textHash)
+        .eq('status', 'completed')  // Only get completed conversions
         .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })  // Get most recent first
+        .limit(1)  // Only get one record
         .maybeSingle();
       
       return { data, error };
@@ -40,6 +45,13 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
     if (result.error) {
       console.error('Cache check error:', result.error);
       return { storagePath: null, error: result.error };
+    }
+
+    // Log whether we found a cached version or not
+    if (result.data?.storage_path) {
+      console.log('Found cached conversion with storage path:', result.data.storage_path);
+    } else {
+      console.log('No cached conversion found');
     }
 
     return { 
@@ -54,6 +66,8 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
 
 export async function fetchFromCache(storagePath: string): Promise<{ data: ArrayBuffer | null; error: Error | null }> {
   try {
+    console.log('Fetching from cache storage path:', storagePath);
+    
     const result = await retryOperation(async () => {
       const { data, error } = await supabase.storage
         .from('audio_cache')
@@ -67,6 +81,7 @@ export async function fetchFromCache(storagePath: string): Promise<{ data: Array
       return { data: null, error: result.error };
     }
 
+    console.log('Successfully fetched cached audio data');
     return { 
       data: await result.data.arrayBuffer(), 
       error: null 
@@ -80,6 +95,7 @@ export async function fetchFromCache(storagePath: string): Promise<{ data: Array
 export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fileName?: string): Promise<{ error: Error | null }> {
   try {
     const storagePath = `${textHash}.mp3`;
+    console.log('Saving to cache with storage path:', storagePath);
 
     const uploadResult = await retryOperation(async () => {
       const { error } = await supabase.storage
@@ -97,6 +113,8 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
       return { error: uploadResult.error };
     }
 
+    console.log('Successfully uploaded audio to storage');
+
     const insertResult = await retryOperation(async () => {
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
       
@@ -107,7 +125,8 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
           storage_path: storagePath,
           file_name: fileName,
           file_size: audioBuffer.byteLength,
-          expires_at: expiresAt
+          expires_at: expiresAt,
+          status: 'completed'  // Mark as completed immediately
         });
       
       return { error };
@@ -118,6 +137,7 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
       return { error: insertResult.error };
     }
 
+    console.log('Successfully saved cache record to database');
     return { error: null };
   } catch (error) {
     console.error('Cache save failed after retries:', error);
