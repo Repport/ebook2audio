@@ -1,8 +1,8 @@
-
 import { ChapterWithTimestamp, ProgressCallback } from "./conversion/types";
 import { generateHash, splitTextIntoChunks } from "./conversion/utils";
 import { checkCache, fetchFromCache, saveToCache } from "./conversion/cacheService";
-import { processChunks, combineAudioChunks } from "./conversion/chunkProcessor";
+import { processChunks } from "./conversion/processors/chunkProcessor";
+import { combineAudioChunks } from "./conversion/utils/audioUtils";
 import { addToQueue, updateQueueStatus } from "./conversion/queueService";
 import { createConversion, updateConversionStatus } from "./conversion/conversionManager";
 import { insertChunksBatch, getExistingChunks } from "./conversion/chunkManager";
