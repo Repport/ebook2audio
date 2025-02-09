@@ -5,23 +5,31 @@ import { useAuth } from '@/hooks/useAuth';
 import UserMenu from './UserMenu';
 import { Button } from './ui/button';
 import { Link } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Header = () => {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
 
   return (
     <header role="banner" className="mb-12">
       <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center space-x-4">
+        <div className="flex-1"></div>
+        <div className="flex items-center gap-2">
           {!user && (
-            <Link to="/auth">
-              <Button variant="outline" size="sm">
-                Sign in
-              </Button>
-            </Link>
+            <>
+              <Link to="/auth">
+                <Button variant="ghost" size={isMobile ? "sm" : "default"}>
+                  Sign in
+                </Button>
+              </Link>
+              <Link to="/auth">
+                <Button variant="outline" size={isMobile ? "sm" : "default"}>
+                  Sign up
+                </Button>
+              </Link>
+            </>
           )}
-        </div>
-        <div className="flex items-center space-x-4">
           <ThemeToggle />
           {user && <UserMenu user={user} />}
         </div>
