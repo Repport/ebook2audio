@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 interface TermsDialogProps {
   open: boolean;
@@ -27,6 +28,24 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   const [accepted, setAccepted] = React.useState(false);
   const [captchaValue, setCaptchaValue] = React.useState<string | null>(null);
   const { toast } = useToast();
+
+  const { data: reCaptchaKey } = useQuery({
+    queryKey: ['recaptcha-site-key'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_config')
+        .select('value')
+        .eq('key', 'recaptcha_site_key')
+        .single();
+
+      if (error) {
+        console.error('Error fetching reCAPTCHA site key:', error);
+        throw error;
+      }
+
+      return data.value;
+    }
+  });
 
   const logAcceptance = async () => {
     try {
@@ -123,10 +142,10 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               I accept the terms and conditions and confirm that I have the legal rights to the content of the uploaded file.
             </label>
           </div>
-          {accepted && (
+          {accepted && reCaptchaKey && (
             <div className="flex justify-center">
               <ReCAPTCHA
-                sitekey="YOUR_RECAPTCHA_SITE_KEY"
+                sitekey={reCaptchaKey}
                 onChange={handleCaptchaChange}
                 theme="light"
               />
@@ -148,3 +167,4 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
 };
 
 export default TermsDialog;
+
