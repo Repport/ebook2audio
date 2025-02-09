@@ -9,6 +9,27 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          id: string
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          id: string
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          id?: string
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
       terms_acceptance_logs: {
         Row: {
           accepted_at: string
@@ -42,6 +63,39 @@ export type Database = {
           id?: string
           ip_address?: string
           user_agent?: string | null
+        }
+        Relationships: []
+      }
+      user_consents: {
+        Row: {
+          accepted_at: string | null
+          id: string
+          ip_address: string | null
+          marketing_accepted: boolean | null
+          privacy_accepted: boolean | null
+          terms_accepted: boolean | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          id?: string
+          ip_address?: string | null
+          marketing_accepted?: boolean | null
+          privacy_accepted?: boolean | null
+          terms_accepted?: boolean | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          id?: string
+          ip_address?: string | null
+          marketing_accepted?: boolean | null
+          privacy_accepted?: boolean | null
+          terms_accepted?: boolean | null
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
