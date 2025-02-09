@@ -4,6 +4,7 @@ interface StoredConversionState {
   progress: number;
   audioData?: string; // base64
   audioDuration: number;
+  fileName?: string;
 }
 
 export const saveConversionState = (state: StoredConversionState) => {
@@ -32,3 +33,4 @@ export const convertBase64ToArrayBuffer = (base64: string): ArrayBuffer => {
   }
   return bytes.buffer;
 };
+
