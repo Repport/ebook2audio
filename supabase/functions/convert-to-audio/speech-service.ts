@@ -23,7 +23,7 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
     textChunks.push(currentChunk.trim());
   }
   
-  console.log(`Split text into ${textChunks.length} chunks`);
+  console.log(`Split text into ${textChunks.length} chunks for synthesis`);
 
   async function processChunkWithRetry(chunk: string, index: number, retryCount = 0): Promise<string> {
     try {
@@ -60,7 +60,7 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
         }
       };
 
-      console.log(`Processing chunk ${index + 1}/${textChunks.length} (${chunk.length} characters), attempt ${retryCount + 1}`);
+      console.log(`Processing synthesis chunk ${index + 1}/${textChunks.length} (${chunk.length} characters), attempt ${retryCount + 1}`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
@@ -102,7 +102,12 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
         }
 
         const data = await response.json();
-        console.log(`Successfully processed chunk ${index + 1}`);
+        
+        if (!data.audioContent) {
+          throw new Error('No audio content in response');
+        }
+        
+        console.log(`Successfully processed synthesis chunk ${index + 1}`);
         return data.audioContent;
       } finally {
         clearTimeout(timeoutId);

@@ -44,7 +44,7 @@ serve(async (req) => {
     const fileName = requestData.fileName;
     const isChunk = requestData.isChunk || false;
 
-    console.log('Request received - IP:', ip, 'User:', user.id, 'File:', fileName);
+    console.log('Request received - IP:', ip, 'User:', user.id, 'File:', fileName, 'Text length:', text.length);
 
     // Calculate chunks for rate limiting if this is the first chunk of a conversion
     if (!isChunk) {
@@ -65,11 +65,20 @@ serve(async (req) => {
       throw new Error('No text content to convert');
     }
 
+    console.log('Getting access token...');
     const accessToken = await getAccessToken();
     console.log('✅ Successfully obtained access token');
 
+    console.log('Starting speech synthesis...');
     const escapedText = escapeXml(cleanedText);
     const audioContent = await synthesizeSpeech(escapedText, voiceId, accessToken);
+    
+    if (!audioContent) {
+      console.error('No audio content received from speech synthesis');
+      throw new Error('Speech synthesis failed to generate audio content');
+    }
+    
+    console.log('✅ Successfully synthesized speech, audio content length:', audioContent.length);
     
     // Log successful conversion
     const { error: logError } = await supabase
@@ -80,7 +89,7 @@ serve(async (req) => {
         file_name: fileName,
         file_size: text.length,
         successful: true,
-        chunk_count: isChunk ? null : Math.ceil(text.length / 5000) // Only log chunk count for full conversions
+        chunk_count: isChunk ? null : Math.ceil(text.length / 5000)
       });
 
     if (logError) {
@@ -90,7 +99,7 @@ serve(async (req) => {
     clearTimeout(timeoutId);
 
     return new Response(
-      JSON.stringify({ audioContent }),
+      JSON.stringify({ data: { audioContent } }),
       { 
         headers: { 
           ...corsHeaders, 
