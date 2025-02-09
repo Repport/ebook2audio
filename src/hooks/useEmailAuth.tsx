@@ -12,10 +12,33 @@ export const useEmailAuth = () => {
   const handleEmailSignIn = async (email: string, password: string) => {
     setLoading(true);
     try {
+      const { data: existingUser, error: queryError } = await supabase
+        .from('email_preferences')
+        .select('clear_email')
+        .eq('clear_email', email)
+        .maybeSingle();
+
+      if (queryError) {
+        toast({
+          title: "Error checking email",
+          description: "Please try again later.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // If user doesn't exist, automatically try to sign them up
+      if (!existingUser) {
+        return handleEmailSignUp(email, password);
+      }
+
+      // Proceed with sign in if user exists
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
           toast({
