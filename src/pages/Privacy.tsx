@@ -46,7 +46,14 @@ const Privacy = () => {
 
             <section>
               <h2 className="text-2xl font-semibold mt-8 mb-4">3. Data Retention</h2>
-              <p>Your files are retained only for the duration necessary to complete the conversion process. Once you download your converted audio file, both the original and converted files are permanently deleted from our servers.</p>
+              <p>Your files and conversion data are retained for 30 days for technical support and claim resolution purposes. This retention period allows us to:</p>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>Provide technical support and troubleshooting assistance</li>
+                <li>Address any conversion quality issues</li>
+                <li>Handle potential copyright or content-related claims</li>
+                <li>Ensure service quality and maintain conversion history</li>
+              </ul>
+              <p className="mt-4">After the 30-day retention period, both the original and converted files are permanently deleted from our servers through an automated process.</p>
             </section>
 
             <section>

@@ -123,7 +123,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               <span className="font-semibold">Copyright Compliance:</span> Uploading copyrighted content without explicit authorization from the rights holder is strictly prohibited. The user is solely responsible for any infringement.
             </li>
             <li className="text-sm">
-              <span className="font-semibold">Liability Disclaimer:</span> Our service does not store, review, or monitor the content of uploaded files. We assume no responsibility for the misuse of the service or any legal claims arising from the processed content.
+              <span className="font-semibold">Liability Disclaimer:</span> While our service retains conversion data and files for 30 days for technical support purposes, we do not actively review or monitor the content of uploaded files. We assume no responsibility for the misuse of the service or any legal claims arising from the processed content.
             </li>
             <li className="text-sm">
               <span className="font-semibold">Data Retention:</span> For technical support and claim resolution purposes, we retain conversion data and generated audio files for a period of 30 days. After this period, all data is automatically deleted.
