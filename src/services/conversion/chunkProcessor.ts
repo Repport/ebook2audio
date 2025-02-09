@@ -5,8 +5,8 @@ import { ProgressCallback } from "./types";
 
 const MAX_CONCURRENT_REQUESTS = 1;
 const MAX_RETRIES = 3;
-const BASE_RETRY_DELAY = 1000;
-const REQUEST_TIMEOUT = 30000;
+const BASE_RETRY_DELAY = 2000;
+const REQUEST_TIMEOUT = 45000;
 
 interface ConvertToAudioResponse {
   data: {
@@ -62,7 +62,7 @@ export async function processChunks(
           throw new Error('No audio content received');
         }
 
-        // Clean and pad the base64 string
+        // Clean and validate the base64 string
         const cleanBase64 = data.data.audioContent.replace(/[^A-Za-z0-9+/]/g, '');
         const paddedBase64 = cleanBase64.padEnd(Math.ceil(cleanBase64.length / 4) * 4, '=');
 
@@ -84,9 +84,10 @@ export async function processChunks(
           processing.delete(index);
           failedAttempts.delete(index);
           
+          // Add delay before processing next chunk
           const nextIndex = Math.max(...Array.from(processing), -1) + 1;
           if (nextIndex < chunks.length && !processing.has(nextIndex)) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 2000));
             processChunk(nextIndex);
           }
         } catch (decodeError) {
@@ -99,10 +100,10 @@ export async function processChunks(
     } catch (error) {
       console.error(`Error processing chunk ${index}, attempt ${retryCount + 1}:`, error);
       
-      const jitter = Math.random() * 500;
+      const jitter = Math.random() * 1000;
       const delay = Math.min(
         BASE_RETRY_DELAY * Math.pow(2, retryCount) + jitter,
-        15000
+        30000
       );
 
       failedAttempts.set(index, retryCount + 1);
@@ -118,14 +119,14 @@ export async function processChunks(
   };
 
   try {
+    // Process first chunk to test connection
     await processChunk(0);
     
-    const remainingChunks = Array.from(
-      { length: chunks.length - 1 }, 
-      (_, i) => processChunk(i + 1)
-    );
-
-    await Promise.all(remainingChunks);
+    // Process remaining chunks sequentially with delays
+    for (let i = 1; i < chunks.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await processChunk(i);
+    }
     
     return results;
   } catch (error) {
@@ -146,4 +147,3 @@ export function combineAudioChunks(audioChunks: ArrayBuffer[]): ArrayBuffer {
 
   return combinedBuffer.buffer;
 }
-

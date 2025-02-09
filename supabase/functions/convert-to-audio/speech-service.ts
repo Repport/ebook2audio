@@ -2,10 +2,10 @@
 export async function synthesizeSpeech(text: string, voiceId: string, accessToken: string): Promise<string> {
   console.log('Starting speech synthesis with voice:', voiceId);
   
-  const MAX_CHARS = 3000;
+  const MAX_CHARS = 1000; // Reduced from 3000 to avoid API limits
   const MAX_RETRIES = 5;
-  const BASE_DELAY = 1000;
-  const REQUEST_TIMEOUT = 30000;
+  const BASE_DELAY = 2000; // Increased from 1000 to give more breathing room
+  const REQUEST_TIMEOUT = 45000; // Increased from 30000 to allow for longer processing
   
   const words = text.split(/\s+/);
   const textChunks: string[] = [];
@@ -28,7 +28,7 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
   async function processChunkWithRetry(chunk: string, index: number, retryCount = 0): Promise<string> {
     try {
       const delay = retryCount > 0 ? 
-        Math.min(BASE_DELAY * Math.pow(2, retryCount - 1) + Math.random() * 1000, 30000) : 
+        Math.min(BASE_DELAY * Math.pow(2, retryCount - 1) + Math.random() * 2000, 45000) : 
         0;
 
       if (delay > 0) {
@@ -105,9 +105,20 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
           throw new Error('No audio content in response');
         }
 
-        // Clean the base64 string and ensure proper padding
+        // Clean and validate the base64 string
         const cleanBase64 = data.audioContent.replace(/[^A-Za-z0-9+/]/g, '');
         const paddedBase64 = cleanBase64.padEnd(Math.ceil(cleanBase64.length / 4) * 4, '=');
+        
+        // Validate base64 string
+        try {
+          atob(paddedBase64);
+        } catch (error) {
+          console.error(`Invalid base64 content for chunk ${index + 1}:`, error);
+          if (retryCount < MAX_RETRIES) {
+            return processChunkWithRetry(chunk, index, retryCount + 1);
+          }
+          throw new Error(`Invalid audio content received for chunk ${index + 1}`);
+        }
         
         console.log(`Successfully processed synthesis chunk ${index + 1}`);
         return paddedBase64;
@@ -127,7 +138,11 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
   
   try {
     const results = [];
+    // Add delay between chunks to avoid rate limits
     for (let i = 0; i < textChunks.length; i++) {
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
       const result = await processChunkWithRetry(textChunks[i], i);
       results.push(result);
     }
@@ -141,4 +156,3 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
     throw error;
   }
 }
-
