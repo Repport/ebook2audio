@@ -83,7 +83,7 @@ const FormFields = ({
                 At least one number
               </li>
               <li className={passwordValidation.hasSpecialChar ? "text-green-500" : "text-red-500"}>
-                At least one special character (!@#$%^&*(),.?":{}|<>_)
+                At least one special character (!@#$%^&*(),.?&quot;:{}|&lt;&gt;_)
               </li>
             </ul>
           </div>
