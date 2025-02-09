@@ -1,12 +1,19 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export const logTermsAcceptance = async (
-  token: string,
-  score: number,
-  fileName?: string,
-  fileType?: string
-) => {
+interface LogTermsAcceptanceParams {
+  token: string;
+  score: number;
+  fileName?: string;
+  fileType?: string;
+}
+
+export const logTermsAcceptance = async ({
+  token,
+  score,
+  fileName,
+  fileType
+}: LogTermsAcceptanceParams) => {
   try {
     const ipResponse = await fetch('https://api.ipify.org?format=json');
     const ipData = await ipResponse.json();

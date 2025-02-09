@@ -9,10 +9,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import TermsContent from './TermsContent';
+import TermsCheckbox from './TermsCheckbox';
 import { useRecaptcha } from '@/hooks/useRecaptcha';
+import { useRecaptchaVerification } from '@/hooks/useRecaptchaVerification';
 import { logTermsAcceptance } from '@/utils/termsLogger';
 
 interface TermsDialogProps {
@@ -28,7 +29,8 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationPassed, setVerificationPassed] = useState(false);
   const { toast } = useToast();
-  const { reCaptchaKey, isError, executeRecaptcha, verifyRecaptcha } = useRecaptcha(open);
+  const { reCaptchaKey, isError, executeRecaptcha } = useRecaptcha(open);
+  const { verifyRecaptcha } = useRecaptchaVerification();
 
   const handleCheckboxChange = async (checked: boolean) => {
     setAccepted(checked);
@@ -109,7 +111,13 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
         return;
       }
 
-      const { error } = await logTermsAcceptance(token, verification.score, fileName, fileType);
+      const { error } = await logTermsAcceptance({
+        token,
+        score: verification.score,
+        fileName,
+        fileType
+      });
+      
       if (error) {
         toast({
           title: "Warning",
@@ -143,20 +151,11 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           <TermsContent />
         </div>
         <div className="flex flex-col space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="terms" 
-              checked={accepted}
-              disabled={isVerifying}
-              onCheckedChange={handleCheckboxChange}
-            />
-            <label 
-              htmlFor="terms" 
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              I accept the terms and conditions, including the 30-day data retention period, and confirm that I have the legal rights to the content of the uploaded file.
-            </label>
-          </div>
+          <TermsCheckbox 
+            accepted={accepted}
+            isVerifying={isVerifying}
+            onCheckedChange={handleCheckboxChange}
+          />
           {isVerifying && (
             <div className="text-sm text-blue-600 text-center">
               Verifying...
