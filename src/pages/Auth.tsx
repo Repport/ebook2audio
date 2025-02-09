@@ -9,14 +9,25 @@ import { Button } from "@/components/ui/button";
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
   useEffect(() => {
-    if (user) {
+    // Only redirect if we have a user and we're not loading
+    if (user && !loading) {
+      console.log("User authenticated, redirecting to home");
       navigate("/");
     }
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
