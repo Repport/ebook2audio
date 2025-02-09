@@ -1,184 +1,148 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { getAccessToken } from "../preview-voice/auth.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders, MAX_REQUEST_SIZE } from './constants.ts'
-import { deobfuscateData, cleanText, escapeXml } from './text-utils.ts'
-import { synthesizeSpeech } from './speech-service.ts'
 
-const REQUEST_TIMEOUT = 60000; // 60 second timeout for the entire request
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
-
   try {
-    const contentLength = parseInt(req.headers.get('content-length') || '0');
-    if (contentLength > MAX_REQUEST_SIZE) {
-      throw new Error(`Request size (${contentLength} bytes) exceeds maximum allowed size (${MAX_REQUEST_SIZE} bytes)`);
+    const { text, voiceId, fileName, isChunk } = await req.json();
+    console.log(`Processing request for ${isChunk ? 'chunk' : 'full text'}, length: ${text.length}`);
+
+    if (!text || !voiceId) {
+      throw new Error('Missing required parameters');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
-    }
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (userError || !user) {
-      throw new Error('Unauthorized');
-    }
-
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+    // Initialize Google Cloud TTS client
+    const credentials = JSON.parse(Deno.env.get('GCP_SERVICE_ACCOUNT') || '{}');
     
-    const requestData = await req.json();
-    const text = requestData.text ? deobfuscateData(requestData.text) : '';
-    const voiceId = requestData.voiceId ? deobfuscateData(requestData.voiceId) : 'en-US-Standard-C';
-    const fileName = requestData.fileName;
-    const isChunk = requestData.isChunk || false;
-
-    console.log('Request received - IP:', ip, 'User:', user.id, 'File:', fileName, 'Text length:', text.length);
-
-    // Calculate chunks for rate limiting if this is the first chunk of a conversion
-    if (!isChunk) {
-      const chunkCount = Math.ceil(text.length / 5000);
-      const { data: rateLimitCheck, error: rateLimitError } = await supabase
-        .rpc('check_conversion_rate_limit', { 
-          p_ip_address: ip,
-          chunk_count: chunkCount
-        });
-
-      if (rateLimitError || !rateLimitCheck) {
-        throw new Error('Rate limit exceeded for this IP address');
+    // Get access token for Google Cloud API
+    const tokenResponse = await fetch(
+      `https://oauth2.googleapis.com/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+          assertion: await createJWT(credentials)
+        })
       }
+    );
+
+    if (!tokenResponse.ok) {
+      console.error('Failed to get access token:', await tokenResponse.text());
+      throw new Error('Failed to authenticate with Google Cloud');
     }
 
-    const cleanedText = cleanText(text);
-    if (!cleanedText) {
-      throw new Error('No text content to convert');
+    const { access_token } = await tokenResponse.json();
+
+    // Call Google Cloud Text-to-Speech API
+    const ttsResponse = await fetch(
+      `https://texttospeech.googleapis.com/v1/text:synthesize`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: { text },
+          voice: {
+            languageCode: voiceId.split('-')[0] + '-' + voiceId.split('-')[1],
+            name: voiceId,
+          },
+          audioConfig: {
+            audioEncoding: 'MP3',
+            speakingRate: 1.0,
+            pitch: 0.0,
+          },
+        }),
+      }
+    );
+
+    if (!ttsResponse.ok) {
+      console.error('TTS API error:', await ttsResponse.text());
+      throw new Error('Text-to-speech conversion failed');
     }
 
-    // Generate a hash of the text and voice ID to check for existing conversions
-    const textToHash = `${cleanedText}-${voiceId}`;
-    const encoder = new TextEncoder();
-    const data = encoder.encode(textToHash);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const textHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const { audioContent } = await ttsResponse.json();
 
-    // Check if we already have this conversion
-    console.log('Checking for existing conversion with hash:', textHash);
-    const { data: existingConversion, error: cacheError } = await supabase
-      .from('text_conversions')
-      .select('storage_path, audio_content')
-      .eq('text_hash', textHash)
-      .gt('expires_at', new Date().toISOString())
-      .maybeSingle();
-
-    if (cacheError) {
-      console.error('Error checking cache:', cacheError);
-    } else if (existingConversion) {
-      console.log('Found existing conversion, returning cached audio');
-      return new Response(
-        JSON.stringify({ data: { audioContent: existingConversion.audio_content } }),
-        { 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json'
-          } 
-        }
-      );
-    }
-
-    // If no cached version exists, proceed with new conversion
-    console.log('No cached version found, proceeding with new conversion');
-    console.log('Getting access token...');
-    const accessToken = await getAccessToken();
-    console.log('✅ Successfully obtained access token');
-
-    console.log('Starting speech synthesis...');
-    const escapedText = escapeXml(cleanedText);
-    const audioContent = await synthesizeSpeech(escapedText, voiceId, accessToken);
+    console.log('Successfully generated audio content');
     
-    if (!audioContent) {
-      console.error('No audio content received from speech synthesis');
-      throw new Error('Speech synthesis failed to generate audio content');
-    }
-    
-    console.log('✅ Successfully synthesized speech, audio content length:', audioContent.length);
-    
-    // Store the new conversion
-    const { error: insertError } = await supabase
-      .from('text_conversions')
-      .insert({
-        text_hash: textHash,
-        audio_content: audioContent,
-        file_name: fileName,
-        file_size: audioContent.length,
-        user_id: user.id
-      });
-
-    if (insertError) {
-      console.error('Error storing conversion:', insertError);
-    }
-    
-    // Log successful conversion
-    const { error: logError } = await supabase
-      .from('conversion_logs')
-      .insert({
-        user_id: user.id,
-        ip_address: ip,
-        file_name: fileName,
-        file_size: text.length,
-        successful: true,
-        chunk_count: isChunk ? null : Math.ceil(text.length / 5000)
-      });
-
-    if (logError) {
-      console.error('Error logging conversion:', logError);
-    }
-
-    clearTimeout(timeoutId);
-
     return new Response(
       JSON.stringify({ data: { audioContent } }),
       { 
         headers: { 
-          ...corsHeaders, 
+          ...corsHeaders,
           'Content-Type': 'application/json'
         } 
       }
     );
 
   } catch (error) {
-    clearTimeout(timeoutId);
-    console.error('Detailed conversion error:', error);
-
-    const statusCode = error.message.includes('Rate limit') ? 429 :
-                      error.message.includes('Unauthorized') ? 401 :
-                      error.message.includes('timeout') ? 504 :
-                      500;
-
+    console.error('Error in convert-to-audio function:', error);
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        retryAfter: statusCode === 429 ? 3600 : undefined // 1 hour retry for rate limits
-      }),
+      JSON.stringify({ error: error.message }),
       { 
-        status: statusCode,
+        status: 500,
         headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json',
-          ...(statusCode === 429 ? { 'Retry-After': '3600' } : {})
+          ...corsHeaders,
+          'Content-Type': 'application/json'
         }
       }
     );
   }
 });
+
+// Helper function to create JWT for Google Cloud authentication
+async function createJWT(credentials: any) {
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT',
+    kid: credentials.private_key_id
+  };
+
+  const now = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: credentials.client_email,
+    scope: 'https://www.googleapis.com/auth/cloud-platform',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  };
+
+  const encodedHeader = btoa(JSON.stringify(header));
+  const encodedClaim = btoa(JSON.stringify(claim));
+  const signatureInput = `${encodedHeader}.${encodedClaim}`;
+
+  // Create signature
+  const encoder = new TextEncoder();
+  const keyData = credentials.private_key;
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8',
+    new Uint8Array(keyData.split('').map(c => c.charCodeAt(0))),
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+    },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    privateKey,
+    encoder.encode(signatureInput)
+  );
+
+  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  return `${signatureInput}.${encodedSignature}`;
+}

@@ -20,12 +20,3 @@ export function cleanText(text: string): string {
     .replace(/([.!?])\s*(\w)/g, '$1 $2')
     .trim();
 }
-
-export function escapeXml(unsafe: string): string {
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
