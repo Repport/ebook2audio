@@ -29,34 +29,6 @@ export const useEmailAuth = () => {
   const handleEmailSignIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { data: existingUser, error: queryError } = await supabase
-        .from('email_preferences')
-        .select('clear_email')
-        .eq('clear_email', email)
-        .maybeSingle();
-
-      if (queryError) {
-        toast({
-          title: "Error checking email",
-          description: "Please try again later.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // If user doesn't exist, show sign up message
-      if (!existingUser) {
-        toast({
-          title: "Account not found",
-          description: "This account doesn't exist. Please sign up.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Proceed with sign in if user exists
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -113,32 +85,6 @@ export const useEmailAuth = () => {
     
     setLoading(true);
     try {
-      const { data: existingUser, error: queryError } = await supabase
-        .from('email_preferences')
-        .select('clear_email')
-        .eq('clear_email', email)
-        .maybeSingle();
-
-      if (queryError) {
-        toast({
-          title: "Error checking email",
-          description: "Please try again later.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      if (existingUser) {
-        toast({
-          title: "Account exists",
-          description: "An account with this email already exists. Please sign in instead.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
