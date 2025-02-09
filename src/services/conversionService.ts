@@ -11,6 +11,7 @@ type ConversionQueue = Database['public']['Tables']['conversion_queue']['Row'];
 const MAX_TEXT_SIZE = 30 * 1024 * 1024; // 30MB
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
+const BATCH_SIZE = 50; // Process chunks in smaller batches
 
 async function retryOperation<T>(
   operation: () => Promise<T>,
@@ -28,6 +29,44 @@ async function retryOperation<T>(
     await new Promise(resolve => setTimeout(resolve, delay));
     
     return retryOperation(operation, retryCount + 1);
+  }
+}
+
+// New function to process chunks in batches
+async function insertChunksBatch(chunks: { chunk_text: string; chunk_index: number }[], conversionId: string) {
+  const batches = [];
+  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+    batches.push(chunks.slice(i, i + BATCH_SIZE));
+  }
+
+  for (const batch of batches) {
+    await retryOperation(async () => {
+      const { error } = await supabase
+        .from('conversion_chunks')
+        .insert(
+          batch.map(chunk => ({
+            conversion_id: conversionId,
+            chunk_text: chunk.chunk_text,
+            chunk_index: chunk.chunk_index,
+            status: 'pending'
+          }))
+        );
+
+      if (error) {
+        if (error.code === '57014') { // Statement timeout error
+          console.error('Timeout error during chunk insertion, will retry with smaller batch');
+          // Recursively try with smaller batches
+          const midPoint = Math.floor(batch.length / 2);
+          await insertChunksBatch(batch.slice(0, midPoint), conversionId);
+          await insertChunksBatch(batch.slice(midPoint), conversionId);
+        } else {
+          throw error;
+        }
+      }
+    });
+    
+    // Add a small delay between batches to prevent overloading
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 }
 
@@ -158,19 +197,8 @@ export const convertToAudio = async (
       .filter(chunk => !existingIndices.has(chunk.chunk_index));
 
     if (newChunks.length > 0) {
-      console.log(`Inserting ${newChunks.length} new chunks`);
-      const { error: insertChunksError } = await supabase
-        .from('conversion_chunks')
-        .insert(
-          newChunks.map(chunk => ({
-            conversion_id: conversionId,
-            chunk_text: chunk.chunk_text,
-            chunk_index: chunk.chunk_index,
-            status: 'pending'
-          }))
-        );
-
-      if (insertChunksError) throw insertChunksError;
+      console.log(`Inserting ${newChunks.length} new chunks in batches`);
+      await insertChunksBatch(newChunks, conversionId);
     }
 
     // Process all chunks
