@@ -29,7 +29,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationPassed, setVerificationPassed] = useState(false);
   const { toast } = useToast();
-  const { reCaptchaKey, isError, initializationError, executeRecaptcha } = useRecaptcha(open);
+  const { reCaptchaKey, isEnabled, isError, initializationError, executeRecaptcha } = useRecaptcha(open);
   const { verifyRecaptcha } = useRecaptchaVerification();
 
   const handleCheckboxChange = async (checked: boolean) => {
@@ -60,10 +60,12 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
         }
 
         setVerificationPassed(true);
-        toast({
-          title: "Verification Successful",
-          description: "You can now proceed with accepting the terms.",
-        });
+        if (isEnabled) {
+          toast({
+            title: "Verification Successful",
+            description: "You can now proceed with accepting the terms.",
+          });
+        }
       } catch (error) {
         console.error('Error in verification process:', error);
         toast({
@@ -81,7 +83,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   };
 
   const handleAccept = async () => {
-    if (!accepted || !verificationPassed) {
+    if (!accepted || (!verificationPassed && isEnabled)) {
       toast({
         title: "Verification Required",
         description: "Please accept the terms and complete the verification to continue",
@@ -161,7 +163,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               Verifying...
             </div>
           )}
-          {(isError || initializationError) && (
+          {(isError || initializationError) && isEnabled && (
             <div className="text-red-500 text-sm text-center">
               {initializationError || "Error loading security verification. Please try again later."}
             </div>
@@ -171,7 +173,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 
             onClick={handleAccept}
-            disabled={!accepted || !verificationPassed || !reCaptchaKey || isError || !!initializationError}
+            disabled={!accepted || (!verificationPassed && isEnabled) || (isEnabled && (!reCaptchaKey || isError || !!initializationError))}
           >
             Accept and Continue
           </Button>

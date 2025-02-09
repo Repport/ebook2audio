@@ -7,23 +7,36 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [initializationError, setInitializationError] = useState<string | null>(null);
 
-  const { data: reCaptchaKey, isError } = useQuery({
-    queryKey: ['recaptcha-site-key'],
+  const { data: config } = useQuery({
+    queryKey: ['recaptcha-config'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: enabled, error: enabledError } = await supabase
+        .from('site_config')
+        .select('value')
+        .eq('key', 'recaptcha_enabled')
+        .single();
+
+      if (enabledError) throw enabledError;
+
+      if (enabled.value !== 'true') {
+        return { enabled: false, key: null };
+      }
+
+      const { data: key, error: keyError } = await supabase
         .from('site_config')
         .select('value')
         .eq('key', 'recaptcha_site_key')
         .maybeSingle();
 
-      if (error) throw error;
-      if (!data) throw new Error('ReCAPTCHA site key not found');
-      return data.value;
+      if (keyError) throw keyError;
+      if (!key) throw new Error('ReCAPTCHA site key not found');
+
+      return { enabled: true, key: key.value };
     }
   });
 
   useEffect(() => {
-    if (!reCaptchaKey || !isDialogOpen) return;
+    if (!config?.enabled || !config?.key || !isDialogOpen) return;
 
     // Remove any existing reCAPTCHA scripts and reset state
     const existingScript = document.querySelector('script[src*="recaptcha"]');
@@ -36,7 +49,7 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
 
     if (!isScriptLoaded) {
       const script = document.createElement('script');
-      script.src = `https://www.google.com/recaptcha/enterprise.js?render=${reCaptchaKey}`;
+      script.src = `https://www.google.com/recaptcha/enterprise.js?render=${config.key}`;
       script.async = true;
       script.defer = true;
 
@@ -69,10 +82,15 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
         }
       };
     }
-  }, [reCaptchaKey, isDialogOpen, isScriptLoaded]);
+  }, [config?.enabled, config?.key, isDialogOpen, isScriptLoaded]);
 
   const executeRecaptcha = async () => {
-    if (!window.grecaptcha?.enterprise || !reCaptchaKey) {
+    if (!config?.enabled) {
+      console.log('reCAPTCHA is disabled, returning mock token');
+      return 'mock-token-recaptcha-disabled';
+    }
+
+    if (!window.grecaptcha?.enterprise || !config?.key) {
       console.error('reCAPTCHA Enterprise not loaded or site key missing');
       throw new Error('reCAPTCHA Enterprise not initialized properly');
     }
@@ -98,7 +116,7 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
       });
 
       console.log('Executing reCAPTCHA Enterprise...');
-      const token = await window.grecaptcha.enterprise.execute(reCaptchaKey, { 
+      const token = await window.grecaptcha.enterprise.execute(config.key, { 
         action: 'terms_acceptance' 
       });
       
@@ -115,8 +133,9 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
   };
 
   return {
-    reCaptchaKey,
-    isError,
+    reCaptchaKey: config?.key,
+    isEnabled: config?.enabled,
+    isError: !config,
     isScriptLoaded,
     initializationError,
     executeRecaptcha
