@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { synthesizeSpeech } from './speech-service.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,38 +58,8 @@ serve(async (req) => {
 
     const { access_token } = await tokenResponse.json();
 
-    // Call Google Cloud Text-to-Speech API
-    const ttsResponse = await fetch(
-      `https://texttospeech.googleapis.com/v1/text:synthesize`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          input: { text },
-          voice: {
-            languageCode: voiceId.split('-')[0] + '-' + voiceId.split('-')[1],
-            name: voiceId,
-          },
-          audioConfig: {
-            audioEncoding: 'MP3',
-            speakingRate: 1.0,
-            pitch: 0.0,
-          },
-        }),
-      }
-    );
-
-    if (!ttsResponse.ok) {
-      console.error('TTS API error:', await ttsResponse.text());
-      throw new Error('Text-to-speech conversion failed');
-    }
-
-    const { audioContent } = await ttsResponse.json();
-    
-    console.log('Successfully generated audio content');
+    // Use the speech service to handle chunked synthesis
+    const audioContent = await synthesizeSpeech(text, voiceId, access_token);
     
     return new Response(
       JSON.stringify({ data: { audioContent } }),
