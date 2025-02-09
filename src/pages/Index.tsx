@@ -165,6 +165,8 @@ const Index = () => {
                 open={showTerms}
                 onClose={() => setShowTerms(false)}
                 onAccept={handleConversion}
+                fileName={selectedFile.name}
+                fileType={selectedFile.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
               />
             </div>
           )}

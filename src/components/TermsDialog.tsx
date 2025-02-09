@@ -11,18 +11,61 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface TermsDialogProps {
   open: boolean;
   onClose: () => void;
   onAccept: () => void;
+  fileName?: string;
+  fileType?: string;
 }
 
-const TermsDialog = ({ open, onClose, onAccept }: TermsDialogProps) => {
+const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialogProps) => {
   const [accepted, setAccepted] = React.useState(false);
+  const { toast } = useToast();
 
-  const handleAccept = () => {
+  const logAcceptance = async () => {
+    try {
+      // Get user's IP address using a public API
+      const ipResponse = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipResponse.json();
+      
+      // Log the acceptance
+      const { error } = await supabase
+        .from('terms_acceptance_logs')
+        .insert([
+          {
+            ip_address: ipData.ip,
+            user_agent: navigator.userAgent,
+            file_name: fileName,
+            file_type: fileType
+          }
+        ]);
+
+      if (error) {
+        console.error('Error logging terms acceptance:', error);
+        toast({
+          title: "Warning",
+          description: "Proceeded with conversion but failed to log acceptance",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error getting IP or logging acceptance:', error);
+      // Don't block the conversion if logging fails
+      toast({
+        title: "Warning",
+        description: "Proceeded with conversion but failed to log acceptance",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAccept = async () => {
     if (accepted) {
+      await logAcceptance();
       onAccept();
       onClose();
     }
