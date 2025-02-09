@@ -20,8 +20,16 @@ serve(async (req) => {
     console.log('Received token:', token ? 'present' : 'missing');
     console.log('Expected action:', expectedAction);
     
+    // Get the secret key from environment
+    const secretKey = Deno.env.get('RECAPTCHA_SECRET_KEY');
+    if (!secretKey) {
+      throw new Error('RECAPTCHA_SECRET_KEY not found in environment');
+    }
+
+    console.log('Initializing RecaptchaEnterpriseServiceClient...');
+    
     const client = new RecaptchaEnterpriseServiceClient({
-      credentials: JSON.parse(Deno.env.get('RECAPTCHA_SECRET_KEY') || '{}')
+      credentials: JSON.parse(secretKey)
     });
     const projectPath = `projects/ambient-tuner-450319-g2`;
 
