@@ -25,6 +25,11 @@ export async function processChunks(
   let completed = 0;
   let failedAttempts = new Map<number, number>();
 
+  // Update progress at the start
+  if (onProgressUpdate) {
+    onProgressUpdate(0, chunks.length, 0);
+  }
+
   const processChunk = async (index: number): Promise<void> => {
     if (index >= chunks.length) return;
 
@@ -66,8 +71,10 @@ export async function processChunks(
         results[index] = bytes.buffer;
         completed++;
 
+        // Calculate and update progress
         if (onProgressUpdate) {
-          onProgressUpdate(0, chunks.length, completed);
+          const progressPercentage = Math.round((completed / chunks.length) * 100);
+          onProgressUpdate(progressPercentage, chunks.length, completed);
         }
 
         processing.delete(index);
@@ -149,3 +156,4 @@ export function combineAudioChunks(audioChunks: ArrayBuffer[]): ArrayBuffer {
 
   return combinedBuffer.buffer;
 }
+

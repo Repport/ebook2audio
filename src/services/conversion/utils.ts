@@ -19,10 +19,11 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
   return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Split text into chunks of appropriate size
-export function splitTextIntoChunks(text: string, maxChunkSize = 5000): string[] {
+// Split text into chunks of appropriate size - increased to 10000 for better efficiency
+export function splitTextIntoChunks(text: string, maxChunkSize = 10000): string[] {
   const chunks: string[] = [];
   let currentChunk = '';
+  // Split by sentences to maintain natural breaks
   const sentences = text.split(/([.!?]+\s)/);
 
   for (const sentence of sentences) {
@@ -37,3 +38,4 @@ export function splitTextIntoChunks(text: string, maxChunkSize = 5000): string[]
   if (currentChunk) chunks.push(currentChunk.trim());
   return chunks;
 }
+
