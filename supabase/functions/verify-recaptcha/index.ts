@@ -35,6 +35,7 @@ serve(async (req) => {
         throw new Error('Invalid credentials format: missing or incorrect type field');
       }
       console.log('✅ Service account credentials decoded and validated successfully');
+      console.log('Project ID from credentials:', credentials.project_id);
     } catch (parseError) {
       console.error('Error decoding/parsing credentials:', parseError);
       throw new Error('Invalid service account credentials format');
@@ -43,7 +44,8 @@ serve(async (req) => {
     console.log('Initializing RecaptchaEnterpriseServiceClient...');
     
     const client = new RecaptchaEnterpriseServiceClient({
-      credentials
+      credentials,
+      projectId: credentials.project_id
     });
     
     const projectPath = `projects/${credentials.project_id}`;
