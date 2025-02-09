@@ -43,12 +43,18 @@ const checkExistingConversion = async (textHash: string): Promise<ArrayBuffer | 
     .gt('expires_at', new Date().toISOString())
     .single();
 
-  if (error || !existingConversion) {
+  if (error || !existingConversion?.audio_content) {
     return null;
   }
 
-  // Convert Uint8Array to ArrayBuffer
-  return new Uint8Array(existingConversion.audio_content).buffer;
+  // Convert base64 to ArrayBuffer
+  const binaryString = atob(existingConversion.audio_content);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  return bytes.buffer;
 };
 
 const storeConversion = async (
@@ -57,12 +63,17 @@ const storeConversion = async (
   fileName: string,
   duration: number
 ) => {
+  // Convert ArrayBuffer to base64 string for storage
+  const uint8Array = new Uint8Array(audioContent);
+  const binaryString = String.fromCharCode.apply(null, Array.from(uint8Array));
+  const base64String = btoa(binaryString);
+
   const { error } = await supabase
     .from('text_conversions')
     .insert({
       text_hash: textHash,
       file_name: fileName,
-      audio_content: new Uint8Array(audioContent),
+      audio_content: base64String,
       file_size: audioContent.byteLength,
       duration: duration
     });
