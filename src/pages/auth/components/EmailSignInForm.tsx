@@ -15,14 +15,54 @@ const EmailSignInForm = ({ onSuccess }: EmailSignInFormProps) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  const validateForm = () => {
+    if (!email || !password) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in both email and password fields.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Basic password validation
+    if (password.length < 6) {
+      toast({
+        title: "Invalid password",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(), // Remove any whitespace
         password,
       });
+
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
           toast({
@@ -31,15 +71,21 @@ const EmailSignInForm = ({ onSuccess }: EmailSignInFormProps) => {
             variant: "destructive",
           });
         } else {
-          throw error;
+          console.error("Auth error:", error);
+          toast({
+            title: "Error signing in",
+            description: "An unexpected error occurred. Please try again.",
+            variant: "destructive",
+          });
         }
       } else {
         onSuccess();
       }
     } catch (error: any) {
+      console.error("Unexpected error:", error);
       toast({
         title: "Error signing in",
-        description: error.message,
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
