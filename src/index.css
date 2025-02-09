@@ -79,7 +79,30 @@
 
   #root {
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
+
+  .dark .bg-gradient-to-b {
+    @apply from-gray-900 to-gray-800;
+  }
+
+  .dark .bg-white {
+    @apply bg-gray-900;
+  }
+
+  .dark .text-gray-900 {
+    @apply text-gray-100;
+  }
+
+  .dark .text-gray-600 {
+    @apply text-gray-300;
+  }
+
+  .dark .border-gray-300 {
+    @apply border-gray-700;
+  }
 }
+
