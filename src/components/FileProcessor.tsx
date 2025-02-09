@@ -1,6 +1,5 @@
 
-import React, { useState } from 'react';
-import FileUploadZone from '@/components/FileUploadZone';
+import React, { useState, useCallback } from 'react';
 import VoiceSelector from '@/components/VoiceSelector';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import ConversionStatus from '@/components/ConversionStatus';
@@ -17,7 +16,12 @@ interface FileProcessorProps {
   chapters: Chapter[];
 }
 
-const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: FileProcessorProps) => {
+const FileProcessor = ({ 
+  onFileSelect, 
+  selectedFile, 
+  extractedText, 
+  chapters 
+}: FileProcessorProps) => {
   const [detectChapters, setDetectChapters] = useState(true);
   const [detectingChapters, setDetectingChapters] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
@@ -33,28 +37,38 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
     handleDownload
   } = useAudioConversion();
 
-  const initiateConversion = () => {
+  const initiateConversion = useCallback(() => {
     setShowTerms(true);
-  };
+  }, []);
 
-  const handleAcceptTerms = async () => {
+  const handleAcceptTerms = useCallback(async () => {
     if (!selectedFile || !extractedText) return;
+    
     setDetectingChapters(true);
-    await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
-    setDetectingChapters(false);
-  };
+    try {
+      await handleConversion(
+        extractedText, 
+        selectedVoice, 
+        detectChapters, 
+        chapters, 
+        selectedFile.name
+      );
+    } finally {
+      setDetectingChapters(false);
+    }
+  }, [selectedFile, extractedText, selectedVoice, detectChapters, chapters, handleConversion]);
 
-  const handleDownloadClick = () => {
+  const handleDownloadClick = useCallback(() => {
     if (selectedFile) {
       handleDownload(selectedFile.name);
     }
-  };
+  }, [selectedFile, handleDownload]);
 
   return (
     <div className="animate-fade-up space-y-8">
       <VoiceSelector 
         selectedVoice={selectedVoice}
-        onVoiceChange={(value: string) => setSelectedVoice(value)}
+        onVoiceChange={setSelectedVoice}
         detectedLanguage={detectedLanguage}
       />
       

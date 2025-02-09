@@ -25,39 +25,57 @@ const LANGUAGE_PATTERNS = {
 } as const;
 
 const detectLanguage = (text: string): string => {
-  const sampleText = text.slice(0, 1000);
+  const SAMPLE_SIZE = 1000;
+  const sampleText = text.slice(0, SAMPLE_SIZE);
   
   const scores = Object.entries(LANGUAGE_PATTERNS).map(([language, pattern]) => ({
     language,
     score: (sampleText.match(pattern) || []).length
   }));
 
-  return scores.reduce((max, current) => 
+  const { language } = scores.reduce((max, current) => 
     current.score > max.score ? current : max
-  , { language: 'english', score: 0 }).language;
+  , { language: 'english', score: 0 });
+
+  return language;
+};
+
+const validateFile = (file: File): void => {
+  if (!file) {
+    throw new Error('No file provided');
+  }
+
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+  
+  if (!fileExtension || !['pdf', 'epub'].includes(fileExtension)) {
+    throw new Error(`Unsupported file type: ${fileExtension}`);
+  }
 };
 
 export const processFile = async (file: File): Promise<FileProcessingResult> => {
+  console.log('Starting file processing:', file.name);
+  validateFile(file);
+
   const fileExtension = file.name.split('.').pop()?.toLowerCase();
   
-  if (!fileExtension) {
-    throw new Error('Unable to determine file type');
-  }
-
-  if (!['pdf', 'epub'].includes(fileExtension)) {
-    throw new Error(`Unsupported file type: ${fileExtension}`);
-  }
-
   try {
     const { text, chapters } = fileExtension === 'pdf' 
       ? await extractPdfText(file)
       : await extractEpubText(file);
 
+    const language = detectLanguage(text);
+    console.log('File processed successfully:', {
+      fileType: fileExtension,
+      textLength: text.length,
+      language,
+      chaptersFound: chapters.length
+    });
+
     return {
       text,
       metadata: {
         totalCharacters: text.length,
-        language: detectLanguage(text),
+        language,
         chapters
       }
     };
