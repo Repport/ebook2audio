@@ -16,8 +16,13 @@ serve(async (req) => {
   try {
     const { token, expectedAction } = await req.json();
     
-    console.log('Received token:', token ? 'present' : 'missing');
-    console.log('Expected action:', expectedAction);
+    if (!token) {
+      throw new Error('No reCAPTCHA token provided');
+    }
+
+    console.log('Processing reCAPTCHA verification:');
+    console.log('- Token present:', !!token);
+    console.log('- Expected action:', expectedAction);
 
     // Get the secret key from environment
     const secretKey = Deno.env.get('RECAPTCHA_SECRET_KEY');
@@ -40,7 +45,12 @@ serve(async (req) => {
 
     const result = await response.json();
 
-    console.log('Verification response:', result);
+    console.log('Verification response:', {
+      success: result.success,
+      score: result.score,
+      action: result.action,
+      errors: result['error-codes']
+    });
 
     if (!result.success) {
       throw new Error('reCAPTCHA verification failed: ' + (result['error-codes']?.join(', ') || 'unknown error'));
@@ -48,18 +58,17 @@ serve(async (req) => {
 
     // For v3, we should also verify the score and action
     if (result.action !== expectedAction) {
-      throw new Error('reCAPTCHA action mismatch');
+      throw new Error(`reCAPTCHA action mismatch. Expected: ${expectedAction}, Got: ${result.action}`);
     }
 
     // Score ranges from 0.0 to 1.0, where 1.0 is very likely a good interaction
-    // You might want to adjust this threshold based on your needs
     if (result.score < 0.5) {
-      throw new Error('reCAPTCHA score too low');
+      throw new Error(`reCAPTCHA score too low: ${result.score}`);
     }
 
     return new Response(
       JSON.stringify({
-        success: result.success,
+        success: true,
         score: result.score,
         action: result.action,
         timestamp: result.challenge_ts,
@@ -73,11 +82,6 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('reCAPTCHA verification error:', error);
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    });
     
     return new Response(
       JSON.stringify({ 
