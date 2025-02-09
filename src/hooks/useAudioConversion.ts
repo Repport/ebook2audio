@@ -1,8 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { convertToAudio } from '@/services/conversionService';
 import { Chapter } from '@/utils/textExtraction';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface StoredConversionState {
   status: 'idle' | 'converting' | 'completed' | 'error';
@@ -17,6 +18,7 @@ export const useAudioConversion = () => {
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Load stored state on mount
   useEffect(() => {
@@ -122,6 +124,37 @@ export const useAudioConversion = () => {
       const duration = await calculateAudioDuration(audio);
       setAudioDuration(duration);
       
+      // Save to Supabase if user is logged in
+      if (user) {
+        const filePath = `${user.id}/${crypto.randomUUID()}.mp3`;
+        const { error: uploadError } = await supabase.storage
+          .from('audio_cache')
+          .upload(filePath, audio, {
+            contentType: 'audio/mpeg',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Storage upload error:', uploadError);
+          throw uploadError;
+        }
+
+        const { error: dbError } = await supabase
+          .from('text_conversions')
+          .insert({
+            file_name: fileName,
+            storage_path: filePath,
+            file_size: audio.byteLength,
+            duration: Math.round(duration),
+            user_id: user.id
+          });
+
+        if (dbError) {
+          console.error('Database insert error:', dbError);
+          throw dbError;
+        }
+      }
+      
       setConversionStatus('completed');
       setProgress(100);
 
@@ -146,7 +179,7 @@ export const useAudioConversion = () => {
     }
   };
 
-  const handleDownload = (fileName: string) => {
+  const handleDownload = async (fileName: string) => {
     if (!audioData) return;
 
     const blob = new Blob([audioData], { type: 'audio/mpeg' });

@@ -53,6 +53,9 @@ const UserMenu = ({ user }: UserMenuProps) => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/conversions")}>
+          My Conversions
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate("/settings")}>
           Settings
         </DropdownMenuItem>

@@ -207,6 +207,7 @@ export type Database = {
           id: string
           storage_path: string | null
           text_hash: string
+          user_id: string | null
         }
         Insert: {
           audio_content?: string | null
@@ -220,6 +221,7 @@ export type Database = {
           id?: string
           storage_path?: string | null
           text_hash: string
+          user_id?: string | null
         }
         Update: {
           audio_content?: string | null
@@ -233,6 +235,7 @@ export type Database = {
           id?: string
           storage_path?: string | null
           text_hash?: string
+          user_id?: string | null
         }
         Relationships: []
       }
