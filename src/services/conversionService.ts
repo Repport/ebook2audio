@@ -51,6 +51,7 @@ export const convertToAudio = async (
   console.log('Chapters:', chapters?.length || 0);
 
   const textHash = await generateHash(text, voiceId);
+  const userId = (await supabase.auth.getUser()).data.user?.id;
 
   // Check cache first with retries
   const { storagePath, error: cacheError } = await checkCache(textHash);
@@ -70,37 +71,41 @@ export const convertToAudio = async (
   }
 
   // Add to queue with retries
-  const { data: queueItem, error: queueError } = await retryOperation(() =>
-    supabase
+  const queueResult = await retryOperation(async () => {
+    const { data, error } = await supabase
       .from('conversion_queue')
       .insert({
         text_hash: textHash,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: userId,
         priority: 1,
         status: 'pending'
       })
       .select()
-      .single()
-  );
+      .single();
+    
+    return { data, error };
+  });
 
-  if (queueError) throw queueError;
-  if (!queueItem) throw new Error('Failed to create queue item');
+  if (queueResult.error) throw queueResult.error;
+  if (!queueResult.data) throw new Error('Failed to create queue item');
 
   // Create conversion record with retries
-  const { data: conversion, error: conversionError } = await retryOperation(() =>
-    supabase
+  const conversionResult = await retryOperation(async () => {
+    const { data, error } = await supabase
       .from('text_conversions')
       .insert({
         text_hash: textHash,
         file_name: fileName,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: userId,
       })
       .select()
-      .single()
-  );
+      .single();
+    
+    return { data, error };
+  });
 
-  if (conversionError) throw conversionError;
-  if (!conversion) throw new Error('Failed to create conversion record');
+  if (conversionResult.error) throw conversionResult.error;
+  if (!conversionResult.data) throw new Error('Failed to create conversion record');
 
   // Process text in chunks
   const textChunks = splitTextIntoChunks(text);
@@ -108,7 +113,7 @@ export const convertToAudio = async (
 
   try {
     // Process all chunks
-    const audioChunks = await processChunks(textChunks, voiceId, conversion.id, onProgressUpdate);
+    const audioChunks = await processChunks(textChunks, voiceId, conversionResult.data.id, onProgressUpdate);
 
     // Combine audio chunks
     const combinedBuffer = combineAudioChunks(audioChunks);
@@ -120,18 +125,20 @@ export const convertToAudio = async (
     }
 
     // Update queue status with retries
-    const { error: updateError } = await retryOperation(() =>
-      supabase
+    const updateResult = await retryOperation(async () => {
+      const { error } = await supabase
         .from('conversion_queue')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString()
         })
-        .eq('id', queueItem.id)
-    );
+        .eq('id', queueResult.data.id);
+      
+      return { error };
+    });
 
-    if (updateError) {
-      console.error('Error updating queue status:', updateError);
+    if (updateResult.error) {
+      console.error('Error updating queue status:', updateResult.error);
     }
 
     if (onProgressUpdate) {
@@ -141,19 +148,21 @@ export const convertToAudio = async (
     return combinedBuffer;
   } catch (error) {
     // Update queue status on failure with retries
-    const { error: updateError } = await retryOperation(() =>
-      supabase
+    const updateResult = await retryOperation(async () => {
+      const { error } = await supabase
         .from('conversion_queue')
         .update({
           status: 'failed',
-          error_message: error.message,
-          retries: (queueItem.retries || 0) + 1
+          error_message: (error as Error).message,
+          retries: (queueResult.data.retries || 0) + 1
         })
-        .eq('id', queueItem.id)
-    );
+        .eq('id', queueResult.data.id);
+      
+      return { error };
+    });
 
-    if (updateError) {
-      console.error('Error updating queue status:', updateError);
+    if (updateResult.error) {
+      console.error('Error updating queue status:', updateResult.error);
     }
 
     console.error('Conversion error:', error);
