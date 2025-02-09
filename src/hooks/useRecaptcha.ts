@@ -24,11 +24,12 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
   useEffect(() => {
     if (!reCaptchaKey || !isDialogOpen) return;
 
-    // Remove any existing reCAPTCHA scripts
+    // Remove any existing reCAPTCHA scripts and reset state
     const existingScript = document.querySelector('script[src*="recaptcha"]');
     if (existingScript) {
       document.head.removeChild(existingScript);
       setIsScriptLoaded(false);
+      delete window.grecaptcha;
     }
 
     if (!isScriptLoaded) {
@@ -49,6 +50,7 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
         if (script.parentNode) {
           script.parentNode.removeChild(script);
           setIsScriptLoaded(false);
+          delete window.grecaptcha;
         }
       };
     }
@@ -61,13 +63,19 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
     }
 
     try {
+      // Wait for reCAPTCHA to be ready
       await new Promise<void>((resolve) => {
-        window.grecaptcha.ready(() => {
-          console.log('Executing reCAPTCHA...');
-          resolve();
-        });
+        const checkReady = () => {
+          if (window.grecaptcha && window.grecaptcha.execute) {
+            resolve();
+          } else {
+            setTimeout(checkReady, 100);
+          }
+        };
+        checkReady();
       });
 
+      console.log('Executing reCAPTCHA...');
       const token = await window.grecaptcha.execute(reCaptchaKey, { 
         action: 'terms_acceptance' 
       });

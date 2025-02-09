@@ -17,16 +17,19 @@ serve(async (req) => {
     const { token, expectedAction } = await req.json();
     
     if (!token) {
+      console.error('No reCAPTCHA token provided');
       throw new Error('No reCAPTCHA token provided');
     }
 
+    // Detailed logging to help diagnose issues
     console.log('Processing reCAPTCHA verification:');
-    console.log('- Token present:', !!token);
+    console.log('- Token length:', token.length);
     console.log('- Expected action:', expectedAction);
 
     // Get the secret key from environment
     const secretKey = Deno.env.get('RECAPTCHA_SECRET_KEY');
     if (!secretKey) {
+      console.error('RECAPTCHA_SECRET_KEY not found in environment');
       throw new Error('RECAPTCHA_SECRET_KEY not found in environment');
     }
 
@@ -43,12 +46,20 @@ serve(async (req) => {
       body: formData,
     });
 
+    if (!response.ok) {
+      console.error('reCAPTCHA API response not ok:', response.status, response.statusText);
+      throw new Error(`reCAPTCHA API error: ${response.status} ${response.statusText}`);
+    }
+
     const result = await response.json();
 
+    // Log the complete verification response for debugging
     console.log('Verification response:', {
       success: result.success,
       score: result.score,
       action: result.action,
+      timestamp: result.challenge_ts,
+      hostname: result.hostname,
       errors: result['error-codes']
     });
 
