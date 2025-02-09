@@ -3,9 +3,11 @@ import React from 'react';
 import CookieConsent from 'react-cookie-consent';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/hooks/useLanguage';
 
 const CookieConsentBanner = () => {
   const { toast } = useToast();
+  const { translations } = useLanguage();
 
   const logCookiePreference = async (allAccepted: boolean) => {
     try {
@@ -41,8 +43,8 @@ const CookieConsentBanner = () => {
   return (
     <CookieConsent
       location="bottom"
-      buttonText="Accept All Cookies"
-      declineButtonText="Accept Necessary Only"
+      buttonText={translations.cookieAcceptAll}
+      declineButtonText={translations.cookieAcceptNecessary}
       enableDeclineButton
       style={{
         background: 'rgb(31 41 55)',
@@ -68,34 +70,34 @@ const CookieConsentBanner = () => {
       onAccept={async () => {
         await logCookiePreference(true);
         toast({
-          title: "Cookies accepted",
-          description: "Thank you for accepting cookies. Your preferences have been saved.",
+          title: translations.cookiesAccepted,
+          description: translations.cookiesAcceptedDesc,
         });
       }}
       onDecline={async () => {
         await logCookiePreference(false);
         toast({
-          title: "Preferences saved",
-          description: "Only necessary cookies will be used. You can change this anytime.",
+          title: translations.preferencesSaved,
+          description: translations.preferencesDesc,
         });
       }}
     >
       <p className="text-sm text-white mb-4">
-        We use cookies to enhance your browsing experience and provide personalized services. These include:
+        {translations.cookieDescription}
       </p>
       <ul className="text-sm text-white mb-4 list-disc pl-6 space-y-2">
-        <li><strong>Necessary cookies:</strong> Essential for website functionality and security</li>
-        <li><strong>Analytics cookies:</strong> Help us understand how you use our website</li>
-        <li><strong>Advertising cookies:</strong> Allow us to show you relevant advertisements</li>
+        <li>{translations.cookieNecessary}</li>
+        <li>{translations.cookieAnalytics}</li>
+        <li>{translations.cookieAdvertising}</li>
       </ul>
       <p className="text-sm text-white">
-        By clicking "Accept All Cookies", you consent to our use of all cookies. Click "Accept Necessary Only" to reject analytics and advertising cookies. Read more in our{" "}
+        {translations.cookieMessage}{" "}
         <a href="/cookie-policy" className="underline hover:text-primary">
-          Cookie Policy
+          {translations.cookiePolicy}
         </a>
-        {" "}or{" "}
+        {" "}{translations.or}{" "}
         <a href="/privacy" className="underline hover:text-primary">
-          Privacy Policy
+          {translations.privacyPolicy}
         </a>
         .
       </p>

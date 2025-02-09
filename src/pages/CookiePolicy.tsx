@@ -1,20 +1,22 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/hooks/useLanguage';
 
 const CookiePolicy = () => {
+  const { translations } = useLanguage();
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-12 px-4">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-4">
           <Link to="/">
             <Button variant="outline" size="sm">
-              ← Back to Converter
+              {translations.backToConverter}
             </Button>
           </Link>
           
-          <h1 className="text-4xl font-bold">Cookie Policy</h1>
+          <h1 className="text-4xl font-bold">{translations.cookiePolicy}</h1>
           
           <div className="prose prose-gray max-w-none space-y-6">
             <section>
