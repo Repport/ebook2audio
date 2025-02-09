@@ -2,91 +2,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { getAccessToken } from "../preview-voice/auth.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Maximum request size (in bytes) - 40MB to stay well under Supabase's 50MB limit
-const MAX_REQUEST_SIZE = 40 * 1024 * 1024;
-
-function deobfuscateData(data: string): string {
-  const key = 'epub2audio';
-  let result = '';
-  for (let i = 0; i < data.length; i++) {
-    result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
-  }
-  return result;
-}
-
-function cleanText(text: string): string {
-  return text
-    .replace(/\n+/g, '\n')
-    .replace(/\s+/g, ' ')
-    .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
-    .replace(/\[pdf\]/gi, '')
-    .replace(/\[page\s*\d*\]/gi, '')
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/([.!?])\s*(\w)/g, '$1 $2')
-    .trim();
-}
-
-function escapeXml(unsafe: string): string {
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-async function synthesizeLongAudio(text: string, voiceId: string, accessToken: string): Promise<string> {
-  console.log('Starting long audio synthesis...');
-  
-  // Step 1: Create a synthesis request
-  const requestBody = {
-    input: {
-      ssml: `<speak>${escapeXml(text)}</speak>`
-    },
-    voice: {
-      languageCode: 'en-US',
-      name: voiceId,
-      ssmlGender: voiceId.includes('Standard-C') ? 'FEMALE' : 'MALE'
-    },
-    audioConfig: {
-      audioEncoding: 'MP3',
-      speakingRate: 1.0,
-      pitch: 0.0,
-      effectsProfileId: ['handset-class-device'],
-    }
-  };
-
-  // Create synthesis operation
-  const operationResponse = await fetch(
-    'https://texttospeech.googleapis.com/v1/text:synthesize',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(requestBody),
-    }
-  );
-
-  if (!operationResponse.ok) {
-    const errorText = await operationResponse.text();
-    console.error('Long Audio API failed:', errorText);
-    throw new Error(`Long Audio API failed: ${operationResponse.status} ${operationResponse.statusText}`);
-  }
-
-  const data = await operationResponse.json();
-  console.log('Successfully synthesized audio');
-  
-  return data.audioContent;
-}
+import { corsHeaders, MAX_REQUEST_SIZE } from './constants.ts'
+import { deobfuscateData, cleanText, escapeXml } from './text-utils.ts'
+import { synthesizeSpeech } from './speech-service.ts'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -137,8 +55,8 @@ serve(async (req) => {
     const accessToken = await getAccessToken();
     console.log('✅ Successfully obtained access token');
 
-    // Use Long Audio API for synthesis
-    const audioContent = await synthesizeLongAudio(cleanedText, voiceId, accessToken);
+    const escapedText = escapeXml(cleanedText);
+    const audioContent = await synthesizeSpeech(escapedText, voiceId, accessToken);
     
     // Log successful conversion
     const { error: logError } = await supabase
