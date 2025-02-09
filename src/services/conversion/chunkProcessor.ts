@@ -47,10 +47,21 @@ export async function processChunks(
         const obfuscatedVoiceId = obfuscateData(voiceId);
 
         // Update chunk status to processing
-        await supabase.rpc('update_chunk_status', {
-          p_chunk_id: conversionId,
-          p_status: 'processing'
-        });
+        const { error: updateError } = await supabase
+          .from('conversion_chunks')
+          .upsert({
+            conversion_id: conversionId,
+            chunk_index: index,
+            status: 'processing',
+            chunk_text: chunks[index]
+          })
+          .eq('conversion_id', conversionId)
+          .eq('chunk_index', index);
+
+        if (updateError) {
+          console.error('Error updating chunk status:', updateError);
+          throw updateError;
+        }
 
         const { data, error } = await supabase.functions.invoke<ConvertToAudioResponse>('convert-to-audio', {
           body: { 
@@ -94,11 +105,21 @@ export async function processChunks(
           completed++;
 
           // Update chunk status to completed
-          await supabase.rpc('update_chunk_status', {
-            p_chunk_id: conversionId,
-            p_status: 'completed',
-            p_audio_path: `chunk_${index}.mp3`
-          });
+          const { error: completeError } = await supabase
+            .from('conversion_chunks')
+            .upsert({
+              conversion_id: conversionId,
+              chunk_index: index,
+              status: 'completed',
+              audio_path: `chunk_${index}.mp3`
+            })
+            .eq('conversion_id', conversionId)
+            .eq('chunk_index', index);
+
+          if (completeError) {
+            console.error('Error updating chunk completion status:', completeError);
+            throw completeError;
+          }
 
           if (onProgressUpdate) {
             const progressPercentage = Math.round((completed / chunks.length) * 100);
@@ -129,11 +150,20 @@ export async function processChunks(
       console.error(`Error processing chunk ${index}, attempt ${retryCount + 1}:`, error);
       
       // Update chunk status to failed
-      await supabase.rpc('update_chunk_status', {
-        p_chunk_id: conversionId,
-        p_status: 'failed',
-        p_error_message: error.message
-      });
+      const { error: failureError } = await supabase
+        .from('conversion_chunks')
+        .upsert({
+          conversion_id: conversionId,
+          chunk_index: index,
+          status: 'failed',
+          error_message: error.message
+        })
+        .eq('conversion_id', conversionId)
+        .eq('chunk_index', index);
+
+      if (failureError) {
+        console.error('Error updating chunk failure status:', failureError);
+      }
 
       const jitter = Math.random() * 1000;
       const delay = Math.min(
@@ -190,4 +220,3 @@ export function combineAudioChunks(audioChunks: ArrayBuffer[]): ArrayBuffer {
 
   return combinedBuffer.buffer;
 }
-
