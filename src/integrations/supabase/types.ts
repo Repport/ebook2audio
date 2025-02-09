@@ -47,18 +47,27 @@ export type Database = {
           clear_email: string | null
           created_at: string | null
           id: string
+          marketing_emails: boolean | null
+          newsletter: boolean | null
+          notification_emails: boolean | null
           user_id: string
         }
         Insert: {
           clear_email?: string | null
           created_at?: string | null
           id?: string
+          marketing_emails?: boolean | null
+          newsletter?: boolean | null
+          notification_emails?: boolean | null
           user_id: string
         }
         Update: {
           clear_email?: string | null
           created_at?: string | null
           id?: string
+          marketing_emails?: boolean | null
+          newsletter?: boolean | null
+          notification_emails?: boolean | null
           user_id?: string
         }
         Relationships: []
