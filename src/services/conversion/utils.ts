@@ -1,3 +1,4 @@
+
 // Simple XOR-based obfuscation
 export function obfuscateData(data: string): string {
   const key = 'epub2audio';
@@ -73,24 +74,32 @@ export function splitTextIntoChunks(text: string): string[] {
     .map(chunk => chunk.trim());
 }
 
-const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY = 1000;
+interface RetryOptions {
+  maxRetries?: number;
+  initialDelay?: number;
+}
 
 export async function retryOperation<T>(
   operation: () => Promise<T>,
-  retryCount = 0
+  options: RetryOptions = {}
 ): Promise<T> {
-  try {
-    return await operation();
-  } catch (err) {
-    if (retryCount >= MAX_RETRIES) {
-      throw err;
-    }
+  const maxRetries = options.maxRetries ?? 3;
+  const initialDelay = options.initialDelay ?? 1000;
+  let retryCount = 0;
 
-    const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount) + Math.random() * 1000;
-    console.log(`Retry attempt ${retryCount + 1} after ${delay}ms`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-    
-    return retryOperation(operation, retryCount + 1);
+  while (true) {
+    try {
+      return await operation();
+    } catch (err) {
+      retryCount++;
+      
+      if (retryCount >= maxRetries) {
+        throw err;
+      }
+
+      const delay = initialDelay * Math.pow(2, retryCount - 1) + Math.random() * 1000;
+      console.log(`Retry attempt ${retryCount} after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
 }

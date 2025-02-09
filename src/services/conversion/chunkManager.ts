@@ -55,7 +55,7 @@ export async function insertChunksBatch(
           throw error;
         }
       }
-    }, 3, 1000); // Retry up to 3 times with 1 second initial delay
+    }, { maxRetries: 3, initialDelay: 1000 });
     
     // Add small delay between batches to prevent overwhelming the database
     await new Promise(resolve => setTimeout(resolve, 100));
