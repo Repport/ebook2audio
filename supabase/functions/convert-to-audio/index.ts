@@ -43,6 +43,8 @@ function escapeXml(unsafe: string): string {
 }
 
 async function synthesizeLongAudio(text: string, voiceId: string, accessToken: string): Promise<string> {
+  console.log('Starting long audio synthesis...');
+  
   // Step 1: Create a synthesis request
   const requestBody = {
     input: {
@@ -63,7 +65,7 @@ async function synthesizeLongAudio(text: string, voiceId: string, accessToken: s
 
   // Create synthesis operation
   const operationResponse = await fetch(
-    'https://texttospeech.googleapis.com/v1/text:longRunningRecognize',
+    'https://texttospeech.googleapis.com/v1/text:synthesize',
     {
       method: 'POST',
       headers: {
@@ -80,42 +82,10 @@ async function synthesizeLongAudio(text: string, voiceId: string, accessToken: s
     throw new Error(`Long Audio API failed: ${operationResponse.status} ${operationResponse.statusText}`);
   }
 
-  const operation = await operationResponse.json();
-  console.log('Operation created:', operation.name);
-
-  // Step 2: Poll the operation until it's complete
-  let audioContent = '';
-  let isComplete = false;
-  while (!isComplete) {
-    const checkResponse = await fetch(
-      `https://texttospeech.googleapis.com/v1/operations/${operation.name}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (!checkResponse.ok) {
-      throw new Error(`Failed to check operation status: ${checkResponse.status}`);
-    }
-
-    const status = await checkResponse.json();
-    console.log('Operation status:', status.done ? 'complete' : 'in progress');
-
-    if (status.done) {
-      if (status.error) {
-        throw new Error(`Synthesis failed: ${status.error.message}`);
-      }
-      audioContent = status.response.audioContent;
-      isComplete = true;
-    } else {
-      // Wait 2 seconds before checking again
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-  }
-
-  return audioContent;
+  const data = await operationResponse.json();
+  console.log('Successfully synthesized audio');
+  
+  return data.audioContent;
 }
 
 serve(async (req) => {
