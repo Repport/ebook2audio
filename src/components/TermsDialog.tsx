@@ -1,6 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,20 +10,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { useLanguage } from "@/hooks/useLanguage";
-
-// Add type definition for Google reCAPTCHA
-declare global {
-  interface Window {
-    grecaptcha: {
-      execute: (siteKey: string, options: { action: string }) => Promise<string>;
-      ready: (callback: () => void) => void;
-    };
-  }
-}
+import TermsContent from './TermsContent';
+import { useRecaptcha } from '@/hooks/useRecaptcha';
+import { logTermsAcceptance } from '@/utils/termsLogger';
 
 interface TermsDialogProps {
   open: boolean;
@@ -35,76 +24,11 @@ interface TermsDialogProps {
 }
 
 const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialogProps) => {
-  const [accepted, setAccepted] = React.useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationPassed, setVerificationPassed] = useState(false);
   const { toast } = useToast();
-  const { translations } = useLanguage();
-
-  const { data: reCaptchaKey, isError } = useQuery({
-    queryKey: ['recaptcha-site-key'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('site_config')
-        .select('value')
-        .eq('key', 'recaptcha_site_key')
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching reCAPTCHA site key:', error);
-        throw error;
-      }
-
-      if (!data) {
-        throw new Error('ReCAPTCHA site key not found in configuration');
-      }
-
-      return data.value;
-    }
-  });
-
-  useEffect(() => {
-    if (reCaptchaKey && open) {
-      const script = document.createElement('script');
-      script.src = `https://www.google.com/recaptcha/api.js?render=${reCaptchaKey}`;
-      script.async = true;
-      document.head.appendChild(script);
-
-      return () => {
-        document.head.removeChild(script);
-      };
-    }
-  }, [reCaptchaKey, open]);
-
-  const executeRecaptcha = async () => {
-    if (!window.grecaptcha) {
-      console.error('reCAPTCHA not loaded');
-      return null;
-    }
-
-    try {
-      const token = await window.grecaptcha.execute(reCaptchaKey, { action: 'terms_acceptance' });
-      console.log('reCAPTCHA token generated');
-      return token;
-    } catch (error) {
-      console.error('Error executing reCAPTCHA:', error);
-      return null;
-    }
-  };
-
-  const verifyRecaptcha = async (token: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('verify-recaptcha', {
-        body: { token, expectedAction: 'terms_acceptance' }
-      });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error verifying reCAPTCHA:', error);
-      return null;
-    }
-  };
+  const { reCaptchaKey, isError, executeRecaptcha, verifyRecaptcha } = useRecaptcha(open);
 
   const handleCheckboxChange = async (checked: boolean) => {
     setAccepted(checked);
@@ -154,43 +78,6 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
     }
   };
 
-  const logAcceptance = async (token: string, score: number) => {
-    try {
-      const ipResponse = await fetch('https://api.ipify.org?format=json');
-      const ipData = await ipResponse.json();
-      
-      const { error } = await supabase
-        .from('terms_acceptance_logs')
-        .insert([
-          {
-            ip_address: ipData.ip,
-            user_agent: navigator.userAgent,
-            file_name: fileName,
-            file_type: fileType,
-            captcha_token: token,
-            recaptcha_score: score,
-            retention_period_accepted: true
-          }
-        ]);
-
-      if (error) {
-        console.error('Error logging terms acceptance:', error);
-        toast({
-          title: "Warning",
-          description: "Proceeded with conversion but failed to log acceptance",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error getting IP or logging acceptance:', error);
-      toast({
-        title: "Warning",
-        description: "Proceeded with conversion but failed to log acceptance",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleAccept = async () => {
     if (!accepted || !verificationPassed) {
       toast({
@@ -222,7 +109,15 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
         return;
       }
 
-      await logAcceptance(token, verification.score);
+      const { error } = await logTermsAcceptance(token, verification.score, fileName, fileType);
+      if (error) {
+        toast({
+          title: "Warning",
+          description: "Proceeded with conversion but failed to log acceptance",
+          variant: "destructive",
+        });
+      }
+
       onAccept();
       onClose();
     } catch (error) {
@@ -245,26 +140,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 my-6 text-left">
-          <ol className="list-decimal list-inside space-y-2">
-            <li className="text-sm">
-              <span className="font-semibold">User Responsibility:</span> You declare and guarantee that you have the legal rights to use, process, and convert the content of the file you are uploading.
-            </li>
-            <li className="text-sm">
-              <span className="font-semibold">Copyright Compliance:</span> Uploading copyrighted content without explicit authorization from the rights holder is strictly prohibited. The user is solely responsible for any infringement.
-            </li>
-            <li className="text-sm">
-              <span className="font-semibold">{translations.liabilityDisclaimer}</span>
-            </li>
-            <li className="text-sm">
-              <span className="font-semibold">Data Retention:</span> {translations.dataRetentionDesc}
-            </li>
-            <li className="text-sm">
-              <span className="font-semibold">Privacy Policy:</span> Please refer to our <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank">privacy policy</Link> for more details about data handling and retention.
-            </li>
-            <li className="text-sm">
-              <span className="font-semibold">Terms of Use:</span> We reserve the right to suspend or terminate access to this service in case of misuse or violation of these terms.
-            </li>
-          </ol>
+          <TermsContent />
         </div>
         <div className="flex flex-col space-y-4">
           <div className="flex items-center space-x-2">
