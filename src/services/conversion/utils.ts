@@ -19,20 +19,38 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
   return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Split text into smaller chunks with improved handling
-export function splitTextIntoChunks(text: string, maxChunkSize = 1000): string[] {
+// Calculate optimal chunk size based on total text length
+function calculateOptimalChunkSize(totalLength: number): number {
+  // Base chunk size for very small texts (under 1000 chars)
+  if (totalLength < 1000) return totalLength;
+  
+  // For medium texts (1000-5000 chars), use smaller chunks
+  if (totalLength < 5000) return 800;
+  
+  // For larger texts (5000-20000 chars), use medium chunks
+  if (totalLength < 20000) return 1000;
+  
+  // For very large texts (>20000 chars), use larger chunks
+  return 1200;
+}
+
+// Split text into smaller chunks with improved handling and dynamic sizing
+export function splitTextIntoChunks(text: string): string[] {
   const chunks: string[] = [];
+  const optimalChunkSize = calculateOptimalChunkSize(text.length);
   let currentChunk = '';
   
   // Split by sentences while preserving punctuation
   const sentences = text.split(/([.!?]+\s+)/);
 
+  console.log(`Total text length: ${text.length}, Using chunk size: ${optimalChunkSize}`);
+
   for (let i = 0; i < sentences.length; i++) {
     const sentence = sentences[i];
     const potentialChunk = currentChunk + sentence;
 
-    // If adding the next sentence would exceed maxChunkSize, save current chunk
-    if (potentialChunk.length > maxChunkSize && currentChunk.length > 0) {
+    // If adding the next sentence would exceed optimalChunkSize, save current chunk
+    if (potentialChunk.length > optimalChunkSize && currentChunk.length > 0) {
       chunks.push(currentChunk.trim());
       currentChunk = sentence;
     } else {
@@ -45,8 +63,14 @@ export function splitTextIntoChunks(text: string, maxChunkSize = 1000): string[]
     chunks.push(currentChunk.trim());
   }
 
+  // Log chunk information for debugging
+  chunks.forEach((chunk, index) => {
+    console.log(`Chunk ${index + 1}/${chunks.length}, size: ${chunk.length} characters`);
+  });
+
   // Filter out empty chunks and ensure minimum content
   return chunks
     .filter(chunk => chunk.trim().length > 0)
     .map(chunk => chunk.trim());
 }
+
