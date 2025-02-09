@@ -42,6 +42,38 @@ export type Database = {
         }
         Relationships: []
       }
+      email_change_history: {
+        Row: {
+          changed_at: string | null
+          id: string
+          new_email: string
+          old_email: string
+          user_id: string
+        }
+        Insert: {
+          changed_at?: string | null
+          id?: string
+          new_email: string
+          old_email: string
+          user_id: string
+        }
+        Update: {
+          changed_at?: string | null
+          id?: string
+          new_email?: string
+          old_email?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_email_preferences"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "email_preferences"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       email_preferences: {
         Row: {
           clear_email: string | null

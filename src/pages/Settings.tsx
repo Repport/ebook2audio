@@ -1,10 +1,12 @@
 
 import AccountSettings from "@/components/AccountSettings";
+import AccountCredentials from "@/components/AccountCredentials";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -32,7 +34,12 @@ const Settings = () => {
         </Link>
       </div>
       <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
-      <AccountSettings />
+      
+      <div className="space-y-8">
+        <AccountSettings />
+        <Separator />
+        <AccountCredentials />
+      </div>
     </div>
   );
 };
