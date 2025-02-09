@@ -27,7 +27,6 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
 
   async function processChunkWithRetry(chunk: string, index: number, retryCount = 0): Promise<string> {
     try {
-      // Calculate exponential backoff delay with jitter
       const delay = retryCount > 0 ? 
         Math.min(BASE_DELAY * Math.pow(2, retryCount - 1) + Math.random() * 1000, 30000) : 
         0;
@@ -83,14 +82,13 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
           const errorText = await response.text();
           console.error(`Error processing chunk ${index + 1} (attempt ${retryCount + 1}):`, errorText);
           
-          // Determine if we should retry based on the error
           const shouldRetry = retryCount < MAX_RETRIES && (
             response.status === 500 || 
             response.status === 503 || 
-            response.status === 429 || // Rate limiting
-            response.status >= 500 || // Any server error
-            response.status === 408 || // Request timeout
-            response.status === 409 // Conflict
+            response.status === 429 || 
+            response.status >= 500 || 
+            response.status === 408 || 
+            response.status === 409
           );
 
           if (shouldRetry) {
@@ -106,9 +104,13 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
         if (!data.audioContent) {
           throw new Error('No audio content in response');
         }
+
+        // Clean the base64 string and ensure proper padding
+        const cleanBase64 = data.audioContent.replace(/[^A-Za-z0-9+/]/g, '');
+        const paddedBase64 = cleanBase64.padEnd(Math.ceil(cleanBase64.length / 4) * 4, '=');
         
         console.log(`Successfully processed synthesis chunk ${index + 1}`);
-        return data.audioContent;
+        return paddedBase64;
       } finally {
         clearTimeout(timeoutId);
       }
@@ -124,14 +126,12 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
   }
   
   try {
-    // Process chunks sequentially to avoid overwhelming the API
     const results = [];
     for (let i = 0; i < textChunks.length; i++) {
       const result = await processChunkWithRetry(textChunks[i], i);
       results.push(result);
     }
 
-    // Combine all audio chunks
     const combinedAudioContent = results.join('');
     console.log(`Successfully synthesized speech from ${textChunks.length} chunks`);
     return combinedAudioContent;
@@ -141,3 +141,4 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
     throw error;
   }
 }
+

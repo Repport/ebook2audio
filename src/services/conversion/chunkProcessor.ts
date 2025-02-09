@@ -62,9 +62,9 @@ export async function processChunks(
           throw new Error('No audio content received');
         }
 
-        // Ensure the string is properly padded for base64
-        const base64String = data.data.audioContent.replace(/\s/g, '');
-        const paddedBase64 = base64String.padEnd(Math.ceil(base64String.length / 4) * 4, '=');
+        // Clean and pad the base64 string
+        const cleanBase64 = data.data.audioContent.replace(/[^A-Za-z0-9+/]/g, '');
+        const paddedBase64 = cleanBase64.padEnd(Math.ceil(cleanBase64.length / 4) * 4, '=');
 
         try {
           const binaryString = atob(paddedBase64);
@@ -86,7 +86,7 @@ export async function processChunks(
           
           const nextIndex = Math.max(...Array.from(processing), -1) + 1;
           if (nextIndex < chunks.length && !processing.has(nextIndex)) {
-            await new Promise(resolve => setTimeout(resolve, 500)); // Add small delay between chunks
+            await new Promise(resolve => setTimeout(resolve, 500));
             processChunk(nextIndex);
           }
         } catch (decodeError) {
@@ -118,10 +118,8 @@ export async function processChunks(
   };
 
   try {
-    // Start with just one initial request to test the connection
     await processChunk(0);
     
-    // If successful, process remaining chunks with controlled concurrency
     const remainingChunks = Array.from(
       { length: chunks.length - 1 }, 
       (_, i) => processChunk(i + 1)
@@ -148,3 +146,4 @@ export function combineAudioChunks(audioChunks: ArrayBuffer[]): ArrayBuffer {
 
   return combinedBuffer.buffer;
 }
+
