@@ -1,6 +1,5 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { obfuscateData } from "../utils";
 import { updateChunkStatus } from "../database/chunkDatabase";
 import { decodeBase64Audio } from "../utils/audioUtils";
 import { ConvertToAudioResponse, ProgressCallback } from "../types/chunks";
@@ -48,9 +47,6 @@ export async function processChunks(
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       try {
-        const obfuscatedText = obfuscateData(chunks[index]);
-        const obfuscatedVoiceId = obfuscateData(voiceId);
-
         // Update chunk status to processing
         await updateChunkStatus({
           conversion_id: conversionId,
@@ -61,8 +57,8 @@ export async function processChunks(
 
         const { data, error } = await supabase.functions.invoke<ConvertToAudioResponse>('convert-to-audio', {
           body: { 
-            text: obfuscatedText, 
-            voiceId: obfuscatedVoiceId,
+            text: chunks[index], 
+            voiceId,
             fileName: `chunk_${index}`,
             isChunk: true
           }
@@ -170,3 +166,4 @@ export async function processChunks(
 }
 
 export { combineAudioChunks } from '../utils/audioUtils';
+
