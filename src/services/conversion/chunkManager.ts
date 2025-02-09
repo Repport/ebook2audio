@@ -39,7 +39,8 @@ export async function insertChunksBatch(
             status: 'pending'
           })),
           {
-            onConflict: 'conversion_id,chunk_index'
+            onConflict: 'conversion_id,chunk_index',
+            ignoreDuplicates: true
           }
         );
 
@@ -68,3 +69,4 @@ export async function getExistingChunks(conversionId: string): Promise<number[]>
   
   return (existingChunks || []).map(chunk => chunk.chunk_index);
 }
+
