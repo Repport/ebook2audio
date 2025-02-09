@@ -31,25 +31,6 @@ function cleanText(text: string): string {
     .trim();
 }
 
-// Function to split text into chunks of max 5000 characters, preserving sentences
-function splitTextIntoChunks(text: string, maxLength = 5000): string[] {
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-  const chunks: string[] = [];
-  let currentChunk = '';
-
-  for (const sentence of sentences) {
-    if ((currentChunk + sentence).length <= maxLength) {
-      currentChunk += sentence;
-    } else {
-      if (currentChunk) chunks.push(currentChunk.trim());
-      currentChunk = sentence;
-    }
-  }
-  
-  if (currentChunk) chunks.push(currentChunk.trim());
-  return chunks;
-}
-
 // Function to properly escape XML special characters
 function escapeXml(unsafe: string): string {
   return unsafe
@@ -58,6 +39,38 @@ function escapeXml(unsafe: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+// Function to get byte length of a string
+function getByteLength(str: string): number {
+  return new TextEncoder().encode(str).length;
+}
+
+// Function to split text into chunks that will result in SSML under 5000 bytes
+function splitTextIntoChunks(text: string): string[] {
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const chunks: string[] = [];
+  let currentChunk = '';
+  
+  for (const sentence of sentences) {
+    const potentialChunk = currentChunk + sentence;
+    const ssml = `<speak>${escapeXml(potentialChunk)}</speak>`;
+    
+    if (getByteLength(ssml) > 4800) { // Using 4800 to leave some margin
+      if (currentChunk) {
+        chunks.push(currentChunk.trim());
+      }
+      currentChunk = sentence;
+    } else {
+      currentChunk = potentialChunk;
+    }
+  }
+  
+  if (currentChunk) {
+    chunks.push(currentChunk.trim());
+  }
+  
+  return chunks;
 }
 
 serve(async (req) => {
@@ -110,7 +123,7 @@ serve(async (req) => {
       throw new Error('No text content to convert');
     }
 
-    // Split text into manageable chunks
+    // Split text into chunks that will result in valid SSML
     const textChunks = splitTextIntoChunks(cleanedText);
     console.log(`Split text into ${textChunks.length} chunks`);
 
@@ -124,12 +137,14 @@ serve(async (req) => {
       console.log(`Processing chunk ${i + 1}/${textChunks.length}`);
       const chunk = textChunks[i];
       
-      // Prepare SSML for the chunk
-      let ssml: string;
-      if (chapters && chapters.length > 0) {
-        ssml = `<speak>${escapeXml(chunk)}</speak>`;
-      } else {
-        ssml = `<speak>${escapeXml(chunk)}</speak>`;
+      // Create SSML for the chunk
+      const ssml = `<speak>${escapeXml(chunk)}</speak>`;
+      const ssmlByteLength = getByteLength(ssml);
+      console.log(`SSML byte length for chunk ${i + 1}: ${ssmlByteLength}`);
+
+      if (ssmlByteLength > 5000) {
+        console.error(`Chunk ${i + 1} exceeds byte limit:`, ssmlByteLength);
+        throw new Error(`Text chunk exceeds Google Cloud API limit`);
       }
 
       const requestBody = {
@@ -214,3 +229,4 @@ serve(async (req) => {
     );
   }
 });
+
