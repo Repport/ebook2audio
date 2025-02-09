@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { RecaptchaEnterpriseServiceClient } from 'npm:@google-cloud/recaptcha-enterprise';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,66 +18,40 @@ serve(async (req) => {
     
     console.log('Received token:', token ? 'present' : 'missing');
     console.log('Expected action:', expectedAction);
-    
-    // Get the base64 encoded secret key from environment
-    const encodedKey = Deno.env.get('RECAPTCHA_SECRET_KEY');
-    if (!encodedKey) {
+
+    // Get the secret key from environment
+    const secretKey = Deno.env.get('RECAPTCHA_SECRET_KEY');
+    if (!secretKey) {
       throw new Error('RECAPTCHA_SECRET_KEY not found in environment');
     }
 
-    // Decode base64 to get the service account JSON
-    let credentials;
-    try {
-      const decodedKey = atob(encodedKey);
-      credentials = JSON.parse(decodedKey);
-      
-      // Validate the credentials format
-      if (!credentials.project_id || !credentials.private_key || !credentials.client_email) {
-        throw new Error('Invalid credentials format: missing required fields');
-      }
-      
-      console.log('✅ Service account credentials decoded successfully');
-      console.log('Project ID:', credentials.project_id);
-    } catch (parseError) {
-      console.error('Error decoding/parsing credentials:', parseError);
-      throw new Error('Invalid service account credentials format');
+    // Verify the token using reCAPTCHA v2 verification endpoint
+    const verificationURL = 'https://www.google.com/recaptcha/api/siteverify';
+    const formData = new URLSearchParams();
+    formData.append('secret', secretKey);
+    formData.append('response', token);
+
+    console.log('Sending verification request to reCAPTCHA...');
+
+    const response = await fetch(verificationURL, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    console.log('Verification response:', result);
+
+    if (!result.success) {
+      throw new Error('reCAPTCHA verification failed: ' + (result['error-codes']?.join(', ') || 'unknown error'));
     }
-
-    console.log('Creating RecaptchaEnterpriseServiceClient...');
-    
-    const client = new RecaptchaEnterpriseServiceClient({
-      credentials: {
-        client_email: credentials.client_email,
-        private_key: credentials.private_key,
-      },
-      projectId: credentials.project_id,
-    });
-
-    const projectPath = `projects/${credentials.project_id}`;
-    console.log('Creating assessment for project path:', projectPath);
-
-    const [assessment] = await client.createAssessment({
-      parent: projectPath,
-      assessment: {
-        event: {
-          token: token,
-          expectedAction: expectedAction,
-          siteKey: '6LcXU9EqAAAAAElRyhh7eJESVVY6pHOnt2XRfYIQ',
-        },
-      },
-    });
-
-    console.log('Assessment response:', {
-      score: assessment.riskAnalysis?.score,
-      valid: assessment.tokenProperties?.valid,
-      action: assessment.tokenProperties?.action,
-    });
 
     return new Response(
       JSON.stringify({
-        score: assessment.riskAnalysis?.score,
-        valid: assessment.tokenProperties?.valid,
-        action: assessment.tokenProperties?.action,
+        success: result.success,
+        score: result.score,
+        action: result.action,
+        timestamp: result.challenge_ts,
       }),
       {
         headers: {
