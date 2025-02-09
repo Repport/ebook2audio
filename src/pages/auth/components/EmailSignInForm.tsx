@@ -63,12 +63,13 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
       if (error) {
         console.error("Auth error details:", error);
         
+        // Handle invalid credentials specifically
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Account not found",
             description: (
               <div className="space-y-2">
-                <p>No account exists with this email address or the password is incorrect.</p>
+                <p>No account exists with this email address. Would you like to create one?</p>
                 <Button 
                   variant="outline" 
                   className="w-full"
