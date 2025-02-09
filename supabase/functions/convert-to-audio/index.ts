@@ -8,6 +8,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Maximum request size (in bytes) - 40MB to stay well under Supabase's 50MB limit
+const MAX_REQUEST_SIZE = 40 * 1024 * 1024;
+
 // Simple XOR-based obfuscation
 function deobfuscateData(data: string): string {
   const key = 'epub2audio';
@@ -31,7 +34,6 @@ function cleanText(text: string): string {
     .trim();
 }
 
-// Function to properly escape XML special characters
 function escapeXml(unsafe: string): string {
   return unsafe
     .replace(/&/g, '&amp;')
@@ -41,12 +43,10 @@ function escapeXml(unsafe: string): string {
     .replace(/'/g, '&apos;');
 }
 
-// Function to get byte length of a string
 function getByteLength(str: string): number {
   return new TextEncoder().encode(str).length;
 }
 
-// Function to split text into chunks that will result in SSML under 5000 bytes
 function splitTextIntoChunks(text: string): string[] {
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
   const chunks: string[] = [];
@@ -56,7 +56,7 @@ function splitTextIntoChunks(text: string): string[] {
     const potentialChunk = currentChunk + sentence;
     const ssml = `<speak>${escapeXml(potentialChunk)}</speak>`;
     
-    if (getByteLength(ssml) > 4800) { // Using 4800 to leave some margin
+    if (getByteLength(ssml) > 4800) {
       if (currentChunk) {
         chunks.push(currentChunk.trim());
       }
@@ -80,6 +80,12 @@ serve(async (req) => {
   }
 
   try {
+    // Check request size
+    const contentLength = parseInt(req.headers.get('content-length') || '0');
+    if (contentLength > MAX_REQUEST_SIZE) {
+      throw new Error(`Request size (${contentLength} bytes) exceeds maximum allowed size (${MAX_REQUEST_SIZE} bytes)`);
+    }
+
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -108,7 +114,7 @@ serve(async (req) => {
 
     console.log('Request received - IP:', ip, 'User:', user.id, 'File:', fileName);
 
-    // Check rate limit using the database function
+    // Check rate limit
     const { data: rateLimitCheck, error: rateLimitError } = await supabase
       .rpc('check_conversion_rate_limit', { p_ip_address: ip });
 
@@ -117,27 +123,22 @@ serve(async (req) => {
     }
 
     const cleanedText = cleanText(text);
-    console.log('Cleaned text sample:', cleanedText.substring(0, 100) + '...');
-    
     if (!cleanedText) {
       throw new Error('No text content to convert');
     }
 
-    // Split text into chunks that will result in valid SSML
     const textChunks = splitTextIntoChunks(cleanedText);
     console.log(`Split text into ${textChunks.length} chunks`);
 
     const accessToken = await getAccessToken();
     console.log('✅ Successfully obtained access token');
 
-    // Process each chunk and collect audio data
     const audioContents: string[] = [];
 
     for (let i = 0; i < textChunks.length; i++) {
       console.log(`Processing chunk ${i + 1}/${textChunks.length}`);
       const chunk = textChunks[i];
       
-      // Create SSML for the chunk
       const ssml = `<speak>${escapeXml(chunk)}</speak>`;
       const ssmlByteLength = getByteLength(ssml);
       console.log(`SSML byte length for chunk ${i + 1}: ${ssmlByteLength}`);
@@ -203,8 +204,6 @@ serve(async (req) => {
       console.error('Error logging conversion:', logError);
     }
 
-    console.log('Audio data processed, sending response...');
-
     return new Response(
       JSON.stringify({ audioContent: combinedAudioContent }),
       { 
@@ -229,4 +228,3 @@ serve(async (req) => {
     );
   }
 });
-
