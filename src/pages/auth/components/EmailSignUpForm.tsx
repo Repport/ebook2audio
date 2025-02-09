@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import TermsCheckbox from "@/components/TermsCheckbox";
-import FormFields from "./FormFields";
+import FormFields, { validatePassword } from "./FormFields";
 
 interface EmailSignUpFormProps {
   email: string;
@@ -19,14 +19,34 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const { toast } = useToast();
 
-  const handleEmailSignUp = async () => {
+  const validateForm = () => {
     if (!localEmail || !localPassword) {
       toast({
         title: "Missing fields",
         description: "Please fill in both email and password.",
         variant: "destructive",
       });
-      return;
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(localEmail)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const passwordValidation = validatePassword(localPassword);
+    if (!passwordValidation.isValid) {
+      toast({
+        title: "Invalid password",
+        description: "Please make sure your password meets all requirements.",
+        variant: "destructive",
+      });
+      return false;
     }
 
     if (!termsAccepted) {
@@ -35,6 +55,14 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
         description: "Please accept the terms and conditions to continue.",
         variant: "destructive",
       });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleEmailSignUp = async () => {
+    if (!validateForm()) {
       return;
     }
 
@@ -90,6 +118,7 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
         onEmailChange={setLocalEmail}
         onPasswordChange={setLocalPassword}
         disabled={loading}
+        showPasswordRequirements={true}
       />
       <TermsCheckbox
         accepted={termsAccepted}
