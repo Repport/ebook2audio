@@ -58,7 +58,16 @@ export const useAudioConversion = () => {
         };
       });
 
-      const audio = await convertToAudio(extractedText, selectedVoice, detectChapters ? chaptersWithTimestamps : undefined, fileName);
+      const audio = await convertToAudio(
+        extractedText, 
+        selectedVoice, 
+        detectChapters ? chaptersWithTimestamps : undefined, 
+        fileName,
+        (progressValue) => {
+          setProgress(progressValue);
+        }
+      );
+      
       setAudioData(audio);
       
       const duration = await calculateAudioDuration(audio);

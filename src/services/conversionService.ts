@@ -30,7 +30,8 @@ export const convertToAudio = async (
   text: string, 
   voiceId: string,
   chapters?: ChapterWithTimestamp[],
-  fileName?: string
+  fileName?: string,
+  onProgressUpdate?: (progress: number) => void
 ): Promise<ArrayBuffer> => {
   if (text.startsWith('%PDF')) {
     console.error('Received raw PDF data instead of text content');
@@ -59,6 +60,9 @@ export const convertToAudio = async (
 
   if (existingConversion?.storage_path) {
     console.log('Found cached conversion, fetching from storage');
+    if (onProgressUpdate) {
+      onProgressUpdate(100);
+    }
     const { data: audioData, error: downloadError } = await supabase.storage
       .from('audio_cache')
       .download(existingConversion.storage_path);
@@ -83,7 +87,7 @@ export const convertToAudio = async (
       const obfuscatedText = obfuscateData(text);
       const obfuscatedVoiceId = obfuscateData(voiceId);
 
-      const { data, error } = await supabase.functions.invoke('convert-to-audio', {
+      const response = await supabase.functions.invoke('convert-to-audio', {
         body: { 
           text: obfuscatedText, 
           voiceId: obfuscatedVoiceId,
@@ -94,6 +98,14 @@ export const convertToAudio = async (
           }))
         }
       });
+
+      const { data, error } = response;
+
+      // Update progress based on the chunk information from the response
+      if (data?.totalChunks && data?.currentChunk && onProgressUpdate) {
+        const progress = Math.round((data.currentChunk / data.totalChunks) * 100);
+        onProgressUpdate(progress);
+      }
 
       if (error) {
         console.error('Conversion error:', error);
@@ -155,6 +167,11 @@ export const convertToAudio = async (
         // Don't throw here as the file is already in storage
       }
       
+      // Set final progress to 100% when complete
+      if (onProgressUpdate) {
+        onProgressUpdate(100);
+      }
+
       return bytes.buffer;
     } catch (error) {
       if (currentAttempt < MAX_RETRIES) {
@@ -169,3 +186,4 @@ export const convertToAudio = async (
 
   return makeRequest();
 };
+
