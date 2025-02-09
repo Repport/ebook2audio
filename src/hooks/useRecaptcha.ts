@@ -44,7 +44,9 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
     }
 
     try {
-      await new Promise((resolve) => window.grecaptcha.ready(resolve));
+      await new Promise<void>((resolve) => {
+        window.grecaptcha.ready(() => resolve());
+      });
       const token = await window.grecaptcha.execute(reCaptchaKey, { 
         action: 'terms_acceptance' 
       });
