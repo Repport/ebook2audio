@@ -2,10 +2,30 @@
 import React from 'react';
 import CookieConsent from 'react-cookie-consent';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 const CookieConsentBanner = () => {
   const { toast } = useToast();
+
+  const logCookiePreference = async (allAccepted: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('terms_acceptance_logs')
+        .insert([
+          {
+            ip_address: 'anonymous', // We'll get the IP on the server side
+            cookies_all_accepted: allAccepted,
+            cookies_necessary_only: !allAccepted,
+          }
+        ]);
+
+      if (error) {
+        console.error('Error logging cookie preference:', error);
+      }
+    } catch (error) {
+      console.error('Error logging cookie preference:', error);
+    }
+  };
 
   return (
     <CookieConsent
@@ -34,13 +54,15 @@ const CookieConsentBanner = () => {
         borderRadius: '0.375rem',
         marginRight: '1rem'
       }}
-      onAccept={() => {
+      onAccept={async () => {
+        await logCookiePreference(true);
         toast({
           title: "Cookies accepted",
           description: "Thank you for accepting cookies. Your preferences have been saved.",
         });
       }}
-      onDecline={() => {
+      onDecline={async () => {
+        await logCookiePreference(false);
         toast({
           title: "Preferences saved",
           description: "Only necessary cookies will be used. You can change this anytime.",

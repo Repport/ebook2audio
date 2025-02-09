@@ -12,6 +12,9 @@ export type Database = {
       terms_acceptance_logs: {
         Row: {
           accepted_at: string
+          cookies_acceptance_date: string | null
+          cookies_all_accepted: boolean | null
+          cookies_necessary_only: boolean | null
           file_name: string | null
           file_type: string | null
           id: string
@@ -20,6 +23,9 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string
+          cookies_acceptance_date?: string | null
+          cookies_all_accepted?: boolean | null
+          cookies_necessary_only?: boolean | null
           file_name?: string | null
           file_type?: string | null
           id?: string
@@ -28,6 +34,9 @@ export type Database = {
         }
         Update: {
           accepted_at?: string
+          cookies_acceptance_date?: string | null
+          cookies_all_accepted?: boolean | null
+          cookies_necessary_only?: boolean | null
           file_name?: string | null
           file_type?: string | null
           id?: string
