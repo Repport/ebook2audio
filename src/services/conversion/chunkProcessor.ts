@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { obfuscateData } from "./utils";
 import { ProgressCallback } from "./types";
 
-const MAX_CONCURRENT_REQUESTS = 3;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
+const MAX_CONCURRENT_REQUESTS = 2; // Reduced from 3 to prevent overwhelming
+const MAX_RETRIES = 5; // Increased from 3 to 5
+const BASE_RETRY_DELAY = 2000; // Base delay of 2 seconds
+const REQUEST_TIMEOUT = 30000; // 30 second timeout
 
 export async function processChunks(
   chunks: string[], 
@@ -15,26 +16,38 @@ export async function processChunks(
   const results: ArrayBuffer[] = new Array(chunks.length);
   const processing = new Set<number>();
   let completed = 0;
+  let failedAttempts = new Map<number, number>();
 
   const processChunk = async (index: number): Promise<void> => {
     if (index >= chunks.length) return;
 
     processing.add(index);
-    let retryCount = 0;
+    const retryCount = failedAttempts.get(index) || 0;
 
-    while (retryCount <= MAX_RETRIES) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
       try {
         const obfuscatedText = obfuscateData(chunks[index]);
         const obfuscatedVoiceId = obfuscateData(voiceId);
 
-        const response = await supabase.functions.invoke('convert-to-audio', {
-          body: { 
-            text: obfuscatedText, 
-            voiceId: obfuscatedVoiceId,
-            fileName: `chunk_${index}`,
-            isChunk: true
-          }
-        });
+        const response = await Promise.race([
+          supabase.functions.invoke('convert-to-audio', {
+            body: { 
+              text: obfuscatedText, 
+              voiceId: obfuscatedVoiceId,
+              fileName: `chunk_${index}`,
+              isChunk: true
+            },
+            signal: controller.signal
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout')), REQUEST_TIMEOUT)
+          )
+        ]);
+
+        clearTimeout(timeoutId);
 
         if (response.error) throw response.error;
 
@@ -56,6 +69,7 @@ export async function processChunks(
         }
 
         processing.delete(index);
+        failedAttempts.delete(index);
         
         // Process next chunk if available
         const nextIndex = Math.max(...Array.from(processing)) + 1;
@@ -64,31 +78,61 @@ export async function processChunks(
         }
 
         return;
-      } catch (error) {
-        console.error(`Error processing chunk ${index}, attempt ${retryCount + 1}:`, error);
-        retryCount++;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch (error) {
+      console.error(`Error processing chunk ${index}, attempt ${retryCount + 1}:`, error);
+      
+      // Exponential backoff with jitter
+      const jitter = Math.random() * 1000;
+      const delay = Math.min(
+        BASE_RETRY_DELAY * Math.pow(2, retryCount) + jitter,
+        30000 // Max delay of 30 seconds
+      );
 
-        if (retryCount <= MAX_RETRIES) {
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * retryCount));
-        } else {
-          throw error;
-        }
+      failedAttempts.set(index, retryCount + 1);
+
+      if (retryCount < MAX_RETRIES) {
+        console.log(`Retrying chunk ${index} in ${Math.round(delay)}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return processChunk(index);
+      } else {
+        throw new Error(`Failed to process chunk ${index} after ${MAX_RETRIES} attempts`);
       }
     }
   };
 
-  // Start initial batch of concurrent requests
+  // Start initial batch of concurrent requests with limited concurrency
   const initialBatch = Math.min(MAX_CONCURRENT_REQUESTS, chunks.length);
-  await Promise.all(
-    Array.from({ length: initialBatch }, (_, i) => processChunk(i))
+  const initialPromises = Array.from(
+    { length: initialBatch }, 
+    (_, i) => processChunk(i)
   );
 
-  // Wait for all chunks to complete
-  while (completed < chunks.length) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
+  try {
+    await Promise.all(initialPromises);
+    
+    // Wait for all chunks to complete
+    while (completed < chunks.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Check for failed chunks that need retry
+      const failedChunks = Array.from(failedAttempts.entries())
+        .filter(([_, attempts]) => attempts < MAX_RETRIES);
+      
+      for (const [index] of failedChunks) {
+        if (!processing.has(index)) {
+          processChunk(index);
+        }
+      }
+    }
 
-  return results;
+    return results;
+  } catch (error) {
+    console.error('Fatal error in chunk processing:', error);
+    throw new Error(`Conversion failed: ${error.message}`);
+  }
 }
 
 export function combineAudioChunks(audioChunks: ArrayBuffer[]): ArrayBuffer {

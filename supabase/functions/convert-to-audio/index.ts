@@ -6,10 +6,15 @@ import { corsHeaders, MAX_REQUEST_SIZE } from './constants.ts'
 import { deobfuscateData, cleanText, escapeXml } from './text-utils.ts'
 import { synthesizeSpeech } from './speech-service.ts'
 
+const REQUEST_TIMEOUT = 60000; // 60 second timeout for the entire request
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   try {
     const contentLength = parseInt(req.headers.get('content-length') || '0');
@@ -82,6 +87,8 @@ serve(async (req) => {
       console.error('Error logging conversion:', logError);
     }
 
+    clearTimeout(timeoutId);
+
     return new Response(
       JSON.stringify({ audioContent }),
       { 
@@ -93,14 +100,25 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    clearTimeout(timeoutId);
     console.error('Detailed conversion error:', error);
+
+    const statusCode = error.message.includes('Rate limit') ? 429 :
+                      error.message.includes('Unauthorized') ? 401 :
+                      error.message.includes('timeout') ? 504 :
+                      500;
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        retryAfter: statusCode === 429 ? 3600 : undefined // 1 hour retry for rate limits
+      }),
       { 
-        status: error.message.includes('Rate limit') ? 429 : 500,
+        status: statusCode,
         headers: { 
           ...corsHeaders, 
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(statusCode === 429 ? { 'Retry-After': '3600' } : {})
         }
       }
     );
