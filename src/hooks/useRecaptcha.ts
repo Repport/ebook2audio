@@ -36,26 +36,23 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
 
     if (!isScriptLoaded) {
       const script = document.createElement('script');
-      script.src = `https://www.google.com/recaptcha/api.js?render=${reCaptchaKey}`;
+      script.src = `https://www.google.com/recaptcha/enterprise.js?render=${reCaptchaKey}`;
       script.async = true;
       script.defer = true;
 
-      // Add error handling for script loading
       script.onerror = () => {
-        console.error('Failed to load reCAPTCHA script');
-        setInitializationError('Failed to load reCAPTCHA script');
+        console.error('Failed to load reCAPTCHA Enterprise script');
+        setInitializationError('Failed to load reCAPTCHA Enterprise script');
         setIsScriptLoaded(false);
       };
 
       script.onload = () => {
         setIsScriptLoaded(true);
-        // Initialize reCAPTCHA after script loads
-        window.grecaptcha?.ready(() => {
-          console.log('reCAPTCHA is ready');
-          // Verify initialization
-          if (!window.grecaptcha?.execute) {
-            console.error('reCAPTCHA not properly initialized');
-            setInitializationError('reCAPTCHA initialization failed');
+        window.grecaptcha.enterprise.ready(() => {
+          console.log('reCAPTCHA Enterprise is ready');
+          if (!window.grecaptcha?.enterprise?.execute) {
+            console.error('reCAPTCHA Enterprise not properly initialized');
+            setInitializationError('reCAPTCHA Enterprise initialization failed');
             setIsScriptLoaded(false);
           }
         });
@@ -75,25 +72,24 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
   }, [reCaptchaKey, isDialogOpen, isScriptLoaded]);
 
   const executeRecaptcha = async () => {
-    if (!window.grecaptcha || !reCaptchaKey) {
-      console.error('reCAPTCHA not loaded or site key missing');
-      throw new Error('reCAPTCHA not initialized properly');
+    if (!window.grecaptcha?.enterprise || !reCaptchaKey) {
+      console.error('reCAPTCHA Enterprise not loaded or site key missing');
+      throw new Error('reCAPTCHA Enterprise not initialized properly');
     }
 
     try {
-      // Wait for reCAPTCHA to be ready with a timeout
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error('reCAPTCHA initialization timeout'));
-        }, 5000); // 5 second timeout
+          reject(new Error('reCAPTCHA Enterprise initialization timeout'));
+        }, 5000);
 
         const checkReady = () => {
-          if (window.grecaptcha && window.grecaptcha.execute) {
+          if (window.grecaptcha?.enterprise?.execute) {
             clearTimeout(timeout);
             resolve();
           } else if (!isScriptLoaded || initializationError) {
             clearTimeout(timeout);
-            reject(new Error(initializationError || 'reCAPTCHA not initialized'));
+            reject(new Error(initializationError || 'reCAPTCHA Enterprise not initialized'));
           } else {
             setTimeout(checkReady, 100);
           }
@@ -101,20 +97,20 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
         checkReady();
       });
 
-      console.log('Executing reCAPTCHA...');
-      const token = await window.grecaptcha.execute(reCaptchaKey, { 
+      console.log('Executing reCAPTCHA Enterprise...');
+      const token = await window.grecaptcha.enterprise.execute(reCaptchaKey, { 
         action: 'terms_acceptance' 
       });
       
       if (!token) {
-        throw new Error('Failed to generate reCAPTCHA token');
+        throw new Error('Failed to generate reCAPTCHA Enterprise token');
       }
 
-      console.log('reCAPTCHA token generated:', token ? 'success' : 'failed');
+      console.log('reCAPTCHA Enterprise token generated:', token ? 'success' : 'failed');
       return token;
     } catch (error) {
-      console.error('Error executing reCAPTCHA:', error);
-      throw error; // Re-throw to handle in the component
+      console.error('Error executing reCAPTCHA Enterprise:', error);
+      throw error;
     }
   };
 

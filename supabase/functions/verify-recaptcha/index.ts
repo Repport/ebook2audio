@@ -30,71 +30,79 @@ serve(async (req) => {
       throw new Error('RECAPTCHA_SECRET_KEY not found in environment');
     }
 
-    console.log('Starting reCAPTCHA verification with:', {
+    console.log('Starting reCAPTCHA Enterprise verification with:', {
       tokenLength: token.length,
       expectedAction,
     });
 
-    // Verify the token using reCAPTCHA v3 verification endpoint
-    const verificationURL = 'https://www.google.com/recaptcha/api/siteverify';
-    const formData = new URLSearchParams();
-    formData.append('secret', secretKey);
-    formData.append('response', token);
-
-    const response = await fetch(verificationURL, {
+    // Verify the token using reCAPTCHA Enterprise verification endpoint
+    const verificationURL = 'https://recaptchaenterprise.googleapis.com/v1/assessment';
+    const projectId = Deno.env.get('RECAPTCHA_PROJECT_ID');
+    
+    const response = await fetch(`${verificationURL}?key=${secretKey}`, {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event: {
+          token,
+          expectedAction,
+          siteKey: Deno.env.get('RECAPTCHA_SITE_KEY'),
+        },
+        project_id: projectId,
+      }),
     });
 
     if (!response.ok) {
-      console.error('reCAPTCHA API response not ok:', {
+      console.error('reCAPTCHA Enterprise API response not ok:', {
         status: response.status,
         statusText: response.statusText
       });
-      throw new Error(`reCAPTCHA API error: ${response.status} ${response.statusText}`);
+      throw new Error(`reCAPTCHA Enterprise API error: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
-    console.log('reCAPTCHA API Response:', result);
+    console.log('reCAPTCHA Enterprise API Response:', result);
 
-    // Log verification details
+    // Enterprise assessment response structure is different
+    const score = result.riskAnalysis?.score || 0;
+    const tokenProperties = result.tokenProperties || {};
+
     console.log('Verification details:', {
-      success: result.success,
-      score: result.score,
-      action: result.action,
-      timestamp: result.challenge_ts,
-      hostname: result.hostname,
-      errors: result['error-codes']
+      score,
+      action: tokenProperties.action,
+      valid: result.tokenProperties?.valid,
+      timestamp: new Date().toISOString(),
     });
 
-    if (!result.success) {
-      const errorMessage = result['error-codes']?.join(', ') || 'Unknown error';
-      console.error('reCAPTCHA verification failed:', errorMessage);
-      throw new Error(`reCAPTCHA verification failed: ${errorMessage}`);
+    if (!tokenProperties.valid) {
+      console.error('reCAPTCHA Enterprise verification failed:', result.riskAnalysis?.reasons || []);
+      throw new Error('reCAPTCHA Enterprise verification failed');
     }
 
-    // For v3, verify the action and score
-    if (expectedAction && result.action !== expectedAction) {
+    // For Enterprise, verify the action and score
+    if (expectedAction && tokenProperties.action !== expectedAction) {
       console.error('Action mismatch:', {
         expected: expectedAction,
-        received: result.action
+        received: tokenProperties.action
       });
-      throw new Error(`Action mismatch. Expected: ${expectedAction}, Got: ${result.action}`);
+      throw new Error(`Action mismatch. Expected: ${expectedAction}, Got: ${tokenProperties.action}`);
     }
 
     // Score ranges from 0.0 to 1.0, where 1.0 is very likely a good interaction
     const minScore = 0.3; // Lowered threshold for testing
-    if (result.score < minScore) {
-      console.error('Score too low:', result.score);
-      throw new Error(`Score too low: ${result.score}`);
+    if (score < minScore) {
+      console.error('Score too low:', score);
+      throw new Error(`Score too low: ${score}`);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        score: result.score,
-        action: result.action,
-        timestamp: result.challenge_ts
+        score,
+        action: tokenProperties.action,
+        timestamp: new Date().toISOString()
       }),
       {
         headers: {
@@ -104,7 +112,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('reCAPTCHA verification error:', error.message);
+    console.error('reCAPTCHA Enterprise verification error:', error.message);
     
     return new Response(
       JSON.stringify({
