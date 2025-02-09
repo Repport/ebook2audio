@@ -53,6 +53,9 @@ const UserMenu = ({ user }: UserMenuProps) => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/settings")}>
+          Settings
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleSignOut}>
           Sign out
         </DropdownMenuItem>
