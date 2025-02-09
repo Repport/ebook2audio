@@ -12,9 +12,9 @@ export async function createConversion(
     .from('text_conversions')
     .select()
     .eq('text_hash', textHash)
-    .single();
+    .maybeSingle();
 
-  if (existingError && !existingError.message.includes('No rows found')) {
+  if (existingError) {
     throw existingError;
   }
 
