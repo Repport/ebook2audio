@@ -56,10 +56,10 @@ export async function processChunks(
         clearTimeout(timeoutId);
 
         if (error) throw new Error(error.message);
-        if (!data?.audioContent) throw new Error('No audio content received');
+        if (!data?.data?.audioContent) throw new Error('No audio content received');
 
         // Convert base64 to ArrayBuffer
-        const binaryString = atob(data.audioContent);
+        const binaryString = atob(data.data.audioContent);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
