@@ -45,32 +45,20 @@ export type Database = {
       email_preferences: {
         Row: {
           clear_email: string | null
-          hashed_email: string | null
+          created_at: string | null
           id: string
-          marketing_emails: boolean | null
-          newsletter: boolean | null
-          notification_emails: boolean | null
-          updated_at: string | null
           user_id: string
         }
         Insert: {
           clear_email?: string | null
-          hashed_email?: string | null
+          created_at?: string | null
           id?: string
-          marketing_emails?: boolean | null
-          newsletter?: boolean | null
-          notification_emails?: boolean | null
-          updated_at?: string | null
           user_id: string
         }
         Update: {
           clear_email?: string | null
-          hashed_email?: string | null
+          created_at?: string | null
           id?: string
-          marketing_emails?: boolean | null
-          newsletter?: boolean | null
-          notification_emails?: boolean | null
-          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

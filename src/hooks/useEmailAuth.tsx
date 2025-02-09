@@ -85,7 +85,7 @@ export const useEmailAuth = () => {
     
     setLoading(true);
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -93,24 +93,18 @@ export const useEmailAuth = () => {
         }
       });
       
-      if (signUpError) {
+      if (error) {
         toast({
           title: "Error signing up",
-          description: signUpError.message,
+          description: error.message,
           variant: "destructive",
         });
       } else {
         toast({
           title: "Success",
-          description: "Check your email for the confirmation link.",
+          description: "Please check your email for the confirmation link.",
         });
       }
-    } catch (error: any) {
-      toast({
-        title: "Error signing up",
-        description: error.message,
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
