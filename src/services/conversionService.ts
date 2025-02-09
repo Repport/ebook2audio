@@ -80,9 +80,11 @@ export const convertToAudio = async (
       .from('text_conversions')
       .select()
       .eq('text_hash', textHash)
-      .maybeSingle();
+      .single();
 
-    if (existingError) throw existingError;
+    if (existingError && !existingError.message.includes('No rows found')) {
+      throw existingError;
+    }
 
     if (existingConversion) {
       conversionId = existingConversion.id;
@@ -106,30 +108,73 @@ export const convertToAudio = async (
       console.log('Created new conversion record:', conversionId);
     }
 
-    // Add to queue
-    queueEntryResult = await retryOperation(async () => {
-      const { data, error } = await supabase
-        .from('conversion_queue')
-        .insert({
-          text_hash: textHash,
-          user_id: userId,
-          priority: 1,
-          status: 'pending'
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      if (!data) throw new Error('Failed to create queue item');
-      return data;
-    });
+    // Add to queue if not already exists
+    const { data: existingQueue, error: queueCheckError } = await supabase
+      .from('conversion_queue')
+      .select()
+      .eq('text_hash', textHash)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (queueCheckError) throw queueCheckError;
+
+    if (!existingQueue) {
+      queueEntryResult = await retryOperation(async () => {
+        const { data, error } = await supabase
+          .from('conversion_queue')
+          .insert({
+            text_hash: textHash,
+            user_id: userId,
+            priority: 1,
+            status: 'pending'
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        if (!data) throw new Error('Failed to create queue item');
+        return data;
+      });
+    } else {
+      queueEntryResult = existingQueue;
+    }
 
     // Process text in chunks
     const textChunks = splitTextIntoChunks(text);
     console.log(`Split text into ${textChunks.length} chunks for parallel processing`);
 
+    // Check for existing chunks
+    const { data: existingChunks, error: chunksError } = await supabase
+      .from('conversion_chunks')
+      .select('chunk_index')
+      .eq('conversion_id', conversionId);
+
+    if (chunksError) throw chunksError;
+
+    // Only insert chunks that don't exist yet
+    const existingIndices = new Set(existingChunks?.map(chunk => chunk.chunk_index) || []);
+    const newChunks = textChunks
+      .map((chunk, index) => ({ chunk_text: chunk, chunk_index: index }))
+      .filter(chunk => !existingIndices.has(chunk.chunk_index));
+
+    if (newChunks.length > 0) {
+      console.log(`Inserting ${newChunks.length} new chunks`);
+      const { error: insertChunksError } = await supabase
+        .from('conversion_chunks')
+        .insert(
+          newChunks.map(chunk => ({
+            conversion_id: conversionId,
+            chunk_text: chunk.chunk_text,
+            chunk_index: chunk.chunk_index,
+            status: 'pending'
+          }))
+        );
+
+      if (insertChunksError) throw insertChunksError;
+    }
+
     // Process all chunks
-    const audioChunks = await processChunks(textChunks, voiceId, conversionId, onProgressUpdate);
+    const audioChunks = await processChunks(textChunks, voiceId, conversionId!, onProgressUpdate);
 
     // Combine audio chunks
     const combinedBuffer = combineAudioChunks(audioChunks);
