@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       email_preferences: {
         Row: {
+          clear_email: string | null
           hashed_email: string | null
           id: string
           marketing_emails: boolean | null
@@ -20,6 +21,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          clear_email?: string | null
           hashed_email?: string | null
           id?: string
           marketing_emails?: boolean | null
@@ -29,6 +31,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          clear_email?: string | null
           hashed_email?: string | null
           id?: string
           marketing_emails?: boolean | null
