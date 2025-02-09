@@ -58,35 +58,46 @@ const Auth = () => {
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in both email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      // First check if the user already exists
-      const { data: existingUser } = await supabase
-        .from('email_preferences')
-        .select('clear_email')
-        .eq('clear_email', email)
-        .single();
-
-      if (existingUser) {
-        toast({
-          title: "Account exists",
-          description: "An account with this email already exists. Please sign in instead.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase.auth.signUp({
+      const { data: { user: newUser }, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            email: email // Include email in user metadata
+          }
+        }
       });
       
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("User already registered")) {
+          toast({
+            title: "Account exists",
+            description: "An account with this email already exists. Please sign in instead.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
       
-      toast({
-        title: "Success",
-        description: "Check your email for the confirmation link.",
-      });
+      if (newUser) {
+        toast({
+          title: "Success",
+          description: "Check your email for the confirmation link.",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error signing up",
