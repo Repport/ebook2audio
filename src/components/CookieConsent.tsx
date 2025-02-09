@@ -46,6 +46,8 @@ const CookieConsentBanner = () => {
       buttonText={translations.cookieAcceptAll}
       declineButtonText={translations.cookieAcceptNecessary}
       enableDeclineButton
+      cookieName="cookieConsent"
+      expires={365}
       style={{
         background: 'rgb(31 41 55)',
         padding: '1rem',

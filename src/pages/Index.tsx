@@ -5,7 +5,6 @@ import Header from '@/components/Header';
 import FileProcessor from '@/components/FileProcessor';
 import { useToast } from '@/hooks/use-toast';
 import { Chapter } from '@/utils/textExtraction';
-import CookieConsentBanner from '@/components/CookieConsent';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -51,7 +50,6 @@ const Index = () => {
           )}
         </div>
       </div>
-      <CookieConsentBanner />
     </div>
   );
 };
