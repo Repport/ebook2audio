@@ -25,8 +25,8 @@ export const useEmailAuth = () => {
           });
         } else if (error.message.includes("captcha verification")) {
           toast({
-            title: "Verification Required",
-            description: "Please try again. If the problem persists, contact support.",
+            title: "Captcha Verification Required",
+            description: "Please disable captcha in your Supabase authentication settings for development.",
             variant: "destructive",
           });
         } else {
@@ -87,8 +87,8 @@ export const useEmailAuth = () => {
       if (signUpError) {
         if (signUpError.message.includes("captcha verification")) {
           toast({
-            title: "Verification Required",
-            description: "Please try again. If the problem persists, contact support.",
+            title: "Captcha Verification Required",
+            description: "Please disable captcha in your Supabase authentication settings for development.",
             variant: "destructive",
           });
         } else {
