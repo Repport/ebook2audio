@@ -34,7 +34,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-4">
         <DialogHeader>
           <DialogTitle>{translations.termsTitle}</DialogTitle>
           <DialogDescription>
@@ -42,7 +42,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="h-[60vh] pr-4">
+        <ScrollArea className="flex-1 pr-4 max-h-[60vh]">
           <div className="space-y-6">
             <section>
               <h3 className="text-lg font-semibold mb-2">{translations.userResponsibility}</h3>
@@ -87,24 +87,24 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
                 {translations.termsDesc}
               </p>
             </section>
-
-            <div className="flex items-start space-x-2 pt-4">
-              <Checkbox 
-                id="terms" 
-                checked={accepted}
-                onCheckedChange={(checked) => setAccepted(checked as boolean)}
-              />
-              <label
-                htmlFor="terms"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                {translations.acceptTerms}
-              </label>
-            </div>
           </div>
         </ScrollArea>
+
+        <div className="flex items-start space-x-2 border-t pt-4">
+          <Checkbox 
+            id="terms" 
+            checked={accepted}
+            onCheckedChange={(checked) => setAccepted(checked as boolean)}
+          />
+          <label
+            htmlFor="terms"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            {translations.acceptTerms}
+          </label>
+        </div>
         
-        <DialogFooter className="flex space-x-2 pt-4">
+        <DialogFooter className="flex justify-end space-x-2 border-t pt-4">
           <Button variant="outline" onClick={onClose}>
             {translations.cancel}
           </Button>
