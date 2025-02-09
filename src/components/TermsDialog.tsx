@@ -16,6 +16,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/hooks/useLanguage";
 
+// Add type definition for Google reCAPTCHA
+declare global {
+  interface Window {
+    grecaptcha: {
+      execute: (siteKey: string, options: { action: string }) => Promise<string>;
+      ready: (callback: () => void) => void;
+    };
+  }
+}
+
 interface TermsDialogProps {
   open: boolean;
   onClose: () => void;
