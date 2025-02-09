@@ -9,12 +9,15 @@ import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import { PasswordRequirements } from "./PasswordRequirements";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import TermsDialog from "@/components/TermsDialog";
+import { Link } from "react-router-dom";
 
 export const AuthForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const { loading, handleEmailSignIn, handleEmailSignUp } = useEmailAuth();
   const { handleGoogleSignIn } = useGoogleAuth();
   const { toast } = useToast();
@@ -76,7 +79,18 @@ export const AuthForm = () => {
               htmlFor="terms"
               className="text-sm text-muted-foreground"
             >
-              I accept the terms and conditions
+              I accept the{" "}
+              <button
+                type="button"
+                onClick={() => setShowTerms(true)}
+                className="text-primary hover:underline"
+              >
+                terms and conditions
+              </button>
+              {" "}and{" "}
+              <Link to="/privacy" className="text-primary hover:underline" target="_blank">
+                privacy policy
+              </Link>
             </label>
           </div>
         )}
@@ -123,6 +137,16 @@ export const AuthForm = () => {
           Google
         </Button>
       </div>
+      
+      <TermsDialog 
+        open={showTerms}
+        onClose={() => setShowTerms(false)}
+        onAccept={() => {
+          setAcceptedTerms(true);
+          setShowTerms(false);
+        }}
+      />
     </form>
   );
 };
+
