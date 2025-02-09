@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { convertToAudio } from '@/services/conversionService';
@@ -139,6 +140,9 @@ export const useAudioConversion = () => {
           throw uploadError;
         }
 
+        // Generate a text hash using the first 100 characters of the text
+        const textHash = btoa(extractedText.slice(0, 100)).slice(0, 32);
+
         const { error: dbError } = await supabase
           .from('text_conversions')
           .insert({
@@ -146,7 +150,8 @@ export const useAudioConversion = () => {
             storage_path: filePath,
             file_size: audio.byteLength,
             duration: Math.round(duration),
-            user_id: user.id
+            user_id: user.id,
+            text_hash: textHash
           });
 
         if (dbError) {
