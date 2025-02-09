@@ -28,11 +28,23 @@ serve(async (req) => {
 
     console.log('Initializing RecaptchaEnterpriseServiceClient...');
     
-    const client = new RecaptchaEnterpriseServiceClient({
-      credentials: JSON.parse(secretKey)
-    });
-    const projectPath = `projects/ambient-tuner-450319-g2`;
+    // Parse and validate the service account credentials
+    let credentials;
+    try {
+      credentials = JSON.parse(secretKey);
+      if (!credentials.type || credentials.type !== 'service_account') {
+        throw new Error('Invalid credentials format: missing or incorrect type field');
+      }
+    } catch (parseError) {
+      console.error('Error parsing credentials:', parseError);
+      throw new Error('Invalid service account credentials format');
+    }
 
+    const client = new RecaptchaEnterpriseServiceClient({
+      credentials
+    });
+    
+    const projectPath = `projects/${credentials.project_id}`;
     console.log('Creating assessment for project:', projectPath);
 
     const [assessment] = await client.createAssessment({
