@@ -40,6 +40,45 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
     return true;
   };
 
+  const checkAccountExists = async (email: string) => {
+    try {
+      const { data, error } = await supabase.auth.admin.listUsers({
+        filters: {
+          email: email.trim()
+        }
+      });
+      
+      if (error) throw error;
+      
+      // If no users found with this email
+      if (!data?.users || data.users.length === 0) {
+        toast({
+          title: "Account not found",
+          description: (
+            <div className="space-y-2">
+              <p>No account exists with this email address.</p>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => onSwitchToSignUp?.()}
+              >
+                Create an account
+              </Button>
+            </div>
+          ),
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error checking account:", error);
+      // If we can't check, we'll try to sign in anyway
+      return true;
+    }
+  };
+
   const handlePasswordRecovery = async () => {
     if (!email) {
       toast({
@@ -95,6 +134,13 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
 
     setLoading(true);
     try {
+      // First check if account exists
+      const accountExists = await checkAccountExists(email);
+      if (!accountExists) {
+        setLoading(false);
+        return;
+      }
+
       console.log("Attempting sign in with:", { email: email.trim() });
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -107,19 +153,7 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Invalid credentials",
-            description: (
-              <div className="space-y-2">
-                <p>The email or password you entered is incorrect.</p>
-                <p>If you don't have an account yet:</p>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => onSwitchToSignUp?.()}
-                >
-                  Create an account
-                </Button>
-              </div>
-            ),
+            description: "The email or password you entered is incorrect.",
             variant: "destructive",
           });
         } else {
@@ -173,3 +207,4 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
 };
 
 export default EmailSignInForm;
+
