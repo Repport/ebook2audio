@@ -2,21 +2,42 @@
 export async function synthesizeSpeech(text: string, voiceId: string, accessToken: string): Promise<string> {
   console.log('Starting speech synthesis with voice:', voiceId);
   
-  // Split text into chunks if it's too long (5000 characters limit for Google TTS)
-  const MAX_CHARS = 5000;
-  const textChunks = [];
-  for (let i = 0; i < text.length; i += MAX_CHARS) {
-    textChunks.push(text.slice(i, i + MAX_CHARS));
+  // Split text into chunks of characters, respecting word boundaries
+  const MAX_CHARS = 4500; // Leave some room for SSML tags
+  const words = text.split(/\s+/);
+  const textChunks: string[] = [];
+  let currentChunk = '';
+  
+  for (const word of words) {
+    if ((currentChunk + ' ' + word).length > MAX_CHARS) {
+      textChunks.push(currentChunk.trim());
+      currentChunk = word;
+    } else {
+      currentChunk += (currentChunk ? ' ' : '') + word;
+    }
+  }
+  if (currentChunk) {
+    textChunks.push(currentChunk.trim());
   }
   
+  console.log(`Split text into ${textChunks.length} chunks`);
+  
   try {
-    const results = await Promise.all(textChunks.map(async (chunk) => {
+    const results = await Promise.all(textChunks.map(async (chunk, index) => {
+      // Escape special characters in the text
+      const escapedChunk = chunk
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+
       const requestBody = {
         input: {
-          ssml: `<speak>${chunk}</speak>`
+          ssml: `<speak>${escapedChunk}</speak>`
         },
         voice: {
-          languageCode: voiceId.split('-')[0] + '-' + voiceId.split('-')[1], // e.g., "en-US"
+          languageCode: voiceId.split('-')[0] + '-' + voiceId.split('-')[1],
           name: voiceId,
         },
         audioConfig: {
@@ -27,7 +48,8 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
         }
       };
 
-      console.log('Making request to Text-to-Speech API...');
+      console.log(`Processing chunk ${index + 1}/${textChunks.length} (${chunk.length} characters)`);
+      
       const response = await fetch(
         'https://texttospeech.googleapis.com/v1/text:synthesize',
         {
@@ -42,17 +64,18 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Speech API error response:', errorText);
+        console.error(`Error processing chunk ${index + 1}:`, errorText);
         throw new Error(`Speech API failed: ${response.status} ${response.statusText}\n${errorText}`);
       }
 
       const data = await response.json();
+      console.log(`Successfully processed chunk ${index + 1}`);
       return data.audioContent;
     }));
 
     // Combine all audio chunks
     const combinedAudioContent = results.join('');
-    console.log('Successfully synthesized speech');
+    console.log(`Successfully synthesized speech from ${textChunks.length} chunks`);
     return combinedAudioContent;
     
   } catch (error) {
@@ -60,4 +83,3 @@ export async function synthesizeSpeech(text: string, voiceId: string, accessToke
     throw error;
   }
 }
-
