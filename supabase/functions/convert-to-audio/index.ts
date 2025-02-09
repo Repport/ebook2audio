@@ -22,7 +22,20 @@ serve(async (req) => {
     }
 
     // Initialize Google Cloud TTS client
-    const credentials = JSON.parse(Deno.env.get('GCP_SERVICE_ACCOUNT') || '{}');
+    const credentialsString = Deno.env.get('GCP_SERVICE_ACCOUNT');
+    if (!credentialsString) {
+      throw new Error('GCP credentials not found');
+    }
+
+    let credentials;
+    try {
+      // The credentials are stored as a base64 encoded string
+      const decodedCredentials = atob(credentialsString);
+      credentials = JSON.parse(decodedCredentials);
+    } catch (error) {
+      console.error('Failed to parse GCP credentials:', error);
+      throw new Error('Invalid GCP credentials format');
+    }
     
     // Get access token for Google Cloud API
     const tokenResponse = await fetch(
@@ -125,10 +138,14 @@ async function createJWT(credentials: any) {
 
   // Create signature
   const encoder = new TextEncoder();
-  const keyData = credentials.private_key;
+  const privateKeyPEM = credentials.private_key
+    .replace(/\\n/g, '\n')
+    .replace(/["']/g, ''); // Clean up any quotes and handle newlines
+
+  // Import the private key
   const privateKey = await crypto.subtle.importKey(
     'pkcs8',
-    new Uint8Array(keyData.split('').map(c => c.charCodeAt(0))),
+    str2ab(privateKeyPEM),
     {
       name: 'RSASSA-PKCS1-v1_5',
       hash: 'SHA-256',
@@ -145,4 +162,14 @@ async function createJWT(credentials: any) {
 
   const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)));
   return `${signatureInput}.${encodedSignature}`;
+}
+
+// Helper function to convert string to ArrayBuffer
+function str2ab(str: string): ArrayBuffer {
+  const buf = new ArrayBuffer(str.length);
+  const bufView = new Uint8Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
 }
