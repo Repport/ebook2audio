@@ -28,11 +28,6 @@ export const useEmailAuth = () => {
         return;
       }
 
-      // If user doesn't exist, automatically try to sign them up
-      if (!existingUser) {
-        return handleEmailSignUp(email, password);
-      }
-
       // Proceed with sign in if user exists
       const { error } = await supabase.auth.signInWithPassword({
         email,

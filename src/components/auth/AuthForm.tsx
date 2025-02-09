@@ -10,12 +10,17 @@ import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 export const AuthForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
   const { loading, handleEmailSignIn, handleEmailSignUp } = useEmailAuth();
   const { handleGoogleSignIn } = useGoogleAuth();
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    handleEmailSignIn(email, password);
+    if (isSignUp) {
+      handleEmailSignUp(email, password);
+    } else {
+      handleEmailSignIn(email, password);
+    }
   };
 
   return (
@@ -53,16 +58,16 @@ export const AuthForm = () => {
           className="w-full"
           disabled={loading}
         >
-          {loading ? "Signing in..." : "Sign in"}
+          {loading ? "Processing..." : (isSignUp ? "Sign up" : "Sign in")}
         </Button>
         <Button
           type="button"
-          onClick={() => handleEmailSignUp(email, password)}
+          onClick={() => setIsSignUp(!isSignUp)}
           variant="outline"
           className="w-full"
           disabled={loading}
         >
-          {loading ? "Creating account..." : "Sign up"}
+          {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
         </Button>
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
