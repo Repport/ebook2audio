@@ -37,14 +37,22 @@ serve(async (req) => {
     const text = requestData.text ? deobfuscateData(requestData.text) : '';
     const voiceId = requestData.voiceId ? deobfuscateData(requestData.voiceId) : 'en-US-Standard-C';
     const fileName = requestData.fileName;
+    const isChunk = requestData.isChunk || false;
 
     console.log('Request received - IP:', ip, 'User:', user.id, 'File:', fileName);
 
-    const { data: rateLimitCheck, error: rateLimitError } = await supabase
-      .rpc('check_conversion_rate_limit', { p_ip_address: ip });
+    // Calculate chunks for rate limiting if this is the first chunk of a conversion
+    if (!isChunk) {
+      const chunkCount = Math.ceil(text.length / 5000); // Using same chunk size as splitTextIntoChunks
+      const { data: rateLimitCheck, error: rateLimitError } = await supabase
+        .rpc('check_conversion_rate_limit', { 
+          p_ip_address: ip,
+          chunk_count: chunkCount
+        });
 
-    if (rateLimitError || !rateLimitCheck) {
-      throw new Error('Rate limit exceeded for this IP address');
+      if (rateLimitError || !rateLimitCheck) {
+        throw new Error('Rate limit exceeded for this IP address');
+      }
     }
 
     const cleanedText = cleanText(text);
@@ -66,7 +74,8 @@ serve(async (req) => {
         ip_address: ip,
         file_name: fileName,
         file_size: text.length,
-        successful: true
+        successful: true,
+        chunk_count: isChunk ? null : Math.ceil(text.length / 5000) // Only log chunk count for full conversions
       });
 
     if (logError) {

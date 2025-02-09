@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       conversion_logs: {
         Row: {
+          chunk_count: number | null
           conversion_timestamp: string | null
           file_name: string | null
           file_size: number | null
@@ -21,6 +22,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          chunk_count?: number | null
           conversion_timestamp?: string | null
           file_name?: string | null
           file_size?: number | null
@@ -31,6 +33,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          chunk_count?: number | null
           conversion_timestamp?: string | null
           file_name?: string | null
           file_size?: number | null
@@ -271,14 +274,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_conversion_rate_limit: {
-        Args: {
-          p_ip_address: string
-          max_conversions?: number
-          window_hours?: number
-        }
-        Returns: boolean
-      }
+      check_conversion_rate_limit:
+        | {
+            Args: {
+              p_ip_address: string
+              chunk_count?: number
+              max_conversions?: number
+              window_hours?: number
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_ip_address: string
+              max_conversions?: number
+              window_hours?: number
+            }
+            Returns: boolean
+          }
     }
     Enums: {
       [_ in never]: never
