@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { obfuscateData } from "./utils";
 import { ProgressCallback } from "./types";
 
-const MAX_CONCURRENT_REQUESTS = 8; // Increased from 1 to 8 for parallel processing
+const MAX_CONCURRENT_REQUESTS = 8;
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 2000;
 const REQUEST_TIMEOUT = 45000;
@@ -29,16 +29,6 @@ export async function processChunks(
   if (onProgressUpdate) {
     onProgressUpdate(0, chunks.length, 0);
   }
-
-  // Initialize chunks in database with queue status tracking
-  await Promise.all(chunks.map((chunk, index) => 
-    supabase.from('conversion_chunks').insert({
-      conversion_id: conversionId,
-      chunk_index: index,
-      chunk_text: chunk,
-      status: 'pending'
-    })
-  ));
 
   const processChunk = async (index: number): Promise<void> => {
     if (index >= chunks.length) return;
@@ -79,11 +69,21 @@ export async function processChunks(
           throw new Error('No audio content received');
         }
 
-        // Clean and validate the base64 string
-        const cleanBase64 = data.data.audioContent.replace(/[^A-Za-z0-9+/]/g, '');
-        const paddedBase64 = cleanBase64.padEnd(Math.ceil(cleanBase64.length / 4) * 4, '=');
-
         try {
+          // Remove any whitespace and normalize the base64 string
+          const cleanBase64 = data.data.audioContent.replace(/[\n\r\s]/g, '');
+          
+          // Add padding if necessary
+          const padding = cleanBase64.length % 4;
+          const paddedBase64 = padding ? 
+            cleanBase64.padEnd(cleanBase64.length + (4 - padding), '=') : 
+            cleanBase64;
+
+          // Validate base64 format
+          if (!/^[A-Za-z0-9+/]*={0,2}$/.test(paddedBase64)) {
+            throw new Error('Invalid base64 format');
+          }
+
           const binaryString = atob(paddedBase64);
           const bytes = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) {
@@ -190,3 +190,4 @@ export function combineAudioChunks(audioChunks: ArrayBuffer[]): ArrayBuffer {
 
   return combinedBuffer.buffer;
 }
+

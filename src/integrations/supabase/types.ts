@@ -287,6 +287,7 @@ export type Database = {
           content_type: string | null
           created_at: string
           duration: number | null
+          error_message: string | null
           expires_at: string
           file_name: string | null
           file_size: number | null
@@ -302,6 +303,7 @@ export type Database = {
           content_type?: string | null
           created_at?: string
           duration?: number | null
+          error_message?: string | null
           expires_at?: string
           file_name?: string | null
           file_size?: number | null
@@ -317,6 +319,7 @@ export type Database = {
           content_type?: string | null
           created_at?: string
           duration?: number | null
+          error_message?: string | null
           expires_at?: string
           file_name?: string | null
           file_size?: number | null
