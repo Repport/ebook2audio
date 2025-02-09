@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Dialog,
@@ -36,6 +36,8 @@ interface TermsDialogProps {
 
 const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialogProps) => {
   const [accepted, setAccepted] = React.useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationPassed, setVerificationPassed] = useState(false);
   const { toast } = useToast();
   const { translations } = useLanguage();
 
@@ -62,8 +64,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   });
 
   useEffect(() => {
-    // Load reCAPTCHA v3 script when the component mounts and we have the site key
-    if (reCaptchaKey) {
+    if (reCaptchaKey && open) {
       const script = document.createElement('script');
       script.src = `https://www.google.com/recaptcha/api.js?render=${reCaptchaKey}`;
       script.async = true;
@@ -73,7 +74,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
         document.head.removeChild(script);
       };
     }
-  }, [reCaptchaKey]);
+  }, [reCaptchaKey, open]);
 
   const executeRecaptcha = async () => {
     if (!window.grecaptcha) {
@@ -102,6 +103,54 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
     } catch (error) {
       console.error('Error verifying reCAPTCHA:', error);
       return null;
+    }
+  };
+
+  const handleCheckboxChange = async (checked: boolean) => {
+    setAccepted(checked);
+    if (checked) {
+      setIsVerifying(true);
+      try {
+        const token = await executeRecaptcha();
+        if (!token) {
+          toast({
+            title: "Verification Failed",
+            description: "Could not complete security verification. Please try again.",
+            variant: "destructive",
+          });
+          setAccepted(false);
+          return;
+        }
+
+        const verification = await verifyRecaptcha(token);
+        if (!verification || !verification.success) {
+          toast({
+            title: "Verification Failed",
+            description: "Security verification failed. Please try again later.",
+            variant: "destructive",
+          });
+          setAccepted(false);
+          return;
+        }
+
+        setVerificationPassed(true);
+        toast({
+          title: "Verification Successful",
+          description: "You can now proceed with accepting the terms.",
+        });
+      } catch (error) {
+        console.error('Error in verification process:', error);
+        toast({
+          title: "Error",
+          description: "An error occurred during verification. Please try again.",
+          variant: "destructive",
+        });
+        setAccepted(false);
+      } finally {
+        setIsVerifying(false);
+      }
+    } else {
+      setVerificationPassed(false);
     }
   };
 
@@ -143,10 +192,10 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   };
 
   const handleAccept = async () => {
-    if (!accepted) {
+    if (!accepted || !verificationPassed) {
       toast({
-        title: "Terms Acceptance Required",
-        description: "Please accept the terms and conditions to continue",
+        title: "Verification Required",
+        description: "Please accept the terms and complete the verification to continue",
         variant: "destructive",
       });
       return;
@@ -222,7 +271,8 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
             <Checkbox 
               id="terms" 
               checked={accepted}
-              onCheckedChange={(checked) => setAccepted(checked as boolean)}
+              disabled={isVerifying}
+              onCheckedChange={handleCheckboxChange}
             />
             <label 
               htmlFor="terms" 
@@ -231,6 +281,11 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               I accept the terms and conditions, including the 30-day data retention period, and confirm that I have the legal rights to the content of the uploaded file.
             </label>
           </div>
+          {isVerifying && (
+            <div className="text-sm text-blue-600 text-center">
+              Verifying...
+            </div>
+          )}
           {isError && (
             <div className="text-red-500 text-sm text-center">
               Error loading security verification. Please try again later.
@@ -241,7 +296,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 
             onClick={handleAccept}
-            disabled={!accepted || !reCaptchaKey || isError}
+            disabled={!accepted || !verificationPassed || !reCaptchaKey || isError}
           >
             Accept and Continue
           </Button>
