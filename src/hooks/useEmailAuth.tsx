@@ -28,6 +28,17 @@ export const useEmailAuth = () => {
         return;
       }
 
+      // If user doesn't exist, show sign up message
+      if (!existingUser) {
+        toast({
+          title: "Account not found",
+          description: "This account doesn't exist. Please sign up.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       // Proceed with sign in if user exists
       const { error } = await supabase.auth.signInWithPassword({
         email,
