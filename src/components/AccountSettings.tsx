@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 
 interface EmailPreferences {
   marketing_emails: boolean;
@@ -30,6 +31,7 @@ const AccountSettings = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isDeleting, setIsDeleting] = useState(false);
+  const { user } = useAuth();
 
   const { data: preferences, isLoading } = useQuery({
     queryKey: ["emailPreferences"],
@@ -37,11 +39,13 @@ const AccountSettings = () => {
       const { data, error } = await supabase
         .from("email_preferences")
         .select("*")
+        .eq("user_id", user?.id)
         .single();
 
       if (error) throw error;
       return data as EmailPreferences;
     },
+    enabled: !!user,
   });
 
   const updatePreferencesMutation = useMutation({
@@ -49,7 +53,7 @@ const AccountSettings = () => {
       const { error } = await supabase
         .from("email_preferences")
         .update(newPreferences)
-        .not("id", "is", null);
+        .eq("user_id", user?.id);
       
       if (error) throw error;
     },
@@ -72,10 +76,19 @@ const AccountSettings = () => {
   const handleDeleteAccount = async () => {
     try {
       setIsDeleting(true);
-      const { error } = await supabase.auth.admin.deleteUser(
-        (await supabase.auth.getUser()).data.user?.id ?? ""
+      // First, delete the user's data
+      const { error: dataError } = await supabase
+        .from("email_preferences")
+        .delete()
+        .eq("user_id", user?.id);
+
+      if (dataError) throw dataError;
+
+      // Then, delete the auth user
+      const { error: authError } = await supabase.auth.admin.deleteUser(
+        user?.id ?? ""
       );
-      if (error) throw error;
+      if (authError) throw authError;
 
       await supabase.auth.signOut();
       navigate("/auth");
