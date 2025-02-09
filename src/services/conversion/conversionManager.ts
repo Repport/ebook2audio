@@ -28,46 +28,40 @@ export async function createConversion(
       return existingConversion.id;
     }
 
-    // If no existing conversion found, try to create a new one
-    const { data: newConversion, error: insertError } = await supabase
+    // First perform the upsert without returning data
+    const { error: insertError } = await supabase
       .from('text_conversions')
-      .upsert(
-        {
-          text_hash: textHash,
-          file_name: fileName,
-          user_id: userId,
-          status: 'pending',
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-        },
-        {
-          onConflict: 'text_hash',
-          ignoreDuplicates: true
-        }
-      )
-      .select()
-      .maybeSingle();
+      .upsert({
+        text_hash: textHash,
+        file_name: fileName,
+        user_id: userId,
+        status: 'pending',
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+      });
 
     if (insertError) {
       console.error('Error creating conversion:', insertError);
-      // If insert failed, try one more time to fetch an existing record
-      const { data: retryFetch, error: retryError } = await supabase
-        .from('text_conversions')
-        .select()
-        .eq('text_hash', textHash)
-        .maybeSingle();
-
-      if (retryError) throw retryError;
-      if (!retryFetch) throw new Error('Failed to create or find conversion record');
-      
-      return retryFetch.id;
+      throw insertError;
     }
 
-    if (!newConversion) {
-      throw new Error('Failed to create conversion record and no existing record found');
+    // Then fetch the record (whether it was just inserted or already existed)
+    const { data: conversion, error: selectError } = await supabase
+      .from('text_conversions')
+      .select()
+      .eq('text_hash', textHash)
+      .maybeSingle();
+
+    if (selectError) {
+      console.error('Error fetching conversion after upsert:', selectError);
+      throw selectError;
     }
 
-    console.log('Created new conversion record:', newConversion.id);
-    return newConversion.id;
+    if (!conversion) {
+      throw new Error('Failed to create or find conversion record');
+    }
+
+    console.log('Using conversion record:', conversion.id);
+    return conversion.id;
   } catch (error) {
     console.error('Error in createConversion:', error);
     throw error;
