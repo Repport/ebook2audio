@@ -39,6 +39,12 @@ const Auth = () => {
             description: "Please check your email and password and try again.",
             variant: "destructive",
           });
+        } else if (error.message.includes("captcha verification")) {
+          toast({
+            title: "Authentication Error",
+            description: "Please try again in a few minutes. If the problem persists, contact support.",
+            variant: "destructive",
+          });
         } else {
           throw error;
         }
@@ -60,12 +66,21 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // First check if the user already exists
-      const { data: existingUser } = await supabase
+      // First check if the user already exists, using maybeSingle instead of single
+      const { data: existingUser, error: queryError } = await supabase
         .from('email_preferences')
         .select('clear_email')
         .eq('clear_email', email)
-        .single();
+        .maybeSingle();
+
+      if (queryError) {
+        toast({
+          title: "Error checking email",
+          description: "Please try again later.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (existingUser) {
         toast({
@@ -81,12 +96,22 @@ const Auth = () => {
         password,
       });
       
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Check your email for the confirmation link.",
-      });
+      if (error) {
+        if (error.message.includes("captcha verification")) {
+          toast({
+            title: "Authentication Error",
+            description: "Please try again in a few minutes. If the problem persists, contact support.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+      } else {
+        toast({
+          title: "Success",
+          description: "Check your email for the confirmation link.",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error signing up",

@@ -96,9 +96,31 @@ export type Database = {
         }
         Relationships: []
       }
+      site_config: {
+        Row: {
+          created_at: string | null
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       terms_acceptance_logs: {
         Row: {
           accepted_at: string
+          captcha_token: string | null
           cookies_acceptance_date: string | null
           cookies_all_accepted: boolean | null
           cookies_necessary_only: boolean | null
@@ -106,10 +128,13 @@ export type Database = {
           file_type: string | null
           id: string
           ip_address: string
+          recaptcha_score: number | null
+          retention_period_accepted: boolean | null
           user_agent: string | null
         }
         Insert: {
           accepted_at?: string
+          captcha_token?: string | null
           cookies_acceptance_date?: string | null
           cookies_all_accepted?: boolean | null
           cookies_necessary_only?: boolean | null
@@ -117,10 +142,13 @@ export type Database = {
           file_type?: string | null
           id?: string
           ip_address: string
+          recaptcha_score?: number | null
+          retention_period_accepted?: boolean | null
           user_agent?: string | null
         }
         Update: {
           accepted_at?: string
+          captcha_token?: string | null
           cookies_acceptance_date?: string | null
           cookies_all_accepted?: boolean | null
           cookies_necessary_only?: boolean | null
@@ -128,7 +156,45 @@ export type Database = {
           file_type?: string | null
           id?: string
           ip_address?: string
+          recaptcha_score?: number | null
+          retention_period_accepted?: boolean | null
           user_agent?: string | null
+        }
+        Relationships: []
+      }
+      text_conversions: {
+        Row: {
+          audio_content: string | null
+          audio_url: string | null
+          created_at: string
+          duration: number | null
+          expires_at: string
+          file_name: string | null
+          file_size: number | null
+          id: string
+          text_hash: string
+        }
+        Insert: {
+          audio_content?: string | null
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          expires_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          text_hash: string
+        }
+        Update: {
+          audio_content?: string | null
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          expires_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          text_hash?: string
         }
         Relationships: []
       }
