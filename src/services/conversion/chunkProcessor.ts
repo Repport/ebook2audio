@@ -3,10 +3,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { obfuscateData } from "./utils";
 import { ProgressCallback } from "./types";
 
-const MAX_CONCURRENT_REQUESTS = 2; // Reduced from 3 to prevent overwhelming
-const MAX_RETRIES = 5; // Increased from 3 to 5
-const BASE_RETRY_DELAY = 2000; // Base delay of 2 seconds
-const REQUEST_TIMEOUT = 30000; // 30 second timeout
+const MAX_CONCURRENT_REQUESTS = 2;
+const MAX_RETRIES = 5;
+const BASE_RETRY_DELAY = 2000;
+const REQUEST_TIMEOUT = 30000;
+
+interface ConvertToAudioResponse {
+  data: {
+    audioContent: string;
+  } | null;
+  error: Error | null;
+}
 
 export async function processChunks(
   chunks: string[], 
@@ -33,14 +40,13 @@ export async function processChunks(
         const obfuscatedVoiceId = obfuscateData(voiceId);
 
         const response = await Promise.race([
-          supabase.functions.invoke('convert-to-audio', {
+          supabase.functions.invoke<ConvertToAudioResponse>('convert-to-audio', {
             body: { 
               text: obfuscatedText, 
               voiceId: obfuscatedVoiceId,
               fileName: `chunk_${index}`,
               isChunk: true
-            },
-            signal: controller.signal
+            }
           }),
           new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Request timeout')), REQUEST_TIMEOUT)
@@ -49,7 +55,7 @@ export async function processChunks(
 
         clearTimeout(timeoutId);
 
-        if (response.error) throw response.error;
+        if (response.error) throw new Error(response.error.message);
 
         const { data } = response;
         if (!data?.audioContent) throw new Error('No audio content received');
