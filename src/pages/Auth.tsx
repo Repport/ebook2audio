@@ -1,14 +1,16 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import EmailSignInForm from "./auth/components/EmailSignInForm";
 import EmailSignUpForm from "./auth/components/EmailSignUpForm";
 import GoogleSignInButton from "./auth/components/GoogleSignInButton";
+import { Button } from "@/components/ui/button";
 
 const Auth = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
   useEffect(() => {
     if (user) {
@@ -21,16 +23,45 @@ const Auth = () => {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome
+            {mode === 'signin' ? 'Welcome back' : 'Create an account'}
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Sign in to your account or create a new one
+            {mode === 'signin' 
+              ? "Sign in to your account to continue" 
+              : "Sign up for a new account"}
           </p>
         </div>
         
         <div className="mt-8 space-y-6">
-          <EmailSignInForm onSuccess={() => navigate("/")} />
-          <EmailSignUpForm email="" password="" />
+          {mode === 'signin' ? (
+            <>
+              <EmailSignInForm onSuccess={() => navigate("/")} />
+              <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+                Don't have an account?{' '}
+                <Button
+                  variant="link"
+                  className="font-medium text-primary hover:text-primary/90 p-0"
+                  onClick={() => setMode('signup')}
+                >
+                  Sign up
+                </Button>
+              </p>
+            </>
+          ) : (
+            <>
+              <EmailSignUpForm email="" password="" />
+              <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+                Already have an account?{' '}
+                <Button
+                  variant="link"
+                  className="font-medium text-primary hover:text-primary/90 p-0"
+                  onClick={() => setMode('signin')}
+                >
+                  Sign in
+                </Button>
+              </p>
+            </>
+          )}
           
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
