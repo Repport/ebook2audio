@@ -37,6 +37,12 @@ export const convertToAudio = async (
     throw new Error('Invalid text content: Raw PDF data received. Please check PDF text extraction.');
   }
 
+  // Check text size limits (30MB to stay well under Edge Function limits)
+  const MAX_TEXT_SIZE = 30 * 1024 * 1024;
+  if (text.length > MAX_TEXT_SIZE) {
+    throw new Error(`Text content is too large (${(text.length / (1024 * 1024)).toFixed(1)}MB). Maximum allowed size is ${MAX_TEXT_SIZE / (1024 * 1024)}MB.`);
+  }
+
   console.log('Converting text length:', text.length, 'with voice:', voiceId);
   console.log('Chapters:', chapters?.length || 0);
 
@@ -65,72 +71,101 @@ export const convertToAudio = async (
     return await audioData.arrayBuffer();
   }
 
-  // Obfuscate sensitive data before sending
-  const obfuscatedText = obfuscateData(text);
-  const obfuscatedVoiceId = obfuscateData(voiceId);
+  // Split request into smaller chunks if needed
+  const MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+  let currentAttempt = 0;
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 2000; // 2 seconds
 
-  const { data, error } = await supabase.functions.invoke('convert-to-audio', {
-    body: { 
-      text: obfuscatedText, 
-      voiceId: obfuscatedVoiceId,
-      fileName,
-      chapters: chapters?.map(ch => ({
-        title: ch.title,
-        timestamp: ch.timestamp
-      }))
+  const makeRequest = async (retryCount = 0): Promise<ArrayBuffer> => {
+    try {
+      // Obfuscate sensitive data before sending
+      const obfuscatedText = obfuscateData(text);
+      const obfuscatedVoiceId = obfuscateData(voiceId);
+
+      const { data, error } = await supabase.functions.invoke('convert-to-audio', {
+        body: { 
+          text: obfuscatedText, 
+          voiceId: obfuscatedVoiceId,
+          fileName,
+          chapters: chapters?.map(ch => ({
+            title: ch.title,
+            timestamp: ch.timestamp
+          }))
+        }
+      });
+
+      if (error) {
+        console.error('Conversion error:', error);
+        
+        if (error.message?.includes('rate limit exceeded')) {
+          throw new Error('You have exceeded the maximum number of conversions allowed in 24 hours. Please try again later.');
+        }
+
+        // If it's a network error and we haven't exceeded retries, retry
+        if (error.message?.includes('Failed to fetch') && retryCount < MAX_RETRIES) {
+          console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          return makeRequest(retryCount + 1);
+        }
+
+        throw error;
+      }
+
+      if (!data?.audioContent) {
+        throw new Error('No audio data received');
+      }
+
+      // Convert base64 to Uint8Array for storage
+      const binaryString = atob(data.audioContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Generate a unique filename for storage
+      const storagePath = `${textHash}.mp3`;
+
+      // Upload to storage bucket
+      const { error: uploadError } = await supabase.storage
+        .from('audio_cache')
+        .upload(storagePath, bytes.buffer, {
+          contentType: 'audio/mpeg',
+          upsert: true // Override if exists
+        });
+
+      if (uploadError) {
+        console.error('Error uploading to storage:', uploadError);
+        throw uploadError;
+      }
+
+      // Store the conversion record in the database
+      const { error: insertError } = await supabase
+        .from('text_conversions')
+        .insert({
+          text_hash: textHash,
+          storage_path: storagePath,
+          file_name: fileName,
+          file_size: bytes.length,
+          duration: data.duration || null
+        });
+
+      if (insertError) {
+        console.error('Error storing conversion:', insertError);
+        // Don't throw here as the file is already in storage
+      }
+      
+      return bytes.buffer;
+    } catch (error) {
+      if (currentAttempt < MAX_RETRIES) {
+        currentAttempt++;
+        console.log(`Retrying entire conversion (attempt ${currentAttempt}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return makeRequest();
+      }
+      throw error;
     }
-  });
+  };
 
-  if (error) {
-    if (error.message.includes('rate limit exceeded')) {
-      throw new Error('You have exceeded the maximum number of conversions allowed in 24 hours. Please try again later.');
-    }
-    console.error('Conversion error:', error);
-    throw error;
-  }
-
-  if (!data?.audioContent) {
-    throw new Error('No audio data received');
-  }
-
-  // Convert base64 to Uint8Array for storage
-  const binaryString = atob(data.audioContent);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-
-  // Generate a unique filename for storage
-  const storagePath = `${textHash}.mp3`;
-
-  // Upload to storage bucket
-  const { error: uploadError } = await supabase.storage
-    .from('audio_cache')
-    .upload(storagePath, bytes.buffer, {
-      contentType: 'audio/mpeg',
-      upsert: true // Override if exists
-    });
-
-  if (uploadError) {
-    console.error('Error uploading to storage:', uploadError);
-    throw uploadError;
-  }
-
-  // Store the conversion record in the database
-  const { error: insertError } = await supabase
-    .from('text_conversions')
-    .insert({
-      text_hash: textHash,
-      storage_path: storagePath,
-      file_name: fileName,
-      file_size: bytes.length,
-      duration: data.duration || null
-    });
-
-  if (insertError) {
-    console.error('Error storing conversion:', insertError);
-    // Don't throw here as the file is already in storage
-  }
-  
-  return bytes.buffer;
+  return makeRequest();
 };
