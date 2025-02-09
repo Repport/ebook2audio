@@ -27,7 +27,6 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
       return false;
     }
     
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       toast({
@@ -96,18 +95,22 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting sign in with:", { email: email.trim() });
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       if (error) {
+        console.error("Auth error details:", error);
+        
         if (error.message.includes("Invalid login credentials")) {
           toast({
-            title: "Account not found",
+            title: "Invalid credentials",
             description: (
               <div className="space-y-2">
-                <p>No account found with these credentials.</p>
+                <p>The email or password you entered is incorrect.</p>
+                <p>If you don't have an account yet:</p>
                 <Button 
                   variant="outline" 
                   className="w-full"
@@ -120,14 +123,14 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
             variant: "destructive",
           });
         } else {
-          console.error("Auth error:", error);
           toast({
             title: "Error signing in",
-            description: "An unexpected error occurred. Please try again.",
+            description: error.message || "An unexpected error occurred. Please try again.",
             variant: "destructive",
           });
         }
-      } else {
+      } else if (data.user) {
+        console.log("Sign in successful");
         onSuccess();
       }
     } catch (error: any) {
