@@ -111,7 +111,8 @@ export async function processChunks(
               conversion_id: conversionId,
               chunk_index: index,
               status: 'completed',
-              audio_path: `chunk_${index}.mp3`
+              audio_path: `chunk_${index}.mp3`,
+              chunk_text: chunks[index]
             })
             .eq('conversion_id', conversionId)
             .eq('chunk_index', index);
@@ -156,7 +157,8 @@ export async function processChunks(
           conversion_id: conversionId,
           chunk_index: index,
           status: 'failed',
-          error_message: error.message
+          error_message: error.message,
+          chunk_text: chunks[index]
         })
         .eq('conversion_id', conversionId)
         .eq('chunk_index', index);
