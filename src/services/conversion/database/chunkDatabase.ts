@@ -9,6 +9,7 @@ export async function updateChunkStatus(update: ChunkUpdate): Promise<void> {
       {
         conversion_id: update.conversion_id,
         chunk_index: update.chunk_index,
+        chunk_text: update.chunk_text,
         status: update.status,
         audio_path: update.audio_path,
         error_message: update.error_message

@@ -7,7 +7,7 @@ export interface ConvertToAudioResponse {
 }
 
 export interface ChunkUpdate {
-  chunk_text: string;
+  chunk_text: string;  // Make sure this is required
   conversion_id: string;
   chunk_index: number;
   status: string;
