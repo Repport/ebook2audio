@@ -75,9 +75,21 @@ export const convertToAudio = async (
   let conversionId: string | null = null;
 
   try {
-    // Create main conversion record first
-    const conversionResult = await retryOperation(async () => {
-      const { data, error } = await supabase
+    // Check if conversion record already exists
+    const { data: existingConversion, error: existingError } = await supabase
+      .from('text_conversions')
+      .select()
+      .eq('text_hash', textHash)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (existingConversion) {
+      conversionId = existingConversion.id;
+      console.log('Found existing conversion record:', conversionId);
+    } else {
+      // Create new conversion record
+      const { data: newConversion, error: insertError } = await supabase
         .from('text_conversions')
         .insert({
           text_hash: textHash,
@@ -87,12 +99,12 @@ export const convertToAudio = async (
         .select()
         .single();
       
-      if (error) throw error;
-      return data;
-    });
-
-    if (!conversionResult) throw new Error('Failed to create conversion record');
-    conversionId = conversionResult.id;
+      if (insertError) throw insertError;
+      if (!newConversion) throw new Error('Failed to create conversion record');
+      
+      conversionId = newConversion.id;
+      console.log('Created new conversion record:', conversionId);
+    }
 
     // Add to queue
     queueEntryResult = await retryOperation(async () => {
