@@ -55,8 +55,9 @@ export async function insertChunksBatch(
           throw error;
         }
       }
-    });
+    }, 3, 1000); // Retry up to 3 times with 1 second initial delay
     
+    // Add small delay between batches to prevent overwhelming the database
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 }
@@ -68,6 +69,10 @@ export async function getExistingChunks(conversionId: string): Promise<number[]>
     .eq('conversion_id', conversionId)
     .order('chunk_index', { ascending: true });
 
-  if (chunksError) throw chunksError;
+  if (chunksError) {
+    console.error('Error getting existing chunks:', chunksError);
+    throw chunksError;
+  }
+  
   return (existingChunks || []).map(chunk => chunk.chunk_index);
 }

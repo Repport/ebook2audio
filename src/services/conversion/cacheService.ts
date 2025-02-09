@@ -29,7 +29,7 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
     const result = await retryOperation(async () => {
       const { data, error } = await supabase
         .from('text_conversions')
-        .select('*')
+        .select('storage_path')
         .eq('text_hash', textHash)
         .gt('expires_at', new Date().toISOString())
         .maybeSingle();
@@ -98,6 +98,8 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
     }
 
     const insertResult = await retryOperation(async () => {
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+      
       const { error } = await supabase
         .from('text_conversions')
         .insert({
@@ -105,7 +107,7 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
           storage_path: storagePath,
           file_name: fileName,
           file_size: audioBuffer.byteLength,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days expiration
+          expires_at: expiresAt
         });
       
       return { error };
