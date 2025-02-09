@@ -1,28 +1,14 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { obfuscateData } from "./utils";
-import { ProgressCallback } from "./types";
+import { obfuscateData } from "../utils";
+import { updateChunkStatus } from "../database/chunkDatabase";
+import { decodeBase64Audio } from "../utils/audioUtils";
+import { ConvertToAudioResponse, ProgressCallback } from "../types/chunks";
 
 const MAX_CONCURRENT_REQUESTS = 8;
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 2000;
 const REQUEST_TIMEOUT = 45000;
-
-interface ConvertToAudioResponse {
-  data: {
-    audioContent: string;
-  } | null;
-  error: Error | null;
-}
-
-interface ChunkUpdate {
-  chunk_text: string;
-  conversion_id: string;
-  chunk_index: number;
-  status: string;
-  audio_path?: string;
-  error_message?: string;
-}
 
 export async function processChunks(
   chunks: string[], 
@@ -38,19 +24,6 @@ export async function processChunks(
   if (onProgressUpdate) {
     onProgressUpdate(0, chunks.length, 0);
   }
-
-  const updateChunkStatus = async (update: ChunkUpdate) => {
-    const { error } = await supabase
-      .from('conversion_chunks')
-      .upsert(update)
-      .eq('conversion_id', update.conversion_id)
-      .eq('chunk_index', update.chunk_index);
-
-    if (error) {
-      console.error('Error updating chunk status:', error);
-      throw error;
-    }
-  };
 
   const processChunk = async (index: number): Promise<void> => {
     if (index >= chunks.length) return;
@@ -94,27 +67,7 @@ export async function processChunks(
         }
 
         try {
-          // Remove any whitespace and normalize the base64 string
-          const cleanBase64 = data.data.audioContent.replace(/[\n\r\s]/g, '');
-          
-          // Add padding if necessary
-          const padding = cleanBase64.length % 4;
-          const paddedBase64 = padding ? 
-            cleanBase64.padEnd(cleanBase64.length + (4 - padding), '=') : 
-            cleanBase64;
-
-          // Validate base64 format
-          if (!/^[A-Za-z0-9+/]*={0,2}$/.test(paddedBase64)) {
-            throw new Error('Invalid base64 format');
-          }
-
-          const binaryString = atob(paddedBase64);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-
-          results[index] = bytes.buffer;
+          results[index] = decodeBase64Audio(data.data.audioContent);
           completed++;
 
           // Update chunk status to completed
@@ -206,15 +159,4 @@ export async function processChunks(
   }
 }
 
-export function combineAudioChunks(audioChunks: ArrayBuffer[]): ArrayBuffer {
-  const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
-  const combinedBuffer = new Uint8Array(totalLength);
-  let offset = 0;
-
-  for (const chunk of audioChunks) {
-    combinedBuffer.set(new Uint8Array(chunk), offset);
-    offset += chunk.byteLength;
-  }
-
-  return combinedBuffer.buffer;
-}
+export { combineAudioChunks } from '../utils/audioUtils';
