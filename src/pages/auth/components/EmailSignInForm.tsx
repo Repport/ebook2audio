@@ -34,30 +34,29 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
     try {
       console.log("Starting sign-in process...");
       
-      // Execute hCaptcha verification
-      const token = captchaRef.current ? await executeCaptcha(captchaRef.current.id) : null;
-      if (!token) {
-        toast({
-          title: "Verification Failed",
-          description: "Unable to complete security verification. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // Execute hCaptcha verification if enabled
+      if (isEnabled) {
+        const token = captchaRef.current ? await executeCaptcha(captchaRef.current.id) : null;
+        if (!token) {
+          toast({
+            title: "Verification Failed",
+            description: "Unable to complete security verification. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
 
-      // Verify the token
-      const verification = await verifyCaptcha(token);
-      if (!verification || !verification.success) {
-        return; // Error toast is handled in verifyCaptcha
+        // Verify the token
+        const verification = await verifyCaptcha(token);
+        if (!verification || !verification.success) {
+          return; // Error toast is handled in verifyCaptcha
+        }
       }
 
       console.log("Attempting sign in with:", { email: email.trim() });
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
-        options: {
-          captchaToken: token
-        }
       });
 
       if (error) {
@@ -129,4 +128,3 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
 };
 
 export default EmailSignInForm;
-

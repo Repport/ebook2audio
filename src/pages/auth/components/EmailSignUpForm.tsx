@@ -18,7 +18,6 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
   const [localPassword, setLocalPassword] = useState(password);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
   const { toast } = useToast();
 
   const validateForm = () => {
@@ -127,7 +126,6 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
       />
       <TermsCheckbox
         accepted={termsAccepted}
-        isVerifying={isVerifying}
         onCheckedChange={setTermsAccepted}
       />
       <Button

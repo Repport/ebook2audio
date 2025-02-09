@@ -27,4 +27,3 @@ export const validateSignInForm = (email: string, password: string, toast: Retur
 
   return true;
 };
-
