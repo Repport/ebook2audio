@@ -190,6 +190,8 @@ const Index = () => {
                 status={conversionStatus}
                 onConvert={initiateConversion}
                 onDownload={handleDownload}
+                fileSize={audioData?.byteLength}
+                duration={audioDuration}
               />
 
               <TermsDialog 
@@ -208,4 +210,3 @@ const Index = () => {
 };
 
 export default Index;
-
