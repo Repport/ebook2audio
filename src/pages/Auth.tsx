@@ -32,8 +32,19 @@ const Auth = () => {
         email,
         password,
       });
-      if (error) throw error;
-      navigate("/");
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Invalid credentials",
+            description: "Please check your email and password and try again.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+      } else {
+        navigate("/");
+      }
     } catch (error: any) {
       toast({
         title: "Error signing in",
@@ -49,11 +60,29 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      // First check if the user already exists
+      const { data: existingUser } = await supabase
+        .from('email_preferences')
+        .select('clear_email')
+        .eq('clear_email', email)
+        .single();
+
+      if (existingUser) {
+        toast({
+          title: "Account exists",
+          description: "An account with this email already exists. Please sign in instead.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
       });
+      
       if (error) throw error;
+      
       toast({
         title: "Success",
         description: "Check your email for the confirmation link.",
@@ -73,6 +102,9 @@ const Auth = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        }
       });
       if (error) throw error;
     } catch (error: any) {
@@ -105,6 +137,8 @@ const Auth = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={loading}
+                className="w-full"
               />
             </div>
             <div>
@@ -115,6 +149,8 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={loading}
+                className="w-full"
               />
             </div>
           </div>
@@ -125,7 +161,7 @@ const Auth = () => {
               className="w-full"
               disabled={loading}
             >
-              Sign in
+              {loading ? "Signing in..." : "Sign in"}
             </Button>
             <Button
               type="button"
@@ -134,7 +170,7 @@ const Auth = () => {
               className="w-full"
               disabled={loading}
             >
-              Sign up
+              {loading ? "Creating account..." : "Sign up"}
             </Button>
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
