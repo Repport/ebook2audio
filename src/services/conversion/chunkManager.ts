@@ -8,9 +8,21 @@ export async function insertChunksBatch(
   chunks: { chunk_text: string; chunk_index: number }[], 
   conversionId: string
 ): Promise<void> {
+  // First get existing chunks to avoid duplicates
+  const existingChunks = await getExistingChunks(conversionId);
+  const existingIndexes = new Set(existingChunks);
+
+  // Filter out chunks that already exist
+  const newChunks = chunks.filter(chunk => !existingIndexes.has(chunk.chunk_index));
+
+  if (newChunks.length === 0) {
+    console.log('No new chunks to insert');
+    return;
+  }
+
   const batches = [];
-  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-    batches.push(chunks.slice(i, i + BATCH_SIZE));
+  for (let i = 0; i < newChunks.length; i += BATCH_SIZE) {
+    batches.push(newChunks.slice(i, i + BATCH_SIZE));
   }
 
   for (const batch of batches) {
@@ -33,6 +45,7 @@ export async function insertChunksBatch(
           await insertChunksBatch(batch.slice(0, midPoint), conversionId);
           await insertChunksBatch(batch.slice(midPoint), conversionId);
         } else {
+          console.error('Error inserting chunks:', error);
           throw error;
         }
       }
@@ -52,4 +65,3 @@ export async function getExistingChunks(conversionId: string): Promise<number[]>
   if (chunksError) throw chunksError;
   return (existingChunks || []).map(chunk => chunk.chunk_index);
 }
-
