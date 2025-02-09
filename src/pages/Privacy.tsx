@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -26,8 +25,9 @@ const Privacy = () => {
               <ul className="list-disc pl-6 space-y-2">
                 <li>We process your uploaded files solely for the purpose of conversion to audio format.</li>
                 <li>Files are temporarily stored during the conversion process only.</li>
-                <li>We do not permanently store your uploaded files or the generated audio files.</li>
-                <li>All files are automatically deleted after the conversion process is complete.</li>
+                <li>To improve performance and reduce processing time, we may cache converted audio for frequently requested content.</li>
+                <li>Cached conversions are automatically deleted after a set period.</li>
+                <li>We do not permanently store your uploaded files.</li>
               </ul>
             </section>
 
@@ -84,12 +84,23 @@ const Privacy = () => {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold mt-8 mb-4">7. Updates to Privacy Policy</h2>
+              <h2 className="text-2xl font-semibold mt-8 mb-4">7. Caching and Performance</h2>
+              <p>To provide a better user experience and optimize our service:</p>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>We may cache the results of text-to-speech conversions.</li>
+                <li>Cached data is stored securely and automatically deleted after a set period.</li>
+                <li>No personal information is stored with cached conversions.</li>
+                <li>You can request immediate deletion of any cached data related to your conversions.</li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold mt-8 mb-4">8. Updates to Privacy Policy</h2>
               <p>We may update this privacy policy from time to time. Any changes will be posted on this page with an updated revision date.</p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold mt-8 mb-4">8. Contact Information</h2>
+              <h2 className="text-2xl font-semibold mt-8 mb-4">9. Contact Information</h2>
               <p>If you have any questions about this privacy policy or our data practices, please contact us.</p>
             </section>
           </div>

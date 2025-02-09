@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Dialog,
@@ -54,14 +53,14 @@ const TermsDialog = ({ open, onClose, onAccept }: TermsDialogProps) => {
             <section>
               <h3 className="text-lg font-semibold">4. Service Usage</h3>
               <p className="text-sm text-muted-foreground">
-                Our text-to-speech conversion service is provided "as is." You agree to use the service only for lawful purposes and in accordance with these terms. Any abuse or excessive use of the service may result in temporary or permanent suspension of your account.
+                Our text-to-speech conversion service is provided "as is." You agree to use the service only for lawful purposes and in accordance with these terms. To improve performance, we may cache conversion results. Any abuse or excessive use of the service may result in temporary or permanent suspension of your account.
               </p>
             </section>
 
             <section>
               <h3 className="text-lg font-semibold">5. Data Privacy</h3>
               <p className="text-sm text-muted-foreground">
-                We collect and process your data in accordance with our Privacy Policy. By using our service, you consent to such processing and you warrant that all data provided by you is accurate.
+                We collect and process your data in accordance with our Privacy Policy. By using our service, you consent to such processing, including the temporary caching of conversion results, and you warrant that all data provided by you is accurate.
               </p>
             </section>
 
@@ -105,4 +104,3 @@ const TermsDialog = ({ open, onClose, onAccept }: TermsDialogProps) => {
 };
 
 export default TermsDialog;
-

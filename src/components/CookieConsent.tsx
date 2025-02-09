@@ -1,4 +1,3 @@
-
 import React from 'react';
 import CookieConsent from 'react-cookie-consent';
 import { useToast } from '@/hooks/use-toast';
@@ -88,7 +87,7 @@ const CookieConsentBanner = () => {
         {translations.cookieDescription}
       </p>
       <ul className="text-sm text-white mb-4 list-disc pl-6 space-y-2">
-        <li>{translations.cookieNecessary}</li>
+        <li>{translations.cookieNecessary} Includes caching for improved performance.</li>
         <li>{translations.cookieAnalytics}</li>
         <li>{translations.cookieAdvertising}</li>
       </ul>
