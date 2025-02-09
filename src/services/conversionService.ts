@@ -6,6 +6,16 @@ interface ChapterWithTimestamp extends Chapter {
   timestamp: number;
 }
 
+// Simple XOR-based obfuscation
+function obfuscateData(data: string): string {
+  const key = 'epub2audio'; // Simple key for XOR operation
+  let result = '';
+  for (let i = 0; i < data.length; i++) {
+    result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  }
+  return result;
+}
+
 export const convertToAudio = async (
   text: string, 
   voiceId: string,
@@ -19,10 +29,14 @@ export const convertToAudio = async (
   console.log('Converting text length:', text.length, 'with voice:', voiceId);
   console.log('Chapters:', chapters?.length || 0);
 
+  // Obfuscate sensitive data before sending
+  const obfuscatedText = obfuscateData(text);
+  const obfuscatedVoiceId = obfuscateData(voiceId);
+
   const { data, error } = await supabase.functions.invoke('convert-to-audio', {
     body: { 
-      text, 
-      voiceId,
+      text: obfuscatedText, 
+      voiceId: obfuscatedVoiceId,
       chapters: chapters?.map(ch => ({
         title: ch.title,
         timestamp: ch.timestamp

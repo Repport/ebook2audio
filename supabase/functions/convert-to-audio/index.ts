@@ -7,6 +7,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Simple XOR-based obfuscation
+function deobfuscateData(data: string): string {
+  const key = 'epub2audio'; // Simple key for XOR operation
+  let result = '';
+  for (let i = 0; i < data.length; i++) {
+    result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  }
+  return result;
+}
+
 function cleanText(text: string): string {
   return text
     .replace(/\n+/g, '\n')
@@ -32,7 +42,12 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId = 'en-US-Standard-C', chapters } = await req.json();
+    const requestData = await req.json();
+    // Deobfuscate the text and voiceId
+    const text = requestData.text ? deobfuscateData(requestData.text) : '';
+    const voiceId = requestData.voiceId ? deobfuscateData(requestData.voiceId) : 'en-US-Standard-C';
+    const chapters = requestData.chapters;
+
     console.log('Request received with text length:', text.length, 'voice:', voiceId, 'chapters:', chapters?.length || 0);
 
     const accessToken = await getAccessToken();
