@@ -1,23 +1,14 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { Label } from "@/components/ui/label";
-import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
-import TermsCheckbox from "@/components/TermsCheckbox";
+import EmailSignInForm from "./auth/components/EmailSignInForm";
+import EmailSignUpForm from "./auth/components/EmailSignUpForm";
+import GoogleSignInButton from "./auth/components/GoogleSignInButton";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -26,120 +17,6 @@ const Auth = () => {
       navigate("/");
     }
   }, [user, navigate]);
-
-  const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          toast({
-            title: "Invalid credentials",
-            description: "Please check your email and password and try again.",
-            variant: "destructive",
-          });
-        } else {
-          throw error;
-        }
-      } else {
-        navigate("/");
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error signing in",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmailSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in both email and password.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!termsAccepted) {
-      toast({
-        title: "Terms not accepted",
-        description: "Please accept the terms and conditions to continue.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data: { user: newUser }, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            email: email, // Include email in user metadata
-            terms_accepted: true,
-            terms_accepted_at: new Date().toISOString()
-          }
-        }
-      });
-      
-      if (error) {
-        if (error.message.includes("User already registered")) {
-          toast({
-            title: "Account exists",
-            description: "An account with this email already exists. Please sign in instead.",
-            variant: "destructive",
-          });
-        } else {
-          throw error;
-        }
-        return;
-      }
-      
-      if (newUser) {
-        toast({
-          title: "Success",
-          description: "Check your email for the confirmation link.",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error signing up",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-        }
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      toast({
-        title: "Error signing in with Google",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
@@ -152,80 +29,24 @@ const Auth = () => {
             Sign in to your account or create a new one
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleEmailSignIn}>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-                className="w-full"
-              />
+        
+        <div className="mt-8 space-y-6">
+          <EmailSignInForm onSuccess={() => navigate("/")} />
+          <EmailSignUpForm email={email} password={password} />
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
             </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-                className="w-full"
-              />
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+              </span>
             </div>
           </div>
-
-          <div className="space-y-4">
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? "Signing in..." : "Sign in"}
-            </Button>
-            <div className="space-y-4">
-              <TermsCheckbox
-                accepted={termsAccepted}
-                isVerifying={isVerifying}
-                onCheckedChange={setTermsAccepted}
-              />
-              <Button
-                type="button"
-                onClick={handleEmailSignUp}
-                variant="outline"
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? "Creating account..." : "Sign up"}
-              </Button>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGoogleSignIn}
-              className="w-full"
-              disabled={loading}
-            >
-              <FcGoogle className="mr-2 h-4 w-4" />
-              Google
-            </Button>
-          </div>
-        </form>
+          
+          <GoogleSignInButton />
+        </div>
       </div>
     </div>
   );
