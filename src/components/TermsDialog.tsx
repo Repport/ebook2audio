@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Dialog,
@@ -9,94 +10,109 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TermsDialogProps {
   open: boolean;
   onClose: () => void;
   onAccept: () => void;
+  fileName?: string;
+  fileType?: string;
 }
 
-const TermsDialog = ({ open, onClose, onAccept }: TermsDialogProps) => {
+const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialogProps) => {
+  const [accepted, setAccepted] = React.useState(false);
+
+  const handleAccept = () => {
+    if (accepted) {
+      onAccept();
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh]">
         <DialogHeader>
-          <DialogTitle>Terms and Conditions</DialogTitle>
+          <DialogTitle>Notice and Terms of Use</DialogTitle>
           <DialogDescription>
-            Please read these terms carefully before accepting
+            Before proceeding with the conversion of your file to audio, you must accept the following terms
           </DialogDescription>
         </DialogHeader>
         
         <ScrollArea className="h-[60vh] pr-4">
-          <div className="space-y-4">
+          <div className="space-y-6">
             <section>
-              <h3 className="text-lg font-semibold">1. Acceptance of Terms</h3>
+              <h3 className="text-lg font-semibold mb-2">1. User Responsibility</h3>
               <p className="text-sm text-muted-foreground">
-                By accessing and using our services, you agree to be bound by these Terms and Conditions, our Privacy Policy, and any additional terms and conditions that may apply.
+                You declare and guarantee that you have the legal rights to use, process, and convert the content of the file you are uploading.
               </p>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold">2. User Responsibilities</h3>
+              <h3 className="text-lg font-semibold mb-2">2. Copyright Compliance</h3>
               <p className="text-sm text-muted-foreground">
-                You are responsible for maintaining the confidentiality of your account information and for all activities that occur under your account. You agree to notify us immediately of any unauthorized use of your account.
+                Uploading copyrighted content without explicit authorization from the rights holder is strictly prohibited. 
+                The user is solely responsible for any infringement.
               </p>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold">3. Intellectual Property Rights</h3>
+              <h3 className="text-lg font-semibold mb-2">3. Liability Disclaimer</h3>
               <p className="text-sm text-muted-foreground">
-                All content, including but not limited to text, graphics, logos, and software, is the property of our company and is protected by intellectual property laws. You may not use, reproduce, or distribute any content without our explicit permission.
+                Our service does not review or monitor the content of uploaded files. We assume no responsibility 
+                for the misuse of the service or any legal claims arising from the processed content.
               </p>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold">4. Service Usage</h3>
+              <h3 className="text-lg font-semibold mb-2">4. File Retention Policy</h3>
+              <ul className="list-disc pl-6 space-y-2 text-sm text-muted-foreground">
+                <li>The uploaded files and generated audio will be retained for 30 days for support and claim purposes.</li>
+                <li>After this period, all files will be automatically deleted and will no longer be accessible.</li>
+                <li>Users can request early deletion by contacting our support team.</li>
+              </ul>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold mb-2">5. Privacy Policy</h3>
               <p className="text-sm text-muted-foreground">
-                Our text-to-speech conversion service is provided "as is." You agree to use the service only for lawful purposes and in accordance with these terms. To improve performance, we may cache conversion results. Any abuse or excessive use of the service may result in temporary or permanent suspension of your account.
+                Your files are stored securely and are not shared with third parties. Please refer to our privacy 
+                policy for more details.
               </p>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold">5. Data Privacy</h3>
+              <h3 className="text-lg font-semibold mb-2">6. Terms of Use</h3>
               <p className="text-sm text-muted-foreground">
-                We collect and process your data in accordance with our Privacy Policy. By using our service, you consent to such processing, including the temporary caching of conversion results, and you warrant that all data provided by you is accurate.
+                We reserve the right to suspend or terminate access to this service in case of misuse or violation 
+                of these terms.
               </p>
             </section>
 
-            <section>
-              <h3 className="text-lg font-semibold">6. Limitations of Liability</h3>
-              <p className="text-sm text-muted-foreground">
-                We shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses.
-              </p>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold">7. Modifications to Service</h3>
-              <p className="text-sm text-muted-foreground">
-                We reserve the right to modify or discontinue, temporarily or permanently, the service with or without notice. We shall not be liable to you or to any third party for any modification, suspension, or discontinuance of the service.
-              </p>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold">8. Governing Law</h3>
-              <p className="text-sm text-muted-foreground">
-                These terms shall be governed by and construed in accordance with the laws of the jurisdiction in which our company operates, without regard to its conflict of law provisions.
-              </p>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold">9. Changes to Terms</h3>
-              <p className="text-sm text-muted-foreground">
-                We reserve the right to update these terms at any time. We will notify you of any changes by posting the new terms on this site. Continued use of the service after such modifications constitutes your acceptance of the modified terms.
-              </p>
-            </section>
+            <div className="flex items-start space-x-2 pt-4">
+              <Checkbox 
+                id="terms" 
+                checked={accepted}
+                onCheckedChange={(checked) => setAccepted(checked as boolean)}
+              />
+              <label
+                htmlFor="terms"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                I accept the terms and conditions and confirm that I have the legal rights to the content of the uploaded file.
+              </label>
+            </div>
           </div>
         </ScrollArea>
         
         <DialogFooter className="flex space-x-2 pt-4">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onAccept}>Accept Terms</Button>
+          <Button 
+            onClick={handleAccept}
+            disabled={!accepted}
+          >
+            Accept and Continue
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
