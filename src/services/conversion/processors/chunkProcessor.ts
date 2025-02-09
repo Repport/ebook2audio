@@ -8,7 +8,6 @@ import { ConvertToAudioResponse, ProgressCallback } from "../types/chunks";
 const MAX_CONCURRENT_REQUESTS = 8;
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 2000;
-const REQUEST_TIMEOUT = 45000;
 
 export async function processChunks(
   chunks: string[], 
@@ -34,8 +33,19 @@ export async function processChunks(
     try {
       console.log(`Processing chunk ${index + 1}/${chunks.length}, size: ${chunks[index].length} characters`);
       
+      // Get chunk timeout from database
+      const { data: chunkData, error: chunkError } = await supabase
+        .from('conversion_chunks')
+        .select('timeout_ms')
+        .eq('conversion_id', conversionId)
+        .eq('chunk_index', index)
+        .single();
+
+      if (chunkError) throw chunkError;
+
+      const timeout = chunkData?.timeout_ms || 120000; // Default to 120s if not set
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       try {
         const obfuscatedText = obfuscateData(chunks[index]);
