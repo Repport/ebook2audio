@@ -77,6 +77,7 @@ export function splitTextIntoChunks(text: string): string[] {
 interface RetryOptions {
   maxRetries?: number;
   initialDelay?: number;
+  timeout?: number;
 }
 
 export async function retryOperation<T>(
@@ -85,11 +86,28 @@ export async function retryOperation<T>(
 ): Promise<T> {
   const maxRetries = options.maxRetries ?? 3;
   const initialDelay = options.initialDelay ?? 1000;
+  const timeout = options.timeout ?? 30000;
   let retryCount = 0;
 
   while (true) {
     try {
-      return await operation();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const result = await Promise.race([
+          operation(),
+          new Promise<never>((_, reject) => {
+            controller.signal.addEventListener('abort', () => {
+              reject(new Error(`Operation timed out after ${timeout}ms`));
+            });
+          }),
+        ]);
+        clearTimeout(timeoutId);
+        return result;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     } catch (err) {
       retryCount++;
       
