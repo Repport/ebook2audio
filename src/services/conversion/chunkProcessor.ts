@@ -39,24 +39,22 @@ export async function processChunks(
         const obfuscatedText = obfuscateData(chunks[index]);
         const obfuscatedVoiceId = obfuscateData(voiceId);
 
-        const { data, error } = await Promise.race([
-          supabase.functions.invoke<ConvertToAudioResponse>('convert-to-audio', {
-            body: { 
-              text: obfuscatedText, 
-              voiceId: obfuscatedVoiceId,
-              fileName: `chunk_${index}`,
-              isChunk: true
-            }
-          }),
-          new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('Request timeout')), REQUEST_TIMEOUT)
-          )
-        ]);
+        const { data, error } = await supabase.functions.invoke<ConvertToAudioResponse>('convert-to-audio', {
+          body: { 
+            text: obfuscatedText, 
+            voiceId: obfuscatedVoiceId,
+            fileName: `chunk_${index}`,
+            isChunk: true
+          }
+        });
 
         clearTimeout(timeoutId);
 
         if (error) throw new Error(error.message);
-        if (!data?.data?.audioContent) throw new Error('No audio content received');
+        if (!data?.data?.audioContent) {
+          console.error('No audio content in response:', data);
+          throw new Error('No audio content received');
+        }
 
         // Convert base64 to ArrayBuffer
         const binaryString = atob(data.data.audioContent);
@@ -107,14 +105,14 @@ export async function processChunks(
     }
   };
 
-  // Start initial batch of concurrent requests with limited concurrency
-  const initialBatch = Math.min(MAX_CONCURRENT_REQUESTS, chunks.length);
-  const initialPromises = Array.from(
-    { length: initialBatch }, 
-    (_, i) => processChunk(i)
-  );
-
   try {
+    // Start initial batch of concurrent requests with limited concurrency
+    const initialBatch = Math.min(MAX_CONCURRENT_REQUESTS, chunks.length);
+    const initialPromises = Array.from(
+      { length: initialBatch }, 
+      (_, i) => processChunk(i)
+    );
+
     await Promise.all(initialPromises);
     
     // Wait for all chunks to complete
