@@ -1,4 +1,3 @@
-
 import { extractPdfText } from './pdfUtils';
 import { extractEpubText } from './epubUtils';
 
@@ -15,6 +14,7 @@ export type FileProcessingResult = {
 export type Chapter = {
   title: string;
   startIndex: number;
+  timestamp?: number; // Time in minutes where the chapter starts in the audio
 };
 
 const LANGUAGE_PATTERNS = {

@@ -70,6 +70,7 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
         fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
         chaptersFound={chapters.length}
         detectingChapters={detectingChapters}
+        chapters={detectChapters ? chapters : []}
       />
       
       <ConversionControls 
