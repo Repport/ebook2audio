@@ -8,6 +8,9 @@ export async function createConversion(
   userId: string | undefined
 ): Promise<string> {
   try {
+    // Set statement timeout before any database operations
+    await supabase.rpc('set_statement_timeout');
+
     // Try to fetch existing conversion first
     const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
@@ -44,8 +47,8 @@ export async function createConversion(
           ignoreDuplicates: false // We want to update if exists
         }
       )
-      .select('id')
-      .single();
+      .select()
+      .maybeSingle();
 
     if (insertError) {
       console.error('Error creating conversion:', insertError);
@@ -70,6 +73,9 @@ export async function updateConversionStatus(
   errorMessage?: string
 ): Promise<void> {
   await retryOperation(async () => {
+    // Set statement timeout before update
+    await supabase.rpc('set_statement_timeout');
+
     const { error } = await supabase
       .from('text_conversions')
       .update({ 

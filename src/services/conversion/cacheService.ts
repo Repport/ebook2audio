@@ -38,7 +38,7 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
         .eq('text_hash', textHash)
         .eq('status', 'completed')
         .gt('expires_at', new Date().toISOString())
-        .maybeSingle(); // Using maybeSingle instead of single due to unique constraint
+        .maybeSingle();
       
       if (error) throw error;
       return { data, error: null };
@@ -56,7 +56,7 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
       error: null 
     };
   } catch (error) {
-    console.error('Cache check failed after retries:', error);
+    console.error('Cache check failed:', error);
     return { storagePath: null, error: error as Error };
   }
 }
@@ -85,7 +85,7 @@ export async function fetchFromCache(storagePath: string): Promise<{ data: Array
       error: null 
     };
   } catch (error) {
-    console.error('Cache fetch failed after retries:', error);
+    console.error('Cache fetch failed:', error);
     return { data: null, error: error as Error };
   }
 }
@@ -115,32 +115,34 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
       // Set statement timeout before query
       await supabase.rpc('set_statement_timeout');
       
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
-      
       const { error } = await supabase
         .from('text_conversions')
-        .insert({
+        .upsert({
           text_hash: textHash,
           storage_path: storagePath,
           file_name: fileName,
           file_size: audioBuffer.byteLength,
-          expires_at: expiresAt,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
           status: 'completed'
         })
         .select()
         .maybeSingle();
       
-      if (error && error.code !== '23505') { // Ignore unique violation errors
-        throw error;
+      if (error?.code === '23505') {
+        // If we get a unique constraint violation, it means another process completed the conversion
+        // This is fine, just log it and continue
+        console.log('Conversion already exists in completed state');
+        return { error: null };
       }
       
+      if (error) throw error;
       return { error: null };
     });
 
     console.log('Successfully saved cache record to database');
     return { error: null };
   } catch (error) {
-    console.error('Cache save failed after retries:', error);
+    console.error('Cache save failed:', error);
     return { error: error as Error };
   }
 }
