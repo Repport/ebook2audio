@@ -1,4 +1,3 @@
-
 // Simple XOR-based obfuscation
 export function obfuscateData(data: string): string {
   const key = 'epub2audio';
@@ -21,17 +20,17 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
 
 // Calculate optimal chunk size based on total text length
 function calculateOptimalChunkSize(totalLength: number): number {
-  // Base chunk size for very small texts (under 1000 chars)
-  if (totalLength < 1000) return totalLength;
+  // For very large texts (>100K chars), use larger chunks
+  if (totalLength > 100000) return 10000;
   
-  // For medium texts (1000-5000 chars), use smaller chunks
-  if (totalLength < 5000) return 800;
+  // For medium texts (20K-100K chars), use medium chunks
+  if (totalLength > 20000) return 7500;
   
-  // For larger texts (5000-20000 chars), use medium chunks
-  if (totalLength < 20000) return 1000;
+  // For smaller texts (5K-20K chars), use smaller chunks
+  if (totalLength > 5000) return 5000;
   
-  // For very large texts (>20000 chars), use larger chunks
-  return 1200;
+  // For very small texts, use the entire text
+  return totalLength;
 }
 
 // Split text into smaller chunks with improved handling and dynamic sizing
@@ -73,4 +72,3 @@ export function splitTextIntoChunks(text: string): string[] {
     .filter(chunk => chunk.trim().length > 0)
     .map(chunk => chunk.trim());
 }
-

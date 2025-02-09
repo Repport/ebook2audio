@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { obfuscateData } from "./utils";
 import { ProgressCallback } from "./types";
 
-const MAX_CONCURRENT_REQUESTS = 1;
+const MAX_CONCURRENT_REQUESTS = 8; // Increased from 1 to 8 for parallel processing
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 2000;
 const REQUEST_TIMEOUT = 45000;
@@ -18,6 +18,7 @@ interface ConvertToAudioResponse {
 export async function processChunks(
   chunks: string[], 
   voiceId: string,
+  conversionId: string,
   onProgressUpdate?: ProgressCallback
 ): Promise<ArrayBuffer[]> {
   const results: ArrayBuffer[] = new Array(chunks.length);
@@ -28,6 +29,16 @@ export async function processChunks(
   if (onProgressUpdate) {
     onProgressUpdate(0, chunks.length, 0);
   }
+
+  // Initialize chunks in database
+  await Promise.all(chunks.map((chunk, index) => 
+    supabase.from('conversion_chunks').insert({
+      conversion_id: conversionId,
+      chunk_index: index,
+      chunk_text: chunk,
+      status: 'pending'
+    })
+  ));
 
   const processChunk = async (index: number): Promise<void> => {
     if (index >= chunks.length) return;
@@ -44,6 +55,12 @@ export async function processChunks(
       try {
         const obfuscatedText = obfuscateData(chunks[index]);
         const obfuscatedVoiceId = obfuscateData(voiceId);
+
+        // Update chunk status to processing
+        await supabase.rpc('update_chunk_status', {
+          p_chunk_id: conversionId,
+          p_status: 'processing'
+        });
 
         const { data, error } = await supabase.functions.invoke<ConvertToAudioResponse>('convert-to-audio', {
           body: { 
@@ -76,6 +93,13 @@ export async function processChunks(
           results[index] = bytes.buffer;
           completed++;
 
+          // Update chunk status to completed
+          await supabase.rpc('update_chunk_status', {
+            p_chunk_id: conversionId,
+            p_status: 'completed',
+            p_audio_path: `chunk_${index}.mp3`
+          });
+
           if (onProgressUpdate) {
             const progressPercentage = Math.round((completed / chunks.length) * 100);
             onProgressUpdate(progressPercentage, chunks.length, completed);
@@ -84,12 +108,16 @@ export async function processChunks(
           processing.delete(index);
           failedAttempts.delete(index);
           
-          // Add delay before processing next chunk
-          const nextIndex = Math.max(...Array.from(processing), -1) + 1;
-          if (nextIndex < chunks.length && !processing.has(nextIndex)) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            processChunk(nextIndex);
+          // Process next chunk if under concurrent limit
+          const nextAvailableIndex = chunks.findIndex((_, i) => 
+            !processing.has(i) && !results[i] && (!failedAttempts.has(i) || failedAttempts.get(i)! < MAX_RETRIES)
+          );
+
+          if (nextAvailableIndex !== -1 && processing.size < MAX_CONCURRENT_REQUESTS) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay between chunks
+            processChunk(nextAvailableIndex);
           }
+
         } catch (decodeError) {
           console.error(`Error decoding base64 for chunk ${index}:`, decodeError);
           throw new Error(`Failed to decode audio content: ${decodeError.message}`);
@@ -100,6 +128,13 @@ export async function processChunks(
     } catch (error) {
       console.error(`Error processing chunk ${index}, attempt ${retryCount + 1}:`, error);
       
+      // Update chunk status to failed
+      await supabase.rpc('update_chunk_status', {
+        p_chunk_id: conversionId,
+        p_status: 'failed',
+        p_error_message: error.message
+      });
+
       const jitter = Math.random() * 1000;
       const delay = Math.min(
         BASE_RETRY_DELAY * Math.pow(2, retryCount) + jitter,
@@ -119,13 +154,21 @@ export async function processChunks(
   };
 
   try {
-    // Process first chunk to test connection
-    await processChunk(0);
+    // Start initial batch of concurrent requests
+    const initialBatch = Math.min(chunks.length, MAX_CONCURRENT_REQUESTS);
+    const initialPromises = [];
     
-    // Process remaining chunks sequentially with delays
-    for (let i = 1; i < chunks.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      await processChunk(i);
+    for (let i = 0; i < initialBatch; i++) {
+      initialPromises.push(processChunk(i));
+    }
+    
+    await Promise.all(initialPromises);
+    
+    // Process remaining chunks as slots become available
+    for (let i = initialBatch; i < chunks.length; i++) {
+      if (processing.size < MAX_CONCURRENT_REQUESTS) {
+        await processChunk(i);
+      }
     }
     
     return results;
