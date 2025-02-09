@@ -18,9 +18,9 @@ async function retryOperation<T>(
 ): Promise<T> {
   try {
     return await operation();
-  } catch (error) {
+  } catch (err) {
     if (retryCount >= MAX_RETRIES) {
-      throw error;
+      throw err;
     }
 
     const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount) + Math.random() * 1000;
@@ -51,7 +51,8 @@ export const convertToAudio = async (
   console.log('Chapters:', chapters?.length || 0);
 
   const textHash = await generateHash(text, voiceId);
-  const userId = (await supabase.auth.getUser()).data.user?.id;
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
 
   // Check cache first with retries
   const { storagePath, error: cacheError } = await checkCache(textHash);
@@ -70,50 +71,50 @@ export const convertToAudio = async (
     return audioData;
   }
 
-  // Add to queue with retries
-  const queueResult = await retryOperation(async () => {
-    const { data, error } = await supabase
-      .from('conversion_queue')
-      .insert({
-        text_hash: textHash,
-        user_id: userId,
-        priority: 1,
-        status: 'pending'
-      })
-      .select()
-      .single();
-    
-    return { data, error };
-  });
-
-  if (queueResult.error) throw queueResult.error;
-  if (!queueResult.data) throw new Error('Failed to create queue item');
-
-  // Create conversion record with retries
-  const conversionResult = await retryOperation(async () => {
-    const { data, error } = await supabase
-      .from('text_conversions')
-      .insert({
-        text_hash: textHash,
-        file_name: fileName,
-        user_id: userId,
-      })
-      .select()
-      .single();
-    
-    return { data, error };
-  });
-
-  if (conversionResult.error) throw conversionResult.error;
-  if (!conversionResult.data) throw new Error('Failed to create conversion record');
-
-  // Process text in chunks
-  const textChunks = splitTextIntoChunks(text);
-  console.log(`Split text into ${textChunks.length} chunks for parallel processing`);
-
   try {
+    // Add to queue with retries
+    const queueResult = await retryOperation(async () => {
+      const { data, error } = await supabase
+        .from('conversion_queue')
+        .insert({
+          text_hash: textHash,
+          user_id: userId,
+          priority: 1,
+          status: 'pending'
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    });
+
+    if (!queueResult) throw new Error('Failed to create queue item');
+
+    // Create conversion record with retries
+    const conversionResult = await retryOperation(async () => {
+      const { data, error } = await supabase
+        .from('text_conversions')
+        .insert({
+          text_hash: textHash,
+          file_name: fileName,
+          user_id: userId,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    });
+
+    if (!conversionResult) throw new Error('Failed to create conversion record');
+
+    // Process text in chunks
+    const textChunks = splitTextIntoChunks(text);
+    console.log(`Split text into ${textChunks.length} chunks for parallel processing`);
+
     // Process all chunks
-    const audioChunks = await processChunks(textChunks, voiceId, conversionResult.data.id, onProgressUpdate);
+    const audioChunks = await processChunks(textChunks, voiceId, conversionResult.id, onProgressUpdate);
 
     // Combine audio chunks
     const combinedBuffer = combineAudioChunks(audioChunks);
@@ -125,47 +126,46 @@ export const convertToAudio = async (
     }
 
     // Update queue status with retries
-    const updateResult = await retryOperation(async () => {
-      const { error } = await supabase
+    await retryOperation(async () => {
+      const { error: updateError } = await supabase
         .from('conversion_queue')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString()
         })
-        .eq('id', queueResult.data.id);
+        .eq('id', queueResult.id);
       
-      return { error };
+      if (updateError) throw updateError;
     });
-
-    if (updateResult.error) {
-      console.error('Error updating queue status:', updateResult.error);
-    }
 
     if (onProgressUpdate) {
       onProgressUpdate(100, textChunks.length, textChunks.length);
     }
 
     return combinedBuffer;
-  } catch (error) {
+  } catch (err) {
+    // Capture the error first
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    
     // Update queue status on failure with retries
-    const updateResult = await retryOperation(async () => {
-      const { error } = await supabase
-        .from('conversion_queue')
-        .update({
-          status: 'failed',
-          error_message: (error as Error).message,
-          retries: (queueResult.data.retries || 0) + 1
-        })
-        .eq('id', queueResult.data.id);
-      
-      return { error };
-    });
-
-    if (updateResult.error) {
-      console.error('Error updating queue status:', updateResult.error);
+    try {
+      await retryOperation(async () => {
+        const { error: updateError } = await supabase
+          .from('conversion_queue')
+          .update({
+            status: 'failed',
+            error_message: errorMessage,
+            retries: (queueResult?.retries || 0) + 1
+          })
+          .eq('id', queueResult?.id);
+        
+        if (updateError) throw updateError;
+      });
+    } catch (updateErr) {
+      console.error('Error updating queue status:', updateErr);
     }
 
-    console.error('Conversion error:', error);
-    throw error;
+    console.error('Conversion error:', err);
+    throw err;
   }
 };
