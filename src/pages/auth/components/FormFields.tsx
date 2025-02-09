@@ -17,7 +17,7 @@ export const validatePassword = (password: string) => {
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumbers = /\d/.test(password);
-  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>_]/.test(password);
 
   return {
     isValid: minLength && hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar,
@@ -83,7 +83,7 @@ const FormFields = ({
                 At least one number
               </li>
               <li className={passwordValidation.hasSpecialChar ? "text-green-500" : "text-red-500"}>
-                At least one special character
+                At least one special character (!@#$%^&*(),.?":{}|<>_)
               </li>
             </ul>
           </div>
