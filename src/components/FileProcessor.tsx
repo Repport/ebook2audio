@@ -50,6 +50,9 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
     }
   };
 
+  // Calculate estimated time based on text length (rough estimate)
+  const estimatedSeconds = Math.ceil(extractedText.length / 20); // Assuming ~20 characters per second processing speed
+
   return (
     <div className="animate-fade-up space-y-8">
       <VoiceSelector 
@@ -71,6 +74,7 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
         chaptersFound={chapters.length}
         detectingChapters={detectingChapters}
         chapters={detectChapters ? chapters : []}
+        estimatedSeconds={estimatedSeconds}
       />
       
       <ConversionControls 

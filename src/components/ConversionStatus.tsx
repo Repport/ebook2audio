@@ -16,6 +16,7 @@ interface ConversionStatusProps {
   chaptersFound?: number;
   detectingChapters?: boolean;
   chapters?: Chapter[];
+  estimatedSeconds?: number;
 }
 
 const ConversionStatus = ({ 
@@ -24,7 +25,8 @@ const ConversionStatus = ({
   fileType = 'EPUB',
   chaptersFound = 0,
   detectingChapters = false,
-  chapters = []
+  chapters = [],
+  estimatedSeconds = 0
 }: ConversionStatusProps) => {
   const statusMessages = {
     idle: 'Ready to convert',
@@ -39,6 +41,20 @@ const ConversionStatus = ({
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
 
+  const formatTimeRemaining = (seconds: number) => {
+    if (seconds < 60) {
+      return `${Math.ceil(seconds)} seconds`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.ceil(seconds % 60);
+    if (minutes < 60) {
+      return `${minutes} min ${remainingSeconds} sec`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  };
+
   return (
     <div className="flex flex-col items-center space-y-4 animate-fade-up">
       {status === 'converting' && (
@@ -46,6 +62,12 @@ const ConversionStatus = ({
       )}
       <p className="text-lg font-medium text-gray-900">{statusMessages[status]}</p>
       
+      {status === 'converting' && estimatedSeconds > 0 && (
+        <p className="text-sm text-gray-600">
+          Estimated time remaining: {formatTimeRemaining(estimatedSeconds * (1 - progress / 100))}
+        </p>
+      )}
+
       {detectingChapters && (
         <p className="text-sm text-gray-600">
           Detecting chapters... Found {chaptersFound} chapters
