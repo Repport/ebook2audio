@@ -63,8 +63,10 @@ export const useAudioConversion = () => {
         selectedVoice, 
         detectChapters ? chaptersWithTimestamps : undefined, 
         fileName,
-        (progressValue) => {
-          setProgress(progressValue);
+        (progressValue, totalChunks, completedChunks) => {
+          // Calculate progress based on chunks
+          const chunkProgress = Math.round((completedChunks / totalChunks) * 100);
+          setProgress(chunkProgress);
         }
       );
       

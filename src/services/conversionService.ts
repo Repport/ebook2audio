@@ -50,7 +50,7 @@ export const convertToAudio = async (
   voiceId: string,
   chapters?: ChapterWithTimestamp[],
   fileName?: string,
-  onProgressUpdate?: (progress: number) => void
+  onProgressUpdate?: (progress: number, totalChunks: number, completedChunks: number) => void
 ): Promise<ArrayBuffer> => {
   if (text.startsWith('%PDF')) {
     console.error('Received raw PDF data instead of text content');
@@ -78,7 +78,7 @@ export const convertToAudio = async (
   if (existingConversion?.storage_path) {
     console.log('Found cached conversion, fetching from storage');
     if (onProgressUpdate) {
-      onProgressUpdate(100);
+      onProgressUpdate(100, 1, 1);
     }
     const { data: audioData, error: downloadError } = await supabase.storage
       .from('audio_cache')
@@ -142,8 +142,7 @@ export const convertToAudio = async (
           completed++;
 
           if (onProgressUpdate) {
-            const progress = Math.round((completed / chunks.length) * 100);
-            onProgressUpdate(progress);
+            onProgressUpdate(0, chunks.length, completed);
           }
 
           processing.delete(index);
@@ -225,7 +224,7 @@ export const convertToAudio = async (
     }
 
     if (onProgressUpdate) {
-      onProgressUpdate(100);
+      onProgressUpdate(100, textChunks.length, textChunks.length);
     }
 
     return combinedBuffer.buffer;
