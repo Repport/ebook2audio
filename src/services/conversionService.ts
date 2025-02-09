@@ -1,7 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Chapter } from "@/utils/textExtraction";
-import { createHash } from 'crypto';
 
 interface ChapterWithTimestamp extends Chapter {
   timestamp: number;
@@ -17,8 +16,12 @@ function obfuscateData(data: string): string {
   return result;
 }
 
-function generateTextHash(text: string): string {
-  return createHash('sha256').update(text).digest('hex');
+async function generateTextHash(text: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 const validateInput = (text: string, voiceId: string): void => {
@@ -97,7 +100,7 @@ export const convertToAudio = async (
   });
 
   validateInput(text, voiceId);
-  const textHash = generateTextHash(text);
+  const textHash = await generateTextHash(text);
 
   // Check for existing conversion
   const existingAudio = await checkExistingConversion(textHash);
