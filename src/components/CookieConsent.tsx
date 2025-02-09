@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/sheet";
 
 const CookieConsentBanner = () => {
-  const { toast } = useToast();
   const { translations } = useLanguage();
   const [showDetails, setShowDetails] = useState(false);
 
@@ -26,7 +25,7 @@ const CookieConsentBanner = () => {
 
   const logCookiePreference = async (allAccepted: boolean) => {
     try {
-      const { error } = await supabase
+      await supabase
         .from('terms_acceptance_logs')
         .insert([
           {
@@ -36,22 +35,8 @@ const CookieConsentBanner = () => {
             cookies_acceptance_date: new Date().toISOString()
           }
         ]);
-
-      if (error) {
-        console.error('Error logging cookie preference:', error);
-        toast({
-          title: "Error",
-          description: "Failed to save cookie preferences",
-          variant: "destructive",
-        });
-      }
     } catch (error) {
       console.error('Error logging cookie preference:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save cookie preferences",
-        variant: "destructive",
-      });
     }
   };
 
@@ -93,17 +78,9 @@ const CookieConsentBanner = () => {
       }}
       onAccept={async () => {
         await logCookiePreference(true);
-        toast({
-          title: translations.cookiesAccepted,
-          description: translations.cookiesAcceptedDesc,
-        });
       }}
       onDecline={async () => {
         await logCookiePreference(false);
-        toast({
-          title: translations.preferencesSaved,
-          description: translations.preferencesDesc,
-        });
       }}
     >
       <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -159,3 +136,4 @@ const CookieConsentBanner = () => {
 };
 
 export default CookieConsentBanner;
+
