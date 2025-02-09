@@ -1,6 +1,6 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import ReCAPTCHA from "react-google-recaptcha";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,6 @@ interface TermsDialogProps {
 
 const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialogProps) => {
   const [accepted, setAccepted] = React.useState(false);
-  const [captchaValue, setCaptchaValue] = React.useState<string | null>(null);
   const { toast } = useToast();
   const { translations } = useLanguage();
 
@@ -52,7 +51,51 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
     }
   });
 
-  const logAcceptance = async () => {
+  useEffect(() => {
+    // Load reCAPTCHA v3 script when the component mounts and we have the site key
+    if (reCaptchaKey) {
+      const script = document.createElement('script');
+      script.src = `https://www.google.com/recaptcha/api.js?render=${reCaptchaKey}`;
+      script.async = true;
+      document.head.appendChild(script);
+
+      return () => {
+        document.head.removeChild(script);
+      };
+    }
+  }, [reCaptchaKey]);
+
+  const executeRecaptcha = async () => {
+    if (!window.grecaptcha) {
+      console.error('reCAPTCHA not loaded');
+      return null;
+    }
+
+    try {
+      const token = await window.grecaptcha.execute(reCaptchaKey, { action: 'terms_acceptance' });
+      console.log('reCAPTCHA token generated');
+      return token;
+    } catch (error) {
+      console.error('Error executing reCAPTCHA:', error);
+      return null;
+    }
+  };
+
+  const verifyRecaptcha = async (token: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-recaptcha', {
+        body: { token, expectedAction: 'terms_acceptance' }
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error verifying reCAPTCHA:', error);
+      return null;
+    }
+  };
+
+  const logAcceptance = async (token: string, score: number) => {
     try {
       const ipResponse = await fetch('https://api.ipify.org?format=json');
       const ipData = await ipResponse.json();
@@ -65,7 +108,8 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
             user_agent: navigator.userAgent,
             file_name: fileName,
             file_type: fileType,
-            captcha_token: captchaValue,
+            captcha_token: token,
+            recaptcha_score: score,
             retention_period_accepted: true
           }
         ]);
@@ -89,21 +133,47 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   };
 
   const handleAccept = async () => {
-    if (accepted && captchaValue) {
-      await logAcceptance();
+    if (!accepted) {
+      toast({
+        title: "Terms Acceptance Required",
+        description: "Please accept the terms and conditions to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const token = await executeRecaptcha();
+      if (!token) {
+        toast({
+          title: "Verification Failed",
+          description: "Could not complete security verification. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const verification = await verifyRecaptcha(token);
+      if (!verification || !verification.success) {
+        toast({
+          title: "Verification Failed",
+          description: "Security verification failed. Please try again later.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await logAcceptance(token, verification.score);
       onAccept();
       onClose();
-    } else if (!captchaValue) {
+    } catch (error) {
+      console.error('Error in acceptance process:', error);
       toast({
-        title: "Verification Required",
-        description: "Please complete the CAPTCHA verification",
+        title: "Error",
+        description: "An error occurred. Please try again later.",
         variant: "destructive",
       });
     }
-  };
-
-  const handleCaptchaChange = (value: string | null) => {
-    setCaptchaValue(value);
   };
 
   return (
@@ -151,18 +221,9 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               I accept the terms and conditions, including the 30-day data retention period, and confirm that I have the legal rights to the content of the uploaded file.
             </label>
           </div>
-          {accepted && reCaptchaKey && !isError && (
-            <div className="flex justify-center">
-              <ReCAPTCHA
-                sitekey={reCaptchaKey}
-                onChange={handleCaptchaChange}
-                theme="light"
-              />
-            </div>
-          )}
           {isError && (
             <div className="text-red-500 text-sm text-center">
-              Error loading CAPTCHA verification. Please try again later.
+              Error loading security verification. Please try again later.
             </div>
           )}
         </div>
@@ -170,7 +231,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 
             onClick={handleAccept}
-            disabled={!accepted || !captchaValue}
+            disabled={!accepted || !reCaptchaKey || isError}
           >
             Accept and Continue
           </Button>

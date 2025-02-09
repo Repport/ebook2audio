@@ -25,7 +25,7 @@ serve(async (req) => {
       throw new Error('RECAPTCHA_SECRET_KEY not found in environment');
     }
 
-    // Verify the token using reCAPTCHA v2 verification endpoint
+    // Verify the token using reCAPTCHA v3 verification endpoint
     const verificationURL = 'https://www.google.com/recaptcha/api/siteverify';
     const formData = new URLSearchParams();
     formData.append('secret', secretKey);
@@ -44,6 +44,17 @@ serve(async (req) => {
 
     if (!result.success) {
       throw new Error('reCAPTCHA verification failed: ' + (result['error-codes']?.join(', ') || 'unknown error'));
+    }
+
+    // For v3, we should also verify the score and action
+    if (result.action !== expectedAction) {
+      throw new Error('reCAPTCHA action mismatch');
+    }
+
+    // Score ranges from 0.0 to 1.0, where 1.0 is very likely a good interaction
+    // You might want to adjust this threshold based on your needs
+    if (result.score < 0.5) {
+      throw new Error('reCAPTCHA score too low');
     }
 
     return new Response(
@@ -69,7 +80,10 @@ serve(async (req) => {
     });
     
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        success: false,
+        error: error.message 
+      }),
       {
         status: 500,
         headers: {

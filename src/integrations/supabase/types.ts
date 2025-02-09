@@ -120,6 +120,7 @@ export type Database = {
       terms_acceptance_logs: {
         Row: {
           accepted_at: string
+          captcha_token: string | null
           cookies_acceptance_date: string | null
           cookies_all_accepted: boolean | null
           cookies_necessary_only: boolean | null
@@ -127,11 +128,13 @@ export type Database = {
           file_type: string | null
           id: string
           ip_address: string
+          recaptcha_score: number | null
           retention_period_accepted: boolean | null
           user_agent: string | null
         }
         Insert: {
           accepted_at?: string
+          captcha_token?: string | null
           cookies_acceptance_date?: string | null
           cookies_all_accepted?: boolean | null
           cookies_necessary_only?: boolean | null
@@ -139,11 +142,13 @@ export type Database = {
           file_type?: string | null
           id?: string
           ip_address: string
+          recaptcha_score?: number | null
           retention_period_accepted?: boolean | null
           user_agent?: string | null
         }
         Update: {
           accepted_at?: string
+          captcha_token?: string | null
           cookies_acceptance_date?: string | null
           cookies_all_accepted?: boolean | null
           cookies_necessary_only?: boolean | null
@@ -151,6 +156,7 @@ export type Database = {
           file_type?: string | null
           id?: string
           ip_address?: string
+          recaptcha_score?: number | null
           retention_period_accepted?: boolean | null
           user_agent?: string | null
         }
