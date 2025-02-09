@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { obfuscateData } from "./utils";
 import { ProgressCallback } from "./types";
 
-const MAX_CONCURRENT_REQUESTS = 1; // Reduced to prevent overwhelming the API
+const MAX_CONCURRENT_REQUESTS = 1;
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 1000;
 const REQUEST_TIMEOUT = 30000;
@@ -62,27 +62,36 @@ export async function processChunks(
           throw new Error('No audio content received');
         }
 
-        const binaryString = atob(data.data.audioContent);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
+        // Ensure the string is properly padded for base64
+        const base64String = data.data.audioContent.replace(/\s/g, '');
+        const paddedBase64 = base64String.padEnd(Math.ceil(base64String.length / 4) * 4, '=');
 
-        results[index] = bytes.buffer;
-        completed++;
+        try {
+          const binaryString = atob(paddedBase64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
 
-        if (onProgressUpdate) {
-          const progressPercentage = Math.round((completed / chunks.length) * 100);
-          onProgressUpdate(progressPercentage, chunks.length, completed);
-        }
+          results[index] = bytes.buffer;
+          completed++;
 
-        processing.delete(index);
-        failedAttempts.delete(index);
-        
-        const nextIndex = Math.max(...Array.from(processing), -1) + 1;
-        if (nextIndex < chunks.length && !processing.has(nextIndex)) {
-          await new Promise(resolve => setTimeout(resolve, 500)); // Add small delay between chunks
-          processChunk(nextIndex);
+          if (onProgressUpdate) {
+            const progressPercentage = Math.round((completed / chunks.length) * 100);
+            onProgressUpdate(progressPercentage, chunks.length, completed);
+          }
+
+          processing.delete(index);
+          failedAttempts.delete(index);
+          
+          const nextIndex = Math.max(...Array.from(processing), -1) + 1;
+          if (nextIndex < chunks.length && !processing.has(nextIndex)) {
+            await new Promise(resolve => setTimeout(resolve, 500)); // Add small delay between chunks
+            processChunk(nextIndex);
+          }
+        } catch (decodeError) {
+          console.error(`Error decoding base64 for chunk ${index}:`, decodeError);
+          throw new Error(`Failed to decode audio content: ${decodeError.message}`);
         }
       } finally {
         clearTimeout(timeoutId);
