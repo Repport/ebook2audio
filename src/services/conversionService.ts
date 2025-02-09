@@ -44,7 +44,7 @@ const checkExistingConversion = async (textHash: string): Promise<ArrayBuffer | 
     .select('audio_content')
     .eq('text_hash', textHash)
     .gt('expires_at', new Date().toISOString())
-    .single();
+    .maybeSingle();  // Changed from .single() to .maybeSingle()
 
   if (error || !existingConversion?.audio_content) {
     return null;
@@ -113,6 +113,12 @@ export const convertToAudio = async (
     const obfuscatedText = obfuscateData(text);
     const obfuscatedVoiceId = obfuscateData(voiceId);
 
+    // Get the current session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      throw new Error('Authentication required');
+    }
+
     const { data, error } = await supabase.functions.invoke('convert-to-audio', {
       body: { 
         text: obfuscatedText, 
@@ -122,6 +128,9 @@ export const convertToAudio = async (
           title: ch.title,
           timestamp: ch.timestamp
         }))
+      },
+      headers: {
+        Authorization: `Bearer ${session?.access_token}`
       }
     });
 
