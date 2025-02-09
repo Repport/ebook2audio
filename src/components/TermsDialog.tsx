@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import ReCAPTCHA from "react-google-recaptcha";
 import {
   Dialog,
   DialogContent,
@@ -24,15 +25,14 @@ interface TermsDialogProps {
 
 const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialogProps) => {
   const [accepted, setAccepted] = React.useState(false);
+  const [captchaValue, setCaptchaValue] = React.useState<string | null>(null);
   const { toast } = useToast();
 
   const logAcceptance = async () => {
     try {
-      // Get user's IP address using a public API
       const ipResponse = await fetch('https://api.ipify.org?format=json');
       const ipData = await ipResponse.json();
       
-      // Log the acceptance
       const { error } = await supabase
         .from('terms_acceptance_logs')
         .insert([
@@ -40,7 +40,8 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
             ip_address: ipData.ip,
             user_agent: navigator.userAgent,
             file_name: fileName,
-            file_type: fileType
+            file_type: fileType,
+            captcha_token: captchaValue
           }
         ]);
 
@@ -54,7 +55,6 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
       }
     } catch (error) {
       console.error('Error getting IP or logging acceptance:', error);
-      // Don't block the conversion if logging fails
       toast({
         title: "Warning",
         description: "Proceeded with conversion but failed to log acceptance",
@@ -64,11 +64,21 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   };
 
   const handleAccept = async () => {
-    if (accepted) {
+    if (accepted && captchaValue) {
       await logAcceptance();
       onAccept();
       onClose();
+    } else if (!captchaValue) {
+      toast({
+        title: "Verification Required",
+        description: "Please complete the CAPTCHA verification",
+        variant: "destructive",
+      });
     }
+  };
+
+  const handleCaptchaChange = (value: string | null) => {
+    setCaptchaValue(value);
   };
 
   return (
@@ -99,24 +109,35 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
             </li>
           </ol>
         </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="terms" 
-            checked={accepted}
-            onCheckedChange={(checked) => setAccepted(checked as boolean)}
-          />
-          <label 
-            htmlFor="terms" 
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            I accept the terms and conditions and confirm that I have the legal rights to the content of the uploaded file.
-          </label>
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="terms" 
+              checked={accepted}
+              onCheckedChange={(checked) => setAccepted(checked as boolean)}
+            />
+            <label 
+              htmlFor="terms" 
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              I accept the terms and conditions and confirm that I have the legal rights to the content of the uploaded file.
+            </label>
+          </div>
+          {accepted && (
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                sitekey="YOUR_RECAPTCHA_SITE_KEY"
+                onChange={handleCaptchaChange}
+                theme="light"
+              />
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 
             onClick={handleAccept}
-            disabled={!accepted}
+            disabled={!accepted || !captchaValue}
           >
             Accept and Continue
           </Button>
