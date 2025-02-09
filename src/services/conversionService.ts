@@ -4,7 +4,7 @@ import { generateHash, splitTextIntoChunks } from "./conversion/utils";
 import { checkCache, fetchFromCache, saveToCache } from "./conversion/cacheService";
 import { processChunks, combineAudioChunks } from "./conversion/chunkProcessor";
 import { addToQueue, updateQueueStatus } from "./conversion/queueService";
-import { createConversion } from "./conversion/conversionManager";
+import { createConversion, updateConversionStatus } from "./conversion/conversionManager";
 import { insertChunksBatch, getExistingChunks } from "./conversion/chunkManager";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -57,6 +57,9 @@ export const convertToAudio = async (
     conversionId = await createConversion(textHash, fileName, userId);
     console.log('Conversion record ID:', conversionId);
 
+    // Update status to processing
+    await updateConversionStatus(conversionId, 'processing');
+
     // Add to queue
     queueEntry = await addToQueue(textHash, userId);
 
@@ -87,7 +90,12 @@ export const convertToAudio = async (
     const { error: saveError } = await saveToCache(textHash, combinedBuffer, fileName);
     if (saveError) {
       console.error('Error storing conversion:', saveError);
+      await updateConversionStatus(conversionId, 'failed', saveError.message);
+      throw saveError;
     }
+
+    // Update conversion status to completed
+    await updateConversionStatus(conversionId, 'completed');
 
     // Update queue status
     if (queueEntry) {
@@ -101,6 +109,10 @@ export const convertToAudio = async (
     return combinedBuffer;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    
+    if (conversionId) {
+      await updateConversionStatus(conversionId, 'failed', errorMessage);
+    }
     
     if (queueEntry) {
       await updateQueueStatus(queueEntry.id, 'failed', errorMessage);

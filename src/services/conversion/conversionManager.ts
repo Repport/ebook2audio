@@ -13,6 +13,7 @@ export async function createConversion(
     .select()
     .eq('text_hash', textHash)
     .gt('expires_at', new Date().toISOString())
+    .eq('status', 'completed')  // Only consider completed conversions
     .order('created_at', { ascending: false })
     .limit(1);
 
@@ -33,6 +34,7 @@ export async function createConversion(
       text_hash: textHash,
       file_name: fileName,
       user_id: userId,
+      status: 'pending',
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
     })
     .select()
@@ -49,4 +51,25 @@ export async function createConversion(
   
   console.log('Created new conversion record:', newConversion.id);
   return newConversion.id;
+}
+
+export async function updateConversionStatus(
+  conversionId: string,
+  status: 'pending' | 'processing' | 'completed' | 'failed',
+  errorMessage?: string
+): Promise<void> {
+  await retryOperation(async () => {
+    const { error } = await supabase
+      .from('text_conversions')
+      .update({ 
+        status,
+        ...(errorMessage && { error_message: errorMessage })
+      })
+      .eq('id', conversionId);
+
+    if (error) {
+      console.error('Error updating conversion status:', error);
+      throw error;
+    }
+  });
 }
