@@ -79,6 +79,10 @@ const CookieConsentBanner = () => {
       </ul>
       <p className="text-sm text-white">
         By clicking "Accept All Cookies", you consent to our use of all cookies. Click "Accept Necessary Only" to reject analytics and advertising cookies. Read more in our{" "}
+        <a href="/cookie-policy" className="underline hover:text-primary">
+          Cookie Policy
+        </a>
+        {" "}or{" "}
         <a href="/privacy" className="underline hover:text-primary">
           Privacy Policy
         </a>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -30,13 +29,16 @@ const Privacy = () => {
 
             <section>
               <h2 className="text-2xl font-semibold mt-8 mb-4">2. Cookie Usage</h2>
-              <p>We use different types of cookies on our website:</p>
+              <p>We use different types of cookies on our website. For detailed information about the cookies we use and how to manage them, please read our{" "}
+                <Link to="/cookie-policy" className="text-primary hover:underline">Cookie Policy</Link>.
+              </p>
+              <p>In summary, we use:</p>
               <ul className="list-disc pl-6 space-y-2">
                 <li><strong>Necessary Cookies:</strong> Essential cookies that enable basic functionality and security features of the website.</li>
                 <li><strong>Analytical Cookies:</strong> Help us understand how visitors interact with our website by collecting and reporting information anonymously. We use this data to improve our services.</li>
                 <li><strong>Advertising Cookies:</strong> Used to deliver advertisements more relevant to you and your interests. They are also used to limit the number of times you see an advertisement and help measure the effectiveness of advertising campaigns.</li>
               </ul>
-              <p className="mt-4">You can manage your cookie preferences at any time through our cookie consent banner.</p>
+              <p className="mt-4">You can manage your cookie preferences at any time through our cookie consent banner or by visiting our Cookie Policy page.</p>
             </section>
 
             <section>
