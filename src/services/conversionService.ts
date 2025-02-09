@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { Chapter } from "@/utils/textExtraction";
+import { createHash } from 'crypto';
 
 interface ChapterWithTimestamp extends Chapter {
   timestamp: number;
@@ -16,6 +17,12 @@ function obfuscateData(data: string): string {
   return result;
 }
 
+// Generate hash for text content
+function generateHash(text: string, voiceId: string): string {
+  const data = `${text}-${voiceId}`;
+  return createHash('sha256').update(data).digest('hex');
+}
+
 export const convertToAudio = async (
   text: string, 
   voiceId: string,
@@ -29,6 +36,28 @@ export const convertToAudio = async (
 
   console.log('Converting text length:', text.length, 'with voice:', voiceId);
   console.log('Chapters:', chapters?.length || 0);
+
+  // Generate hash for the text and voice combination
+  const textHash = generateHash(text, voiceId);
+
+  // Check if we have a cached version
+  const { data: existingConversion } = await supabase
+    .from('text_conversions')
+    .select('*')
+    .eq('text_hash', textHash)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+
+  if (existingConversion?.audio_content) {
+    console.log('Found cached conversion, returning existing audio');
+    // Convert base64 to ArrayBuffer
+    const binaryString = atob(existingConversion.audio_content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
 
   // Obfuscate sensitive data before sending
   const obfuscatedText = obfuscateData(text);
@@ -56,6 +85,21 @@ export const convertToAudio = async (
 
   if (!data?.audioContent) {
     throw new Error('No audio data received');
+  }
+
+  // Store the conversion in the database
+  const { error: insertError } = await supabase
+    .from('text_conversions')
+    .insert({
+      text_hash: textHash,
+      audio_content: data.audioContent,
+      file_name: fileName,
+      file_size: data.audioContent.length,
+      duration: data.duration || null
+    });
+
+  if (insertError) {
+    console.error('Error storing conversion:', insertError);
   }
 
   // Convert base64 to ArrayBuffer
