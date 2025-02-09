@@ -48,7 +48,7 @@ serve(async (req) => {
 
     // Calculate chunks for rate limiting if this is the first chunk of a conversion
     if (!isChunk) {
-      const chunkCount = Math.ceil(text.length / 5000); // Using same chunk size as splitTextIntoChunks
+      const chunkCount = Math.ceil(text.length / 5000);
       const { data: rateLimitCheck, error: rateLimitError } = await supabase
         .rpc('check_conversion_rate_limit', { 
           p_ip_address: ip,
@@ -65,6 +65,40 @@ serve(async (req) => {
       throw new Error('No text content to convert');
     }
 
+    // Generate a hash of the text and voice ID to check for existing conversions
+    const textToHash = `${cleanedText}-${voiceId}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(textToHash);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const textHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // Check if we already have this conversion
+    console.log('Checking for existing conversion with hash:', textHash);
+    const { data: existingConversion, error: cacheError } = await supabase
+      .from('text_conversions')
+      .select('storage_path, audio_content')
+      .eq('text_hash', textHash)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+
+    if (cacheError) {
+      console.error('Error checking cache:', cacheError);
+    } else if (existingConversion) {
+      console.log('Found existing conversion, returning cached audio');
+      return new Response(
+        JSON.stringify({ data: { audioContent: existingConversion.audio_content } }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+    }
+
+    // If no cached version exists, proceed with new conversion
+    console.log('No cached version found, proceeding with new conversion');
     console.log('Getting access token...');
     const accessToken = await getAccessToken();
     console.log('✅ Successfully obtained access token');
@@ -79,6 +113,21 @@ serve(async (req) => {
     }
     
     console.log('✅ Successfully synthesized speech, audio content length:', audioContent.length);
+    
+    // Store the new conversion
+    const { error: insertError } = await supabase
+      .from('text_conversions')
+      .insert({
+        text_hash: textHash,
+        audio_content: audioContent,
+        file_name: fileName,
+        file_size: audioContent.length,
+        user_id: user.id
+      });
+
+    if (insertError) {
+      console.error('Error storing conversion:', insertError);
+    }
     
     // Log successful conversion
     const { error: logError } = await supabase
