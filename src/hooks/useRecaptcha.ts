@@ -22,35 +22,57 @@ export const useRecaptcha = (isDialogOpen: boolean) => {
   });
 
   useEffect(() => {
-    if (reCaptchaKey && isDialogOpen && !isScriptLoaded) {
+    if (!reCaptchaKey || !isDialogOpen) return;
+
+    // Remove any existing reCAPTCHA scripts
+    const existingScript = document.querySelector('script[src*="recaptcha"]');
+    if (existingScript) {
+      document.head.removeChild(existingScript);
+      setIsScriptLoaded(false);
+    }
+
+    if (!isScriptLoaded) {
       const script = document.createElement('script');
       script.src = `https://www.google.com/recaptcha/api.js?render=${reCaptchaKey}`;
       script.async = true;
       script.defer = true;
-      script.onload = () => setIsScriptLoaded(true);
+      script.onload = () => {
+        setIsScriptLoaded(true);
+        // Initialize reCAPTCHA after script loads
+        window.grecaptcha?.ready(() => {
+          console.log('reCAPTCHA is ready');
+        });
+      };
       document.head.appendChild(script);
 
       return () => {
-        document.head.removeChild(script);
-        setIsScriptLoaded(false);
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+          setIsScriptLoaded(false);
+        }
       };
     }
   }, [reCaptchaKey, isDialogOpen, isScriptLoaded]);
 
   const executeRecaptcha = async () => {
-    if (!window.grecaptcha || !isScriptLoaded) {
-      console.error('reCAPTCHA not loaded');
+    if (!window.grecaptcha || !reCaptchaKey) {
+      console.error('reCAPTCHA not loaded or site key missing');
       return null;
     }
 
     try {
       await new Promise<void>((resolve) => {
-        window.grecaptcha.ready(() => resolve());
+        window.grecaptcha.ready(() => {
+          console.log('Executing reCAPTCHA...');
+          resolve();
+        });
       });
+
       const token = await window.grecaptcha.execute(reCaptchaKey, { 
         action: 'terms_acceptance' 
       });
-      console.log('reCAPTCHA token generated successfully');
+      
+      console.log('reCAPTCHA token generated:', token ? 'success' : 'failed');
       return token;
     } catch (error) {
       console.error('Error executing reCAPTCHA:', error);
