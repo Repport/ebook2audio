@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { obfuscateData } from "./utils";
 import { ProgressCallback } from "./types";
 
-const MAX_CONCURRENT_REQUESTS = 2;
-const MAX_RETRIES = 5;
-const BASE_RETRY_DELAY = 2000;
+const MAX_CONCURRENT_REQUESTS = 1; // Reduced to prevent overwhelming the API
+const MAX_RETRIES = 3;
+const BASE_RETRY_DELAY = 1000;
 const REQUEST_TIMEOUT = 30000;
 
 interface ConvertToAudioResponse {
@@ -25,7 +25,6 @@ export async function processChunks(
   let completed = 0;
   let failedAttempts = new Map<number, number>();
 
-  // Update progress at the start
   if (onProgressUpdate) {
     onProgressUpdate(0, chunks.length, 0);
   }
@@ -37,6 +36,8 @@ export async function processChunks(
     const retryCount = failedAttempts.get(index) || 0;
 
     try {
+      console.log(`Processing chunk ${index + 1}/${chunks.length}, size: ${chunks[index].length} characters`);
+      
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
@@ -61,7 +62,6 @@ export async function processChunks(
           throw new Error('No audio content received');
         }
 
-        // Convert base64 to ArrayBuffer
         const binaryString = atob(data.data.audioContent);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -71,7 +71,6 @@ export async function processChunks(
         results[index] = bytes.buffer;
         completed++;
 
-        // Calculate and update progress
         if (onProgressUpdate) {
           const progressPercentage = Math.round((completed / chunks.length) * 100);
           onProgressUpdate(progressPercentage, chunks.length, completed);
@@ -80,24 +79,21 @@ export async function processChunks(
         processing.delete(index);
         failedAttempts.delete(index);
         
-        // Process next chunk if available
-        const nextIndex = Math.max(...Array.from(processing)) + 1;
+        const nextIndex = Math.max(...Array.from(processing), -1) + 1;
         if (nextIndex < chunks.length && !processing.has(nextIndex)) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // Add small delay between chunks
           processChunk(nextIndex);
         }
-
-        return;
       } finally {
         clearTimeout(timeoutId);
       }
     } catch (error) {
       console.error(`Error processing chunk ${index}, attempt ${retryCount + 1}:`, error);
       
-      // Exponential backoff with jitter
-      const jitter = Math.random() * 1000;
+      const jitter = Math.random() * 500;
       const delay = Math.min(
         BASE_RETRY_DELAY * Math.pow(2, retryCount) + jitter,
-        30000 // Max delay of 30 seconds
+        15000
       );
 
       failedAttempts.set(index, retryCount + 1);
@@ -113,30 +109,17 @@ export async function processChunks(
   };
 
   try {
-    // Start initial batch of concurrent requests with limited concurrency
-    const initialBatch = Math.min(MAX_CONCURRENT_REQUESTS, chunks.length);
-    const initialPromises = Array.from(
-      { length: initialBatch }, 
-      (_, i) => processChunk(i)
+    // Start with just one initial request to test the connection
+    await processChunk(0);
+    
+    // If successful, process remaining chunks with controlled concurrency
+    const remainingChunks = Array.from(
+      { length: chunks.length - 1 }, 
+      (_, i) => processChunk(i + 1)
     );
 
-    await Promise.all(initialPromises);
+    await Promise.all(remainingChunks);
     
-    // Wait for all chunks to complete
-    while (completed < chunks.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Check for failed chunks that need retry
-      const failedChunks = Array.from(failedAttempts.entries())
-        .filter(([_, attempts]) => attempts < MAX_RETRIES);
-      
-      for (const [index] of failedChunks) {
-        if (!processing.has(index)) {
-          processChunk(index);
-        }
-      }
-    }
-
     return results;
   } catch (error) {
     console.error('Fatal error in chunk processing:', error);
@@ -156,4 +139,3 @@ export function combineAudioChunks(audioChunks: ArrayBuffer[]): ArrayBuffer {
 
   return combinedBuffer.buffer;
 }
-

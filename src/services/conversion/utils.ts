@@ -19,23 +19,34 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
   return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Split text into chunks of appropriate size - increased to 10000 for better efficiency
-export function splitTextIntoChunks(text: string, maxChunkSize = 10000): string[] {
+// Split text into smaller chunks with improved handling
+export function splitTextIntoChunks(text: string, maxChunkSize = 1000): string[] {
   const chunks: string[] = [];
   let currentChunk = '';
-  // Split by sentences to maintain natural breaks
-  const sentences = text.split(/([.!?]+\s)/);
+  
+  // Split by sentences while preserving punctuation
+  const sentences = text.split(/([.!?]+\s+)/);
 
-  for (const sentence of sentences) {
-    if ((currentChunk + sentence).length > maxChunkSize) {
-      if (currentChunk) chunks.push(currentChunk.trim());
+  for (let i = 0; i < sentences.length; i++) {
+    const sentence = sentences[i];
+    const potentialChunk = currentChunk + sentence;
+
+    // If adding the next sentence would exceed maxChunkSize, save current chunk
+    if (potentialChunk.length > maxChunkSize && currentChunk.length > 0) {
+      chunks.push(currentChunk.trim());
       currentChunk = sentence;
     } else {
-      currentChunk += sentence;
+      currentChunk = potentialChunk;
     }
   }
-  
-  if (currentChunk) chunks.push(currentChunk.trim());
-  return chunks;
-}
 
+  // Add the last chunk if there's any remaining text
+  if (currentChunk.trim().length > 0) {
+    chunks.push(currentChunk.trim());
+  }
+
+  // Filter out empty chunks and ensure minimum content
+  return chunks
+    .filter(chunk => chunk.trim().length > 0)
+    .map(chunk => chunk.trim());
+}
