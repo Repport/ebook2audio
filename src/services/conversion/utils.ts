@@ -72,3 +72,25 @@ export function splitTextIntoChunks(text: string): string[] {
     .filter(chunk => chunk.trim().length > 0)
     .map(chunk => chunk.trim());
 }
+
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
+
+export async function retryOperation<T>(
+  operation: () => Promise<T>,
+  retryCount = 0
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (err) {
+    if (retryCount >= MAX_RETRIES) {
+      throw err;
+    }
+
+    const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount) + Math.random() * 1000;
+    console.log(`Retry attempt ${retryCount + 1} after ${delay}ms`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    return retryOperation(operation, retryCount + 1);
+  }
+}
