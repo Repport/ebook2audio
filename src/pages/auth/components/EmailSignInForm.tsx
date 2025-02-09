@@ -3,7 +3,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import FormFields, { validatePassword } from "./FormFields";
+import FormFields from "./FormFields";
+import PasswordRecovery from "./PasswordRecovery";
+import { validateSignInForm } from "@/utils/authValidation";
 
 interface EmailSignInFormProps {
   onSuccess: () => void;
@@ -14,82 +16,12 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isRecovering, setIsRecovering] = useState(false);
   const { toast } = useToast();
-
-  const validateForm = () => {
-    if (!email || !password) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in both email and password fields.",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    return true;
-  };
-
-  const handlePasswordRecovery = async () => {
-    if (!email) {
-      toast({
-        title: "Email required",
-        description: "Please enter your email address to reset your password.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsRecovering(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Recovery email sent",
-        description: "Check your email for the password reset link.",
-      });
-    } catch (error: any) {
-      console.error("Password recovery error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to send recovery email. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRecovering(false);
-    }
-  };
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    if (!validateSignInForm(email, password, toast)) {
       return;
     }
 
@@ -105,7 +37,6 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
         console.error("Auth error details:", error);
         
         if (error.message.includes("Invalid login credentials")) {
-          // This error can mean either wrong password OR user doesn't exist
           toast({
             title: "Account not found",
             description: (
@@ -154,17 +85,7 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
         onPasswordChange={setPassword}
         disabled={loading}
       />
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="link"
-          className="px-0 font-normal text-sm"
-          onClick={handlePasswordRecovery}
-          disabled={isRecovering}
-        >
-          {isRecovering ? "Sending recovery email..." : "Forgot password?"}
-        </Button>
-      </div>
+      <PasswordRecovery email={email} />
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Signing in..." : "Sign in"}
       </Button>
@@ -173,3 +94,4 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
 };
 
 export default EmailSignInForm;
+
