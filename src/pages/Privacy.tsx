@@ -45,15 +45,8 @@ const Privacy = () => {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold mt-8 mb-4">{translations.dataRetentionTitle}</h2>
-              <p>{translations.dataRetentionDesc}</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>{translations.supportAssistance}</li>
-                <li>{translations.qualityIssues}</li>
-                <li>{translations.copyrightClaims}</li>
-                <li>{translations.serviceQuality}</li>
-              </ul>
-              <p className="mt-4">{translations.retentionNotice}</p>
+              <h2 className="text-2xl font-semibold mt-8 mb-4">3. Data Retention</h2>
+              <p>Your files are retained only for the duration necessary to complete the conversion process. Once you download your converted audio file, both the original and converted files are permanently deleted from our servers.</p>
             </section>
 
             <section>

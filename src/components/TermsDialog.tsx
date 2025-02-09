@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -9,12 +10,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import TermsContent from './TermsContent';
-import TermsCheckbox from './TermsCheckbox';
-import { useRecaptcha } from '@/hooks/useRecaptcha';
-import { useRecaptchaVerification } from '@/hooks/useRecaptchaVerification';
-import { logTermsAcceptance } from '@/utils/termsLogger';
 
 interface TermsDialogProps {
   open: boolean;
@@ -25,118 +23,51 @@ interface TermsDialogProps {
 }
 
 const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialogProps) => {
-  const [accepted, setAccepted] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationPassed, setVerificationPassed] = useState(false);
+  const [accepted, setAccepted] = React.useState(false);
   const { toast } = useToast();
-  const { reCaptchaKey, isEnabled, isError, initializationError, executeRecaptcha } = useRecaptcha(open);
-  const { verifyRecaptcha } = useRecaptchaVerification();
 
-  const handleCheckboxChange = async (checked: boolean) => {
-    setAccepted(checked);
-    if (checked) {
-      setIsVerifying(true);
-      try {
-        const token = await executeRecaptcha();
-        if (!token) {
-          toast({
-            title: "Verification Failed",
-            description: "Could not complete security verification. Please try again.",
-            variant: "destructive",
-          });
-          setAccepted(false);
-          return;
-        }
-
-        const verification = await verifyRecaptcha(token);
-        if (!verification || !verification.success) {
-          toast({
-            title: "Verification Failed",
-            description: "Security verification failed. Please try again later.",
-            variant: "destructive",
-          });
-          setAccepted(false);
-          return;
-        }
-
-        setVerificationPassed(true);
-        if (isEnabled) {
-          toast({
-            title: "Verification Successful",
-            description: "You can now proceed with accepting the terms.",
-          });
-        }
-      } catch (error) {
-        console.error('Error in verification process:', error);
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "An error occurred during verification. Please try again.",
-          variant: "destructive",
-        });
-        setAccepted(false);
-      } finally {
-        setIsVerifying(false);
-      }
-    } else {
-      setVerificationPassed(false);
-    }
-  };
-
-  const handleAccept = async () => {
-    if (!accepted || (!verificationPassed && isEnabled)) {
-      toast({
-        title: "Verification Required",
-        description: "Please accept the terms and complete the verification to continue",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const logAcceptance = async () => {
     try {
-      const token = await executeRecaptcha();
-      if (!token) {
-        toast({
-          title: "Verification Failed",
-          description: "Could not complete security verification. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const verification = await verifyRecaptcha(token);
-      if (!verification || !verification.success) {
-        toast({
-          title: "Verification Failed",
-          description: "Security verification failed. Please try again later.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await logTermsAcceptance({
-        token,
-        score: verification.score,
-        fileName,
-        fileType
-      });
+      // Get user's IP address using a public API
+      const ipResponse = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipResponse.json();
       
+      // Log the acceptance
+      const { error } = await supabase
+        .from('terms_acceptance_logs')
+        .insert([
+          {
+            ip_address: ipData.ip,
+            user_agent: navigator.userAgent,
+            file_name: fileName,
+            file_type: fileType
+          }
+        ]);
+
       if (error) {
+        console.error('Error logging terms acceptance:', error);
         toast({
           title: "Warning",
           description: "Proceeded with conversion but failed to log acceptance",
           variant: "destructive",
         });
       }
-
-      onAccept();
-      onClose();
     } catch (error) {
-      console.error('Error in acceptance process:', error);
+      console.error('Error getting IP or logging acceptance:', error);
+      // Don't block the conversion if logging fails
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "An error occurred. Please try again later.",
+        title: "Warning",
+        description: "Proceeded with conversion but failed to log acceptance",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleAccept = async () => {
+    if (accepted) {
+      await logAcceptance();
+      onAccept();
+      onClose();
     }
   };
 
@@ -150,30 +81,42 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 my-6 text-left">
-          <TermsContent />
+          <ol className="list-decimal list-inside space-y-2">
+            <li className="text-sm">
+              <span className="font-semibold">User Responsibility:</span> You declare and guarantee that you have the legal rights to use, process, and convert the content of the file you are uploading.
+            </li>
+            <li className="text-sm">
+              <span className="font-semibold">Copyright Compliance:</span> Uploading copyrighted content without explicit authorization from the rights holder is strictly prohibited. The user is solely responsible for any infringement.
+            </li>
+            <li className="text-sm">
+              <span className="font-semibold">Liability Disclaimer:</span> Our service does not store, review, or monitor the content of uploaded files. We assume no responsibility for the misuse of the service or any legal claims arising from the processed content.
+            </li>
+            <li className="text-sm">
+              <span className="font-semibold">Privacy Policy:</span> Uploaded files and generated audio may be automatically deleted after a set period. Please refer to our <Link to="/privacy" className="text-blue-600 hover:underline" target="_blank">privacy policy</Link> for more details.
+            </li>
+            <li className="text-sm">
+              <span className="font-semibold">Terms of Use:</span> We reserve the right to suspend or terminate access to this service in case of misuse or violation of these terms.
+            </li>
+          </ol>
         </div>
-        <div className="flex flex-col space-y-4">
-          <TermsCheckbox 
-            accepted={accepted}
-            isVerifying={isVerifying}
-            onCheckedChange={handleCheckboxChange}
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="terms" 
+            checked={accepted}
+            onCheckedChange={(checked) => setAccepted(checked as boolean)}
           />
-          {isVerifying && (
-            <div className="text-sm text-blue-600 text-center">
-              Verifying...
-            </div>
-          )}
-          {(isError || initializationError) && isEnabled && (
-            <div className="text-red-500 text-sm text-center">
-              {initializationError || "Error loading security verification. Please try again later."}
-            </div>
-          )}
+          <label 
+            htmlFor="terms" 
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            I accept the terms and conditions and confirm that I have the legal rights to the content of the uploaded file.
+          </label>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 
             onClick={handleAccept}
-            disabled={!accepted || (!verificationPassed && isEnabled) || (isEnabled && (!reCaptchaKey || isError || !!initializationError))}
+            disabled={!accepted}
           >
             Accept and Continue
           </Button>

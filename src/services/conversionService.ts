@@ -6,9 +6,9 @@ interface ChapterWithTimestamp extends Chapter {
   timestamp: number;
 }
 
-// Improved XOR-based obfuscation with better key rotation
+// Simple XOR-based obfuscation
 function obfuscateData(data: string): string {
-  const key = 'epub2audio' + new Date().getUTCDate();
+  const key = 'epub2audio';
   let result = '';
   for (let i = 0; i < data.length; i++) {
     result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
@@ -16,152 +16,54 @@ function obfuscateData(data: string): string {
   return result;
 }
 
-async function generateTextHash(text: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-const validateInput = (text: string, voiceId: string): void => {
-  if (!text?.trim()) {
-    throw new Error('Text content is required');
-  }
-
-  if (!voiceId?.trim()) {
-    throw new Error('Voice ID is required');
-  }
-
-  if (text.startsWith('%PDF')) {
-    throw new Error('Invalid text content: Raw PDF data received');
-  }
-};
-
-const checkExistingConversion = async (textHash: string): Promise<ArrayBuffer | null> => {
-  const { data: existingConversion, error } = await supabase
-    .from('text_conversions')
-    .select('audio_content')
-    .eq('text_hash', textHash)
-    .gt('expires_at', new Date().toISOString())
-    .maybeSingle();  // Changed from .single() to .maybeSingle()
-
-  if (error || !existingConversion?.audio_content) {
-    return null;
-  }
-
-  // Convert base64 to ArrayBuffer
-  const binaryString = atob(existingConversion.audio_content);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-
-  return bytes.buffer;
-};
-
-const storeConversion = async (
-  textHash: string,
-  audioContent: ArrayBuffer,
-  fileName: string,
-  duration: number
-) => {
-  // Convert ArrayBuffer to base64 string for storage
-  const uint8Array = new Uint8Array(audioContent);
-  const binaryString = String.fromCharCode.apply(null, Array.from(uint8Array));
-  const base64String = btoa(binaryString);
-
-  const { error } = await supabase
-    .from('text_conversions')
-    .insert({
-      text_hash: textHash,
-      file_name: fileName,
-      audio_content: base64String,
-      file_size: audioContent.byteLength,
-      duration: duration
-    });
-
-  if (error) {
-    console.error('Error storing conversion:', error);
-  }
-};
-
 export const convertToAudio = async (
   text: string, 
   voiceId: string,
   chapters?: ChapterWithTimestamp[],
   fileName?: string
 ): Promise<ArrayBuffer> => {
-  console.log('Starting conversion:', {
-    textLength: text.length,
-    voiceId,
-    chaptersCount: chapters?.length || 0,
-    fileName
+  if (text.startsWith('%PDF')) {
+    console.error('Received raw PDF data instead of text content');
+    throw new Error('Invalid text content: Raw PDF data received. Please check PDF text extraction.');
+  }
+
+  console.log('Converting text length:', text.length, 'with voice:', voiceId);
+  console.log('Chapters:', chapters?.length || 0);
+
+  // Obfuscate sensitive data before sending
+  const obfuscatedText = obfuscateData(text);
+  const obfuscatedVoiceId = obfuscateData(voiceId);
+
+  const { data, error } = await supabase.functions.invoke('convert-to-audio', {
+    body: { 
+      text: obfuscatedText, 
+      voiceId: obfuscatedVoiceId,
+      fileName,
+      chapters: chapters?.map(ch => ({
+        title: ch.title,
+        timestamp: ch.timestamp
+      }))
+    }
   });
 
-  validateInput(text, voiceId);
-  const textHash = await generateTextHash(text);
-
-  // Check for existing conversion
-  const existingAudio = await checkExistingConversion(textHash);
-  if (existingAudio) {
-    console.log('Found existing conversion, returning cached audio');
-    return existingAudio;
-  }
-
-  try {
-    // First check if we have an active session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      throw new Error('Authentication required. Please log in.');
+  if (error) {
+    if (error.message.includes('rate limit exceeded')) {
+      throw new Error('You have exceeded the maximum number of conversions allowed in 24 hours. Please try again later.');
     }
-
-    const obfuscatedText = obfuscateData(text);
-    const obfuscatedVoiceId = obfuscateData(voiceId);
-
-    const { data, error } = await supabase.functions.invoke('convert-to-audio', {
-      body: { 
-        text: obfuscatedText, 
-        voiceId: obfuscatedVoiceId,
-        fileName: fileName || 'untitled',
-        chapters: chapters?.map(ch => ({
-          title: ch.title,
-          timestamp: ch.timestamp
-        }))
-      },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`
-      }
-    });
-
-    if (error) {
-      if (error.message.includes('rate limit exceeded')) {
-        throw new Error('Conversion rate limit exceeded. Please try again later.');
-      }
-      console.error('Conversion error:', error);
-      throw error;
-    }
-
-    if (!data?.audioContent) {
-      throw new Error('No audio data received from conversion service');
-    }
-
-    // Convert base64 to ArrayBuffer
-    const binaryString = atob(data.audioContent);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    
-    const audioBuffer = bytes.buffer;
-
-    // Store the conversion for future use
-    await storeConversion(textHash, audioBuffer, fileName || 'untitled', data.duration || 0);
-    
-    console.log('Conversion completed successfully');
-    return audioBuffer;
-  } catch (error) {
-    console.error('Conversion failed:', error);
+    console.error('Conversion error:', error);
     throw error;
   }
+
+  if (!data?.audioContent) {
+    throw new Error('No audio data received');
+  }
+
+  // Convert base64 to ArrayBuffer
+  const binaryString = atob(data.audioContent);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  return bytes.buffer;
 };

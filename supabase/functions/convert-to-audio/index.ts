@@ -10,7 +10,7 @@ const corsHeaders = {
 
 // Simple XOR-based obfuscation
 function deobfuscateData(data: string): string {
-  const key = 'epub2audio' + new Date().getUTCDate();
+  const key = 'epub2audio';
   let result = '';
   for (let i = 0; i < data.length; i++) {
     result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
@@ -46,18 +46,14 @@ serve(async (req) => {
     // Get user information from the request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('Missing Authorization header');
       throw new Error('Missing authorization header');
     }
 
     // Get user from auth header
     const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     if (userError || !user) {
-      console.error('Auth error:', userError);
       throw new Error('Unauthorized');
     }
-
-    console.log('Authenticated user:', user.id);
 
     // Get IP address from request
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
@@ -66,7 +62,7 @@ serve(async (req) => {
     const text = requestData.text ? deobfuscateData(requestData.text) : '';
     const voiceId = requestData.voiceId ? deobfuscateData(requestData.voiceId) : 'en-US-Standard-C';
     const chapters = requestData.chapters;
-    const fileName = requestData.fileName || 'untitled';
+    const fileName = requestData.fileName;
 
     console.log('Request received - IP:', ip, 'User:', user.id, 'File:', fileName);
 
