@@ -33,7 +33,8 @@ const Conversions = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate("/auth", { state: { from: location } });
+      // Instead of passing the location object directly, we pass the pathname
+      navigate("/auth", { state: { returnTo: "/conversions" } });
     }
   }, [user, navigate]);
 
