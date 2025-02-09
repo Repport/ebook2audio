@@ -13,14 +13,11 @@ const Auth = () => {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
   useEffect(() => {
-    // Only redirect if we have a user and we're not loading
     if (user && !loading) {
-      console.log("User authenticated, redirecting to home");
       navigate("/");
     }
   }, [user, loading, navigate]);
 
-  // Show loading state while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -63,7 +60,10 @@ const Auth = () => {
             </>
           ) : (
             <>
-              <EmailSignUpForm email="" password="" />
+              <EmailSignUpForm 
+                onSuccess={() => navigate("/")}
+                onSwitchToSignIn={() => setMode('signin')}
+              />
               <p className="text-center text-sm text-gray-600 dark:text-gray-400">
                 Already have an account?{' '}
                 <Button

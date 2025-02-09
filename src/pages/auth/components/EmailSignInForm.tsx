@@ -1,13 +1,11 @@
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import FormFields from "./FormFields";
 import PasswordRecovery from "./PasswordRecovery";
 import { validateSignInForm } from "@/utils/authValidation";
-import { useCaptcha } from "@/hooks/useCaptcha";
-import { useCaptchaVerification } from "@/hooks/useCaptchaVerification";
 
 interface EmailSignInFormProps {
   onSuccess: () => void;
@@ -19,9 +17,6 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const captchaRef = useRef<HTMLDivElement>(null);
-  const { executeCaptcha, isEnabled } = useCaptcha(true);
-  const { verifyCaptcha } = useCaptchaVerification();
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,37 +27,12 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
 
     setLoading(true);
     try {
-      console.log("Starting sign-in process...");
-      
-      // Execute hCaptcha verification if enabled
-      if (isEnabled) {
-        const token = captchaRef.current ? await executeCaptcha(captchaRef.current.id) : null;
-        if (!token) {
-          toast({
-            title: "Verification Failed",
-            description: "Unable to complete security verification. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Verify the token
-        const verification = await verifyCaptcha(token);
-        if (!verification || !verification.success) {
-          return; // Error toast is handled in verifyCaptcha
-        }
-      }
-
-      console.log("Attempting sign in with:", { email: email.trim() });
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       if (error) {
-        console.error("Auth error details:", error);
-        
-        // Handle invalid credentials specifically
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Account not found",
@@ -88,11 +58,9 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
           });
         }
       } else if (data.user) {
-        console.log("Sign in successful");
         onSuccess();
       }
     } catch (error: any) {
-      console.error("Unexpected error:", error);
       toast({
         title: "Error signing in",
         description: "An unexpected error occurred. Please try again.",
@@ -113,13 +81,6 @@ const EmailSignInForm = ({ onSuccess, onSwitchToSignUp }: EmailSignInFormProps) 
         disabled={loading}
       />
       <PasswordRecovery email={email} />
-      {isEnabled && (
-        <div 
-          id="hcaptcha-container" 
-          ref={captchaRef} 
-          className="flex justify-center"
-        />
-      )}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Signing in..." : "Sign in"}
       </Button>

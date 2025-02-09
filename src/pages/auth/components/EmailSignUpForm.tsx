@@ -5,23 +5,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import TermsCheckbox from "@/components/TermsCheckbox";
 import FormFields, { validatePassword } from "./FormFields";
-import { useNavigate } from "react-router-dom";
 
 interface EmailSignUpFormProps {
-  email: string;
-  password: string;
+  onSuccess: () => void;
+  onSwitchToSignIn: () => void;
 }
 
-const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
-  const navigate = useNavigate();
-  const [localEmail, setLocalEmail] = useState(email);
-  const [localPassword, setLocalPassword] = useState(password);
+const EmailSignUpForm = ({ onSuccess, onSwitchToSignIn }: EmailSignUpFormProps) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const { toast } = useToast();
 
   const validateForm = () => {
-    if (!localEmail || !localPassword) {
+    if (!email || !password) {
       toast({
         title: "Missing fields",
         description: "Please fill in both email and password.",
@@ -31,7 +29,7 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(localEmail)) {
+    if (!emailRegex.test(email)) {
       toast({
         title: "Invalid email",
         description: "Please enter a valid email address.",
@@ -40,7 +38,7 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
       return false;
     }
 
-    const passwordValidation = validatePassword(localPassword);
+    const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       toast({
         title: "Invalid password",
@@ -70,8 +68,8 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
     setLoading(true);
     try {
       const { data: { user: newUser }, error } = await supabase.auth.signUp({
-        email: localEmail.trim(),
-        password: localPassword,
+        email: email.trim(),
+        password,
         options: {
           data: {
             terms_accepted: true,
@@ -88,6 +86,7 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
             description: "An account with this email already exists. Please sign in instead.",
             variant: "destructive",
           });
+          onSwitchToSignIn();
         } else {
           throw error;
         }
@@ -99,11 +98,9 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
           title: "Success",
           description: "Check your email for the confirmation link.",
         });
-        // Redirect to main page since the user is now signed up
-        navigate("/");
+        onSuccess();
       }
     } catch (error: any) {
-      console.error("Signup error:", error);
       toast({
         title: "Error signing up",
         description: error.message || "An unexpected error occurred. Please try again.",
@@ -117,10 +114,10 @@ const EmailSignUpForm = ({ email, password }: EmailSignUpFormProps) => {
   return (
     <div className="space-y-4">
       <FormFields
-        email={localEmail}
-        password={localPassword}
-        onEmailChange={setLocalEmail}
-        onPasswordChange={setLocalPassword}
+        email={email}
+        password={password}
+        onEmailChange={setEmail}
+        onPasswordChange={setPassword}
         disabled={loading}
         showPasswordRequirements={true}
       />
