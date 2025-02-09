@@ -11,7 +11,6 @@ const corsHeaders = {
 // Maximum request size (in bytes) - 40MB to stay well under Supabase's 50MB limit
 const MAX_REQUEST_SIZE = 40 * 1024 * 1024;
 
-// Simple XOR-based obfuscation
 function deobfuscateData(data: string): string {
   const key = 'epub2audio';
   let result = '';
@@ -43,78 +42,116 @@ function escapeXml(unsafe: string): string {
     .replace(/'/g, '&apos;');
 }
 
-function getByteLength(str: string): number {
-  return new TextEncoder().encode(str).length;
-}
+async function synthesizeLongAudio(text: string, voiceId: string, accessToken: string): Promise<string> {
+  // Step 1: Create a synthesis request
+  const requestBody = {
+    input: {
+      ssml: `<speak>${escapeXml(text)}</speak>`
+    },
+    voice: {
+      languageCode: 'en-US',
+      name: voiceId,
+      ssmlGender: voiceId.includes('Standard-C') ? 'FEMALE' : 'MALE'
+    },
+    audioConfig: {
+      audioEncoding: 'MP3',
+      speakingRate: 1.0,
+      pitch: 0.0,
+      effectsProfileId: ['handset-class-device'],
+    }
+  };
 
-function splitTextIntoChunks(text: string): string[] {
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-  const chunks: string[] = [];
-  let currentChunk = '';
-  
-  for (const sentence of sentences) {
-    const potentialChunk = currentChunk + sentence;
-    const ssml = `<speak>${escapeXml(potentialChunk)}</speak>`;
-    
-    if (getByteLength(ssml) > 4800) {
-      if (currentChunk) {
-        chunks.push(currentChunk.trim());
+  // Create synthesis operation
+  const operationResponse = await fetch(
+    'https://texttospeech.googleapis.com/v1/text:longRunningRecognize',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(requestBody),
+    }
+  );
+
+  if (!operationResponse.ok) {
+    const errorText = await operationResponse.text();
+    console.error('Long Audio API failed:', errorText);
+    throw new Error(`Long Audio API failed: ${operationResponse.status} ${operationResponse.statusText}`);
+  }
+
+  const operation = await operationResponse.json();
+  console.log('Operation created:', operation.name);
+
+  // Step 2: Poll the operation until it's complete
+  let audioContent = '';
+  let isComplete = false;
+  while (!isComplete) {
+    const checkResponse = await fetch(
+      `https://texttospeech.googleapis.com/v1/operations/${operation.name}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
       }
-      currentChunk = sentence;
+    );
+
+    if (!checkResponse.ok) {
+      throw new Error(`Failed to check operation status: ${checkResponse.status}`);
+    }
+
+    const status = await checkResponse.json();
+    console.log('Operation status:', status.done ? 'complete' : 'in progress');
+
+    if (status.done) {
+      if (status.error) {
+        throw new Error(`Synthesis failed: ${status.error.message}`);
+      }
+      audioContent = status.response.audioContent;
+      isComplete = true;
     } else {
-      currentChunk = potentialChunk;
+      // Wait 2 seconds before checking again
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
-  
-  if (currentChunk) {
-    chunks.push(currentChunk.trim());
-  }
-  
-  return chunks;
+
+  return audioContent;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Check request size
     const contentLength = parseInt(req.headers.get('content-length') || '0');
     if (contentLength > MAX_REQUEST_SIZE) {
       throw new Error(`Request size (${contentLength} bytes) exceeds maximum allowed size (${MAX_REQUEST_SIZE} bytes)`);
     }
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get user information from the request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
 
-    // Get user from auth header
     const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     if (userError || !user) {
       throw new Error('Unauthorized');
     }
 
-    // Get IP address from request
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
     
     const requestData = await req.json();
     const text = requestData.text ? deobfuscateData(requestData.text) : '';
     const voiceId = requestData.voiceId ? deobfuscateData(requestData.voiceId) : 'en-US-Standard-C';
-    const chapters = requestData.chapters;
     const fileName = requestData.fileName;
 
     console.log('Request received - IP:', ip, 'User:', user.id, 'File:', fileName);
 
-    // Check rate limit
     const { data: rateLimitCheck, error: rateLimitError } = await supabase
       .rpc('check_conversion_rate_limit', { p_ip_address: ip });
 
@@ -127,67 +164,11 @@ serve(async (req) => {
       throw new Error('No text content to convert');
     }
 
-    const textChunks = splitTextIntoChunks(cleanedText);
-    console.log(`Split text into ${textChunks.length} chunks`);
-
     const accessToken = await getAccessToken();
     console.log('✅ Successfully obtained access token');
 
-    const audioContents: string[] = [];
-
-    for (let i = 0; i < textChunks.length; i++) {
-      console.log(`Processing chunk ${i + 1}/${textChunks.length}`);
-      const chunk = textChunks[i];
-      
-      const ssml = `<speak>${escapeXml(chunk)}</speak>`;
-      const ssmlByteLength = getByteLength(ssml);
-      console.log(`SSML byte length for chunk ${i + 1}: ${ssmlByteLength}`);
-
-      if (ssmlByteLength > 5000) {
-        console.error(`Chunk ${i + 1} exceeds byte limit:`, ssmlByteLength);
-        throw new Error(`Text chunk exceeds Google Cloud API limit`);
-      }
-
-      const requestBody = {
-        input: { ssml },
-        voice: {
-          languageCode: 'en-US',
-          name: voiceId,
-          ssmlGender: voiceId.includes('Standard-C') ? 'FEMALE' : 'MALE'
-        },
-        audioConfig: {
-          audioEncoding: 'MP3',
-          speakingRate: 1.0,
-          pitch: 0.0,
-          effectsProfileId: ['handset-class-device'],
-        }
-      };
-
-      const response = await fetch(
-        'https://texttospeech.googleapis.com/v1/text:synthesize',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Google Cloud API failed with status:', response.status);
-        console.error('Error response:', errorText);
-        throw new Error(`Google Cloud API failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      audioContents.push(data.audioContent);
-    }
-
-    // Combine all audio chunks
-    const combinedAudioContent = audioContents.join('');
+    // Use Long Audio API for synthesis
+    const audioContent = await synthesizeLongAudio(cleanedText, voiceId, accessToken);
     
     // Log successful conversion
     const { error: logError } = await supabase
@@ -205,7 +186,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ audioContent: combinedAudioContent }),
+      JSON.stringify({ audioContent }),
       { 
         headers: { 
           ...corsHeaders, 
