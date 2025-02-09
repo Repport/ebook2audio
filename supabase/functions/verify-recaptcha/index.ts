@@ -17,8 +17,13 @@ serve(async (req) => {
   try {
     const { token, expectedAction } = await req.json();
     
+    console.log('Received token:', token ? 'present' : 'missing');
+    console.log('Expected action:', expectedAction);
+    
     const client = new RecaptchaEnterpriseServiceClient();
     const projectPath = `projects/ambient-tuner-450319-g2`;
+
+    console.log('Creating assessment for project:', projectPath);
 
     const [assessment] = await client.createAssessment({
       parent: projectPath,
@@ -29,6 +34,11 @@ serve(async (req) => {
           siteKey: '6LcXU9EqAAAAAElRyhh7eJESVVY6pHOnt2XRfYIQ',
         },
       },
+    });
+
+    console.log('Assessment created:', {
+      score: assessment.riskAnalysis?.score,
+      valid: assessment.tokenProperties?.valid,
     });
 
     return new Response(
@@ -45,6 +55,12 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('reCAPTCHA verification error:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    });
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       {
