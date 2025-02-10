@@ -78,7 +78,14 @@ export async function convertToAudio(
             throw error || new Error('No audio content received');
           }
 
-          const audioBuffer = Buffer.from(data.data.audioContent, 'base64');
+          // Convert base64 to ArrayBuffer
+          const binaryString = atob(data.data.audioContent);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const audioBuffer = bytes.buffer;
+          
           results[chunk.chunk_index] = audioBuffer;
 
           await updateChunkStatus(chunk.id, 'completed', `chunks/${conversionId}/${chunk.id}.mp3`);
