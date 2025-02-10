@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { synthesizeSpeech } from './speech-service.ts'
@@ -18,6 +19,7 @@ serve(async (req) => {
     let body;
     try {
       body = await req.json();
+      console.log('Received request body:', JSON.stringify(body, null, 2));
     } catch (e) {
       console.error('Failed to parse request body:', e);
       throw new Error('Invalid request body');
@@ -75,7 +77,11 @@ serve(async (req) => {
 
     console.log('Successfully obtained access token');
 
+    // Extract language code from voiceId (e.g., "en-US-Standard-C" -> "en-US")
+    const langCode = voiceId.split('-').slice(0, 2).join('-');
+    
     // Use the speech service to handle synthesis
+    console.log(`Synthesizing speech with language code: ${langCode}`);
     const audioContent = await synthesizeSpeech(text, voiceId, access_token);
     
     console.log('Successfully generated audio content');
