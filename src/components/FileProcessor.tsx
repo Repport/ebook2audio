@@ -55,8 +55,11 @@ const FileProcessor = ({
   if (!selectedFile) return null;
 
   const handleVoiceSettingsComplete = () => {
-    initiateConversion();
     onNextStep();
+  };
+
+  const handleConversionStart = () => {
+    setShowTerms(true);
   };
 
   return (
@@ -83,7 +86,7 @@ const FileProcessor = ({
             audioData={audioData}
             audioDuration={audioDuration}
             estimatedSeconds={estimatedSeconds}
-            onConvert={initiateConversion}
+            onConvert={handleConversionStart}
             onDownloadClick={handleDownloadClick}
             onViewConversions={handleViewConversions}
           />
@@ -102,3 +105,4 @@ const FileProcessor = ({
 };
 
 export default FileProcessor;
+
