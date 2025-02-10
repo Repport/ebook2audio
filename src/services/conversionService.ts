@@ -24,7 +24,7 @@ export async function convertToAudio(
     // Check if there's an existing completed conversion
     const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
-      .select('storage_path, id')
+      .select('storage_path, id')  // Explicitly select storage_path and id
       .eq('text_hash', textHash)
       .eq('status', 'completed')
       .gt('expires_at', new Date().toISOString())
