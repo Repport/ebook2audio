@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
@@ -76,7 +77,7 @@ const ConversionStatus = ({
   };
 
   const getEstimatedTimeRemaining = () => {
-    if ((displayStatus !== 'converting' && displayStatus !== 'processing') || smoothProgress >= 100 || !estimatedSeconds) {
+    if (displayStatus !== 'converting' || smoothProgress >= 100 || !estimatedSeconds) {
       return null;
     }
     
@@ -89,7 +90,7 @@ const ConversionStatus = ({
 
   return (
     <div className="flex flex-col items-center space-y-4 w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-      {(displayStatus === 'converting' || displayStatus === 'processing') && (
+      {(displayStatus === 'converting') && (
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       )}
       <p className="text-lg font-medium text-center">{statusMessages[status]}</p>
@@ -128,7 +129,7 @@ const ConversionStatus = ({
         </Accordion>
       )}
 
-      {(displayStatus === 'converting' || displayStatus === 'processing') && (
+      {(displayStatus === 'converting') && (
         <div className="w-full space-y-2">
           <Progress value={smoothProgress} className="h-2" />
           <p className="text-sm text-muted-foreground text-center">{Math.round(smoothProgress)}%</p>
