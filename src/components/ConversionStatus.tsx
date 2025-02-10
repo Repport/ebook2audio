@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import {
@@ -29,6 +28,22 @@ const ConversionStatus = ({
   chapters = [],
   estimatedSeconds = 0
 }: ConversionStatusProps) => {
+  // Keep track of the highest progress value seen
+  const [smoothProgress, setSmoothProgress] = useState(progress);
+
+  useEffect(() => {
+    if (progress > smoothProgress) {
+      setSmoothProgress(progress);
+    }
+  }, [progress]);
+
+  // Reset progress when status changes
+  useEffect(() => {
+    if (status === 'idle') {
+      setSmoothProgress(0);
+    }
+  }, [status]);
+
   // Map processing status to converting for display purposes
   const displayStatus = status === 'processing' ? 'converting' : status;
   
@@ -61,11 +76,11 @@ const ConversionStatus = ({
   };
 
   const getEstimatedTimeRemaining = () => {
-    if ((displayStatus !== 'converting' && displayStatus !== 'processing') || progress >= 100 || !estimatedSeconds) {
+    if ((displayStatus !== 'converting' && displayStatus !== 'processing') || smoothProgress >= 100 || !estimatedSeconds) {
       return null;
     }
     
-    const remainingProgress = 100 - progress;
+    const remainingProgress = 100 - smoothProgress;
     const remainingTime = Math.ceil((estimatedSeconds * remainingProgress) / 100);
     return formatTimeRemaining(remainingTime);
   };
@@ -115,8 +130,8 @@ const ConversionStatus = ({
 
       {(displayStatus === 'converting' || displayStatus === 'processing') && (
         <div className="w-full space-y-2">
-          <Progress value={progress} className="h-2" />
-          <p className="text-sm text-muted-foreground text-center">{Math.round(progress)}%</p>
+          <Progress value={smoothProgress} className="h-2" />
+          <p className="text-sm text-muted-foreground text-center">{Math.round(smoothProgress)}%</p>
         </div>
       )}
     </div>
