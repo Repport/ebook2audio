@@ -15,17 +15,27 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId, fileName, isChunk } = await req.json();
-    console.log(`Processing request for ${isChunk ? 'chunk' : 'full text'}, length: ${text.length}`);
+    // Parse request body
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      console.error('Failed to parse request body:', e);
+      throw new Error('Invalid request body');
+    }
+
+    const { text, voiceId, fileName, isChunk } = body;
+    console.log(`Processing request for ${isChunk ? 'chunk' : 'full text'}, length: ${text?.length}`);
 
     if (!text || !voiceId) {
-      throw new Error('Missing required parameters');
+      throw new Error('Missing required parameters: text and voiceId are required');
     }
 
     // Initialize Google Cloud TTS client
     const credentialsString = Deno.env.get('GCP_SERVICE_ACCOUNT');
     if (!credentialsString) {
-      throw new Error('GCP credentials not found');
+      console.error('GCP credentials not found');
+      throw new Error('Server configuration error');
     }
 
     let credentials;
@@ -35,7 +45,7 @@ serve(async (req) => {
       credentials = JSON.parse(decodedCredentials);
     } catch (error) {
       console.error('Failed to parse GCP credentials:', error);
-      throw new Error('Invalid GCP credentials format');
+      throw new Error('Invalid server configuration');
     }
     
     // Get access token for Google Cloud API
@@ -52,11 +62,15 @@ serve(async (req) => {
     );
 
     if (!tokenResponse.ok) {
-      console.error('Failed to get access token:', await tokenResponse.text());
+      const errorText = await tokenResponse.text();
+      console.error('Failed to get access token:', errorText);
       throw new Error('Failed to authenticate with Google Cloud');
     }
 
     const { access_token } = await tokenResponse.json();
+    if (!access_token) {
+      throw new Error('No access token received');
+    }
 
     // Use the speech service to handle chunked synthesis
     const audioContent = await synthesizeSpeech(text, voiceId, access_token);
@@ -73,10 +87,14 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in convert-to-audio function:', error);
+    // Return a proper error response with CORS headers
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || 'Internal server error',
+        details: error.stack
+      }),
       { 
-        status: 500,
+        status: error.status || 500,
         headers: { 
           ...corsHeaders,
           'Content-Type': 'application/json'
