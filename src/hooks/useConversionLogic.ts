@@ -51,11 +51,15 @@ export const useConversionLogic = (
           console.log('Conversion update received:', payload.new);
           const { status, progress: newProgress } = payload.new;
           
+          // Always update status if it's provided
           if (status) {
+            console.log('Updating conversion status to:', status);
             setConversionStatus(status as 'idle' | 'converting' | 'completed' | 'error');
           }
           
+          // Always update progress if it's a number
           if (typeof newProgress === 'number') {
+            console.log('Updating progress to:', newProgress);
             setProgress(Math.min(newProgress, 100));
           }
 
@@ -82,6 +86,7 @@ export const useConversionLogic = (
 
   useEffect(() => {
     if (selectedFile) {
+      console.log('Selected file changed, resetting conversion');
       resetConversion();
       clearConversionStorage();
     }
@@ -97,6 +102,7 @@ export const useConversionLogic = (
       return;
     }
     
+    console.log('Initiating conversion process');
     resetConversion();
     clearConversionStorage();
     setShowTerms(true);
@@ -104,6 +110,8 @@ export const useConversionLogic = (
 
   const handleAcceptTerms = async (selectedVoice: string) => {
     if (!selectedFile || !extractedText) return;
+    
+    console.log('Starting conversion after terms acceptance');
     setDetectingChapters(true);
     try {
       await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
@@ -141,6 +149,13 @@ export const useConversionLogic = (
     const chunkOverhead = numberOfChunks * 0.5;
     return Math.ceil((extractedText.length * baseTimePerChar) + overhead + chunkOverhead);
   };
+
+  console.log('Current conversion state:', {
+    status: conversionStatus,
+    progress,
+    detectingChapters,
+    hasAudioData: !!audioData
+  });
 
   return {
     detectChapters,

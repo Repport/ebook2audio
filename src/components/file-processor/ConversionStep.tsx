@@ -27,11 +27,13 @@ const ConversionStep = ({
   audioData,
   audioDuration
 }: ConversionStepProps) => {
+  console.log('ConversionStep render:', { conversionStatus, progress });
+
   return (
     <>
-      <div className="flex justify-center">
+      <div className="flex justify-center mb-8">
         <ConversionStatus 
-          status={conversionStatus} 
+          status={conversionStatus === 'converting' ? 'converting' : conversionStatus}
           progress={progress}
           fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
           chaptersFound={0}
