@@ -21,19 +21,18 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
 
 // Calculate optimal chunk size based on total text length
 function calculateOptimalChunkSize(totalLength: number): number {
-  // Google TTS has a 5000 byte limit
-  const maxChunkSize = 5000;
+  // Google TTS tiene un límite de 5000 caracteres
+  const maxChunkSize = 4800; // Dejamos un margen de seguridad
   
-  // For very small texts, use the entire text
+  // Para textos muy pequeños, usar el texto completo
   if (totalLength <= maxChunkSize) {
     return totalLength;
   }
   
-  // For longer texts, use the max chunk size
   return maxChunkSize;
 }
 
-// Split text into smaller chunks with improved word boundary handling
+// Divide el texto en chunks más pequeños con mejor manejo de límites de palabras
 export function splitTextIntoChunks(text: string): string[] {
   const chunks: string[] = [];
   const optimalChunkSize = calculateOptimalChunkSize(text.length);
@@ -41,7 +40,7 @@ export function splitTextIntoChunks(text: string): string[] {
   let currentChunk: string[] = [];
   let currentLength = 0;
 
-  console.log(`Total text length: ${text.length}, Using chunk size: ${optimalChunkSize}`);
+  console.log(`Longitud total del texto: ${text.length}, Usando tamaño de chunk: ${optimalChunkSize}`);
 
   for (let word of words) {
     const wordLength = word.length;
@@ -52,7 +51,7 @@ export function splitTextIntoChunks(text: string): string[] {
       const chunk = currentChunk.join(" ").trim();
       if (chunk) {
         chunks.push(chunk);
-        console.log(`Created chunk ${chunks.length}, size: ${chunk.length} characters`);
+        console.log(`Creado chunk ${chunks.length}, tamaño: ${chunk.length} caracteres`);
       }
       currentChunk = [word];
       currentLength = wordLength;
@@ -62,87 +61,20 @@ export function splitTextIntoChunks(text: string): string[] {
     }
   }
 
-  // Add the final chunk if there's any remaining text
+  // Agregar el último chunk si queda texto
   if (currentChunk.length > 0) {
     const finalChunk = currentChunk.join(" ").trim();
     if (finalChunk) {
       chunks.push(finalChunk);
-      console.log(`Created final chunk ${chunks.length}, size: ${finalChunk.length} characters`);
+      console.log(`Creado chunk final ${chunks.length}, tamaño: ${finalChunk.length} caracteres`);
     }
   }
 
-  // Log chunk information for debugging
+  // Registrar información de los chunks para debugging
   chunks.forEach((chunk, index) => {
-    console.log(`Chunk ${index + 1}/${chunks.length}, size: ${chunk.length} characters`);
+    console.log(`Chunk ${index + 1}/${chunks.length}, tamaño: ${chunk.length} caracteres`);
   });
 
   return chunks.filter(chunk => chunk.trim().length > 0);
-}
-
-// Error classification
-function isTemporaryError(error: Error): boolean {
-  const errorMessage = error.message.toLowerCase();
-  const temporaryErrors = [
-    'timeout',
-    'network',
-    'connection',
-    'econnreset',
-    'econnrefused',
-    'too many requests',
-    '429',
-    '503',
-    '504'
-  ];
-
-  return temporaryErrors.some(term => errorMessage.includes(term));
-}
-
-interface RetryOptions {
-  maxRetries?: number;
-  initialDelay?: number;
-  timeout?: number;
-}
-
-export async function retryOperation<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
-  const maxRetries = options.maxRetries ?? 3;
-  const initialDelay = options.initialDelay ?? 1000;
-  const timeout = options.timeout ?? 30000;
-  let retryCount = 0;
-
-  while (true) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-      try {
-        const result = await Promise.race([
-          operation(),
-          new Promise<never>((_, reject) => {
-            controller.signal.addEventListener('abort', () => {
-              reject(new Error(`Operation timed out after ${timeout}ms`));
-            });
-          }),
-        ]);
-        clearTimeout(timeoutId);
-        return result;
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    } catch (err) {
-      // If it's not a temporary error, fail fast
-      if (!isTemporaryError(err) || retryCount >= maxRetries) {
-        console.error(`Operation failed ${retryCount > 0 ? 'after ' + retryCount + ' retries' : 'immediately'}:`, err);
-        throw err;
-      }
-
-      retryCount++;
-      const delay = initialDelay * Math.pow(2, retryCount - 1) + Math.random() * 1000;
-      console.log(`Temporary error detected, retry attempt ${retryCount} after ${delay}ms:`, err.message);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
 }
 
