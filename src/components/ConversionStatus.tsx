@@ -49,11 +49,11 @@ const ConversionStatus = ({
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.ceil(seconds % 60);
     if (minutes < 60) {
-      return `${minutes} min ${remainingSeconds} sec`;
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m`;
+    return `${hours}:${remainingMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   const getEstimatedTimeRemaining = () => {
@@ -69,20 +69,20 @@ const ConversionStatus = ({
   const timeRemaining = getEstimatedTimeRemaining();
 
   return (
-    <div className="flex flex-col items-center space-y-4 animate-fade-up w-full max-w-md">
+    <div className="flex flex-col items-center space-y-4 w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
       {status === 'converting' && (
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       )}
-      <p className="text-lg font-medium text-gray-900">{statusMessages[status]}</p>
+      <p className="text-lg font-medium text-center">{statusMessages[status]}</p>
       
       {timeRemaining && (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground text-center">
           Estimated time remaining: {timeRemaining}
         </p>
       )}
 
       {detectingChapters && (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground text-center">
           Detecting chapters... Found {chaptersFound} chapters
         </p>
       )}
@@ -94,11 +94,11 @@ const ConversionStatus = ({
               {chapters.length} Chapters Found
             </AccordionTrigger>
             <AccordionContent>
-              <div className="space-y-2 text-sm text-gray-600">
+              <div className="space-y-2 text-sm text-muted-foreground">
                 {chapters.map((chapter, index) => (
                   <div key={index} className="flex justify-between items-center py-1">
                     <span className="font-medium">{chapter.title}</span>
-                    <span className="text-gray-500">
+                    <span className="text-muted-foreground">
                       {formatTimestamp(chapter.timestamp || 0)}
                     </span>
                   </div>
@@ -110,9 +110,9 @@ const ConversionStatus = ({
       )}
 
       {status === 'converting' && (
-        <div className="w-full">
+        <div className="w-full space-y-2">
           <Progress value={progress} className="h-2" />
-          <p className="text-sm text-gray-600 mt-1 text-center">{Math.round(progress)}%</p>
+          <p className="text-sm text-muted-foreground text-center">{Math.round(progress)}%</p>
         </div>
       )}
     </div>
@@ -120,4 +120,3 @@ const ConversionStatus = ({
 };
 
 export default ConversionStatus;
-

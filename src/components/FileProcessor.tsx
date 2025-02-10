@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VoiceSelector from '@/components/VoiceSelector';
@@ -119,55 +120,59 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
   const estimatedSeconds = calculateEstimatedSeconds();
 
   return (
-    <div className="animate-fade-up space-y-8">
-      <VoiceSelector 
-        selectedVoice={selectedVoice}
-        onVoiceChange={(value: string) => setSelectedVoice(value)}
-        detectedLanguage={detectedLanguage}
-      />
-      
-      <ChapterDetectionToggle 
-        detectChapters={detectChapters}
-        onToggle={setDetectChapters}
-        chaptersFound={chapters.length}
-      />
-      
-      <ConversionStatus 
-        status={conversionStatus} 
-        progress={progress}
-        fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
-        chaptersFound={chapters.length}
-        detectingChapters={detectingChapters}
-        chapters={detectChapters ? chapters : []}
-        estimatedSeconds={estimatedSeconds}
-      />
-      
-      <ConversionControls 
-        status={conversionStatus}
-        onConvert={initiateConversion}
-        onDownload={handleDownloadClick}
-        fileSize={audioData?.byteLength}
-        duration={audioDuration}
-      />
-
-      {user && conversionStatus === 'completed' && (
-        <div className="text-center">
-          <Button
-            variant="outline"
-            onClick={handleViewConversions}
-          >
-            View All Conversions
-          </Button>
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="animate-fade-up space-y-8">
+        <VoiceSelector 
+          selectedVoice={selectedVoice}
+          onVoiceChange={(value: string) => setSelectedVoice(value)}
+          detectedLanguage={detectedLanguage}
+        />
+        
+        <ChapterDetectionToggle 
+          detectChapters={detectChapters}
+          onToggle={setDetectChapters}
+          chaptersFound={chapters.length}
+        />
+        
+        <div className="flex justify-center">
+          <ConversionStatus 
+            status={conversionStatus} 
+            progress={progress}
+            fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
+            chaptersFound={chapters.length}
+            detectingChapters={detectingChapters}
+            chapters={detectChapters ? chapters : []}
+            estimatedSeconds={estimatedSeconds}
+          />
         </div>
-      )}
+        
+        <ConversionControls 
+          status={conversionStatus}
+          onConvert={initiateConversion}
+          onDownload={handleDownloadClick}
+          fileSize={audioData?.byteLength}
+          duration={audioDuration}
+        />
 
-      <TermsDialog 
-        open={showTerms}
-        onClose={() => setShowTerms(false)}
-        onAccept={handleAcceptTerms}
-        fileName={selectedFile?.name || ''}
-        fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
-      />
+        {user && conversionStatus === 'completed' && (
+          <div className="text-center">
+            <Button
+              variant="outline"
+              onClick={handleViewConversions}
+            >
+              View All Conversions
+            </Button>
+          </div>
+        )}
+
+        <TermsDialog 
+          open={showTerms}
+          onClose={() => setShowTerms(false)}
+          onAccept={handleAcceptTerms}
+          fileName={selectedFile?.name || ''}
+          fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
+        />
+      </div>
     </div>
   );
 };
