@@ -2,12 +2,39 @@
 import { supabase } from "@/integrations/supabase/client";
 import { retryOperation } from "./utils";
 
+const checkTableSchema = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('text_conversions')
+      .select('*')
+      .limit(1);
+
+    if (error) {
+      console.error('Error fetching table schema:', error);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      console.log('Table Schema Columns:', Object.keys(data[0]));
+    } else {
+      console.log('No records found to check schema');
+    }
+  } catch (error) {
+    console.error('Error in checkTableSchema:', error);
+  }
+};
+
 export async function createConversion(
   textHash: string, 
   fileName: string | undefined, 
   userId: string | undefined
 ): Promise<string> {
   try {
+    // Log table schema in development
+    if (process.env.NODE_ENV === 'development') {
+      await checkTableSchema();
+    }
+
     // Create a new conversion record
     const { data: newConversion, error: insertError } = await supabase
       .from('text_conversions')
