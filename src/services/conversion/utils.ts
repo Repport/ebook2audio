@@ -1,4 +1,3 @@
-
 // Simple XOR-based obfuscation
 export function obfuscateData(data: string): string {
   const key = 'epub2audio';
@@ -21,17 +20,16 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
 
 // Calculate optimal chunk size based on total text length
 function calculateOptimalChunkSize(totalLength: number): number {
-  // For very large texts (>100K chars), use larger chunks
-  if (totalLength > 100000) return 10000;
-  
-  // For medium texts (20K-100K chars), use medium chunks
-  if (totalLength > 20000) return 7500;
-  
-  // For smaller texts (5K-20K chars), use smaller chunks
-  if (totalLength > 5000) return 5000;
+  // Google TTS has a 5000 byte limit, so we'll use a conservative 4000 character limit
+  // to account for any potential encoding overhead
+  const maxChunkSize = 4000;
   
   // For very small texts, use the entire text
-  return totalLength;
+  if (totalLength <= maxChunkSize) {
+    return totalLength;
+  }
+  
+  return maxChunkSize;
 }
 
 // Split text into smaller chunks with improved handling and dynamic sizing
