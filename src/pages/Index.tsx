@@ -60,6 +60,18 @@ const Index = () => {
     }
   };
 
+  const goToNextStep = () => {
+    if (currentStep < steps.length) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const goToPreviousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
   return (
     <LanguageProvider>
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
@@ -73,7 +85,7 @@ const Index = () => {
                   <div className="flex flex-col items-center">
                     <div 
                       className={cn(
-                        "w-10 h-10 rounded-full flex items-center justify-center border-2",
+                        "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors duration-200",
                         currentStep === step.id
                           ? "border-primary bg-primary text-white"
                           : currentStep > step.id
@@ -95,7 +107,7 @@ const Index = () => {
                   {step.id !== steps.length && (
                     <div 
                       className={cn(
-                        "flex-1 h-0.5",
+                        "flex-1 h-0.5 transition-colors duration-200",
                         currentStep > step.id
                           ? "bg-primary"
                           : "bg-gray-300"
@@ -122,6 +134,9 @@ const Index = () => {
                   extractedText={extractedText}
                   chapters={chapters}
                   onStepComplete={() => setCurrentStep(3)}
+                  currentStep={currentStep}
+                  onNextStep={goToNextStep}
+                  onPreviousStep={goToPreviousStep}
                 />
               </div>
             )}

@@ -12,6 +12,7 @@ import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
@@ -19,6 +20,9 @@ interface FileProcessorProps {
   extractedText: string;
   chapters: Chapter[];
   onStepComplete?: () => void;
+  currentStep: number;
+  onNextStep: () => void;
+  onPreviousStep: () => void;
 }
 
 const FileProcessor = ({ 
@@ -26,7 +30,10 @@ const FileProcessor = ({
   selectedFile, 
   extractedText, 
   chapters,
-  onStepComplete 
+  onStepComplete,
+  currentStep,
+  onNextStep,
+  onPreviousStep
 }: FileProcessorProps) => {
   const [detectChapters, setDetectChapters] = useState(true);
   const [detectingChapters, setDetectingChapters] = useState(false);
@@ -120,47 +127,84 @@ const FileProcessor = ({
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
-      <VoiceSelector 
-        selectedVoice={selectedVoice}
-        onVoiceChange={(value: string) => setSelectedVoice(value)}
-        detectedLanguage={detectedLanguage}
-      />
-      
-      <ChapterDetectionToggle 
-        detectChapters={detectChapters}
-        onToggle={setDetectChapters}
-        chaptersFound={chapters.length}
-      />
-      
-      <div className="flex justify-center">
-        <ConversionStatus 
-          status={conversionStatus} 
-          progress={progress}
-          fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
-          chaptersFound={chapters.length}
-          detectingChapters={detectingChapters}
-          chapters={detectChapters ? chapters : []}
-          estimatedSeconds={estimatedSeconds}
-        />
-      </div>
-      
-      <ConversionControls 
-        status={conversionStatus}
-        onConvert={initiateConversion}
-        onDownload={handleDownloadClick}
-        fileSize={audioData?.byteLength}
-        duration={audioDuration}
-      />
+      {currentStep === 2 && (
+        <>
+          <VoiceSelector 
+            selectedVoice={selectedVoice}
+            onVoiceChange={(value: string) => setSelectedVoice(value)}
+            detectedLanguage={detectedLanguage}
+          />
+          
+          <ChapterDetectionToggle 
+            detectChapters={detectChapters}
+            onToggle={setDetectChapters}
+            chaptersFound={chapters.length}
+          />
 
-      {user && conversionStatus === 'completed' && (
-        <div className="text-center">
-          <Button
-            variant="outline"
-            onClick={handleViewConversions}
-          >
-            View All Conversions
-          </Button>
-        </div>
+          <div className="flex justify-between mt-8">
+            <Button
+              variant="outline"
+              onClick={onPreviousStep}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Upload
+            </Button>
+            <Button
+              onClick={onNextStep}
+              className="flex items-center gap-2"
+            >
+              Continue
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </>
+      )}
+      
+      {currentStep === 3 && (
+        <>
+          <div className="flex justify-center">
+            <ConversionStatus 
+              status={conversionStatus} 
+              progress={progress}
+              fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
+              chaptersFound={chapters.length}
+              detectingChapters={detectingChapters}
+              chapters={detectChapters ? chapters : []}
+              estimatedSeconds={estimatedSeconds}
+            />
+          </div>
+          
+          <ConversionControls 
+            status={conversionStatus}
+            onConvert={initiateConversion}
+            onDownload={handleDownloadClick}
+            fileSize={audioData?.byteLength}
+            duration={audioDuration}
+          />
+
+          {user && conversionStatus === 'completed' && (
+            <div className="text-center">
+              <Button
+                variant="outline"
+                onClick={handleViewConversions}
+              >
+                View All Conversions
+              </Button>
+            </div>
+          )}
+
+          <div className="flex justify-start mt-8">
+            <Button
+              variant="outline"
+              onClick={onPreviousStep}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Settings
+            </Button>
+          </div>
+        </>
       )}
 
       <TermsDialog 
