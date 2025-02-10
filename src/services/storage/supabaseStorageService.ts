@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { splitAudioIntoChunks, uploadAudioChunk, checkAllChunksUploaded, combineChunks } from './audioChunkService';
+import { compressToZip } from './compressionService';
 
 export const saveToSupabase = async (
   audio: ArrayBuffer,
@@ -13,6 +14,9 @@ export const saveToSupabase = async (
   const conversionId = crypto.randomUUID();
   
   try {
+    // Compress the audio file
+    const { compressedData, compressionRatio } = await compressToZip(audio);
+    
     // Create the conversion record first
     const { error: dbError } = await supabase
       .from('text_conversions')
@@ -20,6 +24,8 @@ export const saveToSupabase = async (
         id: conversionId,
         file_name: fileName,
         file_size: audio.byteLength,
+        compressed_size: compressedData.length,
+        compression_ratio: compressionRatio,
         duration: Math.round(duration),
         user_id: userId,
         text_hash: btoa(extractedText.slice(0, 100)).slice(0, 32),
@@ -27,6 +33,17 @@ export const saveToSupabase = async (
       });
 
     if (dbError) throw dbError;
+
+    // Upload compressed file
+    const compressedPath = `${conversionId}/compressed.zip`;
+    const { error: uploadError } = await supabase.storage
+      .from('audio_cache')
+      .upload(compressedPath, compressedData, {
+        contentType: 'application/zip',
+        upsert: true
+      });
+
+    if (uploadError) throw uploadError;
 
     // Split audio into chunks and upload them
     const chunks = await splitAudioIntoChunks(audio);
@@ -64,7 +81,8 @@ export const saveToSupabase = async (
       .from('text_conversions')
       .update({
         status: 'completed',
-        storage_path: `${conversionId}/final.mp3`
+        storage_path: `${conversionId}/final.mp3`,
+        compressed_storage_path: compressedPath
       })
       .eq('id', conversionId);
 

@@ -13,6 +13,8 @@ export type Database = {
         Row: {
           chunk_hash: string
           chunk_index: number
+          compressed_size: number | null
+          compressed_storage_path: string | null
           conversion_id: string | null
           created_at: string
           error_message: string | null
@@ -24,6 +26,8 @@ export type Database = {
         Insert: {
           chunk_hash: string
           chunk_index: number
+          compressed_size?: number | null
+          compressed_storage_path?: string | null
           conversion_id?: string | null
           created_at?: string
           error_message?: string | null
@@ -35,6 +39,8 @@ export type Database = {
         Update: {
           chunk_hash?: string
           chunk_index?: number
+          compressed_size?: number | null
+          compressed_storage_path?: string | null
           conversion_id?: string | null
           created_at?: string
           error_message?: string | null
@@ -331,6 +337,9 @@ export type Database = {
         Row: {
           audio_content: string | null
           audio_url: string | null
+          compressed_size: number | null
+          compressed_storage_path: string | null
+          compression_ratio: number | null
           content_type: string | null
           created_at: string
           duration: number | null
@@ -347,6 +356,9 @@ export type Database = {
         Insert: {
           audio_content?: string | null
           audio_url?: string | null
+          compressed_size?: number | null
+          compressed_storage_path?: string | null
+          compression_ratio?: number | null
           content_type?: string | null
           created_at?: string
           duration?: number | null
@@ -363,6 +375,9 @@ export type Database = {
         Update: {
           audio_content?: string | null
           audio_url?: string | null
+          compressed_size?: number | null
+          compressed_storage_path?: string | null
+          compression_ratio?: number | null
           content_type?: string | null
           created_at?: string
           duration?: number | null
