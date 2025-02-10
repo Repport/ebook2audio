@@ -64,7 +64,7 @@ const ConversionStatus = ({
 
   const formatTimeRemaining = (seconds: number) => {
     if (seconds < 60) {
-      return `${Math.ceil(seconds)} seconds`;
+      return `${Math.ceil(seconds)} segundos`;
     }
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.ceil(seconds % 60);
@@ -97,7 +97,7 @@ const ConversionStatus = ({
       
       {timeRemaining && (
         <p className="text-sm text-muted-foreground text-center">
-          Estimated time remaining: {timeRemaining}
+          Tiempo restante estimado: {timeRemaining}
         </p>
       )}
 
