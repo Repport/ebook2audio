@@ -46,18 +46,26 @@ export const useConversionState = () => {
         },
         async (payload: RealtimePostgresChangesPayload<TextConversion>) => {
           console.log('Received conversion update:', payload);
-          const conversion = payload.new;
+          // Ensure we're dealing with a properly typed conversion object
+          const conversion = payload.new as TextConversion;
 
-          if (conversion?.status) {
+          // Safely check and update status
+          if (conversion && 'status' in conversion) {
             setConversionStatus(conversion.status as 'idle' | 'converting' | 'completed' | 'error');
           }
-          if (conversion && typeof conversion.progress === 'number') {
+
+          // Safely check and update progress
+          if (conversion && 'progress' in conversion && typeof conversion.progress === 'number') {
             setProgress(Math.min(conversion.progress, 100));
           }
-          if (conversion?.file_name) {
+
+          // Safely check and update filename
+          if (conversion && 'file_name' in conversion) {
             setCurrentFileName(conversion.file_name);
           }
-          if (conversion?.storage_path) {
+
+          // Safely check and handle storage path
+          if (conversion && 'storage_path' in conversion && conversion.storage_path) {
             try {
               const { data, error } = await supabase.storage
                 .from('audio_cache')
@@ -67,7 +75,11 @@ export const useConversionState = () => {
               
               const arrayBuffer = await data.arrayBuffer();
               setAudioData(arrayBuffer);
-              setAudioDuration(conversion.duration || 0);
+              
+              // Safely update duration
+              if ('duration' in conversion) {
+                setAudioDuration(conversion.duration || 0);
+              }
             } catch (error) {
               console.error('Error fetching audio data:', error);
             }
