@@ -38,6 +38,7 @@ export async function createConversion(
         file_name: fileName,
         user_id: userId,
         status: 'pending',
+        progress: 0,
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
       })
       .select()
@@ -63,17 +64,25 @@ export async function createConversion(
 export async function updateConversionStatus(
   conversionId: string,
   status: 'pending' | 'processing' | 'completed' | 'failed',
-  errorMessage?: string
+  errorMessage?: string,
+  progress?: number
 ): Promise<void> {
   await retryOperation(async () => {
     await supabase.rpc('set_statement_timeout');
 
+    const updateData: {
+      status: string;
+      error_message?: string;
+      progress?: number;
+    } = {
+      status,
+      ...(errorMessage && { error_message: errorMessage }),
+      ...(typeof progress === 'number' && { progress })
+    };
+
     const { error } = await supabase
       .from('text_conversions')
-      .update({ 
-        status,
-        ...(errorMessage && { error_message: errorMessage })
-      })
+      .update(updateData)
       .eq('id', conversionId);
 
     if (error) {

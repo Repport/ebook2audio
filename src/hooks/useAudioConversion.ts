@@ -60,7 +60,6 @@ export const useAudioConversion = () => {
       });
     } catch (error) {
       console.error('Error saving conversion state:', error);
-      // Don't throw here, just log the error
     }
   }, [conversionStatus, progress, audioData, audioDuration, currentFileName]);
 
@@ -70,7 +69,7 @@ export const useAudioConversion = () => {
     setAudioData(null);
     setAudioDuration(0);
     setCurrentFileName(null);
-    sessionStorage.removeItem('conversionState');
+    clearConversionStorage();
   }, []);
 
   const handleConversion = async (
