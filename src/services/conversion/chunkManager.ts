@@ -113,3 +113,4 @@ function splitTextIntoChunks(text: string, chunkSize: number = 5000): string[] {
 
   return chunks.filter(chunk => chunk.trim().length > 0);
 }
+

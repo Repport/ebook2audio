@@ -207,3 +207,4 @@ function splitTextIntoChunks(text: string): string[] {
 
   return chunks.filter(chunk => chunk.trim().length > 0);
 }
+

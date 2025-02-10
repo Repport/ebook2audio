@@ -16,3 +16,4 @@ export interface ChunkUpdate {
 }
 
 export type ProgressCallback = (progress: number, totalChunks: number, completedChunks: number) => void;
+
