@@ -41,16 +41,16 @@ const Header = () => {
       </div>
       <div className="text-center">
         <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          {translations.title}
+          Convert Text to Audio
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300">
-          {translations.subtitle}
+          Convert your PDF and EPUB files into high-quality audio files
         </p>
         <nav className="mt-4" aria-label="Main features">
           <ul className="flex justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-            <li>{translations.featureChapterDetection}</li>
-            <li>{translations.featureMultipleVoices}</li>
-            <li>{translations.featureSupport}</li>
+            <li>Smart Chapter Detection</li>
+            <li>Multiple Voices</li>
+            <li>24/7 Support</li>
           </ul>
         </nav>
       </div>
@@ -59,3 +59,4 @@ const Header = () => {
 };
 
 export default Header;
+
