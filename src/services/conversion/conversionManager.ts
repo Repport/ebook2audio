@@ -34,19 +34,13 @@ export async function createConversion(
     // If no existing conversion, create a new one
     const { data: newConversion, error: insertError } = await supabase
       .from('text_conversions')
-      .upsert(
-        {
-          text_hash: textHash,
-          file_name: fileName,
-          user_id: userId,
-          status: 'pending',
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-        },
-        { 
-          onConflict: 'text_hash',
-          ignoreDuplicates: false
-        }
-      )
+      .insert({
+        text_hash: textHash,
+        file_name: fileName,
+        user_id: userId,
+        status: 'pending',
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+      })
       .select()
       .single();
 
