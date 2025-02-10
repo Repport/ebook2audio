@@ -87,6 +87,13 @@ export const useConversionLogic = (
           });
         }
       }
+      
+      // Only close dialog on successful completion
+      if (conversionStatus === 'completed') {
+        setDetectingChapters(false);
+        setShowTerms(false);
+      }
+      
     } catch (error) {
       console.error('Conversion error:', error);
       toast({
@@ -96,7 +103,6 @@ export const useConversionLogic = (
       });
       resetConversion();
       clearConversionStorage();
-    } finally {
       setDetectingChapters(false);
       setShowTerms(false);
     }
