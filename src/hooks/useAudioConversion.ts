@@ -47,14 +47,14 @@ export const useAudioConversion = () => {
     
     console.log('Saving conversion state:', {
       status: conversionStatus,
-      progress: Math.min(progress, 100), // Ensure progress never exceeds 100%
+      progress: Math.min(progress, 100),
       fileName: currentFileName,
       hasAudioData: !!audioData
     });
 
     saveConversionState({
       status: conversionStatus,
-      progress: Math.min(progress, 100), // Ensure progress never exceeds 100%
+      progress: Math.min(progress, 100),
       audioDuration,
       fileName: currentFileName || undefined,
       audioData: audioData ? convertArrayBufferToBase64(audioData) : undefined
@@ -136,9 +136,9 @@ export const useAudioConversion = () => {
     } catch (error) {
       console.error('Conversion error:', error);
       setConversionStatus('error');
-      setProgress(0); // Reset progress on error
+      setProgress(0);
       setCurrentFileName(null);
-      setAudioData(null); // Clear any partial audio data
+      setAudioData(null);
       toast({
         title: "Conversion failed",
         description: (error as Error).message || "An error occurred during conversion",
@@ -181,4 +181,3 @@ export const useAudioConversion = () => {
     resetConversion
   };
 };
-

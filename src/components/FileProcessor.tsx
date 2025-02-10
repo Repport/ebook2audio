@@ -9,6 +9,9 @@ import { Chapter } from '@/utils/textExtraction';
 import { VOICES } from '@/constants/voices';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
@@ -24,6 +27,8 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const [showTerms, setShowTerms] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const {
     conversionStatus,
@@ -129,6 +134,17 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
         duration={audioDuration}
       />
 
+      {user && conversionStatus === 'completed' && (
+        <div className="text-center">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/conversions')}
+          >
+            View All Conversions
+          </Button>
+        </div>
+      )}
+
       <TermsDialog 
         open={showTerms}
         onClose={() => setShowTerms(false)}
@@ -141,4 +157,3 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
 };
 
 export default FileProcessor;
-

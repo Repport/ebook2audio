@@ -8,8 +8,10 @@ export const saveToSupabase = async (
   fileName: string,
   userId: string
 ) => {
+  // Generate a unique file path for storage
   const filePath = `${userId}/${crypto.randomUUID()}.mp3`;
   
+  // Upload the audio file to storage
   const { error: uploadError } = await supabase.storage
     .from('audio_cache')
     .upload(filePath, audio, {
@@ -22,8 +24,10 @@ export const saveToSupabase = async (
     throw uploadError;
   }
 
+  // Generate a hash of the text content to identify duplicate conversions
   const textHash = btoa(extractedText.slice(0, 100)).slice(0, 32);
 
+  // Create a record in the text_conversions table
   const { error: dbError } = await supabase
     .from('text_conversions')
     .insert({
@@ -32,7 +36,8 @@ export const saveToSupabase = async (
       file_size: audio.byteLength,
       duration: Math.round(duration),
       user_id: userId,
-      text_hash: textHash
+      text_hash: textHash,
+      status: 'completed'
     });
 
   if (dbError) {
