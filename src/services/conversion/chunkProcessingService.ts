@@ -1,10 +1,11 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { splitTextIntoChunks } from "./utils";
 import { updateConversionStatus } from "./conversionManager";
 import { decodeBase64Audio, combineAudioChunks } from "./utils/audioUtils";
 
-const MAX_CONCURRENT_CHUNKS = 5; // Adjust based on testing
-const CHUNK_TIMEOUT = 30000; // 30 seconds timeout per chunk
+const MAX_CONCURRENT_CHUNKS = 5;
+const CHUNK_TIMEOUT = 60000; // Increased to 60 seconds
 
 interface AudioResponse {
   data: {
@@ -18,14 +19,16 @@ async function processChunkWithTimeout(
   voiceId: string,
   fileName: string | undefined
 ): Promise<ArrayBuffer> {
+  console.log(`Starting to process chunk ${chunkIndex} with length ${chunk.length}`);
+  
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error('Chunk processing timeout')), CHUNK_TIMEOUT);
   });
 
   try {
-    const { data, error } = await supabase.functions.invoke<AudioResponse>(
-      'convert-to-audio',
-      {
+    console.log(`Invoking convert-to-audio for chunk ${chunkIndex}`);
+    const { data, error } = await Promise.race([
+      supabase.functions.invoke<AudioResponse>('convert-to-audio', {
         body: {
           text: chunk,
           voiceId,
@@ -33,14 +36,24 @@ async function processChunkWithTimeout(
           isChunk: true,
           chunkIndex
         }
-      }
-    );
+      }),
+      timeoutPromise
+    ]) as { data?: AudioResponse; error?: Error };
 
-    if (error) throw error;
-    if (!data?.data?.audioContent) throw new Error('No audio content received');
+    if (error) {
+      console.error(`Error processing chunk ${chunkIndex}:`, error);
+      throw error;
+    }
+
+    if (!data?.data?.audioContent) {
+      console.error(`No audio content received for chunk ${chunkIndex}`);
+      throw new Error('No audio content received');
+    }
     
+    console.log(`Successfully processed chunk ${chunkIndex}`);
     return decodeBase64Audio(data.data.audioContent);
   } catch (error) {
+    console.error(`Failed to process chunk ${chunkIndex}:`, error);
     if (error.message === 'Chunk processing timeout') {
       console.error(`Chunk ${chunkIndex} timed out after ${CHUNK_TIMEOUT}ms`);
     }
@@ -56,13 +69,15 @@ async function processChunkBatch(
   conversionId: string,
   totalChunks: number
 ): Promise<ArrayBuffer[]> {
+  console.log(`Processing batch starting at index ${startIndex} with ${chunks.length} chunks`);
+  
   const promises = chunks.map((chunk, index) =>
     processChunkWithTimeout(chunk, startIndex + index, voiceId, fileName)
       .then(async (audioBuffer) => {
         const completedChunks = startIndex + index + 1;
         const progress = Math.round((completedChunks / totalChunks) * 100);
         
-        // Update conversion progress
+        console.log(`Chunk ${startIndex + index} completed. Progress: ${progress}%`);
         await updateConversionStatus(conversionId, 'processing', undefined, progress);
         
         return audioBuffer;
@@ -92,7 +107,6 @@ export async function processConversionChunks(
   const totalChunks = chunks.length;
   const audioBuffers: ArrayBuffer[] = [];
 
-  // Process chunks in batches of MAX_CONCURRENT_CHUNKS
   for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
     const batchChunks = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS);
     console.log(`Processing batch ${i / MAX_CONCURRENT_CHUNKS + 1}, chunks ${i + 1}-${i + batchChunks.length} of ${totalChunks}`);
