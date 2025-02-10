@@ -8,15 +8,16 @@ export async function createConversion(
   userId: string | undefined
 ): Promise<string> {
   try {
+    // Set statement timeout before any database operations
     await supabase.rpc('set_statement_timeout');
 
     // Try to fetch existing conversion first
     const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
-      .select('id, text_hash, status, expires_at, storage_path, compressed_storage_path')
+      .select()
       .eq('text_hash', textHash)
-      .eq('status', 'completed')
       .gt('expires_at', new Date().toISOString())
+      .eq('status', 'completed')
       .maybeSingle();
 
     if (fetchError) {
@@ -24,59 +25,42 @@ export async function createConversion(
       throw fetchError;
     }
 
+    // If we found an existing valid conversion, return its ID
     if (existingConversion) {
       console.log('Found existing valid conversion:', existingConversion.id);
       return existingConversion.id;
     }
 
-    const conversionId = crypto.randomUUID();
-
-    try {
-      const { data: newConversion, error: insertError } = await supabase
-        .from('text_conversions')
-        .insert({
-          id: conversionId,
+    // If no existing conversion, try to create a new one with upsert
+    const { data: newConversion, error: insertError } = await supabase
+      .from('text_conversions')
+      .upsert(
+        {
           text_hash: textHash,
           file_name: fileName,
           user_id: userId,
           status: 'pending',
-          storage_path: null,
-          compressed_storage_path: null,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        })
-        .select()
-        .maybeSingle();
-
-      if (insertError) {
-        console.error('Error creating conversion:', insertError);
-        throw insertError;
-      }
-
-      if (!newConversion) {
-        throw new Error('Failed to create conversion record');
-      }
-
-      console.log('Created conversion record:', newConversion.id);
-      return newConversion.id;
-    } catch (insertError: any) {
-      if (insertError.code === '23505') {
-        console.log('Duplicate detected, checking for existing conversion again');
-        const { data: retryConversion, error: retryError } = await supabase
-          .from('text_conversions')
-          .select('id, text_hash, status, expires_at, storage_path, compressed_storage_path')
-          .eq('text_hash', textHash)
-          .eq('status', 'completed')
-          .gt('expires_at', new Date().toISOString())
-          .maybeSingle();
-
-        if (retryError) throw retryError;
-        if (retryConversion) {
-          console.log('Found existing conversion on retry:', retryConversion.id);
-          return retryConversion.id;
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+        },
+        { 
+          onConflict: 'text_hash',
+          ignoreDuplicates: false // We want to update if exists
         }
-      }
+      )
+      .select()
+      .maybeSingle();
+
+    if (insertError) {
+      console.error('Error creating conversion:', insertError);
       throw insertError;
     }
+
+    if (!newConversion) {
+      throw new Error('Failed to create conversion record');
+    }
+
+    console.log('Created/updated conversion record:', newConversion.id);
+    return newConversion.id;
   } catch (error) {
     console.error('Error in createConversion:', error);
     throw error;
@@ -89,6 +73,7 @@ export async function updateConversionStatus(
   errorMessage?: string
 ): Promise<void> {
   await retryOperation(async () => {
+    // Set statement timeout before update
     await supabase.rpc('set_statement_timeout');
 
     const { error } = await supabase

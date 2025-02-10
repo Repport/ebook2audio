@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { convertToAudio } from '@/services/conversionService';
@@ -5,7 +6,7 @@ import { Chapter } from '@/utils/textExtraction';
 import { useAuth } from '@/hooks/useAuth';
 import { saveConversionState, loadConversionState, convertArrayBufferToBase64, convertBase64ToArrayBuffer } from '@/services/storage/conversionStorageService';
 import { calculateAudioDuration, formatDuration, formatFileSize } from '@/services/audio/audioUtils';
-import { saveToSupabase, testStorageConnection } from '@/services/storage/supabaseStorageService';
+import { saveToSupabase } from '@/services/storage/supabaseStorageService';
 
 export const useAudioConversion = () => {
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');

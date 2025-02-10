@@ -19,7 +19,6 @@ interface Conversion {
   file_name: string;
   file_size: number;
   storage_path: string;
-  compressed_storage_path: string | null;
 }
 
 interface ConversionsTableProps {
@@ -104,7 +103,7 @@ const ConversionsTable = ({
                   variant="ghost"
                   size="icon"
                   onClick={() =>
-                    onDownload(conversion.storage_path || conversion.compressed_storage_path || '', conversion.file_name)
+                    onDownload(conversion.storage_path, conversion.file_name)
                   }
                 >
                   <Download className="h-4 w-4" />
@@ -126,3 +125,4 @@ const ConversionsTable = ({
 };
 
 export default ConversionsTable;
+

@@ -9,56 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      audio_chunks: {
-        Row: {
-          chunk_hash: string
-          chunk_index: number
-          compressed_size: number | null
-          compressed_storage_path: string | null
-          conversion_id: string | null
-          created_at: string
-          error_message: string | null
-          id: string
-          size: number
-          status: string | null
-          storage_path: string
-        }
-        Insert: {
-          chunk_hash: string
-          chunk_index: number
-          compressed_size?: number | null
-          compressed_storage_path?: string | null
-          conversion_id?: string | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          size: number
-          status?: string | null
-          storage_path: string
-        }
-        Update: {
-          chunk_hash?: string
-          chunk_index?: number
-          compressed_size?: number | null
-          compressed_storage_path?: string | null
-          conversion_id?: string | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          size?: number
-          status?: string | null
-          storage_path?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "audio_chunks_conversion_id_fkey"
-            columns: ["conversion_id"]
-            isOneToOne: false
-            referencedRelation: "text_conversions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       conversion_chunks: {
         Row: {
           audio_path: string | null
@@ -288,53 +238,6 @@ export type Database = {
         }
         Relationships: []
       }
-      storage_logs: {
-        Row: {
-          content_type: string | null
-          conversion_id: string | null
-          created_at: string | null
-          error_message: string | null
-          file_size: number | null
-          id: string
-          operation: string
-          status: string
-          storage_path: string | null
-          user_id: string | null
-        }
-        Insert: {
-          content_type?: string | null
-          conversion_id?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          file_size?: number | null
-          id?: string
-          operation: string
-          status: string
-          storage_path?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          content_type?: string | null
-          conversion_id?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          file_size?: number | null
-          id?: string
-          operation?: string
-          status?: string
-          storage_path?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "storage_logs_conversion_id_fkey"
-            columns: ["conversion_id"]
-            isOneToOne: false
-            referencedRelation: "text_conversions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       terms_acceptance_logs: {
         Row: {
           accepted_at: string
@@ -383,9 +286,7 @@ export type Database = {
       text_conversions: {
         Row: {
           audio_content: string | null
-          compressed_size: number | null
-          compressed_storage_path: string | null
-          compression_ratio: number | null
+          audio_url: string | null
           content_type: string | null
           created_at: string
           duration: number | null
@@ -394,16 +295,14 @@ export type Database = {
           file_name: string | null
           file_size: number | null
           id: string
-          status: string
+          status: string | null
           storage_path: string | null
           text_hash: string
           user_id: string | null
         }
         Insert: {
           audio_content?: string | null
-          compressed_size?: number | null
-          compressed_storage_path?: string | null
-          compression_ratio?: number | null
+          audio_url?: string | null
           content_type?: string | null
           created_at?: string
           duration?: number | null
@@ -412,16 +311,14 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
-          status?: string
+          status?: string | null
           storage_path?: string | null
           text_hash: string
           user_id?: string | null
         }
         Update: {
           audio_content?: string | null
-          compressed_size?: number | null
-          compressed_storage_path?: string | null
-          compression_ratio?: number | null
+          audio_url?: string | null
           content_type?: string | null
           created_at?: string
           duration?: number | null
@@ -430,7 +327,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
-          status?: string
+          status?: string | null
           storage_path?: string | null
           text_hash?: string
           user_id?: string | null
