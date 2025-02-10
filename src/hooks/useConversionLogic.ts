@@ -120,12 +120,14 @@ export const useConversionLogic = (
 
   const calculateEstimatedSeconds = () => {
     if (!extractedText) return 0;
-    const baseTimePerChar = 0.015;
-    const overhead = 5;
-    const chunkSize = 5000;
-    const numberOfChunks = Math.ceil(extractedText.length / chunkSize);
-    const chunkOverhead = numberOfChunks * 0.5;
-    return Math.ceil((extractedText.length * baseTimePerChar) + overhead + chunkOverhead);
+    
+    // Nueva fórmula de cálculo más precisa
+    const wordsCount = extractedText.split(/\s+/).length;
+    const averageWordsPerMinute = 150; // Velocidad promedio de lectura
+    const minutes = wordsCount / averageWordsPerMinute;
+    const processingOverhead = 2; // Tiempo base de procesamiento en segundos
+    
+    return Math.ceil(minutes * 60 + processingOverhead);
   };
 
   return {
