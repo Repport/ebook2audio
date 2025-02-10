@@ -32,7 +32,7 @@ const ConversionStatus = ({
 }: ConversionStatusProps) => {
   const [smoothProgress, setSmoothProgress] = useState(progress);
   const [showEstimate, setShowEstimate] = useState(true);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // Smooth progress transition
   useEffect(() => {
@@ -48,24 +48,31 @@ const ConversionStatus = ({
     }
   }, [progress, smoothProgress]);
 
-  // Reset progress and start time when status changes
+  // Track elapsed time and update estimate visibility
   useEffect(() => {
-    if (status === 'idle') {
-      setSmoothProgress(0);
-      setShowEstimate(true);
-      setStartTime(null);
-    } else if (status === 'converting' && !startTime) {
-      setStartTime(Date.now());
-    }
-  }, [status, startTime]);
-
-  // Hide estimate after 30 seconds to avoid showing stale data
-  useEffect(() => {
+    let intervalId: number;
+    
     if (status === 'converting') {
-      const timer = setTimeout(() => setShowEstimate(false), 30000);
-      return () => clearTimeout(timer);
+      intervalId = window.setInterval(() => {
+        setElapsedSeconds(prev => prev + 1);
+      }, 1000);
+
+      // Hide estimate after 30 seconds if no progress
+      const hideEstimateTimeout = setTimeout(() => {
+        if (progress === 0) {
+          setShowEstimate(false);
+        }
+      }, 30000);
+
+      return () => {
+        clearInterval(intervalId);
+        clearTimeout(hideEstimateTimeout);
+      };
+    } else {
+      setElapsedSeconds(0);
+      setShowEstimate(true);
     }
-  }, [status]);
+  }, [status, progress]);
 
   const displayStatus = status === 'processing' ? 'converting' : status;
   
@@ -98,14 +105,17 @@ const ConversionStatus = ({
   };
 
   const getEstimatedTimeRemaining = () => {
-    if (displayStatus !== 'converting' || smoothProgress >= 100 || !startTime) {
+    if (displayStatus !== 'converting' || smoothProgress >= 100 || !estimatedSeconds) {
       return null;
     }
-    
-    const elapsedTime = (Date.now() - startTime) / 1000; // Convert to seconds
-    const progressRate = smoothProgress / elapsedTime; // Progress per second
-    
-    if (progressRate <= 0) return null;
+
+    if (smoothProgress === 0) {
+      return formatTimeRemaining(estimatedSeconds);
+    }
+
+    // Calculate remaining time based on progress and elapsed time
+    const progressRate = smoothProgress / elapsedSeconds; // Progress per second
+    if (progressRate <= 0 || !isFinite(progressRate)) return null;
     
     const remainingProgress = 100 - smoothProgress;
     const estimatedRemainingSeconds = Math.ceil(remainingProgress / progressRate);
@@ -195,4 +205,3 @@ const ConversionStatus = ({
 };
 
 export default ConversionStatus;
-

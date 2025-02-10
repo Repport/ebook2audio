@@ -14,6 +14,7 @@ export const useConversionState = () => {
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const [currentFileName, setCurrentFileName] = useState<string | null>(null);
   const [conversionId, setConversionId] = useState<string | null>(null);
+  const [estimatedSeconds, setEstimatedSeconds] = useState<number>(0);
 
   // Load stored state and subscribe to real-time updates on mount
   useEffect(() => {
@@ -46,25 +47,28 @@ export const useConversionState = () => {
         },
         async (payload: RealtimePostgresChangesPayload<TextConversion>) => {
           console.log('Received conversion update:', payload);
-          // Ensure we're dealing with a properly typed conversion object
           const conversion = payload.new as TextConversion;
 
-          // Safely check and update status
+          // Update status and progress
           if (conversion && 'status' in conversion) {
             setConversionStatus(conversion.status as 'idle' | 'converting' | 'completed' | 'error');
           }
 
-          // Safely check and update progress
           if (conversion && 'progress' in conversion && typeof conversion.progress === 'number') {
             setProgress(Math.min(conversion.progress, 100));
           }
 
-          // Safely check and update filename
+          // Update filename
           if (conversion && 'file_name' in conversion) {
             setCurrentFileName(conversion.file_name);
           }
 
-          // Safely check and handle storage path
+          // Update estimated seconds
+          if (conversion && 'estimated_seconds' in conversion && typeof conversion.estimated_seconds === 'number') {
+            setEstimatedSeconds(conversion.estimated_seconds);
+          }
+
+          // Handle storage path and audio data
           if (conversion && 'storage_path' in conversion && conversion.storage_path) {
             try {
               const { data, error } = await supabase.storage
@@ -76,7 +80,6 @@ export const useConversionState = () => {
               const arrayBuffer = await data.arrayBuffer();
               setAudioData(arrayBuffer);
               
-              // Safely update duration
               if ('duration' in conversion) {
                 setAudioDuration(conversion.duration || 0);
               }
@@ -127,11 +130,13 @@ export const useConversionState = () => {
     audioDuration,
     currentFileName,
     conversionId,
+    estimatedSeconds,
     setConversionStatus,
     setProgress,
     setAudioData,
     setAudioDuration,
     setCurrentFileName,
-    setConversionId
+    setConversionId,
+    setEstimatedSeconds
   };
 };
