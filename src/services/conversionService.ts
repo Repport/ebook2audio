@@ -1,12 +1,8 @@
 
 import { ChapterWithTimestamp, ProgressCallback } from "./conversion/types";
-import { generateHash, splitTextIntoChunks } from "./conversion/utils";
+import { generateHash } from "./conversion/utils";
 import { checkCache, fetchFromCache, saveToCache } from "./conversion/cacheService";
-import { processChunks } from "./conversion/processors/chunkProcessor";
-import { combineAudioChunks } from "./conversion/utils/audioUtils";
-import { addToQueue, updateQueueStatus } from "./conversion/queueService";
 import { createConversion, updateConversionStatus } from "./conversion/conversionManager";
-import { insertChunksBatch, getExistingChunks } from "./conversion/chunkManager";
 import { supabase } from "@/integrations/supabase/client";
 
 const MAX_TEXT_SIZE = 30 * 1024 * 1024; // 30MB
@@ -50,7 +46,6 @@ export const convertToAudio = async (
     return audioData;
   }
 
-  let queueEntry = null;
   let conversionId: string | null = null;
 
   try {
@@ -61,34 +56,29 @@ export const convertToAudio = async (
     // Update status to processing
     await updateConversionStatus(conversionId, 'processing');
 
-    // Add to queue
-    queueEntry = await addToQueue(textHash, userId);
+    // Convert text to audio using edge function
+    const { data, error } = await supabase.functions.invoke<{ data: { audioContent: string } }>(
+      'convert-to-audio',
+      {
+        body: { 
+          text,
+          voiceId,
+          fileName,
+          isChunk: false
+        }
+      }
+    );
 
-    // Process text in chunks
-    const textChunks = splitTextIntoChunks(text);
-    console.log(`Split text into ${textChunks.length} chunks for parallel processing`);
-
-    // Check for existing chunks
-    const existingIndices = new Set(await getExistingChunks(conversionId));
-
-    // Only insert chunks that don't exist yet
-    const newChunks = textChunks
-      .map((chunk, index) => ({ chunk_text: chunk, chunk_index: index }))
-      .filter(chunk => !existingIndices.has(chunk.chunk_index));
-
-    if (newChunks.length > 0) {
-      console.log(`Inserting ${newChunks.length} new chunks in batches`);
-      await insertChunksBatch(newChunks, conversionId);
+    if (error) throw error;
+    if (!data?.data?.audioContent) {
+      throw new Error('No audio content received from conversion');
     }
 
-    // Process all chunks
-    const audioChunks = await processChunks(textChunks, voiceId, conversionId!, onProgressUpdate);
-
-    // Combine audio chunks
-    const combinedBuffer = combineAudioChunks(audioChunks);
-
+    // Decode the base64 audio content
+    const audioBuffer = Buffer.from(data.data.audioContent, 'base64');
+    
     // Store in cache
-    const { error: saveError } = await saveToCache(textHash, combinedBuffer, fileName);
+    const { error: saveError } = await saveToCache(textHash, audioBuffer, fileName);
     if (saveError) {
       console.error('Error storing conversion:', saveError);
       await updateConversionStatus(conversionId, 'failed', saveError.message);
@@ -98,16 +88,11 @@ export const convertToAudio = async (
     // Update conversion status to completed
     await updateConversionStatus(conversionId, 'completed');
 
-    // Update queue status
-    if (queueEntry) {
-      await updateQueueStatus(queueEntry.id, 'completed');
-    }
-
     if (onProgressUpdate) {
-      onProgressUpdate(100, textChunks.length, textChunks.length);
+      onProgressUpdate(100, 1, 1);
     }
 
-    return combinedBuffer;
+    return audioBuffer;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
     
@@ -115,10 +100,6 @@ export const convertToAudio = async (
       await updateConversionStatus(conversionId, 'failed', errorMessage);
     }
     
-    if (queueEntry) {
-      await updateQueueStatus(queueEntry.id, 'failed', errorMessage);
-    }
-
     console.error('Conversion error:', err);
     throw err;
   }

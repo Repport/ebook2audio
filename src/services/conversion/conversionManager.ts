@@ -31,7 +31,7 @@ export async function createConversion(
       return existingConversion.id;
     }
 
-    // If no existing conversion, try to create a new one with upsert
+    // If no existing conversion, create a new one
     const { data: newConversion, error: insertError } = await supabase
       .from('text_conversions')
       .upsert(
@@ -44,22 +44,18 @@ export async function createConversion(
         },
         { 
           onConflict: 'text_hash',
-          ignoreDuplicates: false // We want to update if exists
+          ignoreDuplicates: false
         }
       )
       .select()
-      .maybeSingle();
+      .single();
 
     if (insertError) {
       console.error('Error creating conversion:', insertError);
       throw insertError;
     }
 
-    if (!newConversion) {
-      throw new Error('Failed to create conversion record');
-    }
-
-    console.log('Created/updated conversion record:', newConversion.id);
+    console.log('Created conversion record:', newConversion.id);
     return newConversion.id;
   } catch (error) {
     console.error('Error in createConversion:', error);
@@ -73,7 +69,6 @@ export async function updateConversionStatus(
   errorMessage?: string
 ): Promise<void> {
   await retryOperation(async () => {
-    // Set statement timeout before update
     await supabase.rpc('set_statement_timeout');
 
     const { error } = await supabase
