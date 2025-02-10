@@ -57,9 +57,9 @@ const ConversionStatus = ({
         setElapsedSeconds(prev => prev + 1);
       }, 1000);
 
-      // Hide estimate after 30 seconds if no progress
+      // Hide estimate after 30 seconds if conversion seems stuck
       const hideEstimateTimeout = setTimeout(() => {
-        if (progress === 0) {
+        if (progress === 0 && elapsedSeconds > 30) {
           setShowEstimate(false);
         }
       }, 30000);
@@ -72,7 +72,7 @@ const ConversionStatus = ({
       setElapsedSeconds(0);
       setShowEstimate(true);
     }
-  }, [status, progress]);
+  }, [status, progress, elapsedSeconds]);
 
   const displayStatus = status === 'processing' ? 'converting' : status;
   
@@ -109,13 +109,11 @@ const ConversionStatus = ({
       return null;
     }
 
-    if (smoothProgress === 0) {
+    // Calculate remaining time based on progress and elapsed time
+    const progressRate = smoothProgress / Math.max(elapsedSeconds, 1); // Progress per second
+    if (progressRate <= 0 || !isFinite(progressRate)) {
       return formatTimeRemaining(estimatedSeconds);
     }
-
-    // Calculate remaining time based on progress and elapsed time
-    const progressRate = smoothProgress / elapsedSeconds; // Progress per second
-    if (progressRate <= 0 || !isFinite(progressRate)) return null;
     
     const remainingProgress = 100 - smoothProgress;
     const estimatedRemainingSeconds = Math.ceil(remainingProgress / progressRate);
@@ -205,3 +203,4 @@ const ConversionStatus = ({
 };
 
 export default ConversionStatus;
+
