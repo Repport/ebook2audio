@@ -1,7 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+import { splitAudioIntoChunks, uploadAudioChunk, checkAllChunksUploaded, combineChunks } from './audioChunkService';
 
 export const saveToSupabase = async (
   audio: ArrayBuffer,
@@ -10,77 +9,82 @@ export const saveToSupabase = async (
   fileName: string,
   userId: string
 ) => {
-  // Generate a unique file path for storage
-  const filePath = `${userId}/${crypto.randomUUID()}.mp3`;
-  
   try {
-    // Split large files into chunks
-    const chunks = splitArrayBuffer(audio, CHUNK_SIZE);
+    // Generate a unique conversion ID
+    const conversionId = crypto.randomUUID();
     
-    // Upload the chunks sequentially
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const isLastChunk = i === chunks.length - 1;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('audio_cache')
-        .uploadBinaryData(filePath, chunk, {
-          contentType: 'audio/mpeg',
-          upsert: true
-        });
-
-      if (uploadError) {
-        console.error(`Chunk ${i + 1}/${chunks.length} upload error:`, uploadError);
-        throw uploadError;
-      }
-      
-      console.log(`Uploaded chunk ${i + 1}/${chunks.length}`);
-    }
-
-    // Generate a hash of the text content to identify duplicate conversions
-    const textHash = btoa(extractedText.slice(0, 100)).slice(0, 32);
-
-    // Create a record in the text_conversions table
+    // Create the conversion record first
     const { error: dbError } = await supabase
       .from('text_conversions')
       .insert({
+        id: conversionId,
         file_name: fileName,
-        storage_path: filePath,
         file_size: audio.byteLength,
         duration: Math.round(duration),
         user_id: userId,
-        text_hash: textHash,
-        status: 'completed'
+        text_hash: btoa(extractedText.slice(0, 100)).slice(0, 32),
+        status: 'processing'
       });
 
-    if (dbError) {
-      console.error('Database insert error:', dbError);
-      throw dbError;
+    if (dbError) throw dbError;
+
+    // Split audio into chunks and upload them
+    const chunks = await splitAudioIntoChunks(audio);
+    console.log(`Split audio into ${chunks.length} chunks`);
+
+    // Upload chunks in parallel with a concurrency limit
+    const MAX_CONCURRENT_UPLOADS = 3;
+    const chunkGroups = [];
+    for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_UPLOADS) {
+      const group = chunks.slice(i, i + MAX_CONCURRENT_UPLOADS);
+      const uploadPromises = group.map(chunk => uploadAudioChunk(conversionId, chunk));
+      const results = await Promise.all(uploadPromises);
+      
+      // Check for any upload failures
+      const failedUploads = results.filter(r => !r.success);
+      if (failedUploads.length > 0) {
+        throw new Error(`Failed to upload ${failedUploads.length} chunks`);
+      }
     }
 
-    return filePath;
+    // Verify all chunks were uploaded
+    const allUploaded = await checkAllChunksUploaded(conversionId);
+    if (!allUploaded) {
+      throw new Error('Not all chunks were uploaded successfully');
+    }
+
+    // Combine chunks into final file
+    const finalAudio = await combineChunks(conversionId);
+    if (!finalAudio) {
+      throw new Error('Failed to combine audio chunks');
+    }
+
+    // Update conversion record as completed
+    const { error: updateError } = await supabase
+      .from('text_conversions')
+      .update({
+        status: 'completed',
+        storage_path: `${conversionId}/final.mp3`
+      })
+      .eq('id', conversionId);
+
+    if (updateError) throw updateError;
+
+    return conversionId;
   } catch (error) {
-    // Clean up any partially uploaded file if there's an error
-    await supabase.storage
-      .from('audio_cache')
-      .remove([filePath]);
+    console.error('Error in saveToSupabase:', error);
+    
+    // Clean up any uploaded chunks and the conversion record
+    if (error instanceof Error) {
+      await supabase
+        .from('text_conversions')
+        .update({
+          status: 'failed',
+          error_message: error.message
+        })
+        .eq('id', conversionId);
+    }
     
     throw error;
   }
 };
-
-// Helper function to split ArrayBuffer into chunks
-function splitArrayBuffer(buffer: ArrayBuffer, chunkSize: number): Uint8Array[] {
-  const chunks: Uint8Array[] = [];
-  const totalChunks = Math.ceil(buffer.byteLength / chunkSize);
-  
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * chunkSize;
-    const end = Math.min(start + chunkSize, buffer.byteLength);
-    const chunk = new Uint8Array(buffer.slice(start, end));
-    chunks.push(chunk);
-  }
-  
-  return chunks;
-}
-
