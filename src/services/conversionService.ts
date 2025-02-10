@@ -9,8 +9,7 @@ export async function convertToAudio(
   voiceId: string,
   chapters?: ChapterWithTimestamp[],
   fileName?: string,
-  onProgressUpdate?: (progress: number, totalChunks: number, completedChunks: number) => void
-): Promise<ArrayBuffer> {
+): Promise<{ audio: ArrayBuffer, id: string }> {
   console.log('Starting conversion process with:', {
     textLength: text?.length,
     voiceId,
@@ -25,7 +24,7 @@ export async function convertToAudio(
     // Check if there's an existing completed conversion
     const { data: existingConversion } = await supabase
       .from('text_conversions')
-      .select('storage_path')
+      .select('storage_path, id')
       .eq('text_hash', textHash)
       .eq('status', 'completed')
       .gt('expires_at', new Date().toISOString())
@@ -38,7 +37,10 @@ export async function convertToAudio(
         .download(existingConversion.storage_path);
 
       if (!error && data) {
-        return await data.arrayBuffer();
+        return { 
+          audio: await data.arrayBuffer(),
+          id: existingConversion.id
+        };
       }
     }
 
@@ -55,15 +57,6 @@ export async function convertToAudio(
 
       const totalChunks = chunks.length;
       let completedChunks = 0;
-
-      // Update initial progress
-      if (onProgressUpdate) {
-        onProgressUpdate(
-          Math.round((completedChunks / totalChunks) * 100),
-          totalChunks,
-          completedChunks
-        );
-      }
 
       await updateConversionStatus(conversionId, 'processing');
 
@@ -115,22 +108,9 @@ export async function convertToAudio(
           audioBuffers[i] = bytes.buffer;
           completedChunks++;
 
-          if (onProgressUpdate) {
-            onProgressUpdate(
-              Math.round((completedChunks / totalChunks) * 100),
-              totalChunks,
-              completedChunks
-            );
-          }
-
-          // Save progress after each chunk
+          // Update conversion progress
           const currentProgress = Math.round((completedChunks / totalChunks) * 100);
-          await supabase.from('text_conversions')
-            .update({ 
-              status: 'processing',
-              progress: currentProgress
-            })
-            .eq('id', conversionId);
+          await updateConversionStatus(conversionId, 'processing', undefined, currentProgress);
 
         } catch (error) {
           console.error(`Error processing chunk ${i}:`, error);
@@ -153,7 +133,10 @@ export async function convertToAudio(
 
       console.log('Conversion completed successfully');
       await updateConversionStatus(conversionId, 'completed');
-      return combined.buffer;
+      return { 
+        audio: combined.buffer,
+        id: conversionId
+      };
 
     } catch (error) {
       console.error('Error during conversion:', error);

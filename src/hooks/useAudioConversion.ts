@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { convertToAudio } from '@/services/conversionService';
 import { Chapter } from '@/utils/textExtraction';
@@ -14,6 +13,7 @@ export const useAudioConversion = () => {
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const [currentFileName, setCurrentFileName] = useState<string | null>(null);
+  const [conversionId, setConversionId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -69,6 +69,7 @@ export const useAudioConversion = () => {
     setAudioData(null);
     setAudioDuration(0);
     setCurrentFileName(null);
+    setConversionId(null);
     clearConversionStorage();
   }, []);
 
@@ -92,25 +93,18 @@ export const useAudioConversion = () => {
         )
       }));
 
-      const audio = await convertToAudio(
+      const { audio, id } = await convertToAudio(
         extractedText, 
         selectedVoice, 
         detectChapters ? chaptersWithTimestamps : undefined, 
-        fileName,
-        (progressValue, totalChunks, completedChunks) => {
-          const chunkProgress = Math.min(
-            Math.round((completedChunks / totalChunks) * 100),
-            100
-          );
-          setProgress(chunkProgress);
-        }
+        fileName
       );
       
       if (!audio) {
         throw new Error('No audio data received from conversion');
       }
 
-      console.log('Conversion completed, processing audio data');
+      setConversionId(id);
       setAudioData(audio);
       
       const duration = await calculateAudioDuration(audio);
@@ -158,8 +152,11 @@ export const useAudioConversion = () => {
     audioData,
     audioDuration,
     currentFileName,
+    conversionId,
     handleConversion,
     handleDownload,
-    resetConversion
+    resetConversion,
+    setProgress,
+    setConversionStatus
   };
 };
