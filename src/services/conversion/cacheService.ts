@@ -117,9 +117,7 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
           file_size: audioBuffer.byteLength,
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
           status: 'completed'
-        })
-        .select()
-        .maybeSingle();
+        });
       
       if (error?.code === '23505') {
         console.log('Conversion already exists in completed state');
