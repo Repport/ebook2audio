@@ -17,7 +17,6 @@ export async function createConversion(
       .select()
       .eq('text_hash', textHash)
       .gt('expires_at', new Date().toISOString())
-      .eq('status', 'completed')
       .maybeSingle();
 
     if (fetchError) {
@@ -26,12 +25,18 @@ export async function createConversion(
     }
 
     // If we found an existing valid conversion, return its ID
-    if (existingConversion) {
-      console.log('Found existing valid conversion:', existingConversion.id);
+    if (existingConversion?.status === 'completed') {
+      console.log('Found existing completed conversion:', existingConversion.id);
       return existingConversion.id;
     }
 
-    // If no existing conversion, create a new one
+    // If we found an existing pending/processing conversion that hasn't expired
+    if (existingConversion && ['pending', 'processing'].includes(existingConversion.status)) {
+      console.log('Found existing in-progress conversion:', existingConversion.id);
+      return existingConversion.id;
+    }
+
+    // If no existing valid conversion, create a new one
     const { data: newConversion, error: insertError } = await supabase
       .from('text_conversions')
       .insert({
@@ -49,7 +54,7 @@ export async function createConversion(
       throw insertError;
     }
 
-    console.log('Created conversion record:', newConversion.id);
+    console.log('Created new conversion record:', newConversion.id);
     return newConversion.id;
   } catch (error) {
     console.error('Error in createConversion:', error);
