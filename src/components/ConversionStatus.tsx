@@ -11,7 +11,7 @@ import {
 import { Chapter } from '@/utils/textExtraction';
 
 interface ConversionStatusProps {
-  status: 'idle' | 'converting' | 'completed' | 'error';
+  status: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
   progress?: number;
   fileType?: 'PDF' | 'EPUB';
   chaptersFound?: number;
@@ -29,11 +29,15 @@ const ConversionStatus = ({
   chapters = [],
   estimatedSeconds = 0
 }: ConversionStatusProps) => {
+  // Map processing status to converting for display purposes
+  const displayStatus = status === 'processing' ? 'converting' : status;
+  
   const statusMessages = {
     idle: 'Ready to convert',
     converting: `Converting your ${fileType} to MP3...`,
     completed: 'Conversion completed!',
-    error: 'Conversion failed'
+    error: 'Conversion failed',
+    processing: `Converting your ${fileType} to MP3...`
   };
 
   const formatTimestamp = (minutes: number) => {
@@ -57,7 +61,7 @@ const ConversionStatus = ({
   };
 
   const getEstimatedTimeRemaining = () => {
-    if (status !== 'converting' || progress >= 100 || !estimatedSeconds) {
+    if ((displayStatus !== 'converting' && displayStatus !== 'processing') || progress >= 100 || !estimatedSeconds) {
       return null;
     }
     
@@ -70,7 +74,7 @@ const ConversionStatus = ({
 
   return (
     <div className="flex flex-col items-center space-y-4 w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-      {status === 'converting' && (
+      {(displayStatus === 'converting' || displayStatus === 'processing') && (
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       )}
       <p className="text-lg font-medium text-center">{statusMessages[status]}</p>
@@ -109,7 +113,7 @@ const ConversionStatus = ({
         </Accordion>
       )}
 
-      {status === 'converting' && (
+      {(displayStatus === 'converting' || displayStatus === 'processing') && (
         <div className="w-full space-y-2">
           <Progress value={progress} className="h-2" />
           <p className="text-sm text-muted-foreground text-center">{Math.round(progress)}%</p>
