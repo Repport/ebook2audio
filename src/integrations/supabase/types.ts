@@ -294,6 +294,7 @@ export type Database = {
           file_name: string | null
           file_size: number | null
           id: string
+          progress: number | null
           status: string
           storage_path: string | null
           text_hash: string
@@ -307,6 +308,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
+          progress?: number | null
           status?: string
           storage_path?: string | null
           text_hash: string
@@ -320,6 +322,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
+          progress?: number | null
           status?: string
           storage_path?: string | null
           text_hash?: string
