@@ -11,7 +11,6 @@ export async function synthesizeSpeech(
   console.log(`Starting speech synthesis for text of length ${text.length} with voice ${voiceId}`);
   
   try {
-    // Extract language code from voiceId (e.g., "en-US-Standard-C" -> "en-US")
     const langCode = voiceId.split('-').slice(0, 2).join('-');
     console.log(`Using language code: ${langCode}`);
 
@@ -22,9 +21,11 @@ export async function synthesizeSpeech(
         name: voiceId,
       },
       audioConfig: {
-        audioEncoding: 'MP3',
+        audioEncoding: 'OGG_OPUS',
         speakingRate: 1.0,
         pitch: 0.0,
+        sampleRateHertz: 24000,
+        bitRateInBps: 32000, // 32kbps Opus
       },
     };
 
