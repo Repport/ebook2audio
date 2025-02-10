@@ -71,7 +71,7 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       }
 
       // Generate hash and check cache before proceeding
-      const textHash = await generateHash(result.text);
+      const textHash = await generateHash(result.text, file.name);
       console.log('Checking cache for text hash:', textHash);
       const cacheResult = await checkCache(textHash);
 
