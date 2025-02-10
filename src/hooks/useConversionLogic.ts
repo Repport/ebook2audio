@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -37,8 +38,7 @@ export const useConversionLogic = (
 
     console.log('Setting up realtime listeners for conversion:', conversionId);
 
-    // Listen for conversion status updates
-    const conversionsChannel = supabase.channel('conversions')
+    const channel = supabase.channel('conversions')
       .on(
         'postgres_changes',
         {
@@ -47,7 +47,7 @@ export const useConversionLogic = (
           table: 'text_conversions',
           filter: `id=eq.${conversionId}`
         },
-        (payload) => {
+        (payload: any) => {
           console.log('Conversion update received:', payload.new);
           const { status, progress: newProgress } = payload.new;
           
@@ -74,49 +74,18 @@ export const useConversionLogic = (
       )
       .subscribe();
 
-    // Cleanup subscription on unmount
     return () => {
       console.log('Cleaning up realtime listeners');
-      supabase.removeChannel(conversionsChannel);
+      supabase.removeChannel(channel);
     };
   }, [conversionId, setConversionStatus, setProgress, onStepComplete, toast]);
 
   useEffect(() => {
     if (selectedFile) {
-      // Clear any stale conversion state when file changes
       resetConversion();
       clearConversionStorage();
     }
   }, [selectedFile, resetConversion]);
-
-  useEffect(() => {
-    if (conversionStatus === 'completed' && onStepComplete) {
-      onStepComplete();
-    }
-  }, [conversionStatus, onStepComplete]);
-
-  // Add timeout for stuck conversions
-  useEffect(() => {
-    let timeoutId: number;
-    
-    if (conversionStatus === 'converting' && progress === 100) {
-      timeoutId = window.setTimeout(() => {
-        resetConversion();
-        clearConversionStorage();
-        toast({
-          title: "Conversion timed out",
-          description: "Please try again",
-          variant: "destructive",
-        });
-      }, 60000); // Reset after 1 minute of being stuck
-    }
-    
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [conversionStatus, progress, resetConversion, toast]);
 
   const initiateConversion = () => {
     if (!selectedFile || !extractedText) {
@@ -187,6 +156,9 @@ export const useConversionLogic = (
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
-    calculateEstimatedSeconds
+    calculateEstimatedSeconds,
+    conversionId,
+    setProgress,
+    setConversionStatus
   };
 };

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { VOICES } from '@/constants/voices';
 import { Chapter } from '@/utils/textExtraction';
@@ -7,7 +6,6 @@ import VoiceSettingsStep from './file-processor/VoiceSettingsStep';
 import ConversionStep from './file-processor/ConversionStep';
 import TermsDialog from '@/components/TermsDialog';
 import { useConversionLogic } from './file-processor/useConversionLogic';
-import { supabase } from '@/integrations/supabase/client';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
@@ -49,82 +47,33 @@ const FileProcessor = ({
     handleDownloadClick,
     handleViewConversions,
     calculateEstimatedSeconds,
-    conversionId,
-    setProgress,
-    setConversionStatus
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
   const estimatedSeconds = calculateEstimatedSeconds();
-
-  React.useEffect(() => {
-    if (!conversionId) return;
-
-    console.log('Setting up realtime listeners for conversion:', conversionId);
-
-    const channel = supabase.channel('conversions')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'text_conversions',
-          filter: `id=eq.${conversionId}`
-        },
-        (payload: any) => {
-          console.log('Conversion update received:', payload.new);
-          const { status, progress: newProgress } = payload.new;
-          
-          if (status) {
-            setConversionStatus(status as 'idle' | 'converting' | 'completed' | 'error');
-          }
-          
-          if (typeof newProgress === 'number') {
-            setProgress(Math.min(newProgress, 100));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log('Cleaning up realtime listeners');
-      supabase.removeChannel(channel);
-    };
-  }, [conversionId, setProgress, setConversionStatus]);
 
   if (!selectedFile) return null;
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
-      {currentStep === 2 && (
-        <VoiceSettingsStep
-          selectedVoice={selectedVoice}
-          onVoiceChange={setSelectedVoice}
-          detectedLanguage={detectedLanguage}
-          detectChapters={detectChapters}
-          onToggleChapters={setDetectChapters}
-          chapters={chapters}
-          onPreviousStep={onPreviousStep}
-          onNextStep={onNextStep}
-        />
+      {currentStep === 1 && (
+        <div className="animate-fade-up">
+          
+        </div>
       )}
       
-      {currentStep === 3 && (
-        <ConversionStep
-          conversionStatus={conversionStatus}
-          progress={progress}
-          selectedFile={selectedFile}
-          chapters={chapters}
-          detectingChapters={detectingChapters}
-          detectChapters={detectChapters}
-          estimatedSeconds={estimatedSeconds}
-          onConvert={initiateConversion}
-          onDownload={handleDownloadClick}
-          onViewConversions={handleViewConversions}
-          onPreviousStep={onPreviousStep}
-          audioData={audioData}
-          audioDuration={audioDuration}
-          isAuthenticated={!!user}
-        />
+      {currentStep >= 2 && selectedFile && (
+        <div className="animate-fade-up">
+          <FileProcessor
+            onFileSelect={onFileSelect}
+            selectedFile={selectedFile}
+            extractedText={extractedText}
+            chapters={chapters}
+            onStepComplete={() => setCurrentStep(3)}
+            currentStep={currentStep}
+            onNextStep={goToNextStep}
+            onPreviousStep={onPreviousStep}
+          />
+        </div>
       )}
 
       <TermsDialog 
