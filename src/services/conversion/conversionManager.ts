@@ -16,8 +16,8 @@ export async function createConversion(
       .from('text_conversions')
       .select()
       .eq('text_hash', textHash)
-      .gt('expires_at', new Date().toISOString())
       .eq('status', 'completed')
+      .gt('expires_at', new Date().toISOString())
       .maybeSingle();
 
     if (fetchError) {
@@ -43,14 +43,27 @@ export async function createConversion(
         file_name: fileName,
         user_id: userId,
         status: 'pending',
-        storage_path: null, // Will be updated later
-        compressed_storage_path: null, // Will be updated later
+        storage_path: null,
+        compressed_storage_path: null,
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
       })
       .select()
-      .maybeSingle();
+      .single();
 
     if (insertError) {
+      // If we get a unique constraint violation, try to fetch the existing record again
+      if (insertError.code === '23505') {
+        const { data: retryConversion, error: retryError } = await supabase
+          .from('text_conversions')
+          .select()
+          .eq('text_hash', textHash)
+          .eq('status', 'completed')
+          .gt('expires_at', new Date().toISOString())
+          .single();
+
+        if (retryError) throw retryError;
+        if (retryConversion) return retryConversion.id;
+      }
       console.error('Error creating conversion:', insertError);
       throw insertError;
     }
