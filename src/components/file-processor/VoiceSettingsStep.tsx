@@ -3,53 +3,40 @@ import React from 'react';
 import VoiceSelector from '@/components/VoiceSelector';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { Chapter } from '@/utils/textExtraction';
+import { ArrowRight } from 'lucide-react';
 
 interface VoiceSettingsStepProps {
   selectedVoice: string;
-  onVoiceChange: (value: string) => void;
+  setSelectedVoice: (voice: string) => void;
   detectedLanguage: string;
   detectChapters: boolean;
-  onToggleChapters: (value: boolean) => void;
-  chapters: Chapter[];
-  onPreviousStep: () => void;
+  setDetectChapters: (detect: boolean) => void;
   onNextStep: () => void;
 }
 
 const VoiceSettingsStep = ({
   selectedVoice,
-  onVoiceChange,
+  setSelectedVoice,
   detectedLanguage,
   detectChapters,
-  onToggleChapters,
-  chapters,
-  onPreviousStep,
+  setDetectChapters,
   onNextStep
 }: VoiceSettingsStepProps) => {
   return (
     <>
       <VoiceSelector 
         selectedVoice={selectedVoice}
-        onVoiceChange={onVoiceChange}
+        onVoiceChange={setSelectedVoice}
         detectedLanguage={detectedLanguage}
       />
       
       <ChapterDetectionToggle 
         detectChapters={detectChapters}
-        onToggle={onToggleChapters}
-        chaptersFound={chapters.length}
+        onToggle={setDetectChapters}
+        chaptersFound={0}
       />
 
-      <div className="flex justify-between mt-8">
-        <Button
-          variant="outline"
-          onClick={onPreviousStep}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Upload
-        </Button>
+      <div className="flex justify-end mt-8">
         <Button
           onClick={onNextStep}
           className="flex items-center gap-2"

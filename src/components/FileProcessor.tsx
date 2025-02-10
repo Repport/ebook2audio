@@ -78,7 +78,7 @@ const FileProcessor = ({
             audioData={audioData}
             audioDuration={audioDuration}
             estimatedSeconds={estimatedSeconds}
-            onInitiateConversion={initiateConversion}
+            onConvert={initiateConversion}
             onDownloadClick={handleDownloadClick}
             onViewConversions={handleViewConversions}
           />
