@@ -11,51 +11,36 @@ export async function createConversion(
     // Set statement timeout before any database operations
     await supabase.rpc('set_statement_timeout');
 
-    // Try to fetch existing conversion first
-    const { data: existingConversion, error: fetchError } = await supabase
+    // Try to fetch existing conversion first - with a single query to avoid race conditions
+    const { data: conversion, error: upsertError } = await supabase
       .from('text_conversions')
-      .select()
-      .eq('text_hash', textHash)
-      .gt('expires_at', new Date().toISOString())
-      .maybeSingle();
-
-    if (fetchError) {
-      console.error('Error fetching existing conversion:', fetchError);
-      throw fetchError;
-    }
-
-    // If we found an existing valid conversion that's completed, return its ID
-    if (existingConversion?.status === 'completed') {
-      console.log('Found existing completed conversion:', existingConversion.id);
-      return existingConversion.id;
-    }
-
-    // If we found an existing pending/processing conversion that hasn't expired
-    if (existingConversion && ['pending', 'processing'].includes(existingConversion.status)) {
-      console.log('Found existing in-progress conversion:', existingConversion.id);
-      return existingConversion.id;
-    }
-
-    // If no existing valid conversion found, create a new one
-    const { data: newConversion, error: insertError } = await supabase
-      .from('text_conversions')
-      .upsert({
-        text_hash: textHash,
-        file_name: fileName,
-        user_id: userId,
-        status: 'pending',
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-      })
+      .upsert(
+        {
+          text_hash: textHash,
+          file_name: fileName,
+          user_id: userId,
+          status: 'pending',
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+        },
+        {
+          onConflict: 'text_hash',
+          ignoreDuplicates: false // This will return the existing record if there's a conflict
+        }
+      )
       .select()
       .single();
 
-    if (insertError) {
-      console.error('Error creating conversion:', insertError);
-      throw insertError;
+    if (upsertError) {
+      console.error('Error in upsert operation:', upsertError);
+      throw upsertError;
     }
 
-    console.log('Created new conversion record:', newConversion.id);
-    return newConversion.id;
+    if (!conversion) {
+      throw new Error('Failed to create or retrieve conversion');
+    }
+
+    console.log('Conversion record:', conversion.id);
+    return conversion.id;
   } catch (error) {
     console.error('Error in createConversion:', error);
     throw error;
