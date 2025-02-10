@@ -18,9 +18,16 @@ interface FileProcessorProps {
   selectedFile: File | null;
   extractedText: string;
   chapters: Chapter[];
+  onStepComplete?: () => void;
 }
 
-const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: FileProcessorProps) => {
+const FileProcessor = ({ 
+  onFileSelect, 
+  selectedFile, 
+  extractedText, 
+  chapters,
+  onStepComplete 
+}: FileProcessorProps) => {
   const [detectChapters, setDetectChapters] = useState(true);
   const [detectingChapters, setDetectingChapters] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
@@ -40,12 +47,17 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
     resetConversion
   } = useAudioConversion();
 
-  // Reset conversion state when a new file is selected
   useEffect(() => {
     if (selectedFile) {
       resetConversion();
     }
   }, [selectedFile, resetConversion]);
+
+  useEffect(() => {
+    if (conversionStatus === 'completed' && onStepComplete) {
+      onStepComplete();
+    }
+  }, [conversionStatus, onStepComplete]);
 
   const initiateConversion = () => {
     if (!selectedFile || !extractedText) {
@@ -83,10 +95,7 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
   };
 
   const handleViewConversions = () => {
-    console.log('Starting navigation to conversions...');
-    
     if (!user) {
-      console.log('No user found, redirecting to auth...');
       toast({
         title: "Authentication Required",
         description: "Please log in to view your conversions",
@@ -94,85 +103,73 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
       navigate('/auth', { state: { from: '/conversions' } });
       return;
     }
-
-    console.log('User authenticated, navigating to conversions...');
     navigate('/conversions');
   };
 
-  // Calculate estimated time based on text length and chunk processing
   const calculateEstimatedSeconds = () => {
     if (!extractedText) return 0;
-    
-    // Base processing time per character (tuned based on typical processing speed)
-    const baseTimePerChar = 0.015; // 15ms per character
-    
-    // Additional overhead for initialization and finalization
-    const overhead = 5; // 5 seconds base overhead
-    
-    // Factor in chunk processing overhead
-    const chunkSize = 5000; // characters per chunk
+    const baseTimePerChar = 0.015;
+    const overhead = 5;
+    const chunkSize = 5000;
     const numberOfChunks = Math.ceil(extractedText.length / chunkSize);
-    const chunkOverhead = numberOfChunks * 0.5; // 0.5 seconds per chunk overhead
-    
+    const chunkOverhead = numberOfChunks * 0.5;
     return Math.ceil((extractedText.length * baseTimePerChar) + overhead + chunkOverhead);
   };
 
   const estimatedSeconds = calculateEstimatedSeconds();
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
-      <div className="animate-fade-up space-y-8">
-        <VoiceSelector 
-          selectedVoice={selectedVoice}
-          onVoiceChange={(value: string) => setSelectedVoice(value)}
-          detectedLanguage={detectedLanguage}
-        />
-        
-        <ChapterDetectionToggle 
-          detectChapters={detectChapters}
-          onToggle={setDetectChapters}
-          chaptersFound={chapters.length}
-        />
-        
-        <div className="flex justify-center">
-          <ConversionStatus 
-            status={conversionStatus} 
-            progress={progress}
-            fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
-            chaptersFound={chapters.length}
-            detectingChapters={detectingChapters}
-            chapters={detectChapters ? chapters : []}
-            estimatedSeconds={estimatedSeconds}
-          />
-        </div>
-        
-        <ConversionControls 
-          status={conversionStatus}
-          onConvert={initiateConversion}
-          onDownload={handleDownloadClick}
-          fileSize={audioData?.byteLength}
-          duration={audioDuration}
-        />
-
-        {user && conversionStatus === 'completed' && (
-          <div className="text-center">
-            <Button
-              variant="outline"
-              onClick={handleViewConversions}
-            >
-              View All Conversions
-            </Button>
-          </div>
-        )}
-
-        <TermsDialog 
-          open={showTerms}
-          onClose={() => setShowTerms(false)}
-          onAccept={handleAcceptTerms}
-          fileName={selectedFile?.name || ''}
+    <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
+      <VoiceSelector 
+        selectedVoice={selectedVoice}
+        onVoiceChange={(value: string) => setSelectedVoice(value)}
+        detectedLanguage={detectedLanguage}
+      />
+      
+      <ChapterDetectionToggle 
+        detectChapters={detectChapters}
+        onToggle={setDetectChapters}
+        chaptersFound={chapters.length}
+      />
+      
+      <div className="flex justify-center">
+        <ConversionStatus 
+          status={conversionStatus} 
+          progress={progress}
           fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
+          chaptersFound={chapters.length}
+          detectingChapters={detectingChapters}
+          chapters={detectChapters ? chapters : []}
+          estimatedSeconds={estimatedSeconds}
         />
       </div>
+      
+      <ConversionControls 
+        status={conversionStatus}
+        onConvert={initiateConversion}
+        onDownload={handleDownloadClick}
+        fileSize={audioData?.byteLength}
+        duration={audioDuration}
+      />
+
+      {user && conversionStatus === 'completed' && (
+        <div className="text-center">
+          <Button
+            variant="outline"
+            onClick={handleViewConversions}
+          >
+            View All Conversions
+          </Button>
+        </div>
+      )}
+
+      <TermsDialog 
+        open={showTerms}
+        onClose={() => setShowTerms(false)}
+        onAccept={handleAcceptTerms}
+        fileName={selectedFile?.name || ''}
+        fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
+      />
     </div>
   );
 };

@@ -3,14 +3,39 @@ import React, { useState } from 'react';
 import FileUploadZone from '@/components/FileUploadZone';
 import Header from '@/components/Header';
 import FileProcessor from '@/components/FileProcessor';
+import { Card } from '@/components/ui/card';
+import { Check, FileText, Settings, Upload } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Chapter } from '@/utils/textExtraction';
 import { LanguageProvider } from '@/hooks/useLanguage';
+
+const steps = [
+  {
+    id: 1,
+    title: 'Upload File',
+    description: 'Select or drag & drop your PDF or EPUB file',
+    icon: Upload
+  },
+  {
+    id: 2,
+    title: 'Configure Settings',
+    description: 'Choose voice and customize options',
+    icon: Settings
+  },
+  {
+    id: 3,
+    title: 'Convert & Download',
+    description: 'Process your file and get the audio',
+    icon: FileText
+  }
+];
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState<string>('');
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [currentStep, setCurrentStep] = useState(1);
   const { toast } = useToast();
 
   const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
@@ -18,12 +43,14 @@ const Index = () => {
       setSelectedFile(null);
       setExtractedText('');
       setChapters([]);
+      setCurrentStep(1);
       return;
     }
 
     setSelectedFile(fileInfo.file);
     setExtractedText(fileInfo.text);
     setChapters(fileInfo.chapters || []);
+    setCurrentStep(2);
 
     if (fileInfo.chapters?.length) {
       toast({
@@ -39,18 +66,66 @@ const Index = () => {
         <div className="max-w-4xl mx-auto">
           <Header />
 
-          <div className="space-y-8">
-            <FileUploadZone onFileSelect={handleFileSelect} />
-
-            {selectedFile && (
-              <FileProcessor
-                onFileSelect={handleFileSelect}
-                selectedFile={selectedFile}
-                extractedText={extractedText}
-                chapters={chapters}
-              />
-            )}
+          <div className="mb-12">
+            <div className="flex justify-center items-center space-x-4 md:space-x-8">
+              {steps.map((step) => (
+                <React.Fragment key={step.id}>
+                  <div className="flex flex-col items-center">
+                    <div 
+                      className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center border-2",
+                        currentStep === step.id
+                          ? "border-primary bg-primary text-white"
+                          : currentStep > step.id
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-gray-300 text-gray-400"
+                      )}
+                    >
+                      {currentStep > step.id ? (
+                        <Check className="w-5 h-5" />
+                      ) : (
+                        <step.icon className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div className="mt-2 text-center">
+                      <p className="text-sm font-medium">{step.title}</p>
+                      <p className="text-xs text-gray-500 hidden md:block">{step.description}</p>
+                    </div>
+                  </div>
+                  {step.id !== steps.length && (
+                    <div 
+                      className={cn(
+                        "flex-1 h-0.5",
+                        currentStep > step.id
+                          ? "bg-primary"
+                          : "bg-gray-300"
+                      )}
+                    />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
           </div>
+
+          <Card className="p-6 shadow-lg">
+            {currentStep === 1 && (
+              <div className="animate-fade-up">
+                <FileUploadZone onFileSelect={handleFileSelect} />
+              </div>
+            )}
+
+            {currentStep >= 2 && selectedFile && (
+              <div className="animate-fade-up">
+                <FileProcessor
+                  onFileSelect={handleFileSelect}
+                  selectedFile={selectedFile}
+                  extractedText={extractedText}
+                  chapters={chapters}
+                  onStepComplete={() => setCurrentStep(3)}
+                />
+              </div>
+            )}
+          </Card>
         </div>
       </div>
     </LanguageProvider>
