@@ -118,7 +118,7 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
           status: 'completed'
         })
-        .select('id')
+        .select()
         .maybeSingle();
       
       if (error?.code === '23505') {
