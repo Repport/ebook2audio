@@ -22,7 +22,7 @@ export async function createChunksForConversion(
     conversion_id: conversionId,
     chunk_index: index,
     content,
-    status: 'pending'
+    status: 'pending' as const
   }));
 
   const { data, error } = await supabase
@@ -35,7 +35,11 @@ export async function createChunksForConversion(
     throw error;
   }
 
-  return data;
+  // Cast the response data to ensure it matches our type
+  return (data || []).map(chunk => ({
+    ...chunk,
+    status: chunk.status as ConversionChunk['status']
+  }));
 }
 
 export async function updateChunkStatus(
@@ -71,7 +75,11 @@ export async function getConversionChunks(conversionId: string): Promise<Convers
     throw error;
   }
 
-  return data;
+  // Cast the response data to ensure it matches our type
+  return (data || []).map(chunk => ({
+    ...chunk,
+    status: chunk.status as ConversionChunk['status']
+  }));
 }
 
 function splitTextIntoChunks(text: string, chunkSize: number): string[] {
