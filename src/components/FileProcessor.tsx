@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VoiceSelector from '@/components/VoiceSelector';
@@ -91,13 +90,12 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
         title: "Authentication Required",
         description: "Please log in to view your conversions",
       });
-      navigate('/auth', { state: { returnTo: '/conversions' }, replace: true });
+      navigate('/auth', { state: { from: '/conversions' } });
       return;
     }
 
     console.log('User authenticated, navigating to conversions...');
-    // Force a hard navigation to ensure the route change
-    window.location.href = '/conversions';
+    navigate('/conversions');
   };
 
   // Calculate estimated time based on text length and chunk processing
@@ -175,4 +173,3 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
 };
 
 export default FileProcessor;
-
