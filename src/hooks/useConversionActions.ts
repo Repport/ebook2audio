@@ -7,6 +7,8 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { User } from '@supabase/supabase-js';
 import { Chapter } from '@/utils/textExtraction';
 import { supabase } from '@/integrations/supabase/client';
+import { checkCache, fetchFromCache } from '@/services/conversion/cacheService';
+import { generateHash } from '@/services/conversion/utils';
 
 interface UseConversionActionsProps {
   user: User | null;
@@ -62,7 +64,46 @@ export const useConversionActions = ({
     
     try {
       console.log('Starting conversion for file:', fileName);
-      console.log('Chapters to process:', chapters); // Debug log
+      
+      // Generate hash and check cache first
+      const textHash = await generateHash(extractedText, selectedVoice);
+      const { storagePath, error: cacheError } = await checkCache(textHash);
+      
+      if (storagePath && !cacheError) {
+        console.log('Found cached conversion:', storagePath);
+        
+        // Fetch audio from cache
+        const { data: cachedAudio, error: fetchError } = await fetchFromCache(storagePath);
+        
+        if (cachedAudio && !fetchError) {
+          console.log('Successfully retrieved cached audio');
+          
+          // Get the existing conversion ID
+          const { data: conversion } = await supabase
+            .from('text_conversions')
+            .select('id')
+            .eq('text_hash', textHash)
+            .eq('status', 'completed')
+            .single();
+          
+          if (conversion) {
+            setConversionId(conversion.id);
+            setAudioData(cachedAudio);
+            
+            const duration = await calculateAudioDuration(cachedAudio);
+            setAudioDuration(duration);
+            
+            setConversionStatus('completed');
+            setProgress(100);
+            
+            return { audio: cachedAudio, id: conversion.id };
+          }
+        }
+      }
+
+      // If not in cache or cache fetch failed, proceed with conversion
+      console.log('No cached version found, starting new conversion');
+      console.log('Chapters to process:', chapters);
 
       const chaptersWithTimestamps = chapters.map(chapter => ({
         ...chapter,
