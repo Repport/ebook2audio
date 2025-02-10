@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { synthesizeSpeech } from './speech-service.ts'
@@ -102,7 +103,12 @@ serve(async (req) => {
     console.log('Successfully generated audio content')
     
     return new Response(
-      JSON.stringify({ data: { audioContent } }),
+      JSON.stringify({ 
+        data: { 
+          audioContent,
+          id: crypto.randomUUID() // Add a unique ID for the conversion
+        }
+      }),
       { 
         headers: { 
           ...corsHeaders,
