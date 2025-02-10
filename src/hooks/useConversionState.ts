@@ -2,6 +2,10 @@
 import { useState, useEffect } from 'react';
 import { loadConversionState, saveConversionState, convertArrayBufferToBase64, convertBase64ToArrayBuffer, clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { supabase } from '@/integrations/supabase/client';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
+
+type TextConversion = Database['public']['Tables']['text_conversions']['Row'];
 
 export const useConversionState = () => {
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
@@ -40,20 +44,20 @@ export const useConversionState = () => {
           schema: 'public',
           table: 'text_conversions'
         },
-        async (payload) => {
+        async (payload: RealtimePostgresChangesPayload<TextConversion>) => {
           console.log('Received conversion update:', payload);
-          const { new: conversion } = payload;
+          const conversion = payload.new;
 
-          if (conversion.status) {
-            setConversionStatus(conversion.status as any);
+          if (conversion && conversion.status) {
+            setConversionStatus(conversion.status as 'idle' | 'converting' | 'completed' | 'error');
           }
-          if (typeof conversion.progress === 'number') {
+          if (conversion && typeof conversion.progress === 'number') {
             setProgress(Math.min(conversion.progress, 100));
           }
-          if (conversion.file_name) {
+          if (conversion && conversion.file_name) {
             setCurrentFileName(conversion.file_name);
           }
-          if (conversion.storage_path) {
+          if (conversion && conversion.storage_path) {
             try {
               const { data, error } = await supabase.storage
                 .from('audio_cache')
