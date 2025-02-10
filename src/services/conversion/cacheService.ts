@@ -1,53 +1,10 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Database } from "@/integrations/supabase/types";
 import { CacheError } from './errors/CacheError';
 import { retryOperation } from './utils/retryUtils';
 import { downloadFromStorage, uploadToStorage } from './storage/cacheStorage';
 
 const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
-
-type TextConversion = Database['public']['Tables']['text_conversions']['Row'];
-
-export async function cleanupExpiredCache(): Promise<{ error: Error | null }> {
-  try {
-    const now = new Date().toISOString();
-    
-    const { data: expiredRecords, error: fetchError } = await supabase
-      .from('text_conversions')
-      .select('storage_path')
-      .lt('expires_at', now)
-      .limit(100);
-
-    if (fetchError) throw new CacheError('Failed to fetch expired records', fetchError);
-
-    if (expiredRecords?.length) {
-      const storagePaths = expiredRecords
-        .map(record => record.storage_path)
-        .filter((path): path is string => !!path);
-
-      if (storagePaths.length > 0) {
-        const { error: storageError } = await supabase.storage
-          .from('audio_cache')
-          .remove(storagePaths);
-
-        if (storageError) throw new CacheError('Failed to delete expired files', storageError);
-      }
-    }
-
-    const { error: dbError } = await supabase
-      .from('text_conversions')
-      .delete()
-      .lt('expires_at', now);
-
-    if (dbError) throw new CacheError('Failed to delete expired records', dbError);
-
-    return { error: null };
-  } catch (error) {
-    console.error('Cache cleanup failed:', error);
-    return { error: error instanceof Error ? error : new CacheError('Unknown error during cleanup') };
-  }
-}
 
 export async function checkCache(textHash: string): Promise<{ storagePath: string | null; error: CacheError | null }> {
   try {
@@ -137,5 +94,45 @@ export async function saveToCache(
   } catch (error) {
     console.error('Cache save failed:', error);
     return { error: error as Error };
+  }
+}
+
+export async function cleanupExpiredCache(): Promise<{ error: Error | null }> {
+  try {
+    const now = new Date().toISOString();
+    
+    const { data: expiredRecords, error: fetchError } = await supabase
+      .from('text_conversions')
+      .select('storage_path')
+      .lt('expires_at', now)
+      .limit(100);
+
+    if (fetchError) throw new CacheError('Failed to fetch expired records', fetchError);
+
+    if (expiredRecords?.length) {
+      const storagePaths = expiredRecords
+        .map(record => record.storage_path)
+        .filter((path): path is string => !!path);
+
+      if (storagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('audio_cache')
+          .remove(storagePaths);
+
+        if (storageError) throw new CacheError('Failed to delete expired files', storageError);
+      }
+    }
+
+    const { error: dbError } = await supabase
+      .from('text_conversions')
+      .delete()
+      .lt('expires_at', now);
+
+    if (dbError) throw new CacheError('Failed to delete expired records', dbError);
+
+    return { error: null };
+  } catch (error) {
+    console.error('Cache cleanup failed:', error);
+    return { error: error instanceof Error ? error : new CacheError('Unknown error during cleanup') };
   }
 }
