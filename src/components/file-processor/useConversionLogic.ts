@@ -25,12 +25,14 @@ export const useConversionLogic = (
     audioDuration,
     handleConversion,
     handleDownload,
-    resetConversion
+    resetConversion,
+    conversionId,
+    setProgress,
+    setConversionStatus
   } = useAudioConversion();
 
   useEffect(() => {
     if (selectedFile) {
-      // Clear any stale conversion state when file changes
       resetConversion();
       clearConversionStorage();
     }
@@ -42,29 +44,6 @@ export const useConversionLogic = (
     }
   }, [conversionStatus, onStepComplete]);
 
-  // Add timeout for stuck conversions
-  useEffect(() => {
-    let timeoutId: number;
-    
-    if (conversionStatus === 'converting' && progress === 100) {
-      timeoutId = window.setTimeout(() => {
-        resetConversion();
-        clearConversionStorage();
-        toast({
-          title: "Conversion timed out",
-          description: "Please try again",
-          variant: "destructive",
-        });
-      }, 60000); // Reset after 1 minute of being stuck
-    }
-    
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [conversionStatus, progress, resetConversion, toast]);
-
   const initiateConversion = () => {
     if (!selectedFile || !extractedText) {
       toast({
@@ -75,7 +54,6 @@ export const useConversionLogic = (
       return;
     }
     
-    // Clear any previous conversion state
     resetConversion();
     clearConversionStorage();
     setShowTerms(true);
@@ -135,6 +113,9 @@ export const useConversionLogic = (
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
-    calculateEstimatedSeconds
+    calculateEstimatedSeconds,
+    conversionId,
+    setProgress,
+    setConversionStatus
   };
 };

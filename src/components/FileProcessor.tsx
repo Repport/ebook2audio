@@ -7,6 +7,7 @@ import VoiceSettingsStep from './file-processor/VoiceSettingsStep';
 import ConversionStep from './file-processor/ConversionStep';
 import TermsDialog from '@/components/TermsDialog';
 import { useConversionLogic } from './file-processor/useConversionLogic';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
@@ -47,10 +48,48 @@ const FileProcessor = ({
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
-    calculateEstimatedSeconds
+    calculateEstimatedSeconds,
+    conversionId,
+    setProgress,
+    setConversionStatus
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
   const estimatedSeconds = calculateEstimatedSeconds();
+
+  React.useEffect(() => {
+    if (!conversionId) return;
+
+    console.log('Setting up realtime listeners for conversion:', conversionId);
+
+    const channel = supabase.channel('conversions')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'text_conversions',
+          filter: `id=eq.${conversionId}`
+        },
+        (payload: any) => {
+          console.log('Conversion update received:', payload.new);
+          const { status, progress: newProgress } = payload.new;
+          
+          if (status) {
+            setConversionStatus(status as 'idle' | 'converting' | 'completed' | 'error');
+          }
+          
+          if (typeof newProgress === 'number') {
+            setProgress(Math.min(newProgress, 100));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up realtime listeners');
+      supabase.removeChannel(channel);
+    };
+  }, [conversionId, setProgress, setConversionStatus]);
 
   if (!selectedFile) return null;
 
