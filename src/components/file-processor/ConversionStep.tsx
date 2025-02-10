@@ -57,7 +57,7 @@ const ConversionStep = ({
             onClick={onViewConversions}
             className="w-full max-w-xs"
           >
-            Ver Todas las Conversiones
+            View All Conversions
           </Button>
         </div>
       )}

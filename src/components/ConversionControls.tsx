@@ -35,17 +35,17 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
           {status === 'error' ? (
             <>
               <RefreshCw className="mr-2 h-4 w-4" />
-              Reintentar Conversión
+              Retry Conversion
             </>
           ) : (
-            'Iniciar Conversión'
+            'Start Conversion'
           )}
         </Button>
       )}
       
       {status === 'converting' && (
         <div className="text-sm text-muted-foreground animate-pulse">
-          Convirtiendo...
+          Converting...
         </div>
       )}
       
@@ -53,7 +53,7 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
         <div className="w-full max-w-xs space-y-4">
           {fileSize && duration && (
             <div className="text-sm text-muted-foreground text-center">
-              Tamaño: {formatFileSize(fileSize)} • Duración: {formatDuration(duration)}
+              Size: {formatFileSize(fileSize)} • Duration: {formatDuration(duration)}
             </div>
           )}
           <Button 
@@ -61,7 +61,7 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
             className="w-full bg-primary hover:bg-primary/90 transition-colors"
           >
             <Download className="mr-2 h-4 w-4" />
-            Descargar Audio
+            Download Audio
           </Button>
         </div>
       )}
