@@ -1,18 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import VoiceSelector from '@/components/VoiceSelector';
-import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
-import ConversionStatus from '@/components/ConversionStatus';
-import ConversionControls from '@/components/ConversionControls';
-import TermsDialog from '@/components/TermsDialog';
-import { Chapter } from '@/utils/textExtraction';
+import React, { useState } from 'react';
 import { VOICES } from '@/constants/voices';
-import { useAudioConversion } from '@/hooks/useAudioConversion';
-import { useToast } from '@/hooks/use-toast';
+import { Chapter } from '@/utils/textExtraction';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import VoiceSettingsStep from './file-processor/VoiceSettingsStep';
+import ConversionStep from './file-processor/ConversionStep';
+import TermsDialog from '@/components/TermsDialog';
+import { useConversionLogic } from './file-processor/useConversionLogic';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
@@ -35,178 +29,69 @@ const FileProcessor = ({
   onNextStep,
   onPreviousStep
 }: FileProcessorProps) => {
-  const [detectChapters, setDetectChapters] = useState(true);
-  const [detectingChapters, setDetectingChapters] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
-  const [showTerms, setShowTerms] = useState(false);
-  const { toast } = useToast();
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const {
+    detectChapters,
+    setDetectChapters,
+    detectingChapters,
+    showTerms,
+    setShowTerms,
     conversionStatus,
     progress,
     audioData,
     audioDuration,
-    handleConversion,
-    handleDownload,
-    resetConversion
-  } = useAudioConversion();
-
-  useEffect(() => {
-    if (selectedFile) {
-      resetConversion();
-    }
-  }, [selectedFile, resetConversion]);
-
-  useEffect(() => {
-    if (conversionStatus === 'completed' && onStepComplete) {
-      onStepComplete();
-    }
-  }, [conversionStatus, onStepComplete]);
-
-  const initiateConversion = () => {
-    if (!selectedFile || !extractedText) {
-      toast({
-        title: "Error",
-        description: "Please select a file first",
-        variant: "destructive",
-      });
-      return;
-    }
-    setShowTerms(true);
-  };
-
-  const handleAcceptTerms = async () => {
-    if (!selectedFile || !extractedText) return;
-    setDetectingChapters(true);
-    try {
-      await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
-    } catch (error) {
-      toast({
-        title: "Conversion failed",
-        description: error.message || "An error occurred during conversion",
-        variant: "destructive",
-      });
-    } finally {
-      setDetectingChapters(false);
-      setShowTerms(false);
-    }
-  };
-
-  const handleDownloadClick = () => {
-    if (selectedFile) {
-      handleDownload(selectedFile.name);
-    }
-  };
-
-  const handleViewConversions = () => {
-    if (!user) {
-      navigate('/auth', { state: { from: '/conversions' } });
-      return;
-    }
-    navigate('/conversions');
-  };
-
-  const calculateEstimatedSeconds = () => {
-    if (!extractedText) return 0;
-    const baseTimePerChar = 0.015;
-    const overhead = 5;
-    const chunkSize = 5000;
-    const numberOfChunks = Math.ceil(extractedText.length / chunkSize);
-    const chunkOverhead = numberOfChunks * 0.5;
-    return Math.ceil((extractedText.length * baseTimePerChar) + overhead + chunkOverhead);
-  };
+    initiateConversion,
+    handleAcceptTerms,
+    handleDownloadClick,
+    handleViewConversions,
+    calculateEstimatedSeconds
+  } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
   const estimatedSeconds = calculateEstimatedSeconds();
+
+  if (!selectedFile) return null;
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
       {currentStep === 2 && (
-        <>
-          <VoiceSelector 
-            selectedVoice={selectedVoice}
-            onVoiceChange={(value: string) => setSelectedVoice(value)}
-            detectedLanguage={detectedLanguage}
-          />
-          
-          <ChapterDetectionToggle 
-            detectChapters={detectChapters}
-            onToggle={setDetectChapters}
-            chaptersFound={chapters.length}
-          />
-
-          <div className="flex justify-between mt-8">
-            <Button
-              variant="outline"
-              onClick={onPreviousStep}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Upload
-            </Button>
-            <Button
-              onClick={onNextStep}
-              className="flex items-center gap-2"
-            >
-              Continue
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </>
+        <VoiceSettingsStep
+          selectedVoice={selectedVoice}
+          onVoiceChange={setSelectedVoice}
+          detectedLanguage={detectedLanguage}
+          detectChapters={detectChapters}
+          onToggleChapters={setDetectChapters}
+          chapters={chapters}
+          onPreviousStep={onPreviousStep}
+          onNextStep={onNextStep}
+        />
       )}
       
       {currentStep === 3 && (
-        <>
-          <div className="flex justify-center">
-            <ConversionStatus 
-              status={conversionStatus} 
-              progress={progress}
-              fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
-              chaptersFound={chapters.length}
-              detectingChapters={detectingChapters}
-              chapters={detectChapters ? chapters : []}
-              estimatedSeconds={estimatedSeconds}
-            />
-          </div>
-          
-          <ConversionControls 
-            status={conversionStatus}
-            onConvert={initiateConversion}
-            onDownload={handleDownloadClick}
-            fileSize={audioData?.byteLength}
-            duration={audioDuration}
-          />
-
-          {user && conversionStatus === 'completed' && (
-            <div className="text-center">
-              <Button
-                variant="outline"
-                onClick={handleViewConversions}
-              >
-                View All Conversions
-              </Button>
-            </div>
-          )}
-
-          <div className="flex justify-start mt-8">
-            <Button
-              variant="outline"
-              onClick={onPreviousStep}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Settings
-            </Button>
-          </div>
-        </>
+        <ConversionStep
+          conversionStatus={conversionStatus}
+          progress={progress}
+          selectedFile={selectedFile}
+          chapters={chapters}
+          detectingChapters={detectingChapters}
+          detectChapters={detectChapters}
+          estimatedSeconds={estimatedSeconds}
+          onConvert={initiateConversion}
+          onDownload={handleDownloadClick}
+          onViewConversions={handleViewConversions}
+          onPreviousStep={onPreviousStep}
+          audioData={audioData}
+          audioDuration={audioDuration}
+          isAuthenticated={!!user}
+        />
       )}
 
       <TermsDialog 
         open={showTerms}
         onClose={() => setShowTerms(false)}
-        onAccept={handleAcceptTerms}
+        onAccept={() => handleAcceptTerms(selectedVoice)}
         fileName={selectedFile?.name || ''}
         fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
       />
