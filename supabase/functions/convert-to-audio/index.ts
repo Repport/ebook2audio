@@ -6,15 +6,10 @@ import { synthesizeSpeech } from './speech-service.ts'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
-  console.log('Edge function received request:', {
-    method: req.method,
-    url: req.url,
-    headers: Object.fromEntries(req.headers.entries())
-  });
-
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
@@ -26,14 +21,18 @@ serve(async (req) => {
     let body;
     try {
       body = await req.json();
-      console.log('Successfully parsed request body:', JSON.stringify(body, null, 2));
+      console.log('Successfully parsed request body:', {
+        textLength: body.text?.length,
+        voiceId: body.voiceId,
+        isChunk: body.isChunk,
+        chunkIndex: body.chunkIndex
+      });
     } catch (e) {
       console.error('Failed to parse request body:', e);
       throw new Error('Invalid request body');
     }
 
     const { text, voiceId, fileName, isChunk } = body;
-    console.log(`Processing request with voiceId: ${voiceId}, text length: ${text?.length}`);
 
     if (!text || !voiceId) {
       throw new Error('Missing required parameters: text and voiceId are required');
@@ -48,7 +47,6 @@ serve(async (req) => {
 
     let credentials;
     try {
-      // The credentials are stored as a base64 encoded string
       const decodedCredentials = atob(credentialsString);
       credentials = JSON.parse(decodedCredentials);
       console.log('Successfully parsed GCP credentials');
