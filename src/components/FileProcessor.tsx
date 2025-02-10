@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { VOICES } from '@/constants/voices';
 import { Chapter } from '@/utils/textExtraction';
@@ -57,21 +58,29 @@ const FileProcessor = ({
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
       {currentStep === 1 && (
         <div className="animate-fade-up">
-          
+          <VoiceSettingsStep
+            selectedVoice={selectedVoice}
+            setSelectedVoice={setSelectedVoice}
+            detectedLanguage={detectedLanguage}
+            detectChapters={detectChapters}
+            setDetectChapters={setDetectChapters}
+            onNextStep={onNextStep}
+          />
         </div>
       )}
       
-      {currentStep >= 2 && selectedFile && (
+      {currentStep === 2 && (
         <div className="animate-fade-up">
-          <FileProcessor
-            onFileSelect={onFileSelect}
+          <ConversionStep
             selectedFile={selectedFile}
-            extractedText={extractedText}
-            chapters={chapters}
-            onStepComplete={() => setCurrentStep(3)}
-            currentStep={currentStep}
-            onNextStep={goToNextStep}
-            onPreviousStep={onPreviousStep}
+            conversionStatus={conversionStatus}
+            progress={progress}
+            audioData={audioData}
+            audioDuration={audioDuration}
+            estimatedSeconds={estimatedSeconds}
+            onInitiateConversion={initiateConversion}
+            onDownloadClick={handleDownloadClick}
+            onViewConversions={handleViewConversions}
           />
         </div>
       )}
