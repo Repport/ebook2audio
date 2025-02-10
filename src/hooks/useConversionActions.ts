@@ -21,6 +21,11 @@ interface UseConversionActionsProps {
   setConversionId: (id: string | null) => void;
 }
 
+interface ConversionResult {
+  audio: ArrayBuffer;
+  id: string;
+}
+
 export const useConversionActions = ({
   user,
   toast,
@@ -49,7 +54,7 @@ export const useConversionActions = ({
     detectChapters: boolean,
     chapters: Chapter[],
     fileName: string
-  ) => {
+  ): Promise<ConversionResult> => {
     setConversionStatus('converting');
     setProgress(0);
     setCurrentFileName(fileName);
@@ -87,6 +92,8 @@ export const useConversionActions = ({
       
       setConversionStatus('completed');
       setProgress(100);
+
+      return { audio, id };
 
     } catch (error) {
       console.error('Conversion error:', error);

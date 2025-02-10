@@ -66,14 +66,14 @@ export const useConversionLogic = (
     if (!selectedFile || !extractedText) return;
     setDetectingChapters(true);
     try {
-      const { id: conversionId } = await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
+      const result = await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
       
       // Create notification if user is authenticated
-      if (user && conversionId) {
+      if (user && result.id) {
         const { error: notificationError } = await supabase
           .from('conversion_notifications')
           .insert({
-            conversion_id: conversionId,
+            conversion_id: result.id,
             user_id: user.id,
             email: user.email,
           });
