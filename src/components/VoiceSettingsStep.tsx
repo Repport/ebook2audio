@@ -15,6 +15,8 @@ interface VoiceSettingsStepProps {
   detectChapters: boolean;
   setDetectChapters: (detect: boolean) => void;
   onNextStep: () => void;
+  notifyOnComplete: boolean;
+  setNotifyOnComplete: (notify: boolean) => void;
 }
 
 const VoiceSettingsStep = ({
@@ -23,10 +25,11 @@ const VoiceSettingsStep = ({
   detectedLanguage,
   detectChapters,
   setDetectChapters,
-  onNextStep
+  onNextStep,
+  notifyOnComplete,
+  setNotifyOnComplete
 }: VoiceSettingsStepProps) => {
   const { user } = useAuth();
-  const [notifyOnComplete, setNotifyOnComplete] = React.useState(false);
 
   return (
     <>
@@ -71,4 +74,3 @@ const VoiceSettingsStep = ({
 };
 
 export default VoiceSettingsStep;
-

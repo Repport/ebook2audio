@@ -62,14 +62,14 @@ export const useConversionLogic = (
     setShowTerms(true);
   };
 
-  const handleAcceptTerms = async (selectedVoice: string) => {
+  const handleAcceptTerms = async (selectedVoice: string, notifyOnComplete: boolean = false) => {
     if (!selectedFile || !extractedText) return;
     setDetectingChapters(true);
     try {
       const result = await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
       
-      // Create notification if user is authenticated
-      if (user && result.id) {
+      // Create notification if notification is enabled and user is authenticated
+      if (notifyOnComplete && user && result.id) {
         const { error: notificationError } = await supabase
           .from('conversion_notifications')
           .insert({
@@ -80,18 +80,17 @@ export const useConversionLogic = (
 
         if (notificationError) {
           console.error('Error creating notification:', notificationError);
+          toast({
+            title: "Notification Error",
+            description: "Could not set up email notification",
+            variant: "destructive",
+          });
         } else {
           toast({
             title: "Notification Set",
             description: "We'll email you when your conversion is ready!",
           });
         }
-      }
-      
-      // Only close dialog on successful completion
-      if (conversionStatus === 'completed') {
-        setDetectingChapters(false);
-        setShowTerms(false);
       }
       
     } catch (error) {
@@ -103,8 +102,8 @@ export const useConversionLogic = (
       });
       resetConversion();
       clearConversionStorage();
+    } finally {
       setDetectingChapters(false);
-      setShowTerms(false);
     }
   };
 
@@ -121,11 +120,11 @@ export const useConversionLogic = (
   const calculateEstimatedSeconds = () => {
     if (!extractedText) return 0;
     
-    // Nueva fórmula de cálculo más precisa
+    // More accurate calculation formula
     const wordsCount = extractedText.split(/\s+/).length;
-    const averageWordsPerMinute = 150; // Velocidad promedio de lectura
+    const averageWordsPerMinute = 150; // Average reading speed
     const minutes = wordsCount / averageWordsPerMinute;
-    const processingOverhead = 2; // Tiempo base de procesamiento en segundos
+    const processingOverhead = 2; // Base processing time in seconds
     
     return Math.ceil(minutes * 60 + processingOverhead);
   };

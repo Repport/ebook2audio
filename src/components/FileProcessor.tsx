@@ -59,8 +59,13 @@ const FileProcessor = ({
     onNextStep();
   };
 
-  const handleConversionStart = () => {
+  const handleConversionStart = async () => {
     setShowTerms(true);
+  };
+
+  const handleAcceptTermsAndConvert = async () => {
+    await handleAcceptTerms(selectedVoice, notifyOnComplete);
+    setShowTerms(false);
   };
 
   return (
@@ -74,6 +79,8 @@ const FileProcessor = ({
             detectChapters={detectChapters}
             setDetectChapters={setDetectChapters}
             onNextStep={handleVoiceSettingsComplete}
+            notifyOnComplete={notifyOnComplete}
+            setNotifyOnComplete={setNotifyOnComplete}
           />
         </div>
       )}
@@ -97,7 +104,7 @@ const FileProcessor = ({
       <TermsDialog 
         open={showTerms}
         onClose={() => setShowTerms(false)}
-        onAccept={() => handleAcceptTerms(selectedVoice)}
+        onAccept={handleAcceptTermsAndConvert}
         fileName={selectedFile?.name || ''}
         fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
       />
@@ -106,4 +113,3 @@ const FileProcessor = ({
 };
 
 export default FileProcessor;
-
