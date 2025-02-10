@@ -4,79 +4,103 @@ import { splitTextIntoChunks } from "./utils";
 import { updateConversionStatus } from "./conversionManager";
 import { decodeBase64Audio, combineAudioChunks } from "./utils/audioUtils";
 
+const MAX_CONCURRENT_CHUNKS = 5; // Adjust based on testing
+const CHUNK_TIMEOUT = 30000; // 30 seconds timeout per chunk
+
+async function processChunkWithTimeout(
+  chunk: string,
+  chunkIndex: number,
+  voiceId: string,
+  fileName: string | undefined
+): Promise<ArrayBuffer> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CHUNK_TIMEOUT);
+
+  try {
+    const { data, error } = await supabase.functions.invoke<{ data: { audioContent: string } }>(
+      'convert-to-audio',
+      {
+        body: {
+          text: chunk,
+          voiceId,
+          fileName,
+          isChunk: true,
+          chunkIndex
+        },
+        signal: controller.signal
+      }
+    );
+
+    if (error) throw error;
+    if (!data?.data?.audioContent) throw new Error('No audio content received');
+
+    return decodeBase64Audio(data.data.audioContent);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function processChunkBatch(
+  chunks: string[],
+  startIndex: number,
+  voiceId: string,
+  fileName: string | undefined,
+  conversionId: string,
+  totalChunks: number
+): Promise<ArrayBuffer[]> {
+  const promises = chunks.map((chunk, index) =>
+    processChunkWithTimeout(chunk, startIndex + index, voiceId, fileName)
+      .then(async (audioBuffer) => {
+        const completedChunks = startIndex + index + 1;
+        const progress = Math.round((completedChunks / totalChunks) * 100);
+        
+        // Update conversion progress
+        await updateConversionStatus(conversionId, 'processing', undefined, progress);
+        
+        return audioBuffer;
+      })
+      .catch(async (error) => {
+        console.error(`Error processing chunk ${startIndex + index}:`, error);
+        await updateConversionStatus(
+          conversionId,
+          'failed',
+          `Error processing chunk ${startIndex + index}: ${error.message}`
+        );
+        throw error;
+      })
+  );
+
+  return Promise.all(promises);
+}
+
 export async function processConversionChunks(
   text: string,
   voiceId: string,
   fileName: string | undefined,
   conversionId: string
 ): Promise<ArrayBuffer> {
-  // Split text into chunks
-  console.log('Splitting text into chunks...');
+  console.log('Starting parallel chunk processing...');
   const chunks = splitTextIntoChunks(text);
-  console.log(`Created ${chunks.length} chunks`);
-
   const totalChunks = chunks.length;
-  let completedChunks = 0;
   const audioBuffers: ArrayBuffer[] = [];
 
-  // Process chunks sequentially to maintain order
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    console.log(`Processing chunk ${i + 1}/${chunks.length}`);
+  // Process chunks in batches of MAX_CONCURRENT_CHUNKS
+  for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
+    const batchChunks = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS);
+    console.log(`Processing batch ${i / MAX_CONCURRENT_CHUNKS + 1}, chunks ${i + 1}-${i + batchChunks.length} of ${totalChunks}`);
 
-    try {
-      console.log('Invoking convert-to-audio function with params:', {
-        chunkIndex: i,
-        contentLength: chunk.length,
-        voiceId
-      });
+    const batchBuffers = await processChunkBatch(
+      batchChunks,
+      i,
+      voiceId,
+      fileName,
+      conversionId,
+      totalChunks
+    );
 
-      const { data, error } = await supabase.functions.invoke<{ data: { audioContent: string } }>(
-        'convert-to-audio',
-        {
-          body: {
-            text: chunk,
-            voiceId,
-            fileName,
-            isChunk: true,
-            chunkIndex: i
-          }
-        }
-      );
-
-      if (error) {
-        console.error('Edge function error:', {
-          error,
-          context: { chunkIndex: i, conversionId }
-        });
-        throw error;
-      }
-
-      if (!data?.data?.audioContent) {
-        console.error('Invalid response from edge function:', {
-          response: data,
-          context: { chunkIndex: i, conversionId }
-        });
-        throw new Error('No audio content received from conversion');
-      }
-
-      audioBuffers[i] = decodeBase64Audio(data.data.audioContent);
-      completedChunks++;
-
-      // Update conversion progress
-      const currentProgress = Math.round((completedChunks / totalChunks) * 100);
-      await updateConversionStatus(conversionId, 'processing', undefined, currentProgress);
-
-    } catch (error) {
-      console.error(`Error processing chunk ${i}:`, {
-        error,
-        context: { chunkIndex: i, conversionId }
-      });
-      throw error;
-    }
+    audioBuffers.push(...batchBuffers);
   }
 
   console.log('All chunks processed successfully');
   return combineAudioChunks(audioBuffers);
 }
-
