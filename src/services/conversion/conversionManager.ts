@@ -49,24 +49,61 @@ export async function updateConversionStatus(
   progress?: number
 ): Promise<void> {
   await retryOperation(async () => {
-    const updateData: {
-      status: string;
-      error_message?: string;
-      progress?: number;
-    } = {
-      status,
-      ...(errorMessage && { error_message: errorMessage }),
-      ...(typeof progress === 'number' && { progress })
-    };
-
-    const { error } = await supabase
+    // First, get the current status and error message
+    const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
-      .update(updateData)
-      .eq('id', conversionId);
+      .select('status, error_message')
+      .eq('id', conversionId)
+      .single();
 
-    if (error) {
-      console.error('Error updating conversion status:', error);
-      throw error;
+    if (fetchError) {
+      console.error('Error fetching conversion status:', fetchError);
+      throw fetchError;
+    }
+
+    // Check if an update is actually needed
+    const needsUpdate = 
+      existingConversion.status !== status ||
+      (errorMessage && existingConversion.error_message !== errorMessage) ||
+      typeof progress === 'number';
+
+    if (!needsUpdate) {
+      console.log('No update needed - current state matches desired state');
+      return;
+    }
+
+    // Build update object with only the fields that need to change
+    const updateData: {
+      status?: string;
+      error_message?: string | null;
+      progress?: number;
+    } = {};
+
+    if (existingConversion.status !== status) {
+      updateData.status = status;
+    }
+
+    if (errorMessage && existingConversion.error_message !== errorMessage) {
+      updateData.error_message = errorMessage;
+    }
+
+    if (typeof progress === 'number') {
+      updateData.progress = progress;
+    }
+
+    // Only perform update if there are changes to make
+    if (Object.keys(updateData).length > 0) {
+      const { error: updateError } = await supabase
+        .from('text_conversions')
+        .update(updateData)
+        .eq('id', conversionId);
+
+      if (updateError) {
+        console.error('Error updating conversion status:', updateError);
+        throw updateError;
+      }
+
+      console.log('Successfully updated conversion status:', updateData);
     }
   });
 }
