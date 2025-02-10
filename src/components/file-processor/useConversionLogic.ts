@@ -6,6 +6,11 @@ import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { Chapter } from '@/utils/textExtraction';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 
+export interface ConversionOptions {
+  selectedVoice: string;
+  notifyOnComplete?: boolean;
+}
+
 export const useConversionLogic = (
   selectedFile: File | null,
   extractedText: string,
@@ -59,11 +64,11 @@ export const useConversionLogic = (
     setShowTerms(true);
   };
 
-  const handleAcceptTerms = async (selectedVoice: string) => {
+  const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText) return;
     setDetectingChapters(true);
     try {
-      await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
+      await handleConversion(extractedText, options.selectedVoice, detectChapters, chapters, selectedFile.name);
     } catch (error) {
       console.error('Conversion error:', error);
       toast({
