@@ -22,6 +22,7 @@ export async function convertToAudio(
   
   try {
     // Check if there's an existing completed conversion
+    // Only select necessary fields and use correct column name 'storage_path'
     const { data: existingConversion } = await supabase
       .from('text_conversions')
       .select('storage_path, id')
