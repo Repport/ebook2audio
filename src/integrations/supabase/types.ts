@@ -358,6 +358,36 @@ export type Database = {
         }
         Relationships: []
       }
+      text_cache: {
+        Row: {
+          audio_path: string | null
+          created_at: string | null
+          error_message: string | null
+          expires_at: string
+          id: string
+          status: string | null
+          text_hash: string
+        }
+        Insert: {
+          audio_path?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          expires_at: string
+          id?: string
+          status?: string | null
+          text_hash: string
+        }
+        Update: {
+          audio_path?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          expires_at?: string
+          id?: string
+          status?: string | null
+          text_hash?: string
+        }
+        Relationships: []
+      }
       text_conversions: {
         Row: {
           created_at: string

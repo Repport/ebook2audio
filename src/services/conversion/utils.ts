@@ -1,17 +1,18 @@
 
-// Simple XOR-based obfuscation
-export function obfuscateData(data: string): string {
-  const key = 'epub2audio';
-  let result = '';
-  for (let i = 0; i < data.length; i++) {
-    result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
-  }
-  return result;
-}
+/**
+ * Utility functions for text conversion and hashing
+ */
 
-// Generate hash for text content using Web Crypto API
+/**
+ * Generates a hash for text content using Web Crypto API
+ * Only uses the first 1000 characters to ensure consistent hashing
+ */
 export async function generateHash(text: string, voiceId: string): Promise<string> {
-  const data = `${text}-${voiceId}`;
+  // Normalize text by trimming and converting to lowercase
+  const normalizedText = text.trim().toLowerCase();
+  // Take first 1000 chars to ensure consistent hashing
+  const truncatedText = normalizedText.slice(0, 1000);
+  const data = `${truncatedText}-${voiceId}`;
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data);
   const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
@@ -19,12 +20,14 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
   return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Calculate optimal chunk size based on total text length
-function calculateOptimalChunkSize(totalLength: number): number {
-  // Google TTS tiene un límite de 5000 caracteres
-  const maxChunkSize = 4800; // Dejamos un margen de seguridad
+/**
+ * Calculate optimal chunk size based on total text length
+ */
+export function calculateOptimalChunkSize(totalLength: number): number {
+  // Google TTS has a 5000 character limit
+  const maxChunkSize = 4800; // Leave a safety margin
   
-  // Para textos muy pequeños, usar el texto completo
+  // For very small texts, use the complete text
   if (totalLength <= maxChunkSize) {
     return totalLength;
   }
@@ -32,7 +35,9 @@ function calculateOptimalChunkSize(totalLength: number): number {
   return maxChunkSize;
 }
 
-// Divide el texto en chunks más pequeños con mejor manejo de límites de palabras
+/**
+ * Split text into smaller chunks with better word boundary handling
+ */
 export function splitTextIntoChunks(text: string): string[] {
   const chunks: string[] = [];
   const optimalChunkSize = calculateOptimalChunkSize(text.length);
@@ -40,7 +45,7 @@ export function splitTextIntoChunks(text: string): string[] {
   let currentChunk: string[] = [];
   let currentLength = 0;
 
-  console.log(`Longitud total del texto: ${text.length}, Usando tamaño de chunk: ${optimalChunkSize}`);
+  console.log(`Total text length: ${text.length}, Using chunk size: ${optimalChunkSize}`);
 
   for (let word of words) {
     const wordLength = word.length;
@@ -51,7 +56,7 @@ export function splitTextIntoChunks(text: string): string[] {
       const chunk = currentChunk.join(" ").trim();
       if (chunk) {
         chunks.push(chunk);
-        console.log(`Creado chunk ${chunks.length}, tamaño: ${chunk.length} caracteres`);
+        console.log(`Created chunk ${chunks.length}, size: ${chunk.length} characters`);
       }
       currentChunk = [word];
       currentLength = wordLength;
@@ -61,20 +66,47 @@ export function splitTextIntoChunks(text: string): string[] {
     }
   }
 
-  // Agregar el último chunk si queda texto
+  // Add the last chunk if there's remaining text
   if (currentChunk.length > 0) {
     const finalChunk = currentChunk.join(" ").trim();
     if (finalChunk) {
       chunks.push(finalChunk);
-      console.log(`Creado chunk final ${chunks.length}, tamaño: ${finalChunk.length} caracteres`);
+      console.log(`Created final chunk ${chunks.length}, size: ${finalChunk.length} characters`);
     }
   }
 
-  // Registrar información de los chunks para debugging
+  // Log chunk information for debugging
   chunks.forEach((chunk, index) => {
-    console.log(`Chunk ${index + 1}/${chunks.length}, tamaño: ${chunk.length} caracteres`);
+    console.log(`Chunk ${index + 1}/${chunks.length}, size: ${chunk.length} characters`);
   });
 
   return chunks.filter(chunk => chunk.trim().length > 0);
+}
+
+/**
+ * Retry an operation with exponential backoff
+ */
+export async function retryOperation<T>(
+  operation: () => Promise<T>,
+  { maxRetries = 3, baseDelay = 1000, operation: operationName = 'Operation' } = {}
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`${operationName} attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        console.log(`Retrying ${operationName} in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError!;
 }
 
