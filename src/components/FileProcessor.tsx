@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { VOICES } from '@/constants/voices';
 import { Chapter } from '@/utils/textExtraction';
@@ -31,6 +32,7 @@ const FileProcessor = ({
   const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const { user } = useAuth();
+  const [notifyOnComplete, setNotifyOnComplete] = useState(false);
 
   const {
     detectChapters,
@@ -104,3 +106,4 @@ const FileProcessor = ({
 };
 
 export default FileProcessor;
+

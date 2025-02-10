@@ -4,6 +4,9 @@ import VoiceSelector from '@/components/VoiceSelector';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/hooks/useAuth';
 
 interface VoiceSettingsStepProps {
   selectedVoice: string;
@@ -22,6 +25,9 @@ const VoiceSettingsStep = ({
   setDetectChapters,
   onNextStep
 }: VoiceSettingsStepProps) => {
+  const { user } = useAuth();
+  const [notifyOnComplete, setNotifyOnComplete] = React.useState(false);
+
   return (
     <>
       <VoiceSelector 
@@ -30,11 +36,26 @@ const VoiceSettingsStep = ({
         detectedLanguage={detectedLanguage}
       />
       
-      <ChapterDetectionToggle 
-        detectChapters={detectChapters}
-        onToggle={setDetectChapters}
-        chaptersFound={0}
-      />
+      <div className="space-y-6 mt-8">
+        <ChapterDetectionToggle 
+          detectChapters={detectChapters}
+          onToggle={setDetectChapters}
+          chaptersFound={0}
+        />
+
+        {user && (
+          <div className="flex items-center justify-center space-x-2">
+            <Switch
+              id="notify-complete"
+              checked={notifyOnComplete}
+              onCheckedChange={setNotifyOnComplete}
+            />
+            <Label htmlFor="notify-complete">
+              Notify me by email when conversion is complete
+            </Label>
+          </div>
+        )}
+      </div>
 
       <div className="flex justify-end mt-8">
         <Button
@@ -50,3 +71,4 @@ const VoiceSettingsStep = ({
 };
 
 export default VoiceSettingsStep;
+
