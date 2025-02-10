@@ -11,7 +11,7 @@ import Privacy from "./pages/Privacy";
 import CookiePolicy from "./pages/CookiePolicy";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
-import Conversions from "./pages/Conversions";
+import Conversions from "./features/conversions/pages/Conversions";
 import CookieConsentBanner from "./components/CookieConsent";
 import { LanguageProvider } from "./hooks/useLanguage";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -72,3 +72,4 @@ const App = () => (
 );
 
 export default App;
+

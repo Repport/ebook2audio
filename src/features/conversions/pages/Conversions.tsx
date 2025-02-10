@@ -7,8 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import ConversionsTable from "@/components/conversions/ConversionsTable";
-import ConversionsPagination from "@/components/conversions/ConversionsPagination";
+import ConversionsTable from "../components/ConversionsTable";
+import ConversionsPagination from "../components/ConversionsPagination";
 
 interface Conversion {
   id: string;
@@ -70,8 +70,8 @@ const Conversions = () => {
       }
     },
     enabled: !!user?.id,
-    staleTime: 300000, // Cache data for 5 minutes
-    gcTime: 600000, // Keep cache for 10 minutes (renamed from cacheTime)
+    staleTime: 300000,
+    gcTime: 600000,
     retry: 2,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -188,3 +188,4 @@ const Conversions = () => {
 };
 
 export default Conversions;
+
