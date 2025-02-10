@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
@@ -66,11 +65,11 @@ const ConversionStatus = ({
   const displayStatus = status === 'processing' ? 'converting' : status;
   
   const statusMessages = {
-    idle: 'Listo para convertir',
-    converting: `Convirtiendo ${fileType} a MP3...`,
-    completed: '¡Conversión completada!',
-    error: 'Error en la conversión',
-    processing: `Convirtiendo ${fileType} a MP3...`
+    idle: 'Ready to convert',
+    converting: `Converting ${fileType} to MP3...`,
+    completed: 'Conversion completed!',
+    error: 'Conversion error',
+    processing: `Converting ${fileType} to MP3...`
   };
 
   const formatTimestamp = (minutes: number) => {
@@ -81,7 +80,7 @@ const ConversionStatus = ({
 
   const formatTimeRemaining = (seconds: number) => {
     if (seconds < 60) {
-      return `${Math.ceil(seconds)} segundos`;
+      return `${Math.ceil(seconds)} seconds`;
     }
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.ceil(seconds % 60);
@@ -140,13 +139,13 @@ const ConversionStatus = ({
       
       {timeRemaining && showEstimate && (
         <p className="text-sm text-muted-foreground text-center">
-          Tiempo restante estimado: {timeRemaining}
+          Estimated time remaining: {timeRemaining}
         </p>
       )}
 
       {detectingChapters && (
         <p className="text-sm text-muted-foreground text-center">
-          Detectando capítulos... {chaptersFound} capítulos encontrados
+          Detecting chapters... {chaptersFound} chapters found
         </p>
       )}
       
@@ -154,7 +153,7 @@ const ConversionStatus = ({
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="chapters">
             <AccordionTrigger className="text-sm">
-              {chapters.length} Capítulos Encontrados
+              {chapters.length} Chapters Found
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-2 text-sm text-muted-foreground">
