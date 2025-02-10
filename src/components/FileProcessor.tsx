@@ -83,23 +83,21 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
   };
 
   const handleViewConversions = () => {
-    console.log('Navigation attempt - Current location:', window.location.pathname);
-    console.log('User auth status:', !!user);
+    console.log('Starting navigation to conversions...');
     
     if (!user) {
-      console.log('User not authenticated, redirecting to auth');
-      navigate('/auth', { state: { returnTo: '/conversions' }});
+      console.log('No user found, redirecting to auth...');
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to view your conversions",
+      });
+      navigate('/auth', { state: { returnTo: '/conversions' }, replace: true });
       return;
     }
 
-    console.log('Attempting to navigate to /conversions');
-    navigate('/conversions');
-    console.log('Navigation completed');
-    
-    toast({
-      title: "Navigation",
-      description: "Taking you to your conversions",
-    });
+    console.log('User authenticated, navigating to conversions...');
+    // Force a hard navigation to ensure the route change
+    window.location.href = '/conversions';
   };
 
   // Calculate estimated time based on text length and chunk processing
