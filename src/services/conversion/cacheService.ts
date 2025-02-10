@@ -5,7 +5,7 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
   try {
     console.log('Checking cache for text hash:', textHash);
     
-    const result = await supabase.rpc('set_statement_timeout');
+    await supabase.rpc('set_statement_timeout');
     
     const { data, error } = await supabase
       .from('text_conversions')
@@ -60,7 +60,7 @@ export async function fetchFromCache(storagePath: string): Promise<{ data: Array
 
 export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fileName?: string): Promise<{ error: Error | null }> {
   try {
-    const storagePath = `${textHash}.mp3`;
+    const storagePath = `${textHash}/final.m4a`; // Using .m4a extension for AAC audio
     console.log('Saving to cache with storage path:', storagePath);
 
     // Split large files into chunks (5MB chunks)
@@ -78,7 +78,7 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
       const { error: uploadError } = await supabase.storage
         .from('audio_cache')
         .upload(storagePath, new Uint8Array(chunks[i]), {
-          contentType: 'audio/mpeg',
+          contentType: 'audio/mp4', // Correct MIME type for M4A/AAC audio
           upsert: true
         });
       
@@ -88,28 +88,18 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
 
     console.log('Successfully uploaded audio to storage');
 
-    // Create the database record
+    // Create or update the database record
     await supabase.rpc('set_statement_timeout');
     
     const { error: dbError } = await supabase
       .from('text_conversions')
-      .upsert({
-        text_hash: textHash,
+      .update({
         storage_path: storagePath,
-        file_name: fileName,
         file_size: audioBuffer.byteLength,
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
         status: 'completed'
       })
-      .select()
-      .maybeSingle();
-    
-    if (dbError?.code === '23505') {
-      // If we get a unique constraint violation, it means another process completed the conversion
-      // This is fine, just log it and continue
-      console.log('Conversion already exists in completed state');
-      return { error: null };
-    }
+      .eq('text_hash', textHash);
     
     if (dbError) throw dbError;
 

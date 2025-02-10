@@ -31,22 +31,22 @@ export async function createConversion(
       return existingConversion.id;
     }
 
-    // If no existing conversion, try to create a new one with upsert
+    // Generate a new UUID for the conversion
+    const conversionId = crypto.randomUUID();
+
+    // Create a new conversion record
     const { data: newConversion, error: insertError } = await supabase
       .from('text_conversions')
-      .upsert(
-        {
-          text_hash: textHash,
-          file_name: fileName,
-          user_id: userId,
-          status: 'pending',
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-        },
-        { 
-          onConflict: 'text_hash',
-          ignoreDuplicates: false // We want to update if exists
-        }
-      )
+      .insert({
+        id: conversionId,
+        text_hash: textHash,
+        file_name: fileName,
+        user_id: userId,
+        status: 'pending',
+        storage_path: null, // Will be updated later
+        compressed_storage_path: null, // Will be updated later
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+      })
       .select()
       .maybeSingle();
 
@@ -59,7 +59,7 @@ export async function createConversion(
       throw new Error('Failed to create conversion record');
     }
 
-    console.log('Created/updated conversion record:', newConversion.id);
+    console.log('Created conversion record:', newConversion.id);
     return newConversion.id;
   } catch (error) {
     console.error('Error in createConversion:', error);
