@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { synthesizeSpeech } from './speech-service.ts'
@@ -25,7 +24,7 @@ serve(async (req) => {
     }
 
     const { text, voiceId, fileName, isChunk } = body;
-    console.log(`Processing request for ${isChunk ? 'chunk' : 'full text'}, length: ${text?.length}`);
+    console.log(`Processing request with voiceId: ${voiceId}, text length: ${text?.length}`);
 
     if (!text || !voiceId) {
       throw new Error('Missing required parameters: text and voiceId are required');
@@ -35,7 +34,7 @@ serve(async (req) => {
     const credentialsString = Deno.env.get('GCP_SERVICE_ACCOUNT');
     if (!credentialsString) {
       console.error('GCP credentials not found');
-      throw new Error('Server configuration error');
+      throw new Error('Server configuration error: GCP credentials missing');
     }
 
     let credentials;
@@ -43,12 +42,14 @@ serve(async (req) => {
       // The credentials are stored as a base64 encoded string
       const decodedCredentials = atob(credentialsString);
       credentials = JSON.parse(decodedCredentials);
+      console.log('Successfully parsed GCP credentials');
     } catch (error) {
       console.error('Failed to parse GCP credentials:', error);
-      throw new Error('Invalid server configuration');
+      throw new Error('Invalid server configuration: Failed to parse GCP credentials');
     }
     
     // Get access token for Google Cloud API
+    console.log('Requesting Google Cloud access token');
     const tokenResponse = await fetch(
       `https://oauth2.googleapis.com/token`,
       {
@@ -69,11 +70,15 @@ serve(async (req) => {
 
     const { access_token } = await tokenResponse.json();
     if (!access_token) {
-      throw new Error('No access token received');
+      throw new Error('No access token received from Google Cloud');
     }
 
-    // Use the speech service to handle chunked synthesis
+    console.log('Successfully obtained access token');
+
+    // Use the speech service to handle synthesis
     const audioContent = await synthesizeSpeech(text, voiceId, access_token);
+    
+    console.log('Successfully generated audio content');
     
     return new Response(
       JSON.stringify({ data: { audioContent } }),
@@ -87,11 +92,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in convert-to-audio function:', error);
-    // Return a proper error response with CORS headers
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Internal server error',
-        details: error.stack
+        details: error.stack,
+        timestamp: new Date().toISOString()
       }),
       { 
         status: error.status || 500,
@@ -170,4 +175,3 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   }
   return bytes.buffer;
 }
-
