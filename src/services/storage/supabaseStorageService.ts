@@ -9,10 +9,10 @@ export const saveToSupabase = async (
   fileName: string,
   userId: string
 ) => {
+  // Generate a unique conversion ID
+  const conversionId = crypto.randomUUID();
+  
   try {
-    // Generate a unique conversion ID
-    const conversionId = crypto.randomUUID();
-    
     // Create the conversion record first
     const { error: dbError } = await supabase
       .from('text_conversions')

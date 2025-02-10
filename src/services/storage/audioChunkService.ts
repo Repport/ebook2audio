@@ -20,7 +20,7 @@ export async function uploadAudioChunk(
     // Upload chunk to storage
     const { error: uploadError } = await supabase.storage
       .from('audio_cache')
-      .uploadBinaryData(chunkPath, chunk.chunk, {
+      .upload(chunkPath, new Uint8Array(chunk.chunk), {
         contentType: 'audio/mpeg',
         upsert: true
       });

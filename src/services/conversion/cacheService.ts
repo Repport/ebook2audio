@@ -77,7 +77,7 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
     for (let i = 0; i < chunks.length; i++) {
       const { error: uploadError } = await supabase.storage
         .from('audio_cache')
-        .uploadBinaryData(storagePath, new Uint8Array(chunks[i]), {
+        .upload(storagePath, new Uint8Array(chunks[i]), {
           contentType: 'audio/mpeg',
           upsert: true
         });
