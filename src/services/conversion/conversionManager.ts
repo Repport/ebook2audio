@@ -8,7 +8,7 @@ export async function createConversion(
   userId: string | undefined
 ): Promise<string> {
   try {
-    // First check if a valid conversion already exists
+    // First check if there's an existing completed conversion
     const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
       .select('id')
@@ -30,17 +30,23 @@ export async function createConversion(
       return existingConversion.id;
     }
 
-    // If no valid existing conversion, create a new one
+    // If no valid existing conversion, create a new one using upsert
     const { data: conversion, error: upsertError } = await supabase
       .from('text_conversions')
-      .insert({
-        text_hash: textHash,
-        file_name: fileName,
-        user_id: userId,
-        status: 'pending',
-        progress: 0,
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-      })
+      .upsert(
+        {
+          text_hash: textHash,
+          file_name: fileName,
+          user_id: userId,
+          status: 'pending',
+          progress: 0,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+        },
+        { 
+          onConflict: 'text_hash',
+          ignoreDuplicates: false 
+        }
+      )
       .select('id')
       .single();
 
