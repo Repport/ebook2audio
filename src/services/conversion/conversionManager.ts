@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { retryOperation } from "./utils";
+import { retryOperation } from "./utils/retryUtils";
 
 const checkTableSchema = async () => {
   try {
