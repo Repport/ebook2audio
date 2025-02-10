@@ -41,14 +41,19 @@ const Conversions = () => {
   }, [user, navigate]);
 
   const { data: conversionsData, isLoading } = useQuery({
-    queryKey: ["conversions", page],
+    queryKey: ["conversions", page, user?.id],
     queryFn: async () => {
+      if (!user?.id) {
+        return { conversions: [] };
+      }
+
       // First set the statement timeout
       await supabase.rpc('set_statement_timeout');
 
       const { data, error } = await supabase
         .from("text_conversions")
-        .select("*", { count: 'exact' })
+        .select("*")
+        .eq('user_id', user.id)
         .order("created_at", { ascending: false })
         .range(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE - 1);
 
@@ -61,7 +66,7 @@ const Conversions = () => {
         conversions: data as Conversion[],
       };
     },
-    enabled: !!user,
+    enabled: !!user?.id,
   });
 
   const formatFileSize = (bytes: number): string => {
@@ -143,10 +148,13 @@ const Conversions = () => {
       <h1 className="text-3xl font-bold mb-8">Your Conversions</h1>
 
       {isLoading ? (
-        <div>Loading...</div>
+        <div className="text-center py-8">Loading your conversions...</div>
       ) : conversionsData?.conversions.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          You haven't converted any files yet
+        <div className="text-center py-8 space-y-4">
+          <p className="text-gray-500">You haven't converted any files yet</p>
+          <Button onClick={() => navigate("/")} className="gap-2">
+            Create Your First Conversion
+          </Button>
         </div>
       ) : (
         <>
@@ -215,7 +223,10 @@ const Conversions = () => {
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => p + 1)}
-              disabled={!conversionsData?.conversions.length || conversionsData.conversions.length < ITEMS_PER_PAGE}
+              disabled={
+                !conversionsData?.conversions.length ||
+                conversionsData.conversions.length < ITEMS_PER_PAGE
+              }
             >
               Next
             </Button>
@@ -227,4 +238,3 @@ const Conversions = () => {
 };
 
 export default Conversions;
-
