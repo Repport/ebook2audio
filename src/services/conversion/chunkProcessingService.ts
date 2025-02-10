@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { splitTextIntoChunks } from "./utils";
 import { updateConversionStatus } from "./conversionManager";
@@ -24,7 +23,7 @@ async function processChunkWithTimeout(
   });
 
   try {
-    const processPromise = supabase.functions.invoke<AudioResponse>(
+    const { data, error } = await supabase.functions.invoke<AudioResponse>(
       'convert-to-audio',
       {
         body: {
@@ -37,10 +36,10 @@ async function processChunkWithTimeout(
       }
     );
 
-    const result = await Promise.race([processPromise, timeoutPromise]);
-    if (!result?.data?.data?.audioContent) throw new Error('No audio content received');
+    if (error) throw error;
+    if (!data?.data?.audioContent) throw new Error('No audio content received');
     
-    return decodeBase64Audio(result.data.data.audioContent);
+    return decodeBase64Audio(data.data.audioContent);
   } catch (error) {
     if (error.message === 'Chunk processing timeout') {
       console.error(`Chunk ${chunkIndex} timed out after ${CHUNK_TIMEOUT}ms`);
