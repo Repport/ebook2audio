@@ -1,3 +1,4 @@
+
 import { extractPdfText } from './pdfUtils';
 import { extractEpubText } from './epubUtils';
 
@@ -53,12 +54,14 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
       ? await extractPdfText(file)
       : await extractEpubText(file);
 
+    console.log('Detected chapters:', chapters); // Debug log
+
     return {
       text,
       metadata: {
         totalCharacters: text.length,
         language: detectLanguage(text),
-        chapters
+        chapters: chapters || []
       }
     };
   } catch (error) {

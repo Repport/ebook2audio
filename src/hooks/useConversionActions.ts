@@ -6,6 +6,7 @@ import { calculateAudioDuration } from '@/services/audio/audioUtils';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { User } from '@supabase/supabase-js';
 import { Chapter } from '@/utils/textExtraction';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UseConversionActionsProps {
   user: User | null;
@@ -61,6 +62,8 @@ export const useConversionActions = ({
     
     try {
       console.log('Starting conversion for file:', fileName);
+      console.log('Chapters to process:', chapters); // Debug log
+
       const chaptersWithTimestamps = chapters.map(chapter => ({
         ...chapter,
         timestamp: Math.floor(
@@ -77,6 +80,24 @@ export const useConversionActions = ({
       
       if (!audio) {
         throw new Error('No audio data received from conversion');
+      }
+
+      // Store chapters in the database
+      if (detectChapters && chapters.length > 0) {
+        const chapterInserts = chaptersWithTimestamps.map(chapter => ({
+          conversion_id: id,
+          title: chapter.title,
+          start_index: chapter.startIndex,
+          timestamp: chapter.timestamp
+        }));
+
+        const { error: chaptersError } = await supabase
+          .from('chapters')
+          .insert(chapterInserts);
+
+        if (chaptersError) {
+          console.error('Error storing chapters:', chaptersError);
+        }
       }
 
       setConversionId(id);

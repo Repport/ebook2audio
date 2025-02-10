@@ -13,13 +13,13 @@ interface ChaptersListProps {
 }
 
 export const ChaptersList = ({ chapters }: ChaptersListProps) => {
-  if (chapters.length === 0) return null;
+  if (!chapters || chapters.length === 0) return null;
 
   return (
     <Accordion type="single" collapsible className="w-full">
       <AccordionItem value="chapters">
         <AccordionTrigger className="text-sm">
-          {chapters.length} Chapters Found
+          {chapters.length} {chapters.length === 1 ? 'Chapter' : 'Chapters'} Found
         </AccordionTrigger>
         <AccordionContent>
           <div className="space-y-2 text-sm text-muted-foreground">
