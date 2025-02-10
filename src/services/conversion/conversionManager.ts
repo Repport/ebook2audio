@@ -11,36 +11,49 @@ export async function createConversion(
     // Set statement timeout before any database operations
     await supabase.rpc('set_statement_timeout');
 
-    // Try to fetch existing conversion first - with a single query to avoid race conditions
-    const { data: conversion, error: upsertError } = await supabase
+    // Try to fetch existing conversion first
+    const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
-      .upsert(
-        {
-          text_hash: textHash,
-          file_name: fileName,
-          user_id: userId,
-          status: 'pending',
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-        },
-        {
-          onConflict: 'text_hash',
-          ignoreDuplicates: false // This will return the existing record if there's a conflict
-        }
-      )
+      .select()
+      .eq('text_hash', textHash)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error fetching existing conversion:', fetchError);
+      throw fetchError;
+    }
+
+    // If we found an existing valid conversion, return its ID
+    if (existingConversion) {
+      console.log('Found existing conversion:', existingConversion.id);
+      return existingConversion.id;
+    }
+
+    // If no existing valid conversion found, create a new one
+    const { data: newConversion, error: insertError } = await supabase
+      .from('text_conversions')
+      .insert({
+        text_hash: textHash,
+        file_name: fileName,
+        user_id: userId,
+        status: 'pending',
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+      })
       .select()
       .single();
 
-    if (upsertError) {
-      console.error('Error in upsert operation:', upsertError);
-      throw upsertError;
+    if (insertError) {
+      console.error('Error creating conversion:', insertError);
+      throw insertError;
     }
 
-    if (!conversion) {
-      throw new Error('Failed to create or retrieve conversion');
+    if (!newConversion) {
+      throw new Error('Failed to create conversion');
     }
 
-    console.log('Conversion record:', conversion.id);
-    return conversion.id;
+    console.log('Created new conversion record:', newConversion.id);
+    return newConversion.id;
   } catch (error) {
     console.error('Error in createConversion:', error);
     throw error;
