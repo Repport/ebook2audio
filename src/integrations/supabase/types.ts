@@ -288,6 +288,53 @@ export type Database = {
         }
         Relationships: []
       }
+      storage_logs: {
+        Row: {
+          content_type: string | null
+          conversion_id: string | null
+          created_at: string | null
+          error_message: string | null
+          file_size: number | null
+          id: string
+          operation: string
+          status: string
+          storage_path: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          conversion_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          file_size?: number | null
+          id?: string
+          operation: string
+          status: string
+          storage_path?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          conversion_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          file_size?: number | null
+          id?: string
+          operation?: string
+          status?: string
+          storage_path?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_logs_conversion_id_fkey"
+            columns: ["conversion_id"]
+            isOneToOne: false
+            referencedRelation: "text_conversions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terms_acceptance_logs: {
         Row: {
           accepted_at: string
