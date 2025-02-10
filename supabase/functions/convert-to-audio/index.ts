@@ -2,26 +2,31 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { synthesizeSpeech } from './speech-service.ts'
+import { corsHeaders } from './constants.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+console.log('Loading convert-to-audio function...');
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Max-Age': '86400',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      } 
+    });
   }
 
   try {
+    console.log('Starting text-to-speech conversion request');
+    
     // Parse request body
     let body;
     try {
       body = await req.json();
-      console.log('Successfully parsed request body:', {
+      console.log('Request body received:', {
         textLength: body.text?.length,
         voiceId: body.voiceId,
         isChunk: body.isChunk,
@@ -32,9 +37,10 @@ serve(async (req) => {
       throw new Error('Invalid request body');
     }
 
-    const { text, voiceId, fileName, isChunk } = body;
+    const { text, voiceId, fileName } = body;
 
     if (!text || !voiceId) {
+      console.error('Missing required parameters:', { hasText: !!text, hasVoiceId: !!voiceId });
       throw new Error('Missing required parameters: text and voiceId are required');
     }
 
@@ -104,6 +110,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in convert-to-audio function:', error);
     console.error('Error stack:', error.stack);
+    
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Internal server error',
