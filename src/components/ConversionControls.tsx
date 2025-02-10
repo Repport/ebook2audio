@@ -31,7 +31,6 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
         <Button 
           onClick={onConvert} 
           className="w-full max-w-xs bg-primary hover:bg-primary/90 transition-colors"
-          disabled={status === 'converting'}
         >
           {status === 'error' ? (
             <>
