@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 
 interface ConversionControlsProps {
   status: 'idle' | 'converting' | 'completed' | 'error';
@@ -26,31 +26,45 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
   };
 
   return (
-    <div className="flex flex-col items-center mt-6 space-y-4">
+    <div className="flex flex-col items-center gap-4">
       {(status === 'idle' || status === 'error') && (
-        <Button onClick={onConvert} className="bg-primary hover:bg-primary/90">
-          {status === 'error' ? 'Retry Conversion' : 'Start Conversion'}
+        <Button 
+          onClick={onConvert} 
+          className="w-full max-w-xs bg-primary hover:bg-primary/90 transition-colors"
+          disabled={status === 'converting'}
+        >
+          {status === 'error' ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Reintentar Conversión
+            </>
+          ) : (
+            'Iniciar Conversión'
+          )}
         </Button>
       )}
       
       {status === 'converting' && (
-        <div className="text-sm text-muted-foreground">
-          Converting...
+        <div className="text-sm text-muted-foreground animate-pulse">
+          Convirtiendo...
         </div>
       )}
       
       {status === 'completed' && (
-        <>
+        <div className="w-full max-w-xs space-y-4">
           {fileSize && duration && (
-            <div className="text-sm text-muted-foreground">
-              File size: {formatFileSize(fileSize)} • Duration: {formatDuration(duration)}
+            <div className="text-sm text-muted-foreground text-center">
+              Tamaño: {formatFileSize(fileSize)} • Duración: {formatDuration(duration)}
             </div>
           )}
-          <Button onClick={onDownload} className="bg-primary hover:bg-primary/90">
+          <Button 
+            onClick={onDownload} 
+            className="w-full bg-primary hover:bg-primary/90 transition-colors"
+          >
             <Download className="mr-2 h-4 w-4" />
-            Download Audio
+            Descargar Audio
           </Button>
-        </>
+        </div>
       )}
     </div>
   );

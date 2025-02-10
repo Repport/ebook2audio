@@ -9,6 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Chapter } from '@/utils/textExtraction';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ConversionStatusProps {
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
@@ -29,31 +30,47 @@ const ConversionStatus = ({
   chapters = [],
   estimatedSeconds = 0
 }: ConversionStatusProps) => {
-  // Keep track of the highest progress value seen
   const [smoothProgress, setSmoothProgress] = useState(progress);
+  const [showEstimate, setShowEstimate] = useState(true);
 
+  // Smooth progress transition
   useEffect(() => {
     if (progress > smoothProgress) {
-      setSmoothProgress(progress);
+      const interval = setInterval(() => {
+        setSmoothProgress(prev => {
+          const next = Math.min(prev + 1, progress);
+          if (next === progress) clearInterval(interval);
+          return next;
+        });
+      }, 50);
+      return () => clearInterval(interval);
     }
-  }, [progress]);
+  }, [progress, smoothProgress]);
 
   // Reset progress when status changes
   useEffect(() => {
     if (status === 'idle') {
       setSmoothProgress(0);
+      setShowEstimate(true);
     }
   }, [status]);
 
-  // Map processing status to converting for display purposes
+  // Hide estimate after 30 seconds to avoid showing stale data
+  useEffect(() => {
+    if (status === 'converting') {
+      const timer = setTimeout(() => setShowEstimate(false), 30000);
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
+
   const displayStatus = status === 'processing' ? 'converting' : status;
   
   const statusMessages = {
-    idle: 'Ready to convert',
-    converting: `Converting your ${fileType} to MP3...`,
-    completed: 'Conversion completed!',
-    error: 'Conversion failed',
-    processing: `Converting your ${fileType} to MP3...`
+    idle: 'Listo para convertir',
+    converting: `Convirtiendo ${fileType} a MP3...`,
+    completed: '¡Conversión completada!',
+    error: 'Error en la conversión',
+    processing: `Convirtiendo ${fileType} a MP3...`
   };
 
   const formatTimestamp = (minutes: number) => {
@@ -90,12 +107,38 @@ const ConversionStatus = ({
 
   return (
     <div className="flex flex-col items-center space-y-4 w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-      {(displayStatus === 'converting') && (
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      )}
-      <p className="text-lg font-medium text-center">{statusMessages[status]}</p>
+      <div className="flex items-center justify-center w-full">
+        {(displayStatus === 'converting') && (
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-lg font-medium text-center animate-pulse">
+              {statusMessages[status]}
+            </p>
+          </div>
+        )}
+        
+        {displayStatus === 'completed' && (
+          <p className="text-lg font-medium text-center text-green-600 dark:text-green-400">
+            {statusMessages[status]}
+          </p>
+        )}
+
+        {displayStatus === 'error' && (
+          <Alert variant="destructive" className="w-full">
+            <AlertDescription>
+              {statusMessages[status]}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {displayStatus === 'idle' && (
+          <p className="text-lg font-medium text-center">
+            {statusMessages[status]}
+          </p>
+        )}
+      </div>
       
-      {timeRemaining && (
+      {timeRemaining && showEstimate && (
         <p className="text-sm text-muted-foreground text-center">
           Tiempo restante estimado: {timeRemaining}
         </p>
@@ -103,7 +146,7 @@ const ConversionStatus = ({
 
       {detectingChapters && (
         <p className="text-sm text-muted-foreground text-center">
-          Detecting chapters... Found {chaptersFound} chapters
+          Detectando capítulos... {chaptersFound} capítulos encontrados
         </p>
       )}
       
@@ -111,14 +154,14 @@ const ConversionStatus = ({
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="chapters">
             <AccordionTrigger className="text-sm">
-              {chapters.length} Chapters Found
+              {chapters.length} Capítulos Encontrados
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-2 text-sm text-muted-foreground">
                 {chapters.map((chapter, index) => (
                   <div key={index} className="flex justify-between items-center py-1">
-                    <span className="font-medium">{chapter.title}</span>
-                    <span className="text-muted-foreground">
+                    <span className="font-medium truncate flex-1 mr-4">{chapter.title}</span>
+                    <span className="text-muted-foreground whitespace-nowrap">
                       {formatTimestamp(chapter.timestamp || 0)}
                     </span>
                   </div>
@@ -132,7 +175,9 @@ const ConversionStatus = ({
       {(displayStatus === 'converting') && (
         <div className="w-full space-y-2">
           <Progress value={smoothProgress} className="h-2" />
-          <p className="text-sm text-muted-foreground text-center">{Math.round(smoothProgress)}%</p>
+          <p className="text-sm text-muted-foreground text-center">
+            {Math.round(smoothProgress)}%
+          </p>
         </div>
       )}
     </div>
