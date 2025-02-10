@@ -78,4 +78,3 @@ export async function uploadToStorage(
     return { error: error as Error };
   }
 }
-

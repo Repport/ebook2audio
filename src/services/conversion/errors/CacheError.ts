@@ -5,4 +5,3 @@ export class CacheError extends Error {
     this.name = 'CacheError';
   }
 }
-

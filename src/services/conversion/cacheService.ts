@@ -22,12 +22,17 @@ export async function cleanupExpiredCache(): Promise<{ error: Error | null }> {
     if (fetchError) throw new CacheError('Failed to fetch expired records', fetchError);
 
     if (expiredRecords?.length) {
-      const storagePaths = expiredRecords.map(record => record.storage_path);
-      const { error: storageError } = await supabase.storage
-        .from('audio_cache')
-        .remove(storagePaths);
+      const storagePaths = expiredRecords
+        .map(record => record.storage_path)
+        .filter((path): path is string => !!path);
 
-      if (storageError) throw new CacheError('Failed to delete expired files', storageError);
+      if (storagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('audio_cache')
+          .remove(storagePaths);
+
+        if (storageError) throw new CacheError('Failed to delete expired files', storageError);
+      }
     }
 
     const { error: dbError } = await supabase
@@ -134,4 +139,3 @@ export async function saveToCache(
     return { error: error as Error };
   }
 }
-
