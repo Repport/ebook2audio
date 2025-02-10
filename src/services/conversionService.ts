@@ -1,11 +1,8 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { generateHash, splitTextIntoChunks } from "./conversion/utils";
 import { createConversion, updateConversionStatus } from "./conversion/conversionManager";
-import { createChunksForConversion, updateChunkStatus, getConversionChunks } from "./conversion/chunkManager";
-import { generateHash } from "./conversion/utils";
 import { ChapterWithTimestamp } from "./conversion/types";
-
-const MAX_CONCURRENT_REQUESTS = 8;
 
 export async function convertToAudio(
   text: string,
@@ -31,19 +28,13 @@ export async function convertToAudio(
     console.log('Created conversion with ID:', conversionId);
     
     try {
-      // Create chunks if they don't exist
-      console.log('Fetching existing chunks...');
-      const existingChunks = await getConversionChunks(conversionId);
-      let chunks = existingChunks;
-      
-      if (chunks.length === 0) {
-        console.log('No existing chunks found, creating new chunks...');
-        chunks = await createChunksForConversion(conversionId, text);
-        console.log(`Created ${chunks.length} chunks`);
-      }
+      // Split text into chunks
+      console.log('Splitting text into chunks...');
+      const chunks = splitTextIntoChunks(text);
+      console.log(`Created ${chunks.length} chunks`);
 
       const totalChunks = chunks.length;
-      let completedChunks = chunks.filter(c => c.status === 'completed').length;
+      let completedChunks = 0;
 
       // Update initial progress
       if (onProgressUpdate) {
@@ -54,100 +45,79 @@ export async function convertToAudio(
         );
       }
 
-      // Process chunks in parallel with limited concurrency
-      const pendingChunks = chunks.filter(c => c.status !== 'completed');
-      console.log(`Processing ${pendingChunks.length} pending chunks...`);
-      
-      const results: ArrayBuffer[] = new Array(totalChunks);
-
-      // Fill in completed chunks
-      chunks.forEach((chunk, index) => {
-        if (chunk.status === 'completed' && chunk.audio_path) {
-          results[index] = new ArrayBuffer(0); // Placeholder for completed chunks
-        }
-      });
-
       await updateConversionStatus(conversionId, 'processing');
 
-      // Process remaining chunks
-      for (let i = 0; i < pendingChunks.length; i += MAX_CONCURRENT_REQUESTS) {
-        console.log(`Processing batch ${Math.floor(i / MAX_CONCURRENT_REQUESTS) + 1}...`);
-        const batch = pendingChunks.slice(i, i + MAX_CONCURRENT_REQUESTS);
-        const promises = batch.map(async (chunk) => {
-          try {
-            console.log(`Processing chunk ${chunk.chunk_index + 1}/${totalChunks}`);
-            await updateChunkStatus(chunk.id, 'processing');
+      console.log('Starting chunk processing...');
+      const audioBuffers: ArrayBuffer[] = [];
 
-            console.log('Invoking convert-to-audio function with params:', {
-              chunkIndex: chunk.chunk_index,
-              contentLength: chunk.content.length,
-              voiceId
-            });
+      // Process chunks sequentially to maintain order
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        console.log(`Processing chunk ${i + 1}/${chunks.length}`);
 
-            const response = await supabase.functions.invoke<{ data: { audioContent: string } }>(
-              'convert-to-audio',
-              {
-                body: {
-                  text: chunk.content,
-                  voiceId,
-                  fileName,
-                  isChunk: true,
-                  chunkIndex: chunk.chunk_index
-                }
+        try {
+          console.log('Invoking convert-to-audio function with params:', {
+            chunkIndex: i,
+            contentLength: chunk.length,
+            voiceId
+          });
+
+          const { data, error } = await supabase.functions.invoke<{ data: { audioContent: string } }>(
+            'convert-to-audio',
+            {
+              body: {
+                text: chunk,
+                voiceId,
+                fileName,
+                isChunk: true,
+                chunkIndex: i
               }
-            );
-
-            console.log('Edge function response:', response);
-
-            if (!response.data?.data?.audioContent) {
-              console.error('Edge function response:', response);
-              throw new Error('No audio content received');
             }
+          );
 
-            // Convert base64 to ArrayBuffer
-            const binaryString = atob(response.data.data.audioContent);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-            const audioBuffer = bytes.buffer;
-            
-            results[chunk.chunk_index] = audioBuffer;
-
-            await updateChunkStatus(chunk.id, 'completed', `chunks/${conversionId}/${chunk.id}.mp3`);
-            completedChunks++;
-
-            if (onProgressUpdate) {
-              onProgressUpdate(
-                Math.round((completedChunks / totalChunks) * 100),
-                totalChunks,
-                completedChunks
-              );
-            }
-
-            return audioBuffer;
-          } catch (error) {
-            console.error(`Error processing chunk ${chunk.id}:`, error);
-            console.error('Full error details:', {
-              message: error.message,
-              stack: error.stack,
-              response: error.response
-            });
-            await updateChunkStatus(chunk.id, 'failed', undefined, error.message);
+          if (error) {
+            console.error('Edge function error:', error);
             throw error;
           }
-        });
 
-        await Promise.all(promises);
+          if (!data?.data?.audioContent) {
+            console.error('Invalid response from edge function:', data);
+            throw new Error('No audio content received from conversion');
+          }
+
+          // Convert base64 to ArrayBuffer
+          const binaryString = atob(data.data.audioContent);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let j = 0; j < binaryString.length; j++) {
+            bytes[j] = binaryString.charCodeAt(j);
+          }
+          
+          audioBuffers[i] = bytes.buffer;
+          completedChunks++;
+
+          if (onProgressUpdate) {
+            onProgressUpdate(
+              Math.round((completedChunks / totalChunks) * 100),
+              totalChunks,
+              completedChunks
+            );
+          }
+
+        } catch (error) {
+          console.error(`Error processing chunk ${i}:`, error);
+          await updateConversionStatus(conversionId, 'failed', error.message);
+          throw error;
+        }
       }
 
-      // Combine all chunks
-      console.log('Combining audio chunks...');
-      const totalSize = results.reduce((acc, buf) => acc + buf.byteLength, 0);
+      console.log('All chunks processed successfully');
+
+      // Combine all audio buffers
+      const totalSize = audioBuffers.reduce((acc, buf) => acc + buf.byteLength, 0);
       const combined = new Uint8Array(totalSize);
       let offset = 0;
 
-      results.forEach((buffer) => {
+      audioBuffers.forEach((buffer) => {
         combined.set(new Uint8Array(buffer), offset);
         offset += buffer.byteLength;
       });
