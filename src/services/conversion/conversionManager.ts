@@ -59,7 +59,7 @@ export async function createConversion(
           .eq('text_hash', textHash)
           .eq('status', 'completed')
           .gt('expires_at', new Date().toISOString())
-          .single();
+          .maybeSingle();
 
         if (retryError) throw retryError;
         if (retryConversion) return retryConversion.id;
