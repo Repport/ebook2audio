@@ -34,25 +34,39 @@ export async function createConversion(
     // Generate a new UUID for the conversion
     const conversionId = crypto.randomUUID();
 
-    // Create a new conversion record
-    const { data: newConversion, error: insertError } = await supabase
-      .from('text_conversions')
-      .insert({
-        id: conversionId,
-        text_hash: textHash,
-        file_name: fileName,
-        user_id: userId,
-        status: 'pending',
-        storage_path: null,
-        compressed_storage_path: null,
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-      })
-      .select()
-      .single();
+    try {
+      // Create a new conversion record
+      const { data: newConversion, error: insertError } = await supabase
+        .from('text_conversions')
+        .insert({
+          id: conversionId,
+          text_hash: textHash,
+          file_name: fileName,
+          user_id: userId,
+          status: 'pending',
+          storage_path: null,
+          compressed_storage_path: null,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+        })
+        .select()
+        .maybeSingle();
 
-    if (insertError) {
-      // If we get a unique constraint violation, try to fetch the existing record again
-      if (insertError.code === '23505') {
+      if (insertError) {
+        console.error('Error creating conversion:', insertError);
+        throw insertError;
+      }
+
+      if (!newConversion) {
+        throw new Error('Failed to create conversion record');
+      }
+
+      console.log('Created conversion record:', newConversion.id);
+      return newConversion.id;
+    } catch (insertError: any) {
+      // If there was an error during insert, try one more time to fetch an existing conversion
+      // This handles race conditions where another request might have created the conversion
+      if (insertError.code === '23505') { // Unique violation error code
+        console.log('Duplicate detected, checking for existing conversion again');
         const { data: retryConversion, error: retryError } = await supabase
           .from('text_conversions')
           .select()
@@ -62,18 +76,13 @@ export async function createConversion(
           .maybeSingle();
 
         if (retryError) throw retryError;
-        if (retryConversion) return retryConversion.id;
+        if (retryConversion) {
+          console.log('Found existing conversion on retry:', retryConversion.id);
+          return retryConversion.id;
+        }
       }
-      console.error('Error creating conversion:', insertError);
       throw insertError;
     }
-
-    if (!newConversion) {
-      throw new Error('Failed to create conversion record');
-    }
-
-    console.log('Created conversion record:', newConversion.id);
-    return newConversion.id;
   } catch (error) {
     console.error('Error in createConversion:', error);
     throw error;
