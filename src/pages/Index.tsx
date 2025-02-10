@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import FileUploadZone from '@/components/FileUploadZone';
 import Header from '@/components/Header';
@@ -139,4 +138,3 @@ const Index = () => {
 };
 
 export default Index;
-

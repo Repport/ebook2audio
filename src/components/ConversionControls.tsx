@@ -48,7 +48,7 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
           )}
           <Button onClick={onDownload} className="bg-primary hover:bg-primary/90">
             <Download className="mr-2 h-4 w-4" />
-            Download MP3
+            Download Audio
           </Button>
         </>
       )}
@@ -57,4 +57,3 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
 };
 
 export default ConversionControls;
-
