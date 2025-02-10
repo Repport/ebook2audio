@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { splitTextIntoChunks } from "./utils";
 import { updateConversionStatus } from "./conversionManager";
+import { decodeBase64Audio, combineAudioChunks } from "./utils/audioUtils";
 
 export async function processConversionChunks(
   text: string,
@@ -59,14 +60,7 @@ export async function processConversionChunks(
         throw new Error('No audio content received from conversion');
       }
 
-      // Convert base64 to ArrayBuffer
-      const binaryString = atob(data.data.audioContent);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let j = 0; j < binaryString.length; j++) {
-        bytes[j] = binaryString.charCodeAt(j);
-      }
-      
-      audioBuffers[i] = bytes.buffer;
+      audioBuffers[i] = decodeBase64Audio(data.data.audioContent);
       completedChunks++;
 
       // Update conversion progress
@@ -83,16 +77,6 @@ export async function processConversionChunks(
   }
 
   console.log('All chunks processed successfully');
-
-  // Combine all audio buffers
-  const totalSize = audioBuffers.reduce((acc, buf) => acc + buf.byteLength, 0);
-  const combined = new Uint8Array(totalSize);
-  let offset = 0;
-
-  audioBuffers.forEach((buffer) => {
-    combined.set(new Uint8Array(buffer), offset);
-    offset += buffer.byteLength;
-  });
-
-  return combined.buffer;
+  return combineAudioChunks(audioBuffers);
 }
+
