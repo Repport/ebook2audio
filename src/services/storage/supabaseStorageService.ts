@@ -19,17 +19,17 @@ export const saveToSupabase = async (
 ) => {
   try {
     // Generate a unique file path for storage
-    const filePath = `${userId}/${crypto.randomUUID()}.opus`;
+    const storagePath = `${userId}/${crypto.randomUUID()}.opus`;
     
     // Compress the audio if it's larger than 10MB
     let finalAudio = audio;
-    let finalPath = filePath;
+    let finalPath = storagePath;
     
     if (audio.byteLength > 10 * 1024 * 1024) {
       const zip = new JSZip();
       zip.file('audio.opus', audio);
       finalAudio = await zip.generateAsync({ type: 'arraybuffer' });
-      finalPath = filePath + '.zip';
+      finalPath = storagePath + '.zip';
     }
     
     // Upload the audio file to storage
