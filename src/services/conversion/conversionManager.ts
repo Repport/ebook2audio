@@ -8,24 +8,44 @@ export async function createConversion(
   userId: string | undefined
 ): Promise<string> {
   try {
-    // Attempt to upsert the conversion
+    // First check if a valid conversion already exists
+    const { data: existingConversion, error: fetchError } = await supabase
+      .from('text_conversions')
+      .select('id')
+      .eq('text_hash', textHash)
+      .eq('status', 'completed')
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error checking existing conversion:', {
+        error: fetchError,
+        context: { textHash, fileName, userId }
+      });
+      throw fetchError;
+    }
+
+    if (existingConversion?.id) {
+      console.log('Found existing completed conversion:', existingConversion.id);
+      return existingConversion.id;
+    }
+
+    // If no valid existing conversion, create a new one
     const { data: conversion, error: upsertError } = await supabase
       .from('text_conversions')
-      .upsert({
+      .insert({
         text_hash: textHash,
         file_name: fileName,
         user_id: userId,
         status: 'pending',
         progress: 0,
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-      }, {
-        onConflict: 'text_hash'
       })
       .select('id')
       .single();
 
     if (upsertError) {
-      console.error('Error upserting conversion:', {
+      console.error('Error creating conversion:', {
         error: upsertError,
         context: { textHash, fileName, userId }
       });
@@ -36,7 +56,7 @@ export async function createConversion(
       throw new Error('Failed to create conversion: No data returned');
     }
 
-    console.log('Created/retrieved conversion record:', conversion.id);
+    console.log('Created new conversion record:', conversion.id);
     return conversion.id;
   } catch (error) {
     console.error('Error in createConversion:', {
