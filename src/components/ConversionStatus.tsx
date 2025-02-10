@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
@@ -31,6 +32,7 @@ const ConversionStatus = ({
 }: ConversionStatusProps) => {
   const [smoothProgress, setSmoothProgress] = useState(progress);
   const [showEstimate, setShowEstimate] = useState(true);
+  const [startTime, setStartTime] = useState<number | null>(null);
 
   // Smooth progress transition
   useEffect(() => {
@@ -46,13 +48,16 @@ const ConversionStatus = ({
     }
   }, [progress, smoothProgress]);
 
-  // Reset progress when status changes
+  // Reset progress and start time when status changes
   useEffect(() => {
     if (status === 'idle') {
       setSmoothProgress(0);
       setShowEstimate(true);
+      setStartTime(null);
+    } else if (status === 'converting' && !startTime) {
+      setStartTime(Date.now());
     }
-  }, [status]);
+  }, [status, startTime]);
 
   // Hide estimate after 30 seconds to avoid showing stale data
   useEffect(() => {
@@ -93,13 +98,19 @@ const ConversionStatus = ({
   };
 
   const getEstimatedTimeRemaining = () => {
-    if (displayStatus !== 'converting' || smoothProgress >= 100 || !estimatedSeconds) {
+    if (displayStatus !== 'converting' || smoothProgress >= 100 || !startTime) {
       return null;
     }
     
+    const elapsedTime = (Date.now() - startTime) / 1000; // Convert to seconds
+    const progressRate = smoothProgress / elapsedTime; // Progress per second
+    
+    if (progressRate <= 0) return null;
+    
     const remainingProgress = 100 - smoothProgress;
-    const remainingTime = Math.ceil((estimatedSeconds * remainingProgress) / 100);
-    return formatTimeRemaining(remainingTime);
+    const estimatedRemainingSeconds = Math.ceil(remainingProgress / progressRate);
+    
+    return formatTimeRemaining(estimatedRemainingSeconds);
   };
 
   const timeRemaining = getEstimatedTimeRemaining();
@@ -184,3 +195,4 @@ const ConversionStatus = ({
 };
 
 export default ConversionStatus;
+
