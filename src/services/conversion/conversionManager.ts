@@ -19,25 +19,30 @@ export async function createConversion(
         progress: 0,
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
       }, {
-        onConflict: 'text_hash',
-        ignoreDuplicates: false
+        onConflict: 'text_hash'
       })
       .select('id')
       .single();
 
     if (upsertError) {
-      console.error('Error upserting conversion:', upsertError);
+      console.error('Error upserting conversion:', {
+        error: upsertError,
+        context: { textHash, fileName, userId }
+      });
       throw upsertError;
     }
 
     if (!conversion) {
-      throw new Error('Failed to create conversion');
+      throw new Error('Failed to create conversion: No data returned');
     }
 
     console.log('Created/retrieved conversion record:', conversion.id);
     return conversion.id;
   } catch (error) {
-    console.error('Error in createConversion:', error);
+    console.error('Error in createConversion:', {
+      error,
+      context: { textHash, fileName, userId }
+    });
     throw error;
   }
 }
@@ -49,7 +54,7 @@ export async function updateConversionStatus(
   progress?: number
 ): Promise<void> {
   await retryOperation(async () => {
-    // First, get the current status and error message
+    // First, get the current status and error message, selecting only necessary fields
     const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
       .select('status, error_message')
@@ -57,7 +62,10 @@ export async function updateConversionStatus(
       .single();
 
     if (fetchError) {
-      console.error('Error fetching conversion status:', fetchError);
+      console.error('Error fetching conversion status:', {
+        error: fetchError,
+        context: { conversionId, status, errorMessage }
+      });
       throw fetchError;
     }
 
@@ -99,11 +107,17 @@ export async function updateConversionStatus(
         .eq('id', conversionId);
 
       if (updateError) {
-        console.error('Error updating conversion status:', updateError);
+        console.error('Error updating conversion status:', {
+          error: updateError,
+          context: { conversionId, updateData }
+        });
         throw updateError;
       }
 
-      console.log('Successfully updated conversion status:', updateData);
+      console.log('Successfully updated conversion status:', {
+        conversionId,
+        updates: updateData
+      });
     }
   });
 }

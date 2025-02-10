@@ -22,8 +22,7 @@ export async function convertToAudio(
   
   try {
     // Check if there's an existing completed conversion
-    // Only select necessary fields and use correct column name 'storage_path'
-    const { data: existingConversion } = await supabase
+    const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
       .select('storage_path, id')
       .eq('text_hash', textHash)
@@ -31,13 +30,29 @@ export async function convertToAudio(
       .gt('expires_at', new Date().toISOString())
       .maybeSingle();
 
+    if (fetchError) {
+      console.error('Error fetching existing conversion:', {
+        error: fetchError,
+        context: { textHash, fileName }
+      });
+      throw fetchError;
+    }
+
     if (existingConversion?.storage_path) {
       console.log('Found existing conversion:', existingConversion.storage_path);
       const { data, error } = await supabase.storage
         .from('audio_cache')
         .download(existingConversion.storage_path);
 
-      if (!error && data) {
+      if (error) {
+        console.error('Error downloading existing conversion:', {
+          error,
+          context: { storagePath: existingConversion.storage_path }
+        });
+        throw error;
+      }
+
+      if (data) {
         return { 
           audio: await data.arrayBuffer(),
           id: existingConversion.id
@@ -90,12 +105,18 @@ export async function convertToAudio(
           );
 
           if (error) {
-            console.error('Edge function error:', error);
+            console.error('Edge function error:', {
+              error,
+              context: { chunkIndex: i, conversionId }
+            });
             throw error;
           }
 
           if (!data?.data?.audioContent) {
-            console.error('Invalid response from edge function:', data);
+            console.error('Invalid response from edge function:', {
+              response: data,
+              context: { chunkIndex: i, conversionId }
+            });
             throw new Error('No audio content received from conversion');
           }
 
@@ -114,7 +135,10 @@ export async function convertToAudio(
           await updateConversionStatus(conversionId, 'processing', undefined, currentProgress);
 
         } catch (error) {
-          console.error(`Error processing chunk ${i}:`, error);
+          console.error(`Error processing chunk ${i}:`, {
+            error,
+            context: { chunkIndex: i, conversionId }
+          });
           await updateConversionStatus(conversionId, 'failed', error.message);
           throw error;
         }
@@ -140,15 +164,20 @@ export async function convertToAudio(
       };
 
     } catch (error) {
-      console.error('Error during conversion:', error);
-      console.error('Full error stack:', error.stack);
+      console.error('Error during conversion:', {
+        error,
+        context: { conversionId, fileName }
+      });
       await updateConversionStatus(conversionId, 'failed', error.message);
       throw error;
     }
 
   } catch (error) {
-    console.error('Fatal error in convertToAudio:', error);
-    console.error('Full error stack:', error.stack);
+    console.error('Fatal error in convertToAudio:', {
+      error,
+      stack: error.stack,
+      context: { fileName, textLength: text?.length }
+    });
     throw error;
   }
 }
