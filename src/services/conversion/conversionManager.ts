@@ -14,7 +14,7 @@ export async function createConversion(
     // Try to fetch existing conversion first
     const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
-      .select()
+      .select('id, text_hash, status, expires_at')
       .eq('text_hash', textHash)
       .eq('status', 'completed')
       .gt('expires_at', new Date().toISOString())
@@ -48,7 +48,7 @@ export async function createConversion(
           compressed_storage_path: null,
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
         })
-        .select()
+        .select('id, text_hash, status')
         .maybeSingle();
 
       if (insertError) {
@@ -69,7 +69,7 @@ export async function createConversion(
         console.log('Duplicate detected, checking for existing conversion again');
         const { data: retryConversion, error: retryError } = await supabase
           .from('text_conversions')
-          .select()
+          .select('id, text_hash, status, expires_at')
           .eq('text_hash', textHash)
           .eq('status', 'completed')
           .gt('expires_at', new Date().toISOString())
