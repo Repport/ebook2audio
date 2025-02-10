@@ -5,6 +5,9 @@ import { Resend } from 'npm:resend@2.0.0'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Cache-Control': 'no-store, no-cache, must-revalidate',
+  'Pragma': 'no-cache'
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -17,11 +20,25 @@ const resend = new Resend(resendApiKey)
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { 
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+      }
+    })
   }
 
   try {
+    // Verify request method
+    if (req.method !== 'POST') {
+      throw new Error('Method not allowed')
+    }
+
     const { conversion_id } = await req.json()
+
+    if (!conversion_id) {
+      throw new Error('Conversion ID is required')
+    }
 
     // Get conversion and notification details
     const { data: notification, error: notificationError } = await supabase
@@ -48,6 +65,10 @@ Deno.serve(async (req) => {
       `,
     })
 
+    if (!emailResponse.id) {
+      throw new Error('Failed to send email')
+    }
+
     // Update notification status
     const { error: updateError } = await supabase
       .from('conversion_notifications')
@@ -61,17 +82,28 @@ Deno.serve(async (req) => {
       throw updateError
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    })
+    return new Response(
+      JSON.stringify({ success: true }),
+      { 
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: 200 
+      }
+    )
   } catch (error) {
     console.error('Error sending notification:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+      JSON.stringify({ 
+        error: error.message || 'Internal server error'
+      }),
+      { 
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        },
+        status: error.status || 500
       }
     )
   }
