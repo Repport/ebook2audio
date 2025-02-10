@@ -24,7 +24,7 @@ export async function convertToAudio(
     // Check if there's an existing completed conversion
     const { data: existingConversion, error: fetchError } = await supabase
       .from('text_conversions')
-      .select('storage_path, id')  // Explicitly select storage_path and id
+      .select('storage_path, id')
       .eq('text_hash', textHash)
       .eq('status', 'completed')
       .gt('expires_at', new Date().toISOString())
@@ -156,8 +156,31 @@ export async function convertToAudio(
         offset += buffer.byteLength;
       });
 
+      // Save the final combined audio to storage
+      const storagePath = `${userId}/${conversionId}.mp3`;
+      const { error: uploadError } = await supabase.storage
+        .from('audio_cache')
+        .upload(storagePath, combined);
+
+      if (uploadError) {
+        console.error('Error uploading final audio:', uploadError);
+        throw uploadError;
+      }
+
+      // Update the conversion record with the storage path
+      const { error: updateError } = await supabase
+        .from('text_conversions')
+        .update({ storage_path: storagePath })
+        .eq('id', conversionId);
+
+      if (updateError) {
+        console.error('Error updating storage path:', updateError);
+        throw updateError;
+      }
+
       console.log('Conversion completed successfully');
       await updateConversionStatus(conversionId, 'completed');
+      
       return { 
         audio: combined.buffer,
         id: conversionId
