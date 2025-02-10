@@ -1,68 +1,72 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { synthesizeSpeech } from './speech-service.ts'
-import { corsHeaders } from './constants.ts'
+import { corsHeaders, MAX_REQUEST_SIZE } from './constants.ts'
 
-console.log('Loading convert-to-audio function...');
+console.log('Loading convert-to-audio function...')
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    console.log('Handling CORS preflight request');
+    console.log('Handling CORS preflight request')
     return new Response(null, { 
       headers: {
         ...corsHeaders,
         'Access-Control-Max-Age': '86400',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      } 
-    });
+      }
+    })
   }
 
   try {
-    console.log('Starting text-to-speech conversion request');
+    console.log('Starting text-to-speech conversion request')
     
+    // Check content length
+    const contentLength = parseInt(req.headers.get('content-length') || '0')
+    if (contentLength > MAX_REQUEST_SIZE) {
+      throw new Error('Request body too large')
+    }
+
     // Parse request body
-    let body;
+    let body
     try {
-      body = await req.json();
+      body = await req.json()
       console.log('Request body received:', {
         textLength: body.text?.length,
         voiceId: body.voiceId,
         isChunk: body.isChunk,
         chunkIndex: body.chunkIndex
-      });
+      })
     } catch (e) {
-      console.error('Failed to parse request body:', e);
-      throw new Error('Invalid request body');
+      console.error('Failed to parse request body:', e)
+      throw new Error('Invalid request body')
     }
 
-    const { text, voiceId, fileName } = body;
+    const { text, voiceId, fileName } = body
 
     if (!text || !voiceId) {
-      console.error('Missing required parameters:', { hasText: !!text, hasVoiceId: !!voiceId });
-      throw new Error('Missing required parameters: text and voiceId are required');
+      console.error('Missing required parameters:', { hasText: !!text, hasVoiceId: !!voiceId })
+      throw new Error('Missing required parameters: text and voiceId are required')
     }
 
     // Initialize Google Cloud TTS client
-    const credentialsString = Deno.env.get('GCP_SERVICE_ACCOUNT');
+    const credentialsString = Deno.env.get('GCP_SERVICE_ACCOUNT')
     if (!credentialsString) {
-      console.error('GCP credentials not found');
-      throw new Error('Server configuration error: GCP credentials missing');
+      console.error('GCP credentials not found')
+      throw new Error('Server configuration error: GCP credentials missing')
     }
 
-    let credentials;
+    let credentials
     try {
-      const decodedCredentials = atob(credentialsString);
-      credentials = JSON.parse(decodedCredentials);
-      console.log('Successfully parsed GCP credentials');
+      const decodedCredentials = atob(credentialsString)
+      credentials = JSON.parse(decodedCredentials)
+      console.log('Successfully parsed GCP credentials')
     } catch (error) {
-      console.error('Failed to parse GCP credentials:', error);
-      throw new Error('Invalid server configuration: Failed to parse GCP credentials');
+      console.error('Failed to parse GCP credentials:', error)
+      throw new Error('Invalid server configuration: Failed to parse GCP credentials')
     }
     
     // Get access token for Google Cloud API
-    console.log('Requesting Google Cloud access token');
+    console.log('Requesting Google Cloud access token')
     const tokenResponse = await fetch(
       `https://oauth2.googleapis.com/token`,
       {
@@ -73,29 +77,29 @@ serve(async (req) => {
           assertion: await createJWT(credentials)
         })
       }
-    );
+    )
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('Failed to get access token:', errorText);
-      throw new Error('Failed to authenticate with Google Cloud');
+      const errorText = await tokenResponse.text()
+      console.error('Failed to get access token:', errorText)
+      throw new Error('Failed to authenticate with Google Cloud')
     }
 
-    const { access_token } = await tokenResponse.json();
+    const { access_token } = await tokenResponse.json()
     if (!access_token) {
-      throw new Error('No access token received from Google Cloud');
+      throw new Error('No access token received from Google Cloud')
     }
 
-    console.log('Successfully obtained access token');
+    console.log('Successfully obtained access token')
 
     // Extract language code from voiceId (e.g., "en-US-Standard-C" -> "en-US")
-    const langCode = voiceId.split('-').slice(0, 2).join('-');
+    const langCode = voiceId.split('-').slice(0, 2).join('-')
     
     // Use the speech service to handle synthesis
-    console.log(`Synthesizing speech with language code: ${langCode}`);
-    const audioContent = await synthesizeSpeech(text, voiceId, access_token);
+    console.log(`Synthesizing speech with language code: ${langCode}`)
+    const audioContent = await synthesizeSpeech(text, voiceId, access_token)
     
-    console.log('Successfully generated audio content');
+    console.log('Successfully generated audio content')
     
     return new Response(
       JSON.stringify({ data: { audioContent } }),
@@ -105,11 +109,11 @@ serve(async (req) => {
           'Content-Type': 'application/json'
         } 
       }
-    );
+    )
 
   } catch (error) {
-    console.error('Error in convert-to-audio function:', error);
-    console.error('Error stack:', error.stack);
+    console.error('Error in convert-to-audio function:', error)
+    console.error('Error stack:', error.stack)
     
     return new Response(
       JSON.stringify({ 
@@ -124,9 +128,9 @@ serve(async (req) => {
           'Content-Type': 'application/json'
         }
       }
-    );
+    )
   }
-});
+})
 
 // Helper function to create JWT for Google Cloud authentication
 async function createJWT(credentials: any) {
