@@ -13,8 +13,6 @@ export async function createConversion(
       .from('text_conversions')
       .select('id')
       .eq('text_hash', textHash)
-      .eq('status', 'completed')
-      .gt('expires_at', new Date().toISOString())
       .maybeSingle();
 
     if (fetchError) {
@@ -26,44 +24,38 @@ export async function createConversion(
     }
 
     if (existingConversion?.id) {
-      console.log('Found existing completed conversion:', existingConversion.id);
+      console.log('Found existing conversion:', existingConversion.id);
       return existingConversion.id;
     }
 
-    // If no valid existing conversion, create a new one using upsert
-    const { data: conversion, error: upsertError } = await supabase
+    // If no existing conversion, create a new one
+    const { data: newConversion, error: insertError } = await supabase
       .from('text_conversions')
-      .upsert(
-        {
-          text_hash: textHash,
-          file_name: fileName,
-          user_id: userId,
-          status: 'pending',
-          progress: 0,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-        },
-        { 
-          onConflict: 'text_hash',
-          ignoreDuplicates: false 
-        }
-      )
+      .insert({
+        text_hash: textHash,
+        file_name: fileName,
+        user_id: userId,
+        status: 'pending',
+        progress: 0,
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+      })
       .select('id')
       .single();
 
-    if (upsertError) {
+    if (insertError) {
       console.error('Error creating conversion:', {
-        error: upsertError,
+        error: insertError,
         context: { textHash, fileName, userId }
       });
-      throw upsertError;
+      throw insertError;
     }
 
-    if (!conversion) {
+    if (!newConversion) {
       throw new Error('Failed to create conversion: No data returned');
     }
 
-    console.log('Created new conversion record:', conversion.id);
-    return conversion.id;
+    console.log('Created new conversion record:', newConversion.id);
+    return newConversion.id;
   } catch (error) {
     console.error('Error in createConversion:', {
       error,
