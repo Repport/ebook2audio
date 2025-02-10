@@ -54,9 +54,14 @@ const FileProcessor = ({
 
   if (!selectedFile) return null;
 
+  const handleVoiceSettingsComplete = () => {
+    initiateConversion();
+    onNextStep();
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
-      {currentStep === 1 && (
+      {currentStep === 2 && (
         <div className="animate-fade-up">
           <VoiceSettingsStep
             selectedVoice={selectedVoice}
@@ -64,12 +69,12 @@ const FileProcessor = ({
             detectedLanguage={detectedLanguage}
             detectChapters={detectChapters}
             setDetectChapters={setDetectChapters}
-            onNextStep={onNextStep}
+            onNextStep={handleVoiceSettingsComplete}
           />
         </div>
       )}
       
-      {currentStep === 2 && (
+      {currentStep === 3 && (
         <div className="animate-fade-up">
           <ConversionStep
             selectedFile={selectedFile}
