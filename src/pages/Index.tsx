@@ -51,13 +51,6 @@ const Index = () => {
     setExtractedText(fileInfo.text);
     setChapters(fileInfo.chapters || []);
     setCurrentStep(2);
-
-    if (fileInfo.chapters?.length) {
-      toast({
-        title: "Chapters detected",
-        description: `Found ${fileInfo.chapters.length} chapters in your document`,
-      });
-    }
   };
 
   const goToNextStep = () => {

@@ -103,10 +103,6 @@ const FileProcessor = ({
 
   const handleViewConversions = () => {
     if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to view your conversions",
-      });
       navigate('/auth', { state: { from: '/conversions' } });
       return;
     }
