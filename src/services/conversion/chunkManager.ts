@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { retryOperation } from "./utils";
 
@@ -27,7 +28,7 @@ export async function createChunksForConversion(
   const { data, error } = await supabase
     .from('conversion_chunks')
     .insert(chunkRecords)
-    .select();
+    .select('id, conversion_id, chunk_index, content, status, audio_path, error_message');
 
   if (error) {
     console.error('Error creating chunks:', error);
@@ -64,7 +65,7 @@ export async function updateChunkStatus(
 export async function getConversionChunks(conversionId: string): Promise<ConversionChunk[]> {
   const { data, error } = await supabase
     .from('conversion_chunks')
-    .select('*')
+    .select('id, conversion_id, chunk_index, content, status, audio_path, error_message')
     .eq('conversion_id', conversionId)
     .order('chunk_index');
 

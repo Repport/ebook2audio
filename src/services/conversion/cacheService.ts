@@ -29,9 +29,6 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
     console.log('Checking cache for text hash:', textHash);
     
     const result = await retryOperation(async () => {
-      // Set statement timeout before query
-      await supabase.rpc('set_statement_timeout');
-      
       const { data, error } = await supabase
         .from('text_conversions')
         .select('storage_path')
@@ -44,7 +41,6 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
       return { data, error: null };
     });
 
-    // Log whether we found a cached version or not
     if (result.data?.storage_path) {
       console.log('Found cached conversion with storage path:', result.data.storage_path);
     } else {
@@ -112,9 +108,6 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
 
     // Then create the database record
     const insertResult = await retryOperation(async () => {
-      // Set statement timeout before query
-      await supabase.rpc('set_statement_timeout');
-      
       const { error } = await supabase
         .from('text_conversions')
         .upsert({
@@ -125,12 +118,10 @@ export async function saveToCache(textHash: string, audioBuffer: ArrayBuffer, fi
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
           status: 'completed'
         })
-        .select()
+        .select('id')
         .maybeSingle();
       
       if (error?.code === '23505') {
-        // If we get a unique constraint violation, it means another process completed the conversion
-        // This is fine, just log it and continue
         console.log('Conversion already exists in completed state');
         return { error: null };
       }

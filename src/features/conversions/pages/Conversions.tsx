@@ -46,8 +46,6 @@ const Conversions = () => {
       }
 
       try {
-        await supabase.rpc('set_statement_timeout');
-
         const { data, error } = await supabase
           .from("text_conversions")
           .select("id, created_at, expires_at, file_name, file_size, storage_path")
@@ -188,4 +186,3 @@ const Conversions = () => {
 };
 
 export default Conversions;
-

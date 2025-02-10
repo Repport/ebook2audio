@@ -8,9 +8,6 @@ export async function createConversion(
   userId: string | undefined
 ): Promise<string> {
   try {
-    // Set statement timeout before any database operations
-    await supabase.rpc('set_statement_timeout');
-
     // Attempt to upsert the conversion
     const { data: conversion, error: upsertError } = await supabase
       .from('text_conversions')
@@ -25,7 +22,7 @@ export async function createConversion(
         onConflict: 'text_hash',
         ignoreDuplicates: false
       })
-      .select()
+      .select('id')
       .single();
 
     if (upsertError) {
@@ -52,8 +49,6 @@ export async function updateConversionStatus(
   progress?: number
 ): Promise<void> {
   await retryOperation(async () => {
-    await supabase.rpc('set_statement_timeout');
-
     const updateData: {
       status: string;
       error_message?: string;
