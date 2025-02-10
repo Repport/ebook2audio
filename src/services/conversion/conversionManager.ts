@@ -24,7 +24,7 @@ export async function createConversion(
       throw fetchError;
     }
 
-    // If we found an existing valid conversion, return its ID
+    // If we found an existing valid conversion that's completed, return its ID
     if (existingConversion?.status === 'completed') {
       console.log('Found existing completed conversion:', existingConversion.id);
       return existingConversion.id;
@@ -36,10 +36,10 @@ export async function createConversion(
       return existingConversion.id;
     }
 
-    // If no existing valid conversion, create a new one
+    // If no existing valid conversion found, create a new one
     const { data: newConversion, error: insertError } = await supabase
       .from('text_conversions')
-      .insert({
+      .upsert({
         text_hash: textHash,
         file_name: fileName,
         user_id: userId,
