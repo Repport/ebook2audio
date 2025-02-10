@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { loadConversionState, saveConversionState, convertArrayBufferToBase64, convertBase64ToArrayBuffer, clearConversionStorage } from '@/services/storage/conversionStorageService';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useConversionState = () => {
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
@@ -10,7 +11,7 @@ export const useConversionState = () => {
   const [currentFileName, setCurrentFileName] = useState<string | null>(null);
   const [conversionId, setConversionId] = useState<string | null>(null);
 
-  // Load stored state on mount
+  // Load stored state and subscribe to real-time updates on mount
   useEffect(() => {
     const storedState = loadConversionState();
     if (storedState) {
@@ -29,9 +30,54 @@ export const useConversionState = () => {
         }
       }
     }
+
+    // Subscribe to real-time updates for the conversion status
+    const channel = supabase.channel('conversions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'text_conversions'
+        },
+        async (payload) => {
+          console.log('Received conversion update:', payload);
+          const { new: conversion } = payload;
+
+          if (conversion.status) {
+            setConversionStatus(conversion.status as any);
+          }
+          if (typeof conversion.progress === 'number') {
+            setProgress(Math.min(conversion.progress, 100));
+          }
+          if (conversion.file_name) {
+            setCurrentFileName(conversion.file_name);
+          }
+          if (conversion.storage_path) {
+            try {
+              const { data, error } = await supabase.storage
+                .from('audio_cache')
+                .download(conversion.storage_path);
+              
+              if (error) throw error;
+              
+              const arrayBuffer = await data.arrayBuffer();
+              setAudioData(arrayBuffer);
+              setAudioDuration(conversion.duration || 0);
+            } catch (error) {
+              console.error('Error fetching audio data:', error);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  // Save state changes to storage
+  // Save state changes to local storage
   useEffect(() => {
     if (conversionStatus === 'idle') {
       clearConversionStorage();
