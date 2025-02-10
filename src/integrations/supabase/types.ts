@@ -9,6 +9,53 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      conversion_chunks: {
+        Row: {
+          audio_path: string | null
+          chunk_index: number
+          content: string
+          conversion_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          retries: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          audio_path?: string | null
+          chunk_index: number
+          content: string
+          conversion_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          retries?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          audio_path?: string | null
+          chunk_index?: number
+          content?: string
+          conversion_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          retries?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_chunks_conversion_id_fkey"
+            columns: ["conversion_id"]
+            isOneToOne: false
+            referencedRelation: "text_conversions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversion_logs: {
         Row: {
           conversion_timestamp: string | null

@@ -1,136 +1,123 @@
 
-import { ChapterWithTimestamp, ProgressCallback } from "./conversion/types";
-import { generateHash } from "./conversion/utils";
-import { checkCache, fetchFromCache, saveToCache } from "./conversion/cacheService";
-import { createConversion, updateConversionStatus } from "./conversion/conversionManager";
 import { supabase } from "@/integrations/supabase/client";
+import { createConversion, updateConversionStatus } from "./conversion/conversionManager";
+import { createChunksForConversion, updateChunkStatus, getConversionChunks } from "./conversion/chunkManager";
+import { generateHash } from "./conversion/utils";
+import { ChapterWithTimestamp } from "./conversion/types";
 
-const MAX_TEXT_SIZE = 30 * 1024 * 1024; // 30MB
+const MAX_CONCURRENT_REQUESTS = 8;
 
-export const convertToAudio = async (
-  text: string, 
+export async function convertToAudio(
+  text: string,
   voiceId: string,
   chapters?: ChapterWithTimestamp[],
   fileName?: string,
-  onProgressUpdate?: ProgressCallback
-): Promise<ArrayBuffer> => {
-  if (text.startsWith('%PDF')) {
-    throw new Error('Invalid text content: Raw PDF data received. Please check PDF text extraction.');
-  }
-
-  if (text.length > MAX_TEXT_SIZE) {
-    throw new Error(`Text content is too large (${(text.length / (1024 * 1024)).toFixed(1)}MB). Maximum allowed size is ${MAX_TEXT_SIZE / (1024 * 1024)}MB.`);
-  }
-
-  console.log('Converting text length:', text.length, 'with voice:', voiceId);
-  console.log('Chapters:', chapters?.length || 0);
-
+  onProgressUpdate?: (progress: number, totalChunks: number, completedChunks: number) => void
+): Promise<ArrayBuffer> {
   const textHash = await generateHash(text, voiceId);
-  const { data: { user } } = await supabase.auth.getUser();
-  const userId = user?.id;
-
-  // First check if we have a valid cache entry
-  const { storagePath, error: cacheError } = await checkCache(textHash);
-  if (cacheError) throw cacheError;
-
-  if (storagePath) {
-    console.log('Found cached conversion, fetching from storage');
-    if (onProgressUpdate) {
-      onProgressUpdate(100, 1, 1);
-    }
-    
-    const { data: audioData, error: fetchError } = await fetchFromCache(storagePath);
-    if (fetchError) throw fetchError;
-    if (!audioData) throw new Error('Failed to fetch audio data from cache');
-    
-    return audioData;
-  }
-
-  let conversionId: string | null = null;
-
+  const userId = (await supabase.auth.getUser()).data.user?.id;
+  
+  // Create or get existing conversion
+  const conversionId = await createConversion(textHash, fileName, userId);
+  
   try {
-    // Set statement timeout before any database operations
-    await supabase.rpc('set_statement_timeout');
-
-    // Try to fetch existing conversion first
-    const { data: existingConversion, error: fetchError } = await supabase
-      .from('text_conversions')
-      .select()
-      .eq('text_hash', textHash)
-      .gt('expires_at', new Date().toISOString())
-      .eq('status', 'completed')
-      .maybeSingle();
-
-    if (fetchError) {
-      console.error('Error fetching existing conversion:', fetchError);
-      throw fetchError;
+    // Create chunks if they don't exist
+    const existingChunks = await getConversionChunks(conversionId);
+    let chunks = existingChunks;
+    
+    if (chunks.length === 0) {
+      chunks = await createChunksForConversion(conversionId, text);
     }
 
-    // If we found an existing valid conversion, use it
-    if (existingConversion) {
-      console.log('Found existing valid conversion:', existingConversion.id);
-      conversionId = existingConversion.id;
+    const totalChunks = chunks.length;
+    let completedChunks = chunks.filter(c => c.status === 'completed').length;
 
-      if (existingConversion.storage_path) {
-        const { data: audioData, error: fetchError } = await fetchFromCache(existingConversion.storage_path);
-        if (fetchError) throw fetchError;
-        if (!audioData) throw new Error('Failed to fetch audio data from existing conversion');
-        return audioData;
+    // Update initial progress
+    if (onProgressUpdate) {
+      onProgressUpdate(
+        Math.round((completedChunks / totalChunks) * 100),
+        totalChunks,
+        completedChunks
+      );
+    }
+
+    // Process chunks in parallel with limited concurrency
+    const pendingChunks = chunks.filter(c => c.status !== 'completed');
+    const results: ArrayBuffer[] = new Array(totalChunks);
+
+    // Fill in completed chunks
+    chunks.forEach((chunk, index) => {
+      if (chunk.status === 'completed' && chunk.audio_path) {
+        results[index] = new ArrayBuffer(0); // Placeholder for completed chunks
       }
-    } else {
-      // Create new conversion record if no existing one found
-      conversionId = await createConversion(textHash, fileName, userId);
-      console.log('Created new conversion record:', conversionId);
-    }
+    });
 
-    // Update status to processing
     await updateConversionStatus(conversionId, 'processing');
 
-    // Convert text to audio using edge function
-    const { data, error } = await supabase.functions.invoke<{ data: { audioContent: string } }>(
-      'convert-to-audio',
-      {
-        body: { 
-          text,
-          voiceId,
-          fileName,
-          isChunk: false
+    // Process remaining chunks
+    for (let i = 0; i < pendingChunks.length; i += MAX_CONCURRENT_REQUESTS) {
+      const batch = pendingChunks.slice(i, i + MAX_CONCURRENT_REQUESTS);
+      const promises = batch.map(async (chunk) => {
+        try {
+          await updateChunkStatus(chunk.id, 'processing');
+
+          const { data, error } = await supabase.functions.invoke<{ data: { audioContent: string } }>(
+            'convert-to-audio',
+            {
+              body: {
+                text: chunk.content,
+                voiceId,
+                fileName,
+                isChunk: true,
+                chunkIndex: chunk.chunk_index
+              }
+            }
+          );
+
+          if (error || !data?.data?.audioContent) {
+            throw error || new Error('No audio content received');
+          }
+
+          const audioBuffer = Buffer.from(data.data.audioContent, 'base64');
+          results[chunk.chunk_index] = audioBuffer;
+
+          await updateChunkStatus(chunk.id, 'completed', `chunks/${conversionId}/${chunk.id}.mp3`);
+          completedChunks++;
+
+          if (onProgressUpdate) {
+            onProgressUpdate(
+              Math.round((completedChunks / totalChunks) * 100),
+              totalChunks,
+              completedChunks
+            );
+          }
+
+          return audioBuffer;
+        } catch (error) {
+          console.error(`Error processing chunk ${chunk.id}:`, error);
+          await updateChunkStatus(chunk.id, 'failed', undefined, error.message);
+          throw error;
         }
-      }
-    );
+      });
 
-    if (error) throw error;
-    if (!data?.data?.audioContent) {
-      throw new Error('No audio content received from conversion');
+      await Promise.all(promises);
     }
 
-    // Decode the base64 audio content
-    const audioBuffer = Buffer.from(data.data.audioContent, 'base64');
-    
-    // Store in cache
-    const { error: saveError } = await saveToCache(textHash, audioBuffer, fileName);
-    if (saveError) {
-      console.error('Error storing conversion:', saveError);
-      await updateConversionStatus(conversionId, 'failed', saveError.message);
-      throw saveError;
-    }
+    // Combine all chunks
+    const totalSize = results.reduce((acc, buf) => acc + buf.byteLength, 0);
+    const combined = new Uint8Array(totalSize);
+    let offset = 0;
 
-    // Update conversion status to completed
+    results.forEach((buffer) => {
+      combined.set(new Uint8Array(buffer), offset);
+      offset += buffer.byteLength;
+    });
+
     await updateConversionStatus(conversionId, 'completed');
+    return combined.buffer;
 
-    if (onProgressUpdate) {
-      onProgressUpdate(100, 1, 1);
-    }
-
-    return audioBuffer;
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-    
-    if (conversionId) {
-      await updateConversionStatus(conversionId, 'failed', errorMessage);
-    }
-    
-    console.error('Conversion error:', err);
-    throw err;
+  } catch (error) {
+    await updateConversionStatus(conversionId, 'failed', error.message);
+    throw error;
   }
-};
+}
