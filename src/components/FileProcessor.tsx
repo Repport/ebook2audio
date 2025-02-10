@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { VOICES } from '@/constants/voices';
 import { Chapter } from '@/utils/textExtraction';
 import { useAuth } from '@/hooks/useAuth';
-import VoiceSettingsStep from './file-processor/VoiceSettingsStep';
+import VoiceSettingsStep from '@/components/VoiceSettingsStep';
 import ConversionStep from './file-processor/ConversionStep';
 import TermsDialog from '@/components/TermsDialog';
 import { useConversionLogic } from './file-processor/useConversionLogic';
