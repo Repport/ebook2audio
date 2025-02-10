@@ -54,13 +54,13 @@ const Conversions = () => {
       }
 
       try {
-        // First set the statement timeout
         await supabase.rpc('set_statement_timeout');
 
         const { data, error } = await supabase
           .from("text_conversions")
           .select("id, created_at, expires_at, file_name, file_size, storage_path")
           .eq('user_id', user.id)
+          .eq('status', 'completed')  // Only fetch completed conversions
           .order("created_at", { ascending: false })
           .range(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE - 1);
 
@@ -78,8 +78,11 @@ const Conversions = () => {
       }
     },
     enabled: !!user?.id,
-    staleTime: 30000, // Cache data for 30 seconds
+    staleTime: 300000, // Cache data for 5 minutes
+    cacheTime: 600000, // Keep cache for 10 minutes
     retry: 2,
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnMount: false, // Don't refetch on component mount if data exists
   });
 
   const formatFileSize = (bytes: number): string => {
