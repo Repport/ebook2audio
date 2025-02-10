@@ -1,15 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Chapter } from '@/utils/textExtraction';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Chapter } from '@/utils/textExtraction';
+import { ChaptersList } from './ChaptersList';
+import { useConversionProgress } from '@/hooks/useConversionProgress';
 
 interface ConversionStatusProps {
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
@@ -30,49 +26,11 @@ const ConversionStatus = ({
   chapters = [],
   estimatedSeconds = 0
 }: ConversionStatusProps) => {
-  const [smoothProgress, setSmoothProgress] = useState(progress);
-  const [showEstimate, setShowEstimate] = useState(true);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-
-  // Smooth progress transition
-  useEffect(() => {
-    if (progress > smoothProgress) {
-      const interval = setInterval(() => {
-        setSmoothProgress(prev => {
-          const next = Math.min(prev + 1, progress);
-          if (next === progress) clearInterval(interval);
-          return next;
-        });
-      }, 50);
-      return () => clearInterval(interval);
-    }
-  }, [progress, smoothProgress]);
-
-  // Track elapsed time and update estimate visibility
-  useEffect(() => {
-    let intervalId: number;
-    
-    if (status === 'converting') {
-      intervalId = window.setInterval(() => {
-        setElapsedSeconds(prev => prev + 1);
-      }, 1000);
-
-      // Hide estimate after 30 seconds if conversion seems stuck
-      const hideEstimateTimeout = setTimeout(() => {
-        if (progress === 0 && elapsedSeconds > 30) {
-          setShowEstimate(false);
-        }
-      }, 30000);
-
-      return () => {
-        clearInterval(intervalId);
-        clearTimeout(hideEstimateTimeout);
-      };
-    } else {
-      setElapsedSeconds(0);
-      setShowEstimate(true);
-    }
-  }, [status, progress, elapsedSeconds]);
+  const { smoothProgress, showEstimate, timeRemaining } = useConversionProgress(
+    status,
+    progress,
+    estimatedSeconds
+  );
 
   const displayStatus = status === 'processing' ? 'converting' : status;
   
@@ -83,45 +41,6 @@ const ConversionStatus = ({
     error: 'Conversion error',
     processing: `Converting ${fileType} to MP3...`
   };
-
-  const formatTimestamp = (minutes: number) => {
-    const hrs = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-  };
-
-  const formatTimeRemaining = (seconds: number) => {
-    if (seconds < 60) {
-      return `${Math.ceil(seconds)} seconds`;
-    }
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.ceil(seconds % 60);
-    if (minutes < 60) {
-      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}:${remainingMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const getEstimatedTimeRemaining = () => {
-    if (displayStatus !== 'converting' || smoothProgress >= 100 || !estimatedSeconds) {
-      return null;
-    }
-
-    // Calculate remaining time based on progress and elapsed time
-    const progressRate = smoothProgress / Math.max(elapsedSeconds, 1); // Progress per second
-    if (progressRate <= 0 || !isFinite(progressRate)) {
-      return formatTimeRemaining(estimatedSeconds);
-    }
-    
-    const remainingProgress = 100 - smoothProgress;
-    const estimatedRemainingSeconds = Math.ceil(remainingProgress / progressRate);
-    
-    return formatTimeRemaining(estimatedRemainingSeconds);
-  };
-
-  const timeRemaining = getEstimatedTimeRemaining();
 
   return (
     <div className="flex flex-col items-center space-y-4 w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
@@ -168,27 +87,7 @@ const ConversionStatus = ({
         </p>
       )}
       
-      {chapters.length > 0 && (
-        <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="chapters">
-            <AccordionTrigger className="text-sm">
-              {chapters.length} Chapters Found
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                {chapters.map((chapter, index) => (
-                  <div key={index} className="flex justify-between items-center py-1">
-                    <span className="font-medium truncate flex-1 mr-4">{chapter.title}</span>
-                    <span className="text-muted-foreground whitespace-nowrap">
-                      {formatTimestamp(chapter.timestamp || 0)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      )}
+      <ChaptersList chapters={chapters} />
 
       {(displayStatus === 'converting') && (
         <div className="w-full space-y-2">
@@ -203,4 +102,3 @@ const ConversionStatus = ({
 };
 
 export default ConversionStatus;
-
