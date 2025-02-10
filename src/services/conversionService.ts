@@ -22,6 +22,26 @@ export async function convertToAudio(
   const userId = (await supabase.auth.getUser()).data.user?.id;
   
   try {
+    // Check if there's an existing completed conversion
+    const { data: existingConversion } = await supabase
+      .from('text_conversions')
+      .select('storage_path')
+      .eq('text_hash', textHash)
+      .eq('status', 'completed')
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+
+    if (existingConversion?.storage_path) {
+      console.log('Found existing conversion:', existingConversion.storage_path);
+      const { data, error } = await supabase.storage
+        .from('audio_cache')
+        .download(existingConversion.storage_path);
+
+      if (!error && data) {
+        return await data.arrayBuffer();
+      }
+    }
+
     // Create or get existing conversion
     console.log('Creating conversion record...');
     const conversionId = await createConversion(textHash, fileName, userId);
@@ -102,6 +122,15 @@ export async function convertToAudio(
               completedChunks
             );
           }
+
+          // Save progress after each chunk
+          const currentProgress = Math.round((completedChunks / totalChunks) * 100);
+          await supabase.from('text_conversions')
+            .update({ 
+              status: 'processing',
+              progress: currentProgress
+            })
+            .eq('id', conversionId);
 
         } catch (error) {
           console.error(`Error processing chunk ${i}:`, error);
