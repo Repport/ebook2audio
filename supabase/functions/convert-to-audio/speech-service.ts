@@ -25,7 +25,6 @@ export async function synthesizeSpeech(
         speakingRate: 1.0,
         pitch: 0.0,
         sampleRateHertz: 24000,
-        bitRateInBps: 32000, // 32kbps Opus
       },
     };
 
@@ -66,3 +65,4 @@ export async function synthesizeSpeech(
     throw error;
   }
 }
+
