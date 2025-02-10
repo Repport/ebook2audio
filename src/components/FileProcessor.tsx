@@ -82,6 +82,10 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
     }
   };
 
+  const handleViewConversions = () => {
+    navigate('/conversions');
+  };
+
   // Calculate estimated time based on text length and chunk processing
   const calculateEstimatedSeconds = () => {
     if (!extractedText) return 0;
@@ -138,7 +142,7 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
         <div className="text-center">
           <Button
             variant="outline"
-            onClick={() => navigate('/conversions')}
+            onClick={handleViewConversions}
           >
             View All Conversions
           </Button>
