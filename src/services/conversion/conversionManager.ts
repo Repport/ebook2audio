@@ -8,27 +8,7 @@ export async function createConversion(
   userId: string | undefined
 ): Promise<string> {
   try {
-    // First check if there's an existing completed conversion
-    const { data: existingConversion, error: fetchError } = await supabase
-      .from('text_conversions')
-      .select('id')
-      .eq('text_hash', textHash)
-      .maybeSingle();
-
-    if (fetchError) {
-      console.error('Error checking existing conversion:', {
-        error: fetchError,
-        context: { textHash, fileName, userId }
-      });
-      throw fetchError;
-    }
-
-    if (existingConversion?.id) {
-      console.log('Found existing conversion:', existingConversion.id);
-      return existingConversion.id;
-    }
-
-    // If no existing conversion, create a new one
+    // Create a new conversion record
     const { data: newConversion, error: insertError } = await supabase
       .from('text_conversions')
       .insert({
