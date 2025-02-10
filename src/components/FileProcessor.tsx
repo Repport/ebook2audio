@@ -84,6 +84,10 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
 
   const handleViewConversions = () => {
     navigate('/conversions');
+    toast({
+      title: "Navigating",
+      description: "Taking you to your conversions",
+    });
   };
 
   // Calculate estimated time based on text length and chunk processing
