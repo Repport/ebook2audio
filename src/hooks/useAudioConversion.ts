@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { convertToAudio } from '@/services/conversionService';
 import { Chapter } from '@/utils/textExtraction';
 import { useAuth } from '@/hooks/useAuth';
-import { saveConversionState, loadConversionState, convertArrayBufferToBase64, convertBase64ToArrayBuffer } from '@/services/storage/conversionStorageService';
+import { saveConversionState, loadConversionState, convertArrayBufferToBase64, convertBase64ToArrayBuffer, clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { calculateAudioDuration, formatDuration, formatFileSize } from '@/services/audio/audioUtils';
 import { saveToSupabase } from '@/services/storage/supabaseStorageService';
 
@@ -31,7 +31,7 @@ export const useAudioConversion = () => {
           setAudioDuration(storedState.audioDuration || 0);
         } catch (error) {
           console.error('Error loading stored audio data:', error);
-          sessionStorage.removeItem('conversionState');
+          clearConversionStorage();
         }
       }
     }
@@ -39,24 +39,29 @@ export const useAudioConversion = () => {
 
   useEffect(() => {
     if (conversionStatus === 'idle') {
-      sessionStorage.removeItem('conversionState');
+      clearConversionStorage();
       return;
     }
     
-    console.log('Saving conversion state:', {
-      status: conversionStatus,
-      progress: Math.min(progress, 100),
-      fileName: currentFileName,
-      hasAudioData: !!audioData
-    });
+    try {
+      console.log('Saving conversion state:', {
+        status: conversionStatus,
+        progress: Math.min(progress, 100),
+        fileName: currentFileName,
+        hasAudioData: !!audioData
+      });
 
-    saveConversionState({
-      status: conversionStatus,
-      progress: Math.min(progress, 100),
-      audioDuration,
-      fileName: currentFileName || undefined,
-      audioData: audioData ? convertArrayBufferToBase64(audioData) : undefined
-    });
+      saveConversionState({
+        status: conversionStatus,
+        progress: Math.min(progress, 100),
+        audioDuration,
+        fileName: currentFileName || undefined,
+        audioData: audioData ? convertArrayBufferToBase64(audioData) : undefined
+      });
+    } catch (error) {
+      console.error('Error saving conversion state:', error);
+      // Don't throw here, just log the error
+    }
   }, [conversionStatus, progress, audioData, audioDuration, currentFileName]);
 
   const resetConversion = useCallback(() => {
