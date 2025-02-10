@@ -22,7 +22,7 @@ export const saveToSupabase = async (
       .from('text_conversions')
       .insert({
         id: conversionId,
-        file_name: fileName,
+        file_name: fileName.replace('.mp3', '.m4a'), // Change extension to .m4a
         file_size: audio.byteLength,
         compressed_size: compressedData.length,
         compression_ratio: compressionRatio,
@@ -81,7 +81,7 @@ export const saveToSupabase = async (
       .from('text_conversions')
       .update({
         status: 'completed',
-        storage_path: `${conversionId}/final.mp3`,
+        storage_path: `${conversionId}/final.m4a`, // Change extension to .m4a
         compressed_storage_path: compressedPath
       })
       .eq('id', conversionId);

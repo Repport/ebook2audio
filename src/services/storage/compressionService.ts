@@ -4,8 +4,8 @@ export async function compressToZip(audioBuffer: ArrayBuffer): Promise<{ compres
     // Create a zip stream using the web streams API
     const zipWriter = new Writer();
     
-    // Add the audio file to the zip
-    const filename = 'audio.mp3';
+    // Add the audio file to the zip with .m4a extension for AAC
+    const filename = 'audio.m4a';
     await zipWriter.add(filename, new Uint8Array(audioBuffer));
     
     // Get the compressed data
