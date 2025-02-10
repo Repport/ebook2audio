@@ -64,7 +64,7 @@ const FileProcessor = ({
   };
 
   const handleAcceptTermsAndConvert = async () => {
-    await handleAcceptTerms(selectedVoice, notifyOnComplete);
+    await handleAcceptTerms({ selectedVoice, notifyOnComplete });
     setShowTerms(false);
   };
 

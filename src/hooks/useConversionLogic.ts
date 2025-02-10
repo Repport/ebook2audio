@@ -8,6 +8,11 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface ConversionOptions {
+  selectedVoice: string;
+  notifyOnComplete?: boolean;
+}
+
 export const useConversionLogic = (
   selectedFile: File | null,
   extractedText: string,
@@ -62,14 +67,14 @@ export const useConversionLogic = (
     setShowTerms(true);
   };
 
-  const handleAcceptTerms = async (selectedVoice: string, notifyOnComplete: boolean = false) => {
+  const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText) return;
     setDetectingChapters(true);
     try {
-      const result = await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
+      const result = await handleConversion(extractedText, options.selectedVoice, detectChapters, chapters, selectedFile.name);
       
       // Create notification if notification is enabled and user is authenticated
-      if (notifyOnComplete && user && result.id) {
+      if (options.notifyOnComplete && user && result.id) {
         const { error: notificationError } = await supabase
           .from('conversion_notifications')
           .insert({
