@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import VoiceSelector from '@/components/VoiceSelector';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import ConversionStatus from '@/components/ConversionStatus';
@@ -11,7 +12,6 @@ import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
