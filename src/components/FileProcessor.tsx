@@ -83,11 +83,22 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
   };
 
   const handleViewConversions = () => {
-    navigate('/conversions');
-    toast({
-      title: "Navigating",
-      description: "Taking you to your conversions",
-    });
+    console.log('Attempting to navigate to /conversions');
+    try {
+      navigate('/conversions');
+      console.log('Navigation called');
+      toast({
+        title: "Navigating",
+        description: "Taking you to your conversions",
+      });
+    } catch (error) {
+      console.error('Navigation error:', error);
+      toast({
+        title: "Navigation Error",
+        description: "Failed to navigate to conversions page",
+        variant: "destructive",
+      });
+    }
   };
 
   // Calculate estimated time based on text length and chunk processing
