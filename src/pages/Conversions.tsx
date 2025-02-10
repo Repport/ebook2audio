@@ -16,6 +16,7 @@ import {
 import { ArrowLeft, Download, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Conversion {
   id: string;
@@ -40,33 +41,45 @@ const Conversions = () => {
     }
   }, [user, navigate]);
 
-  const { data: conversionsData, isLoading } = useQuery({
+  const {
+    data: conversionsData,
+    isLoading,
+    isError,
+    refetch
+  } = useQuery({
     queryKey: ["conversions", page, user?.id],
     queryFn: async () => {
       if (!user?.id) {
         return { conversions: [] };
       }
 
-      // First set the statement timeout
-      await supabase.rpc('set_statement_timeout');
+      try {
+        // First set the statement timeout
+        await supabase.rpc('set_statement_timeout');
 
-      const { data, error } = await supabase
-        .from("text_conversions")
-        .select("*")
-        .eq('user_id', user.id)
-        .order("created_at", { ascending: false })
-        .range(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE - 1);
+        const { data, error } = await supabase
+          .from("text_conversions")
+          .select("id, created_at, expires_at, file_name, file_size, storage_path")
+          .eq('user_id', user.id)
+          .order("created_at", { ascending: false })
+          .range(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE - 1);
 
-      if (error) {
-        console.error("Error fetching conversions:", error);
+        if (error) {
+          console.error("Error fetching conversions:", error);
+          throw error;
+        }
+
+        return {
+          conversions: data as Conversion[],
+        };
+      } catch (error) {
+        console.error("Failed to fetch conversions:", error);
         throw error;
       }
-
-      return {
-        conversions: data as Conversion[],
-      };
     },
     enabled: !!user?.id,
+    staleTime: 30000, // Cache data for 30 seconds
+    retry: 2,
   });
 
   const formatFileSize = (bytes: number): string => {
@@ -119,6 +132,8 @@ const Conversions = () => {
         title: "Conversion deleted",
         description: "The conversion has been removed from your history",
       });
+      
+      refetch();
     } catch (error) {
       console.error("Delete error:", error);
       toast({
@@ -147,8 +162,40 @@ const Conversions = () => {
 
       <h1 className="text-3xl font-bold mb-8">Your Conversions</h1>
 
-      {isLoading ? (
-        <div className="text-center py-8">Loading your conversions...</div>
+      {isError ? (
+        <div className="text-center py-8 space-y-4">
+          <p className="text-red-500">There was an error loading your conversions</p>
+          <Button onClick={() => refetch()} className="gap-2">
+            Try Again
+          </Button>
+        </div>
+      ) : isLoading ? (
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>File Name</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Expires</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...Array(3)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-[200px]" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-[60px]" /></TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="h-8 w-[80px] ml-auto" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : conversionsData?.conversions.length === 0 ? (
         <div className="text-center py-8 space-y-4">
           <p className="text-gray-500">You haven't converted any files yet</p>
