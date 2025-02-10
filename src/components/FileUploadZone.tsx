@@ -4,6 +4,8 @@ import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { validateFile } from '@/utils/fileUtils';
 import { processFile } from '@/utils/textExtraction';
+import { checkCache } from '@/services/conversion/cacheService';
+import { generateHash } from '@/services/conversion/utils';
 import FileInfo from './FileInfo';
 import DropZone from './DropZone';
 
@@ -66,6 +68,19 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       
       if (!result.text.trim()) {
         throw new Error('No text could be extracted from the file');
+      }
+
+      // Generate hash and check cache before proceeding
+      const textHash = await generateHash(result.text);
+      console.log('Checking cache for text hash:', textHash);
+      const cacheResult = await checkCache(textHash);
+
+      if (cacheResult.storagePath && !cacheResult.error) {
+        console.log('Found cached conversion:', cacheResult.storagePath);
+        toast({
+          title: "Using cached version",
+          description: "This document has been converted before. Using the cached version to save time.",
+        });
       }
 
       onFileSelect({
