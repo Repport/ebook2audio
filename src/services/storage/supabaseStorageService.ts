@@ -81,7 +81,7 @@ export const saveToSupabase = async (
       .from('text_conversions')
       .update({
         status: 'completed',
-        storage_path: `${conversionId}/final.m4a`, // Change extension to .m4a
+        storage_path: `${conversionId}/final.m4a`,
         compressed_storage_path: compressedPath
       })
       .eq('id', conversionId);

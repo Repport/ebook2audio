@@ -44,7 +44,7 @@ export async function createConversion(
           compressed_storage_path: null,
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         })
-        .select('id, text_hash, status, storage_path, compressed_storage_path')
+        .select()
         .maybeSingle();
 
       if (insertError) {

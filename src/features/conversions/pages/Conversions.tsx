@@ -16,7 +16,7 @@ interface Conversion {
   expires_at: string;
   file_name: string;
   file_size: number;
-  storage_path: string;
+  storage_path: string | null;
   compressed_storage_path: string | null;
 }
 
