@@ -60,6 +60,7 @@ const FileProcessor = ({
 
   const handleConversionStart = () => {
     setShowTerms(true);
+    initiateConversion();
   };
 
   return (
