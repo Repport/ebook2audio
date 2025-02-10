@@ -5,7 +5,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { Chapter } from '@/utils/textExtraction';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
-import { supabase } from "@/integrations/supabase/client";
 
 export const useConversionLogic = (
   selectedFile: File | null,
@@ -16,6 +15,7 @@ export const useConversionLogic = (
   const [detectChapters, setDetectChapters] = useState(true);
   const [detectingChapters, setDetectingChapters] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -32,65 +32,71 @@ export const useConversionLogic = (
     setConversionStatus
   } = useAudioConversion();
 
-  // Subscribe to real-time updates when conversion starts
+  // Request wake lock when conversion starts
   useEffect(() => {
-    if (!conversionId) return;
-
-    console.log('Setting up realtime listeners for conversion:', conversionId);
-
-    const channel = supabase.channel('conversions')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'text_conversions',
-          filter: `id=eq.${conversionId}`
-        },
-        (payload: any) => {
-          console.log('Conversion update received:', payload.new);
-          const { status, progress: newProgress } = payload.new;
+    const requestWakeLock = async () => {
+      if (conversionStatus === 'converting' && !wakeLock) {
+        try {
+          const wl = await navigator.wakeLock.request('screen');
+          console.log('Wake Lock is active');
+          setWakeLock(wl);
           
-          // Always update status if it's provided
-          if (status) {
-            console.log('Updating conversion status to:', status);
-            setConversionStatus(status as 'idle' | 'converting' | 'completed' | 'error');
-          }
-          
-          // Always update progress if it's a number
-          if (typeof newProgress === 'number') {
-            console.log('Updating progress to:', newProgress);
-            setProgress(Math.min(newProgress, 100));
-          }
-
-          if (status === 'completed' && onStepComplete) {
-            onStepComplete();
-          }
-
-          if (status === 'error') {
-            toast({
-              title: "Conversion Error",
-              description: payload.new.error_message || "An error occurred during conversion",
-              variant: "destructive",
-            });
-          }
+          // Handle wake lock release
+          wl.addEventListener('release', () => {
+            console.log('Wake Lock was released');
+            setWakeLock(null);
+          });
+        } catch (err) {
+          console.error('Error requesting wake lock:', err);
         }
-      )
-      .subscribe();
-
-    return () => {
-      console.log('Cleaning up realtime listeners');
-      supabase.removeChannel(channel);
+      }
     };
-  }, [conversionId, setConversionStatus, setProgress, onStepComplete, toast]);
+
+    // Only try to get wake lock if the API is available
+    if ('wakeLock' in navigator) {
+      requestWakeLock();
+    }
+
+    // Release wake lock when conversion is done or on error
+    return () => {
+      if (wakeLock && (conversionStatus === 'completed' || conversionStatus === 'error')) {
+        wakeLock.release()
+          .then(() => console.log('Wake Lock released'))
+          .catch((err) => console.error('Error releasing wake lock:', err));
+      }
+    };
+  }, [conversionStatus, wakeLock]);
+
+  // Handle visibility change
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && conversionStatus === 'converting' && !wakeLock) {
+        try {
+          const wl = await navigator.wakeLock.request('screen');
+          setWakeLock(wl);
+          console.log('Wake Lock reacquired');
+        } catch (err) {
+          console.error('Error reacquiring wake lock:', err);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [conversionStatus, wakeLock]);
 
   useEffect(() => {
     if (selectedFile) {
-      console.log('Selected file changed, resetting conversion');
       resetConversion();
       clearConversionStorage();
     }
   }, [selectedFile, resetConversion]);
+
+  useEffect(() => {
+    if (conversionStatus === 'completed' && onStepComplete) {
+      onStepComplete();
+    }
+  }, [conversionStatus, onStepComplete]);
 
   const initiateConversion = () => {
     if (!selectedFile || !extractedText) {
@@ -102,7 +108,6 @@ export const useConversionLogic = (
       return;
     }
     
-    console.log('Initiating conversion process');
     resetConversion();
     clearConversionStorage();
     setShowTerms(true);
@@ -110,8 +115,6 @@ export const useConversionLogic = (
 
   const handleAcceptTerms = async (selectedVoice: string) => {
     if (!selectedFile || !extractedText) return;
-    
-    console.log('Starting conversion after terms acceptance');
     setDetectingChapters(true);
     try {
       await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
@@ -149,13 +152,6 @@ export const useConversionLogic = (
     const chunkOverhead = numberOfChunks * 0.5;
     return Math.ceil((extractedText.length * baseTimePerChar) + overhead + chunkOverhead);
   };
-
-  console.log('Current conversion state:', {
-    status: conversionStatus,
-    progress,
-    detectingChapters,
-    hasAudioData: !!audioData
-  });
 
   return {
     detectChapters,
