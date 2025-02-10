@@ -79,6 +79,24 @@ export function splitTextIntoChunks(text: string): string[] {
   return chunks.filter(chunk => chunk.trim().length > 0);
 }
 
+// Error classification
+function isTemporaryError(error: Error): boolean {
+  const errorMessage = error.message.toLowerCase();
+  const temporaryErrors = [
+    'timeout',
+    'network',
+    'connection',
+    'econnreset',
+    'econnrefused',
+    'too many requests',
+    '429',
+    '503',
+    '504'
+  ];
+
+  return temporaryErrors.some(term => errorMessage.includes(term));
+}
+
 interface RetryOptions {
   maxRetries?: number;
   initialDelay?: number;
@@ -114,15 +132,17 @@ export async function retryOperation<T>(
         clearTimeout(timeoutId);
       }
     } catch (err) {
-      retryCount++;
-      
-      if (retryCount >= maxRetries) {
+      // If it's not a temporary error, fail fast
+      if (!isTemporaryError(err) || retryCount >= maxRetries) {
+        console.error(`Operation failed ${retryCount > 0 ? 'after ' + retryCount + ' retries' : 'immediately'}:`, err);
         throw err;
       }
 
+      retryCount++;
       const delay = initialDelay * Math.pow(2, retryCount - 1) + Math.random() * 1000;
-      console.log(`Retry attempt ${retryCount} after ${delay}ms`);
+      console.log(`Temporary error detected, retry attempt ${retryCount} after ${delay}ms:`, err.message);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 }
+
