@@ -5,6 +5,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { Chapter } from '@/utils/textExtraction';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useConversionLogic = (
   selectedFile: File | null,
@@ -15,9 +17,9 @@ export const useConversionLogic = (
   const [detectChapters, setDetectChapters] = useState(true);
   const [detectingChapters, setDetectingChapters] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
-  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const {
     conversionStatus,
@@ -31,59 +33,6 @@ export const useConversionLogic = (
     setProgress,
     setConversionStatus
   } = useAudioConversion();
-
-  // Request wake lock when conversion starts
-  useEffect(() => {
-    const requestWakeLock = async () => {
-      if (conversionStatus === 'converting' && !wakeLock) {
-        try {
-          const wl = await navigator.wakeLock.request('screen');
-          console.log('Wake Lock is active');
-          setWakeLock(wl);
-          
-          // Handle wake lock release
-          wl.addEventListener('release', () => {
-            console.log('Wake Lock was released');
-            setWakeLock(null);
-          });
-        } catch (err) {
-          console.error('Error requesting wake lock:', err);
-        }
-      }
-    };
-
-    // Only try to get wake lock if the API is available
-    if ('wakeLock' in navigator) {
-      requestWakeLock();
-    }
-
-    // Release wake lock when conversion is done or on error
-    return () => {
-      if (wakeLock && (conversionStatus === 'completed' || conversionStatus === 'error')) {
-        wakeLock.release()
-          .then(() => console.log('Wake Lock released'))
-          .catch((err) => console.error('Error releasing wake lock:', err));
-      }
-    };
-  }, [conversionStatus, wakeLock]);
-
-  // Handle visibility change
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && conversionStatus === 'converting' && !wakeLock) {
-        try {
-          const wl = await navigator.wakeLock.request('screen');
-          setWakeLock(wl);
-          console.log('Wake Lock reacquired');
-        } catch (err) {
-          console.error('Error reacquiring wake lock:', err);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [conversionStatus, wakeLock]);
 
   useEffect(() => {
     if (selectedFile) {
@@ -117,7 +66,27 @@ export const useConversionLogic = (
     if (!selectedFile || !extractedText) return;
     setDetectingChapters(true);
     try {
-      await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
+      const conversionResult = await handleConversion(extractedText, selectedVoice, detectChapters, chapters, selectedFile.name);
+      
+      // Create notification if user is authenticated
+      if (user && conversionResult.id) {
+        const { error: notificationError } = await supabase
+          .from('conversion_notifications')
+          .insert({
+            conversion_id: conversionResult.id,
+            user_id: user.id,
+            email: user.email,
+          });
+
+        if (notificationError) {
+          console.error('Error creating notification:', notificationError);
+        } else {
+          toast({
+            title: "Notification Set",
+            description: "We'll email you when your conversion is ready!",
+          });
+        }
+      }
     } catch (error) {
       console.error('Conversion error:', error);
       toast({

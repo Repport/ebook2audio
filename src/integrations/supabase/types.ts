@@ -332,6 +332,7 @@ export type Database = {
           file_name: string | null
           file_size: number | null
           id: string
+          notify_on_complete: boolean | null
           progress: number | null
           status: string
           storage_path: string | null
@@ -346,6 +347,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
+          notify_on_complete?: boolean | null
           progress?: number | null
           status?: string
           storage_path?: string | null
@@ -360,6 +362,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
+          notify_on_complete?: boolean | null
           progress?: number | null
           status?: string
           storage_path?: string | null

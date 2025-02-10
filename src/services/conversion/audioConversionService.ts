@@ -42,15 +42,33 @@ export async function convertToAudio(
         throw uploadError;
       }
 
-      // Update the conversion record with the storage path
+      // Update the conversion record with the storage path and trigger notification
       const { error: updateError } = await supabase
         .from('text_conversions')
-        .update({ storage_path: storagePath })
+        .update({ 
+          storage_path: storagePath,
+          status: 'completed'
+        })
         .eq('id', conversionId);
 
       if (updateError) {
         console.error('Error updating storage path:', updateError);
         throw updateError;
+      }
+
+      // Trigger notification if user is authenticated
+      if (userId) {
+        try {
+          const { error: notificationError } = await supabase.functions.invoke('send-conversion-notification', {
+            body: { conversion_id: conversionId }
+          });
+
+          if (notificationError) {
+            console.error('Error sending notification:', notificationError);
+          }
+        } catch (error) {
+          console.error('Error invoking notification function:', error);
+        }
       }
 
       console.log('Conversion completed successfully');
