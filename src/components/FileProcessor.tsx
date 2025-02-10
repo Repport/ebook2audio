@@ -83,22 +83,23 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
   };
 
   const handleViewConversions = () => {
-    console.log('Attempting to navigate to /conversions');
-    try {
-      navigate('/conversions');
-      console.log('Navigation called');
-      toast({
-        title: "Navigating",
-        description: "Taking you to your conversions",
-      });
-    } catch (error) {
-      console.error('Navigation error:', error);
-      toast({
-        title: "Navigation Error",
-        description: "Failed to navigate to conversions page",
-        variant: "destructive",
-      });
+    console.log('Navigation attempt - Current location:', window.location.pathname);
+    console.log('User auth status:', !!user);
+    
+    if (!user) {
+      console.log('User not authenticated, redirecting to auth');
+      navigate('/auth', { state: { returnTo: '/conversions' }});
+      return;
     }
+
+    console.log('Attempting to navigate to /conversions');
+    navigate('/conversions');
+    console.log('Navigation completed');
+    
+    toast({
+      title: "Navigation",
+      description: "Taking you to your conversions",
+    });
   };
 
   // Calculate estimated time based on text length and chunk processing
@@ -176,3 +177,4 @@ const FileProcessor = ({ onFileSelect, selectedFile, extractedText, chapters }: 
 };
 
 export default FileProcessor;
+
