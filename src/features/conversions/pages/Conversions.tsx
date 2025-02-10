@@ -78,11 +78,11 @@ const Conversions = () => {
     refetchOnMount: false,
   });
 
-  const handleDownload = async (storage_path: string, fileName: string) => {
+  const handleDownload = async (storagePath: string, fileName: string) => {
     try {
       const { data, error } = await supabase.storage
         .from("audio_cache")
-        .download(storage_path);
+        .download(storagePath);
 
       if (error) throw error;
 

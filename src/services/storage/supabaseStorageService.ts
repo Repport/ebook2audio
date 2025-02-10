@@ -12,33 +12,36 @@ export const saveToSupabase = async (
 ) => {
   // Generate a unique conversion ID
   const conversionId = crypto.randomUUID();
+  const storagePath = `${conversionId}/final.m4a`;
   
   try {
     // Compress the audio file
     const { compressedData, compressionRatio } = await compressToZip(audio);
+    const compressedStoragePath = `${conversionId}/compressed.zip`;
     
     // Create the conversion record first
     const { error: dbError } = await supabase
       .from('text_conversions')
       .insert({
         id: conversionId,
-        file_name: fileName.replace('.mp3', '.m4a'), // Change extension to .m4a
+        file_name: fileName.replace('.mp3', '.m4a'),
         file_size: audio.byteLength,
         compressed_size: compressedData.length,
         compression_ratio: compressionRatio,
         duration: Math.round(duration),
         user_id: userId,
         text_hash: btoa(extractedText.slice(0, 100)).slice(0, 32),
-        status: 'processing'
+        status: 'processing',
+        storage_path: storagePath,
+        compressed_storage_path: compressedStoragePath
       });
 
     if (dbError) throw dbError;
 
     // Upload compressed file
-    const compressedPath = `${conversionId}/compressed.zip`;
     const { error: uploadError } = await supabase.storage
       .from('audio_cache')
-      .upload(compressedPath, compressedData, {
+      .upload(compressedStoragePath, compressedData, {
         contentType: 'application/zip',
         upsert: true
       });
@@ -80,9 +83,7 @@ export const saveToSupabase = async (
     const { error: updateError } = await supabase
       .from('text_conversions')
       .update({
-        status: 'completed',
-        storage_path: `${conversionId}/final.m4a`,
-        compressed_storage_path: compressedPath
+        status: 'completed'
       })
       .eq('id', conversionId);
 
