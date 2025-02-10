@@ -5,18 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ArrowLeft, Download, Trash2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatDistanceToNow } from "date-fns";
-import { Skeleton } from "@/components/ui/skeleton";
+import ConversionsTable from "@/components/conversions/ConversionsTable";
+import ConversionsPagination from "@/components/conversions/ConversionsPagination";
 
 interface Conversion {
   id: string;
@@ -60,7 +52,7 @@ const Conversions = () => {
           .from("text_conversions")
           .select("id, created_at, expires_at, file_name, file_size, storage_path")
           .eq('user_id', user.id)
-          .eq('status', 'completed')  // Only fetch completed conversions
+          .eq('status', 'completed')
           .order("created_at", { ascending: false })
           .range(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE - 1);
 
@@ -79,17 +71,11 @@ const Conversions = () => {
     },
     enabled: !!user?.id,
     staleTime: 300000, // Cache data for 5 minutes
-    cacheTime: 600000, // Keep cache for 10 minutes
+    gcTime: 600000, // Keep cache for 10 minutes (renamed from cacheTime)
     retry: 2,
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnMount: false, // Don't refetch on component mount if data exists
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
-
-  const formatFileSize = (bytes: number): string => {
-    if (!bytes) return "N/A";
-    const mb = bytes / (1024 * 1024);
-    return `${mb.toFixed(1)} MB`;
-  };
 
   const handleDownload = async (storage_path: string, fileName: string) => {
     try {
@@ -172,34 +158,7 @@ const Conversions = () => {
             Try Again
           </Button>
         </div>
-      ) : isLoading ? (
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>File Name</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Expires</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(3)].map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><Skeleton className="h-4 w-[200px]" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-[60px]" /></TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-8 w-[80px] ml-auto" />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : conversionsData?.conversions.length === 0 ? (
+      ) : conversionsData?.conversions.length === 0 && !isLoading ? (
         <div className="text-center py-8 space-y-4">
           <p className="text-gray-500">You haven't converted any files yet</p>
           <Button onClick={() => navigate("/")} className="gap-2">
@@ -208,79 +167,20 @@ const Conversions = () => {
         </div>
       ) : (
         <>
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>File Name</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {conversionsData?.conversions.map((conversion) => (
-                  <TableRow key={conversion.id}>
-                    <TableCell>{conversion.file_name}</TableCell>
-                    <TableCell>
-                      {formatDistanceToNow(new Date(conversion.created_at), {
-                        addSuffix: true,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {formatDistanceToNow(new Date(conversion.expires_at), {
-                        addSuffix: true,
-                      })}
-                    </TableCell>
-                    <TableCell>{formatFileSize(conversion.file_size)}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          handleDownload(
-                            conversion.storage_path,
-                            conversion.file_name
-                          )
-                        }
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(conversion.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={
-                !conversionsData?.conversions.length ||
-                conversionsData.conversions.length < ITEMS_PER_PAGE
-              }
-            >
-              Next
-            </Button>
-          </div>
+          <ConversionsTable
+            conversions={conversionsData?.conversions}
+            isLoading={isLoading}
+            onDownload={handleDownload}
+            onDelete={handleDelete}
+          />
+          <ConversionsPagination
+            page={page}
+            hasMore={
+              conversionsData?.conversions &&
+              conversionsData.conversions.length >= ITEMS_PER_PAGE
+            }
+            onPageChange={setPage}
+          />
         </>
       )}
     </div>
