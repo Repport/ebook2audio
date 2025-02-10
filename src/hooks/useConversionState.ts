@@ -48,16 +48,16 @@ export const useConversionState = () => {
           console.log('Received conversion update:', payload);
           const conversion = payload.new;
 
-          if (conversion && conversion.status) {
+          if (conversion?.status) {
             setConversionStatus(conversion.status as 'idle' | 'converting' | 'completed' | 'error');
           }
           if (conversion && typeof conversion.progress === 'number') {
             setProgress(Math.min(conversion.progress, 100));
           }
-          if (conversion && conversion.file_name) {
+          if (conversion?.file_name) {
             setCurrentFileName(conversion.file_name);
           }
-          if (conversion && conversion.storage_path) {
+          if (conversion?.storage_path) {
             try {
               const { data, error } = await supabase.storage
                 .from('audio_cache')
