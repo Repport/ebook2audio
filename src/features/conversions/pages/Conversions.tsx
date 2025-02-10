@@ -17,6 +17,7 @@ interface Conversion {
   file_name: string;
   file_size: number;
   storage_path: string;
+  compressed_storage_path: string | null;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -50,7 +51,7 @@ const Conversions = () => {
 
         const { data, error } = await supabase
           .from("text_conversions")
-          .select("id, created_at, expires_at, file_name, file_size, storage_path")
+          .select("id, created_at, expires_at, file_name, file_size, storage_path, compressed_storage_path")
           .eq('user_id', user.id)
           .eq('status', 'completed')
           .order("created_at", { ascending: false })
@@ -188,4 +189,3 @@ const Conversions = () => {
 };
 
 export default Conversions;
-

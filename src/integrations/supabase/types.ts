@@ -336,7 +336,6 @@ export type Database = {
       text_conversions: {
         Row: {
           audio_content: string | null
-          audio_url: string | null
           compressed_size: number | null
           compressed_storage_path: string | null
           compression_ratio: number | null
@@ -348,14 +347,13 @@ export type Database = {
           file_name: string | null
           file_size: number | null
           id: string
-          status: string | null
+          status: string
           storage_path: string | null
           text_hash: string
           user_id: string | null
         }
         Insert: {
           audio_content?: string | null
-          audio_url?: string | null
           compressed_size?: number | null
           compressed_storage_path?: string | null
           compression_ratio?: number | null
@@ -367,14 +365,13 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
-          status?: string | null
+          status?: string
           storage_path?: string | null
           text_hash: string
           user_id?: string | null
         }
         Update: {
           audio_content?: string | null
-          audio_url?: string | null
           compressed_size?: number | null
           compressed_storage_path?: string | null
           compression_ratio?: number | null
@@ -386,7 +383,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
-          status?: string | null
+          status?: string
           storage_path?: string | null
           text_hash?: string
           user_id?: string | null

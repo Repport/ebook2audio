@@ -8,7 +8,6 @@ export async function createConversion(
   userId: string | undefined
 ): Promise<string> {
   try {
-    // Set statement timeout before any database operations
     await supabase.rpc('set_statement_timeout');
 
     // Try to fetch existing conversion first
@@ -25,17 +24,14 @@ export async function createConversion(
       throw fetchError;
     }
 
-    // If we found an existing valid conversion, return its ID
     if (existingConversion) {
       console.log('Found existing valid conversion:', existingConversion.id);
       return existingConversion.id;
     }
 
-    // Generate a new UUID for the conversion
     const conversionId = crypto.randomUUID();
 
     try {
-      // Create a new conversion record
       const { data: newConversion, error: insertError } = await supabase
         .from('text_conversions')
         .insert({
@@ -46,7 +42,7 @@ export async function createConversion(
           status: 'pending',
           storage_path: null,
           compressed_storage_path: null,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         })
         .select('id, text_hash, status, storage_path, compressed_storage_path')
         .maybeSingle();
@@ -63,9 +59,7 @@ export async function createConversion(
       console.log('Created conversion record:', newConversion.id);
       return newConversion.id;
     } catch (insertError: any) {
-      // If there was an error during insert, try one more time to fetch an existing conversion
-      // This handles race conditions where another request might have created the conversion
-      if (insertError.code === '23505') { // Unique violation error code
+      if (insertError.code === '23505') {
         console.log('Duplicate detected, checking for existing conversion again');
         const { data: retryConversion, error: retryError } = await supabase
           .from('text_conversions')
@@ -95,7 +89,6 @@ export async function updateConversionStatus(
   errorMessage?: string
 ): Promise<void> {
   await retryOperation(async () => {
-    // Set statement timeout before update
     await supabase.rpc('set_statement_timeout');
 
     const { error } = await supabase
