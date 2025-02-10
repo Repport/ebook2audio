@@ -9,8 +9,15 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log('Edge function received request:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  });
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -19,7 +26,7 @@ serve(async (req) => {
     let body;
     try {
       body = await req.json();
-      console.log('Received request body:', JSON.stringify(body, null, 2));
+      console.log('Successfully parsed request body:', JSON.stringify(body, null, 2));
     } catch (e) {
       console.error('Failed to parse request body:', e);
       throw new Error('Invalid request body');
@@ -98,6 +105,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in convert-to-audio function:', error);
+    console.error('Error stack:', error.stack);
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Internal server error',

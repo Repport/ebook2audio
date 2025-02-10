@@ -78,6 +78,12 @@ export async function convertToAudio(
             console.log(`Processing chunk ${chunk.chunk_index + 1}/${totalChunks}`);
             await updateChunkStatus(chunk.id, 'processing');
 
+            console.log('Invoking convert-to-audio function with params:', {
+              chunkIndex: chunk.chunk_index,
+              contentLength: chunk.content.length,
+              voiceId
+            });
+
             const response = await supabase.functions.invoke<{ data: { audioContent: string } }>(
               'convert-to-audio',
               {
@@ -90,6 +96,8 @@ export async function convertToAudio(
                 }
               }
             );
+
+            console.log('Edge function response:', response);
 
             if (!response.data?.data?.audioContent) {
               console.error('Edge function response:', response);
@@ -120,6 +128,11 @@ export async function convertToAudio(
             return audioBuffer;
           } catch (error) {
             console.error(`Error processing chunk ${chunk.id}:`, error);
+            console.error('Full error details:', {
+              message: error.message,
+              stack: error.stack,
+              response: error.response
+            });
             await updateChunkStatus(chunk.id, 'failed', undefined, error.message);
             throw error;
           }
@@ -145,12 +158,14 @@ export async function convertToAudio(
 
     } catch (error) {
       console.error('Error during conversion:', error);
+      console.error('Full error stack:', error.stack);
       await updateConversionStatus(conversionId, 'failed', error.message);
       throw error;
     }
 
   } catch (error) {
     console.error('Fatal error in convertToAudio:', error);
+    console.error('Full error stack:', error.stack);
     throw error;
   }
 }
