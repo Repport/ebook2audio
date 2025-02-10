@@ -7,6 +7,12 @@ import { decodeBase64Audio, combineAudioChunks } from "./utils/audioUtils";
 const MAX_CONCURRENT_CHUNKS = 5; // Adjust based on testing
 const CHUNK_TIMEOUT = 30000; // 30 seconds timeout per chunk
 
+interface AudioResponse {
+  data: {
+    audioContent: string;
+  };
+}
+
 async function processChunkWithTimeout(
   chunk: string,
   chunkIndex: number,
@@ -18,7 +24,7 @@ async function processChunkWithTimeout(
   });
 
   try {
-    const processPromise = supabase.functions.invoke<{ data: { audioContent: string } }>(
+    const processPromise = supabase.functions.invoke<AudioResponse>(
       'convert-to-audio',
       {
         body: {
@@ -34,7 +40,7 @@ async function processChunkWithTimeout(
     const result = await Promise.race([processPromise, timeoutPromise]);
     if (!result?.data?.data?.audioContent) throw new Error('No audio content received');
     
-    return decodeBase64Audio(result.data.audioContent);
+    return decodeBase64Audio(result.data.data.audioContent);
   } catch (error) {
     if (error.message === 'Chunk processing timeout') {
       console.error(`Chunk ${chunkIndex} timed out after ${CHUNK_TIMEOUT}ms`);
