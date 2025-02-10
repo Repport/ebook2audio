@@ -13,11 +13,12 @@ async function processChunkWithTimeout(
   voiceId: string,
   fileName: string | undefined
 ): Promise<ArrayBuffer> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), CHUNK_TIMEOUT);
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Chunk processing timeout')), CHUNK_TIMEOUT);
+  });
 
   try {
-    const { data, error } = await supabase.functions.invoke<{ data: { audioContent: string } }>(
+    const processPromise = supabase.functions.invoke<{ data: { audioContent: string } }>(
       'convert-to-audio',
       {
         body: {
@@ -26,17 +27,19 @@ async function processChunkWithTimeout(
           fileName,
           isChunk: true,
           chunkIndex
-        },
-        signal: controller.signal
+        }
       }
     );
 
-    if (error) throw error;
-    if (!data?.data?.audioContent) throw new Error('No audio content received');
-
-    return decodeBase64Audio(data.data.audioContent);
-  } finally {
-    clearTimeout(timeoutId);
+    const result = await Promise.race([processPromise, timeoutPromise]);
+    if (!result?.data?.data?.audioContent) throw new Error('No audio content received');
+    
+    return decodeBase64Audio(result.data.audioContent);
+  } catch (error) {
+    if (error.message === 'Chunk processing timeout') {
+      console.error(`Chunk ${chunkIndex} timed out after ${CHUNK_TIMEOUT}ms`);
+    }
+    throw error;
   }
 }
 
