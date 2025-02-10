@@ -112,7 +112,9 @@ serve(async (req) => {
       { 
         headers: { 
           ...corsHeaders,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache'
         } 
       }
     )
@@ -131,7 +133,9 @@ serve(async (req) => {
         status: error.status || 500,
         headers: { 
           ...corsHeaders,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache'
         }
       }
     )
