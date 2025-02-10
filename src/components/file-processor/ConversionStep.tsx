@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import ConversionStatus from '@/components/ConversionStatus';
 import ConversionControls from '@/components/ConversionControls';
 import { Chapter } from '@/utils/textExtraction';
+import { useToast } from '@/hooks/use-toast';
 
 interface ConversionStepProps {
   conversionStatus: 'idle' | 'converting' | 'completed' | 'error';
@@ -39,6 +40,29 @@ const ConversionStep = ({
   audioDuration,
   isAuthenticated
 }: ConversionStepProps) => {
+  const { toast } = useToast();
+  
+  // Add stuck state detection
+  useEffect(() => {
+    let stuckTimer: number;
+    
+    if (conversionStatus === 'converting' && progress === 100) {
+      stuckTimer = window.setTimeout(() => {
+        toast({
+          title: "Conversion taking longer than expected",
+          description: "Please try refreshing the page and starting over",
+          variant: "destructive",
+        });
+      }, 30000); // Show message after 30 seconds of being stuck
+    }
+    
+    return () => {
+      if (stuckTimer) {
+        clearTimeout(stuckTimer);
+      }
+    };
+  }, [conversionStatus, progress, toast]);
+
   return (
     <>
       <div className="flex justify-center">
