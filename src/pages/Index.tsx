@@ -89,7 +89,7 @@ const Index = () => {
                         {currentStep > step.id ? (
                           <Check className="w-5 h-5" />
                         ) : (
-                          <step.icon className="w-5 h-5" />
+                          <step.icon className="w-5 h-5 m-auto" />
                         )}
                       </div>
                       <div className="mt-2 text-center">
