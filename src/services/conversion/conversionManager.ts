@@ -84,7 +84,7 @@ export async function updateConversionStatus(
       .from('text_conversions')
       .select('status, error_message')
       .eq('id', conversionId)
-      .single();
+      .maybeSingle();
 
     if (fetchError) {
       console.error('Error fetching conversion status:', {
@@ -96,6 +96,7 @@ export async function updateConversionStatus(
 
     // Check if an update is actually needed
     const needsUpdate = 
+      !existingConversion ||
       existingConversion.status !== status ||
       (errorMessage && existingConversion.error_message !== errorMessage) ||
       typeof progress === 'number';
@@ -112,11 +113,11 @@ export async function updateConversionStatus(
       progress?: number;
     } = {};
 
-    if (existingConversion.status !== status) {
+    if (!existingConversion || existingConversion.status !== status) {
       updateData.status = status;
     }
 
-    if (errorMessage && existingConversion.error_message !== errorMessage) {
+    if (errorMessage && (!existingConversion || existingConversion.error_message !== errorMessage)) {
       updateData.error_message = errorMessage;
     }
 
