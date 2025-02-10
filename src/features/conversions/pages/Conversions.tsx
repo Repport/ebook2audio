@@ -78,13 +78,26 @@ const Conversions = () => {
     refetchOnMount: false,
   });
 
-  const handleDownload = async (storagePath: string, fileName: string) => {
+  const handleDownload = async (storagePath: string | null, fileName: string) => {
+    if (!storagePath) {
+      toast({
+        title: "Download failed",
+        description: "Storage path is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      console.log('Downloading from storage path:', storagePath);
       const { data, error } = await supabase.storage
         .from("audio_cache")
         .download(storagePath);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Download error:", error);
+        throw error;
+      }
 
       const url = URL.createObjectURL(data);
       const link = document.createElement("a");
@@ -103,7 +116,7 @@ const Conversions = () => {
       console.error("Download error:", error);
       toast({
         title: "Download failed",
-        description: "There was an error downloading your file",
+        description: error instanceof Error ? error.message : "There was an error downloading your file",
         variant: "destructive",
       });
     }
@@ -128,7 +141,7 @@ const Conversions = () => {
       console.error("Delete error:", error);
       toast({
         title: "Delete failed",
-        description: "There was an error deleting the conversion",
+        description: error instanceof Error ? error.message : "There was an error deleting the conversion",
         variant: "destructive",
       });
     }

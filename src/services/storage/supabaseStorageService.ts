@@ -36,9 +36,13 @@ export const saveToSupabase = async (
         compressed_storage_path: compressedStoragePath
       });
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('Database error:', dbError);
+      throw new Error(`Failed to create conversion record: ${dbError.message}`);
+    }
 
     // Upload compressed file
+    console.log('Uploading compressed file to:', compressedStoragePath);
     const { error: uploadError } = await supabase.storage
       .from('audio_cache')
       .upload(compressedStoragePath, compressedData, {
@@ -46,7 +50,10 @@ export const saveToSupabase = async (
         upsert: true
       });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      throw new Error(`Failed to upload compressed file: ${uploadError.message}`);
+    }
 
     // Split audio into chunks and upload them
     const chunks = await splitAudioIntoChunks(audio);
@@ -54,7 +61,6 @@ export const saveToSupabase = async (
 
     // Upload chunks in parallel with a concurrency limit
     const MAX_CONCURRENT_UPLOADS = 3;
-    const chunkGroups = [];
     for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_UPLOADS) {
       const group = chunks.slice(i, i + MAX_CONCURRENT_UPLOADS);
       const uploadPromises = group.map(chunk => uploadAudioChunk(conversionId, chunk));
@@ -79,6 +85,20 @@ export const saveToSupabase = async (
       throw new Error('Failed to combine audio chunks');
     }
 
+    // Upload final audio file
+    console.log('Uploading final audio to:', storagePath);
+    const { error: finalUploadError } = await supabase.storage
+      .from('audio_cache')
+      .upload(storagePath, finalAudio, {
+        contentType: 'audio/mp4',
+        upsert: true
+      });
+
+    if (finalUploadError) {
+      console.error('Final upload error:', finalUploadError);
+      throw new Error(`Failed to upload final audio: ${finalUploadError.message}`);
+    }
+
     // Update conversion record as completed
     const { error: updateError } = await supabase
       .from('text_conversions')
@@ -87,7 +107,10 @@ export const saveToSupabase = async (
       })
       .eq('id', conversionId);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('Update error:', updateError);
+      throw new Error(`Failed to update conversion status: ${updateError.message}`);
+    }
 
     return conversionId;
   } catch (error) {
