@@ -390,6 +390,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_expired: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       set_statement_timeout: {
         Args: Record<PropertyKey, never>
         Returns: undefined
