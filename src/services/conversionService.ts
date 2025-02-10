@@ -29,7 +29,7 @@ export const convertToAudio = async (
   const { data: { user } } = await supabase.auth.getUser();
   const userId = user?.id;
 
-  // Check cache first
+  // First check if we have a valid cache entry
   const { storagePath, error: cacheError } = await checkCache(textHash);
   if (cacheError) throw cacheError;
 
@@ -49,9 +49,39 @@ export const convertToAudio = async (
   let conversionId: string | null = null;
 
   try {
-    // Create or get existing conversion record
-    conversionId = await createConversion(textHash, fileName, userId);
-    console.log('Conversion record ID:', conversionId);
+    // Set statement timeout before any database operations
+    await supabase.rpc('set_statement_timeout');
+
+    // Try to fetch existing conversion first
+    const { data: existingConversion, error: fetchError } = await supabase
+      .from('text_conversions')
+      .select()
+      .eq('text_hash', textHash)
+      .gt('expires_at', new Date().toISOString())
+      .eq('status', 'completed')
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error fetching existing conversion:', fetchError);
+      throw fetchError;
+    }
+
+    // If we found an existing valid conversion, use it
+    if (existingConversion) {
+      console.log('Found existing valid conversion:', existingConversion.id);
+      conversionId = existingConversion.id;
+
+      if (existingConversion.storage_path) {
+        const { data: audioData, error: fetchError } = await fetchFromCache(existingConversion.storage_path);
+        if (fetchError) throw fetchError;
+        if (!audioData) throw new Error('Failed to fetch audio data from existing conversion');
+        return audioData;
+      }
+    } else {
+      // Create new conversion record if no existing one found
+      conversionId = await createConversion(textHash, fileName, userId);
+      console.log('Created new conversion record:', conversionId);
+    }
 
     // Update status to processing
     await updateConversionStatus(conversionId, 'processing');
