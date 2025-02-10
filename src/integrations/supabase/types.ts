@@ -89,6 +89,44 @@ export type Database = {
         }
         Relationships: []
       }
+      conversion_notifications: {
+        Row: {
+          conversion_id: string
+          created_at: string
+          email: string
+          id: string
+          sent_at: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          conversion_id: string
+          created_at?: string
+          email: string
+          id?: string
+          sent_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          conversion_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          sent_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_notifications_conversion_id_fkey"
+            columns: ["conversion_id"]
+            isOneToOne: false
+            referencedRelation: "text_conversions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_change_history: {
         Row: {
           changed_at: string | null
