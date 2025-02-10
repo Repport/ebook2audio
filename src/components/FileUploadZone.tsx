@@ -62,13 +62,6 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     setIsProcessing(true);
 
     try {
-      const fileType = fileExtension === 'pdf' ? 'PDF' : 'EPUB';
-      
-      toast({
-        title: "Processing File",
-        description: `Extracting text from ${fileType} file: ${file.name}...`,
-      });
-      
       const result = await processFile(file);
       
       if (!result.text.trim()) {
@@ -81,28 +74,18 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
         language: result.metadata?.language
       });
       
-      const languageDisplay = result.metadata?.language 
-        ? result.metadata.language.charAt(0).toUpperCase() + result.metadata.language.slice(1)
-        : 'Unknown';
-      
-      toast({
-        title: "File Processed",
-        description: `${fileType} processed (${languageDisplay}). ${result.metadata?.totalCharacters} characters extracted.`,
-      });
     } catch (error) {
       console.error('Error processing file:', error);
-      
-      if (!error.message?.toLowerCase().includes('language')) {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to process file. Please try a different file.",
-          variant: "destructive",
-        });
-      }
       
       if (error.message === 'No text could be extracted from the file') {
         setSelectedFile(null);
       }
+      
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process file. Please try a different file.",
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -111,10 +94,6 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   const handleRemoveFile = () => {
     setSelectedFile(null);
     onFileSelect(null);
-    toast({
-      title: "File removed",
-      description: "You can now upload a new file",
-    });
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

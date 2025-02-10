@@ -17,13 +17,12 @@ export const useAudioConversion = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Load stored state on mount
   useEffect(() => {
     const storedState = loadConversionState();
     if (storedState) {
       console.log('Loaded stored conversion state:', storedState);
       setConversionStatus(storedState.status);
-      setProgress(Math.min(storedState.progress, 100)); // Ensure progress never exceeds 100%
+      setProgress(Math.min(storedState.progress, 100));
       setCurrentFileName(storedState.fileName || null);
       if (storedState.audioData) {
         try {
@@ -38,7 +37,6 @@ export const useAudioConversion = () => {
     }
   }, []);
 
-  // Save state changes to storage
   useEffect(() => {
     if (conversionStatus === 'idle') {
       sessionStorage.removeItem('conversionState');
@@ -83,11 +81,10 @@ export const useAudioConversion = () => {
     
     try {
       console.log('Starting conversion for file:', fileName);
-      const WORDS_PER_MINUTE = 150;
       const chaptersWithTimestamps = chapters.map(chapter => ({
         ...chapter,
         timestamp: Math.floor(
-          extractedText.substring(0, chapter.startIndex).split(/\s+/).length / WORDS_PER_MINUTE
+          extractedText.substring(0, chapter.startIndex).split(/\s+/).length / 150
         )
       }));
 
@@ -123,27 +120,13 @@ export const useAudioConversion = () => {
       setConversionStatus('completed');
       setProgress(100);
 
-      const chaptersList = chaptersWithTimestamps
-        .map(ch => `${ch.title} (starts at ${ch.timestamp} minutes)`)
-        .join('\n');
-
-      toast({
-        title: "Conversion completed",
-        description: `Your MP3 file is ready (${formatFileSize(audio.byteLength)}, ${formatDuration(duration)})${
-          detectChapters && chapters.length ? `\n\nChapters:\n${chaptersList}` : ''
-        }`,
-      });
     } catch (error) {
       console.error('Conversion error:', error);
       setConversionStatus('error');
       setProgress(0);
       setCurrentFileName(null);
       setAudioData(null);
-      toast({
-        title: "Conversion failed",
-        description: (error as Error).message || "An error occurred during conversion",
-        variant: "destructive",
-      });
+      throw error;
     }
   };
 
@@ -163,11 +146,6 @@ export const useAudioConversion = () => {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Download started",
-      description: `Your MP3 file (${formatFileSize(audioData.byteLength)}, ${formatDuration(audioDuration)}) will download shortly`,
-    });
   };
 
   return {

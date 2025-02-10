@@ -6,7 +6,6 @@ import FileProcessor from '@/components/FileProcessor';
 import { Card } from '@/components/ui/card';
 import { Check, FileText, Settings, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 import { Chapter } from '@/utils/textExtraction';
 import { LanguageProvider } from '@/hooks/useLanguage';
 
@@ -36,7 +35,6 @@ const Index = () => {
   const [extractedText, setExtractedText] = useState<string>('');
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
-  const { toast } = useToast();
 
   const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
     if (!fileInfo) {
