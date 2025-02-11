@@ -7,7 +7,7 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { User } from '@supabase/supabase-js';
 import { Chapter } from '@/utils/textExtraction';
 import { supabase } from '@/integrations/supabase/client';
-import { checkCache, fetchFromCache } from '@/services/conversion/cacheService';
+import { checkExistingConversion } from '@/services/conversion/cacheCheckService';
 import { generateHash } from '@/services/conversion/utils';
 
 interface UseConversionActionsProps {
@@ -63,47 +63,41 @@ export const useConversionActions = ({
     setCurrentFileName(fileName);
     
     try {
-      console.log('Starting conversion for file:', fileName);
+      console.log('Starting conversion process for file:', fileName);
       
-      // Generate hash and check cache first
+      // Generate hash for cache checking
       const textHash = await generateHash(extractedText, selectedVoice);
-      const { storagePath, error: cacheError } = await checkCache(textHash);
+      console.log('Generated text hash:', textHash);
       
-      if (storagePath && !cacheError) {
-        console.log('Found cached conversion:', storagePath);
+      // Check for existing conversion
+      const existingConversion = await checkExistingConversion(textHash);
+      
+      if (existingConversion) {
+        console.log('Found existing conversion in cache');
+        const { conversion, audioBuffer } = existingConversion;
         
-        // Fetch audio from cache
-        const { data: cachedAudio, error: fetchError } = await fetchFromCache(storagePath);
+        setConversionId(conversion.id);
+        setAudioData(audioBuffer);
         
-        if (cachedAudio && !fetchError) {
-          console.log('Successfully retrieved cached audio');
-          
-          // Get the existing conversion ID
-          const { data: conversion } = await supabase
-            .from('text_conversions')
-            .select('id')
-            .eq('text_hash', textHash)
-            .eq('status', 'completed')
-            .single();
-          
-          if (conversion) {
-            setConversionId(conversion.id);
-            setAudioData(cachedAudio);
-            
-            const duration = await calculateAudioDuration(cachedAudio);
-            setAudioDuration(duration);
-            
-            setConversionStatus('completed');
-            setProgress(100);
-            
-            return { audio: cachedAudio, id: conversion.id };
-          }
-        }
+        const duration = await calculateAudioDuration(audioBuffer);
+        setAudioDuration(duration);
+        
+        setConversionStatus('completed');
+        setProgress(100);
+        
+        toast({
+          title: "Using cached version",
+          description: "This document has been converted before. Using the cached version to save time.",
+        });
+        
+        return { 
+          audio: audioBuffer, 
+          id: conversion.id 
+        };
       }
 
-      // If not in cache or cache fetch failed, proceed with conversion
       console.log('No cached version found, starting new conversion');
-      console.log('Chapters to process:', chapters);
+      console.log('Processing chapters:', chapters);
 
       const chaptersWithTimestamps = chapters.map(chapter => ({
         ...chapter,
@@ -115,7 +109,7 @@ export const useConversionActions = ({
       const { audio, id } = await convertToAudio(
         extractedText, 
         selectedVoice, 
-        detectChapters ? chaptersWithTimestamps : undefined, 
+        detectChapters ? chaptersWithTimestamps : undefined,
         fileName
       );
       
@@ -123,7 +117,7 @@ export const useConversionActions = ({
         throw new Error('No audio data received from conversion');
       }
 
-      // Store chapters in the database
+      // Store chapters in database if detected
       if (detectChapters && chapters.length > 0) {
         const chapterInserts = chaptersWithTimestamps.map(chapter => ({
           conversion_id: id,
