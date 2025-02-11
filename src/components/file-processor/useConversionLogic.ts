@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -8,6 +7,7 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { generateHash } from '@/services/conversion/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchFromCache } from '@/services/conversion/cacheService';
+import { calculateEstimatedTime } from '@/services/conversion/estimationService';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -103,10 +103,17 @@ export const useConversionLogic = (
     setShowTerms(true);
   };
 
+  const calculateEstimatedSeconds = () => {
+    if (!extractedText) return 0;
+    return calculateEstimatedTime(extractedText);
+  };
+
   const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText) return;
     
     setDetectingChapters(true);
+    const startTime = performance.now();
+    
     try {
       // Generate hash and check for existing conversion
       const textHash = await generateHash(extractedText, options.selectedVoice);
@@ -127,11 +134,20 @@ export const useConversionLogic = (
         return;
       }
 
-      await handleConversion(extractedText, options.selectedVoice, detectChapters, chapters, selectedFile.name);
+      const result = await handleConversion(extractedText, options.selectedVoice, detectChapters, chapters, selectedFile.name);
+      
+      // Medir el tiempo de ejecución
+      const endTime = performance.now();
+      const executionTime = endTime - startTime;
+      
+      // Actualizar métricas de rendimiento solo si la conversión fue exitosa
+      if (result && extractedText) {
+        updatePerformanceMetrics(extractedText.length, executionTime);
+      }
+      
     } catch (error: any) {
       console.error('Conversion error:', error);
       
-      // Check if it's an edge function error
       if (error.message?.includes('Failed to fetch') || error.error_type === 'http_server_error') {
         toast({
           title: "Connection Error",
@@ -162,21 +178,6 @@ export const useConversionLogic = (
 
   const handleViewConversions = () => {
     navigate('/conversions');
-  };
-
-  const calculateEstimatedSeconds = () => {
-    if (!extractedText) return 0;
-    
-    const wordsCount = extractedText.split(/\s+/).length;
-    const avgWordsPerSecond = 2.5; // Adjusted based on actual conversion rates
-    const chunkSize = 5000;
-    const numberOfChunks = Math.ceil(extractedText.length / chunkSize);
-    const chunkProcessingOverhead = 2; // 2 seconds per chunk overhead
-    
-    const baseTime = Math.ceil(wordsCount / avgWordsPerSecond);
-    const totalOverhead = numberOfChunks * chunkProcessingOverhead;
-    
-    return baseTime + totalOverhead + 5; // Add 5 seconds for initial setup
   };
 
   return {

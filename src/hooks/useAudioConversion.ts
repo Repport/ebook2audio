@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { convertToAudio } from '@/services/conversion';
@@ -9,6 +8,7 @@ import { calculateAudioDuration } from '@/services/audio/audioUtils';
 import { saveToSupabase } from '@/services/storage/supabaseStorageService';
 import { useConversionState } from './useConversionState';
 import { useConversionActions } from './useConversionActions';
+import { updatePerformanceMetrics } from '@/services/conversion/estimationService';
 
 export const useAudioConversion = () => {
   const { user } = useAuth();
