@@ -1,14 +1,12 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { Chapter } from '@/utils/textExtraction';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { generateHash } from '@/services/conversion/utils';
-import { supabase } from '@/integrations/supabase/client';
-import { fetchFromCache } from '@/services/conversion/cacheService';
+import { checkExistingConversion } from '@/services/conversion/cacheCheckService';
 import { calculateEstimatedTime, updatePerformanceMetrics } from '@/services/conversion/estimationService';
+import { useConversionState } from '@/hooks/useConversionState';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -21,12 +19,6 @@ export const useConversionLogic = (
   chapters: Chapter[],
   onStepComplete?: () => void
 ) => {
-  const [detectChapters, setDetectChapters] = useState(true);
-  const [detectingChapters, setDetectingChapters] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
-
   const {
     conversionStatus,
     progress,
@@ -43,6 +35,18 @@ export const useConversionLogic = (
     setCurrentFileName
   } = useAudioConversion();
 
+  const {
+    detectChapters,
+    setDetectChapters,
+    detectingChapters,
+    setDetectingChapters,
+    showTerms,
+    setShowTerms,
+    initiateConversion,
+    handleViewConversions,
+    toast
+  } = useConversionState();
+
   useEffect(() => {
     if (selectedFile) {
       resetConversion();
@@ -56,59 +60,6 @@ export const useConversionLogic = (
     }
   }, [conversionStatus, onStepComplete]);
 
-  const checkExistingConversion = async (textHash: string) => {
-    console.log('Checking for existing conversion with hash:', textHash);
-    
-    const { data: existingConversion, error } = await supabase
-      .from('text_conversions')
-      .select('*')
-      .eq('text_hash', textHash)
-      .eq('status', 'completed')
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error checking existing conversion:', error);
-      return null;
-    }
-
-    if (existingConversion?.storage_path) {
-      console.log('Found existing conversion:', existingConversion);
-      const { data: audioBuffer, error: fetchError } = await fetchFromCache(existingConversion.storage_path);
-      
-      if (fetchError) {
-        console.error('Error fetching cached audio:', fetchError);
-        return null;
-      }
-
-      return {
-        conversion: existingConversion,
-        audioBuffer
-      };
-    }
-
-    return null;
-  };
-
-  const initiateConversion = () => {
-    if (!selectedFile || !extractedText) {
-      toast({
-        title: "Error",
-        description: "Please select a file first",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    resetConversion();
-    clearConversionStorage();
-    setShowTerms(true);
-  };
-
-  const calculateEstimatedSeconds = () => {
-    if (!extractedText) return 0;
-    return calculateEstimatedTime(extractedText);
-  };
-
   const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText) return;
     
@@ -116,7 +67,6 @@ export const useConversionLogic = (
     const startTime = performance.now();
     
     try {
-      // Generate hash and check for existing conversion
       const textHash = await generateHash(extractedText, options.selectedVoice);
       const existingConversion = await checkExistingConversion(textHash);
 
@@ -137,11 +87,9 @@ export const useConversionLogic = (
 
       const result = await handleConversion(extractedText, options.selectedVoice, detectChapters, chapters, selectedFile.name);
       
-      // Medir el tiempo de ejecución
       const endTime = performance.now();
       const executionTime = endTime - startTime;
       
-      // Actualizar métricas de rendimiento solo si la conversión fue exitosa
       if (result && extractedText) {
         updatePerformanceMetrics(extractedText.length, executionTime);
       }
@@ -171,14 +119,23 @@ export const useConversionLogic = (
     }
   };
 
+  const startConversion = () => {
+    if (initiateConversion(selectedFile, extractedText)) {
+      resetConversion();
+      clearConversionStorage();
+      setShowTerms(true);
+    }
+  };
+
   const handleDownloadClick = () => {
     if (selectedFile) {
       handleDownload(selectedFile.name);
     }
   };
 
-  const handleViewConversions = () => {
-    navigate('/conversions');
+  const calculateEstimatedSeconds = () => {
+    if (!extractedText) return 0;
+    return calculateEstimatedTime(extractedText);
   };
 
   return {
@@ -191,7 +148,7 @@ export const useConversionLogic = (
     progress,
     audioData,
     audioDuration,
-    initiateConversion,
+    initiateConversion: startConversion,
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
@@ -201,4 +158,3 @@ export const useConversionLogic = (
     setConversionStatus
   };
 };
-
