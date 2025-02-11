@@ -12,14 +12,12 @@ export const useConversionProgress = (
   const [smoothProgress, setSmoothProgress] = useState(progress);
   const [showEstimate, setShowEstimate] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [adjustedEstimate, setAdjustedEstimate] = useState(estimatedSeconds);
 
-  // Update progress both from props and real-time updates
+  // Handle progress updates from both props and real-time
   useEffect(() => {
-    setSmoothProgress(prev => {
-      // Only update if new progress is higher
-      return progress > prev ? progress : prev;
-    });
+    // Always update progress to ensure initial value is set
+    setSmoothProgress(progress);
+    console.log('Progress updated:', progress);
   }, [progress]);
 
   // Real-time updates subscription
@@ -40,11 +38,12 @@ export const useConversionProgress = (
             filter: `id=eq.${conversionId}`,
           },
           (payload: any) => {
-            console.log('Received real-time progress update:', payload);
+            console.log('Received real-time update:', payload);
             const newProgress = payload.new.progress;
             
             if (typeof newProgress === 'number') {
-              setSmoothProgress(prev => newProgress > prev ? newProgress : prev);
+              setSmoothProgress(newProgress);
+              console.log('Updated progress:', newProgress);
             }
           }
         )
@@ -61,35 +60,22 @@ export const useConversionProgress = (
     };
   }, [conversionId, status]);
 
-  // Track elapsed time and adjust estimation
+  // Track elapsed time and handle estimation
   useEffect(() => {
     let intervalId: number;
     
     if (status === 'converting' || status === 'processing') {
       intervalId = window.setInterval(() => {
-        setElapsedSeconds(prev => {
-          const newElapsed = prev + 1;
-          
-          // Start showing estimate after we have some progress
-          if (smoothProgress > 0) {
-            setShowEstimate(true);
-            
-            // Calculate new estimate based on current progress rate
-            const progressRate = smoothProgress / newElapsed;
-            if (progressRate > 0) {
-              const remainingProgress = 100 - smoothProgress;
-              const newEstimate = Math.ceil(newElapsed + (remainingProgress / progressRate));
-              setAdjustedEstimate(newEstimate);
-            }
-          }
-          
-          return newElapsed;
-        });
+        setElapsedSeconds(prev => prev + 1);
       }, 1000);
+
+      // Show estimate once we have any progress
+      if (progress > 0) {
+        setShowEstimate(true);
+      }
     } else {
       setElapsedSeconds(0);
       setShowEstimate(false);
-      setAdjustedEstimate(estimatedSeconds);
     }
 
     return () => {
@@ -97,18 +83,22 @@ export const useConversionProgress = (
         clearInterval(intervalId);
       }
     };
-  }, [status, smoothProgress, estimatedSeconds]);
+  }, [status, progress]);
 
   const getEstimatedTimeRemaining = () => {
-    if (!showEstimate || smoothProgress >= 100 || (status !== 'converting' && status !== 'processing')) {
+    if (!showEstimate || smoothProgress >= 100) {
       return null;
     }
 
-    const progressRate = smoothProgress / Math.max(elapsedSeconds, 1);
-    if (progressRate <= 0 || !isFinite(progressRate)) {
-      return null;
+    if (smoothProgress <= 0 || elapsedSeconds <= 0) {
+      return formatTimeRemaining(estimatedSeconds);
     }
-    
+
+    const progressRate = smoothProgress / elapsedSeconds;
+    if (progressRate <= 0) {
+      return formatTimeRemaining(estimatedSeconds);
+    }
+
     const remainingProgress = 100 - smoothProgress;
     const estimatedRemainingSeconds = Math.ceil(remainingProgress / progressRate);
     
