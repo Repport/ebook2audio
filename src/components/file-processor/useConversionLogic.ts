@@ -38,7 +38,8 @@ export const useConversionLogic = (
     setProgress,
     setConversionStatus,
     setAudioData,
-    setAudioDuration
+    setAudioDuration,
+    setCurrentFileName
   } = useAudioConversion();
 
   useEffect(() => {
@@ -117,6 +118,7 @@ export const useConversionLogic = (
         setConversionStatus('completed');
         setAudioData(existingConversion.audioBuffer);
         setAudioDuration(existingConversion.conversion.duration || 0);
+        setCurrentFileName(selectedFile.name);
         
         toast({
           title: "Using cached version",
@@ -126,13 +128,24 @@ export const useConversionLogic = (
       }
 
       await handleConversion(extractedText, options.selectedVoice, detectChapters, chapters, selectedFile.name);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Conversion error:', error);
-      toast({
-        title: "Conversion failed",
-        description: error.message || "An error occurred during conversion",
-        variant: "destructive",
-      });
+      
+      // Check if it's an edge function error
+      if (error.message?.includes('Failed to fetch') || error.error_type === 'http_server_error') {
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to the conversion service. Please try again in a few moments.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Conversion failed",
+          description: error.message || "An error occurred during conversion",
+          variant: "destructive",
+        });
+      }
+      
       resetConversion();
       clearConversionStorage();
     } finally {
