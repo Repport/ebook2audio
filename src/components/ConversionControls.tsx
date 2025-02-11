@@ -51,9 +51,11 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
       
       {status === 'completed' && (
         <div className="w-full max-w-xs space-y-4">
-          {fileSize && duration && (
+          {(fileSize || duration) && (
             <div className="text-sm text-muted-foreground text-center">
-              Size: {formatFileSize(fileSize)} • Duration: {formatDuration(duration)}
+              {fileSize ? `Size: ${formatFileSize(fileSize)}` : ''}
+              {fileSize && duration ? ' • ' : ''}
+              {duration ? `Duration: ${formatDuration(duration)}` : ''}
             </div>
           )}
           <Button 
@@ -70,3 +72,4 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
 };
 
 export default ConversionControls;
+

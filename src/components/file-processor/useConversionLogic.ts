@@ -77,11 +77,6 @@ export const useConversionLogic = (
         setAudioData(existingConversion.audioBuffer);
         setAudioDuration(existingConversion.conversion.duration || 0);
         setCurrentFileName(selectedFile.name);
-        
-        toast({
-          title: "Using cached version",
-          description: "This document has been converted before. Using the cached version to save time.",
-        });
         return;
       }
 
@@ -158,3 +153,4 @@ export const useConversionLogic = (
     setConversionStatus
   };
 };
+
