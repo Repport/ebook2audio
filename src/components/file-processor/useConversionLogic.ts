@@ -7,6 +7,7 @@ import { Chapter } from '@/utils/textExtraction';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { generateHash } from '@/services/conversion/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchFromCache } from '@/services/conversion/cacheService';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -35,7 +36,9 @@ export const useConversionLogic = (
     resetConversion,
     conversionId,
     setProgress,
-    setConversionStatus
+    setConversionStatus,
+    setAudioData,
+    setAudioDuration
   } = useAudioConversion();
 
   useEffect(() => {
@@ -52,6 +55,8 @@ export const useConversionLogic = (
   }, [conversionStatus, onStepComplete]);
 
   const checkExistingConversion = async (textHash: string) => {
+    console.log('Checking for existing conversion with hash:', textHash);
+    
     const { data: existingConversion, error } = await supabase
       .from('text_conversions')
       .select('*')
@@ -64,7 +69,22 @@ export const useConversionLogic = (
       return null;
     }
 
-    return existingConversion;
+    if (existingConversion?.storage_path) {
+      console.log('Found existing conversion:', existingConversion);
+      const { data: audioBuffer, error: fetchError } = await fetchFromCache(existingConversion.storage_path);
+      
+      if (fetchError) {
+        console.error('Error fetching cached audio:', fetchError);
+        return null;
+      }
+
+      return {
+        conversion: existingConversion,
+        audioBuffer
+      };
+    }
+
+    return null;
   };
 
   const initiateConversion = () => {
@@ -92,12 +112,16 @@ export const useConversionLogic = (
       const existingConversion = await checkExistingConversion(textHash);
 
       if (existingConversion) {
+        console.log('Using cached version');
+        setProgress(100);
+        setConversionStatus('completed');
+        setAudioData(existingConversion.audioBuffer);
+        setAudioDuration(existingConversion.conversion.duration || 0);
+        
         toast({
           title: "Using cached version",
           description: "This document has been converted before. Using the cached version to save time.",
         });
-        setProgress(100);
-        setConversionStatus('completed');
         return;
       }
 
