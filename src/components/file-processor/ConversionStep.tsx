@@ -15,6 +15,7 @@ interface ConversionStepProps {
   onConvert: () => void;
   onDownloadClick: () => void;
   onViewConversions: () => void;
+  conversionId?: string | null;
 }
 
 const ConversionStep = ({
@@ -26,7 +27,8 @@ const ConversionStep = ({
   onDownloadClick,
   onViewConversions,
   audioData,
-  audioDuration
+  audioDuration,
+  conversionId
 }: ConversionStepProps) => {
   return (
     <Card className="p-6 space-y-6">
@@ -39,6 +41,7 @@ const ConversionStep = ({
           detectingChapters={false}
           chapters={[]}
           estimatedSeconds={estimatedSeconds}
+          conversionId={conversionId}
         />
       </div>
       

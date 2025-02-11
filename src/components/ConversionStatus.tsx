@@ -15,6 +15,7 @@ interface ConversionStatusProps {
   detectingChapters?: boolean;
   chapters?: Chapter[];
   estimatedSeconds?: number;
+  conversionId?: string | null;
 }
 
 const ConversionStatus = ({ 
@@ -24,12 +25,14 @@ const ConversionStatus = ({
   chaptersFound = 0,
   detectingChapters = false,
   chapters = [],
-  estimatedSeconds = 0
+  estimatedSeconds = 0,
+  conversionId
 }: ConversionStatusProps) => {
   const { smoothProgress, showEstimate, timeRemaining } = useConversionProgress(
     status,
     progress,
-    estimatedSeconds
+    estimatedSeconds,
+    conversionId
   );
 
   const displayStatus = status === 'processing' ? 'converting' : status;

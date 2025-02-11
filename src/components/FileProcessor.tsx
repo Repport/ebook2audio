@@ -49,6 +49,7 @@ const FileProcessor = ({
     handleDownloadClick,
     handleViewConversions,
     calculateEstimatedSeconds,
+    conversionId
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
   const estimatedSeconds = calculateEstimatedSeconds();
@@ -97,6 +98,7 @@ const FileProcessor = ({
             onConvert={handleConversionStart}
             onDownloadClick={handleDownloadClick}
             onViewConversions={handleViewConversions}
+            conversionId={conversionId}
           />
         </div>
       )}
