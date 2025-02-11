@@ -63,9 +63,9 @@ export const useConversionLogic = (
       .select('*')
       .eq('text_hash', textHash)
       .eq('status', 'completed')
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is the "no rows returned" error
+    if (error) {
       console.error('Error checking existing conversion:', error);
       return null;
     }
