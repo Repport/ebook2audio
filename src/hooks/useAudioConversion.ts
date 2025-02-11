@@ -80,6 +80,9 @@ export const useAudioConversion = () => {
     handleDownload,
     resetConversion,
     setProgress,
-    setConversionStatus
+    setConversionStatus,
+    setAudioData,
+    setAudioDuration,
+    setCurrentFileName
   };
 };
