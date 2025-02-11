@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { Chapter } from '@/utils/textExtraction';
@@ -130,7 +129,10 @@ export const useConversionLogic = (
 
   const calculateEstimatedSeconds = () => {
     if (!extractedText) return 0;
-    return calculateEstimatedTime(extractedText);
+    
+    // Check if we have a cached version by looking at conversionStatus
+    const isCached = conversionStatus === 'completed';
+    return calculateEstimatedTime(extractedText, isCached);
   };
 
   return {
@@ -153,4 +155,3 @@ export const useConversionLogic = (
     setConversionStatus
   };
 };
-

@@ -32,7 +32,11 @@ export const updatePerformanceMetrics = (
 };
 
 // Calcula el tiempo estimado basado en el texto
-export const calculateEstimatedTime = (text: string): number => {
+export const calculateEstimatedTime = (text: string, isCached: boolean = false): number => {
+  if (isCached) {
+    return 0; // No simulation for cached files
+  }
+
   const characterCount = text.length;
   const chunkOverhead = Math.ceil(characterCount / 4800) * 2000; // 2000ms de overhead por chunk
   const minProcessingTime = 15000; // Mínimo 15 segundos para simular procesamiento
@@ -52,7 +56,8 @@ export const calculateEstimatedTime = (text: string): number => {
     averageTimePerCharacter: performanceMetrics.averageTimePerCharacter,
     baseLatency: performanceMetrics.baseLatency,
     estimatedTime,
-    minProcessingTime
+    minProcessingTime,
+    isCached
   });
   
   return estimatedTime;
