@@ -1,18 +1,11 @@
+
 import { useState, useCallback, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { convertToAudio } from '@/services/conversion';
-import { Chapter } from '@/utils/textExtraction';
 import { useAuth } from '@/hooks/useAuth';
-import { saveConversionState, loadConversionState, convertArrayBufferToBase64, convertBase64ToArrayBuffer, clearConversionStorage } from '@/services/storage/conversionStorageService';
-import { calculateAudioDuration } from '@/services/audio/audioUtils';
-import { saveToSupabase } from '@/services/storage/supabaseStorageService';
 import { useConversionState } from './useConversionState';
 import { useConversionActions } from './useConversionActions';
-import { updatePerformanceMetrics } from '@/services/conversion/estimationService';
 
 export const useAudioConversion = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const {
     conversionStatus,
     progress,
@@ -25,7 +18,8 @@ export const useAudioConversion = () => {
     setAudioData,
     setAudioDuration,
     setCurrentFileName,
-    setConversionId
+    setConversionId,
+    toast
   } = useConversionState();
 
   const {
@@ -53,7 +47,6 @@ export const useAudioConversion = () => {
     if (conversionStatus === 'converting' && progress === 100) {
       timeoutId = window.setTimeout(() => {
         resetConversion();
-        clearConversionStorage();
         toast({
           title: "Conversion timed out",
           description: "Please try again",
