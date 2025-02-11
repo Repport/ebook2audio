@@ -64,23 +64,30 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     setIsProcessing(true);
 
     try {
+      console.log('Processing file:', file.name);
       const result = await processFile(file);
       
       if (!result.text.trim()) {
         throw new Error('No text could be extracted from the file');
       }
 
-      // Generate hash and check cache before proceeding
+      // Generate hash of the extracted text
       const textHash = await generateHash(result.text, file.name);
-      console.log('Checking cache for text hash:', textHash);
-      const cacheResult = await checkCache(textHash);
+      console.log('Generated text hash:', textHash);
 
-      if (cacheResult.storagePath && !cacheResult.error) {
-        console.log('Found cached conversion:', cacheResult.storagePath);
+      // Check cache for existing conversion
+      const { storagePath, error: cacheError } = await checkCache(textHash);
+      
+      if (cacheError) {
+        console.error('Cache check error:', cacheError);
+      } else if (storagePath) {
+        console.log('Found cached conversion:', storagePath);
         toast({
-          title: "Using cached version",
-          description: "This document has been converted before. Using the cached version to save time.",
+          title: "Cache found",
+          description: "This document has been converted before. The cached version will be used.",
         });
+      } else {
+        console.log('No cached version found');
       }
 
       onFileSelect({
