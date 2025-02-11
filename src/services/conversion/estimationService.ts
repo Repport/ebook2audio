@@ -33,8 +33,8 @@ export const updatePerformanceMetrics = (
 
 // Calcula el tiempo estimado basado en el texto
 export const calculateEstimatedTime = (text: string, isCached: boolean = false): number => {
-  if (isCached) {
-    return 0; // No simulation for cached files
+  if (!isCached) {
+    return 0; // No simulation for non-cached files
   }
 
   const characterCount = text.length;
