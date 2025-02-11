@@ -14,51 +14,63 @@ export const useConversionProgress = (
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [adjustedEstimate, setAdjustedEstimate] = useState(estimatedSeconds);
 
-  // Subscribe to real-time updates if we have a conversion ID
+  // Real-time updates subscription
   useEffect(() => {
-    if (!conversionId) return;
-
-    const channel = supabase
-      .channel(`conversion-${conversionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'text_conversions',
-          filter: `id=eq.${conversionId}`,
-        },
-        (payload) => {
-          const { progress: newProgress } = payload.new;
-          if (typeof newProgress === 'number') {
-            setSmoothProgress(newProgress);
+    let channel;
+    
+    if (conversionId) {
+      channel = supabase
+        .channel(`conversion-${conversionId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'text_conversions',
+            filter: `id=eq.${conversionId}`,
+          },
+          (payload) => {
+            const { progress: newProgress } = payload.new;
+            if (typeof newProgress === 'number') {
+              setSmoothProgress(newProgress);
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [conversionId]);
 
   // Smooth progress transition
   useEffect(() => {
+    let interval;
+    
     if (progress > smoothProgress) {
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         setSmoothProgress(prev => {
           const next = Math.min(prev + 1, progress);
           if (next === progress) clearInterval(interval);
           return next;
         });
       }, 50);
-      return () => clearInterval(interval);
     }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, [progress, smoothProgress]);
 
-  // Track elapsed time and dynamically adjust estimation
+  // Track elapsed time and adjust estimation
   useEffect(() => {
-    let intervalId: number;
+    let intervalId;
+    let hideEstimateTimeout;
     
     if (status === 'converting') {
       intervalId = window.setInterval(() => {
@@ -80,21 +92,25 @@ export const useConversionProgress = (
       }, 1000);
 
       // Hide estimate if conversion seems stuck
-      const hideEstimateTimeout = setTimeout(() => {
+      hideEstimateTimeout = setTimeout(() => {
         if (smoothProgress === 0 && elapsedSeconds > 30) {
           setShowEstimate(false);
         }
       }, 30000);
-
-      return () => {
-        clearInterval(intervalId);
-        clearTimeout(hideEstimateTimeout);
-      };
     } else {
       setElapsedSeconds(0);
       setShowEstimate(true);
       setAdjustedEstimate(estimatedSeconds);
     }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      if (hideEstimateTimeout) {
+        clearTimeout(hideEstimateTimeout);
+      }
+    };
   }, [status, smoothProgress, elapsedSeconds, estimatedSeconds]);
 
   const getEstimatedTimeRemaining = () => {
