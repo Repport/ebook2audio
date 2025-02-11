@@ -10,7 +10,7 @@ export const useConversionProgress = (
   conversionId?: string | null
 ) => {
   const [smoothProgress, setSmoothProgress] = useState(progress);
-  const [showEstimate, setShowEstimate] = useState(true);
+  const [showEstimate, setShowEstimate] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [adjustedEstimate, setAdjustedEstimate] = useState(estimatedSeconds);
 
@@ -70,36 +70,29 @@ export const useConversionProgress = (
   // Track elapsed time and adjust estimation
   useEffect(() => {
     let intervalId;
-    let hideEstimateTimeout;
     
     if (status === 'converting') {
       intervalId = window.setInterval(() => {
         setElapsedSeconds(prev => {
           const newElapsed = prev + 1;
           
-          // Adjust estimation based on actual progress rate
-          if (smoothProgress > 0 && newElapsed > 5) {
+          // Only show and adjust estimation after we have some real progress
+          if (smoothProgress > 5 && newElapsed > 10) {
             const progressRate = smoothProgress / newElapsed;
             if (progressRate > 0) {
               const remainingProgress = 100 - smoothProgress;
               const newEstimate = Math.ceil(newElapsed + (remainingProgress / progressRate));
               setAdjustedEstimate(newEstimate);
+              setShowEstimate(true);
             }
           }
           
           return newElapsed;
         });
       }, 1000);
-
-      // Hide estimate if conversion seems stuck
-      hideEstimateTimeout = setTimeout(() => {
-        if (smoothProgress === 0 && elapsedSeconds > 30) {
-          setShowEstimate(false);
-        }
-      }, 30000);
     } else {
       setElapsedSeconds(0);
-      setShowEstimate(true);
+      setShowEstimate(false);
       setAdjustedEstimate(estimatedSeconds);
     }
 
@@ -107,25 +100,18 @@ export const useConversionProgress = (
       if (intervalId) {
         clearInterval(intervalId);
       }
-      if (hideEstimateTimeout) {
-        clearTimeout(hideEstimateTimeout);
-      }
     };
-  }, [status, smoothProgress, elapsedSeconds, estimatedSeconds]);
+  }, [status, smoothProgress, estimatedSeconds]);
 
   const getEstimatedTimeRemaining = () => {
-    if (status !== 'converting' || smoothProgress >= 100) {
+    if (status !== 'converting' || smoothProgress >= 100 || !showEstimate) {
       return null;
-    }
-
-    if (smoothProgress === 0) {
-      return formatTimeRemaining(adjustedEstimate);
     }
 
     // Calculate remaining time based on actual progress rate
     const progressRate = smoothProgress / Math.max(elapsedSeconds, 1);
     if (progressRate <= 0 || !isFinite(progressRate)) {
-      return formatTimeRemaining(adjustedEstimate);
+      return null;
     }
     
     const remainingProgress = 100 - smoothProgress;
