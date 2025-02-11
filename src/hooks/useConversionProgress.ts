@@ -1,16 +1,46 @@
 
 import { useState, useEffect } from 'react';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
   progress: number,
-  estimatedSeconds: number
+  estimatedSeconds: number,
+  conversionId?: string | null
 ) => {
   const [smoothProgress, setSmoothProgress] = useState(progress);
   const [showEstimate, setShowEstimate] = useState(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [adjustedEstimate, setAdjustedEstimate] = useState(estimatedSeconds);
+
+  // Subscribe to real-time updates if we have a conversion ID
+  useEffect(() => {
+    if (!conversionId) return;
+
+    const channel = supabase
+      .channel(`conversion-${conversionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'text_conversions',
+          filter: `id=eq.${conversionId}`,
+        },
+        (payload) => {
+          const { progress: newProgress } = payload.new;
+          if (typeof newProgress === 'number') {
+            setSmoothProgress(newProgress);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversionId]);
 
   // Smooth progress transition
   useEffect(() => {
@@ -36,10 +66,10 @@ export const useConversionProgress = (
           const newElapsed = prev + 1;
           
           // Adjust estimation based on actual progress rate
-          if (progress > 0 && newElapsed > 5) { // Wait 5 seconds before adjusting
-            const progressRate = progress / newElapsed; // Progress per second
+          if (smoothProgress > 0 && newElapsed > 5) {
+            const progressRate = smoothProgress / newElapsed;
             if (progressRate > 0) {
-              const remainingProgress = 100 - progress;
+              const remainingProgress = 100 - smoothProgress;
               const newEstimate = Math.ceil(newElapsed + (remainingProgress / progressRate));
               setAdjustedEstimate(newEstimate);
             }
@@ -51,7 +81,7 @@ export const useConversionProgress = (
 
       // Hide estimate if conversion seems stuck
       const hideEstimateTimeout = setTimeout(() => {
-        if (progress === 0 && elapsedSeconds > 30) {
+        if (smoothProgress === 0 && elapsedSeconds > 30) {
           setShowEstimate(false);
         }
       }, 30000);
@@ -65,19 +95,19 @@ export const useConversionProgress = (
       setShowEstimate(true);
       setAdjustedEstimate(estimatedSeconds);
     }
-  }, [status, progress, elapsedSeconds, estimatedSeconds]);
+  }, [status, smoothProgress, elapsedSeconds, estimatedSeconds]);
 
   const getEstimatedTimeRemaining = () => {
     if (status !== 'converting' || smoothProgress >= 100) {
       return null;
     }
 
-    if (progress === 0) {
+    if (smoothProgress === 0) {
       return formatTimeRemaining(adjustedEstimate);
     }
 
     // Calculate remaining time based on actual progress rate
-    const progressRate = smoothProgress / Math.max(elapsedSeconds, 1); // Progress per second
+    const progressRate = smoothProgress / Math.max(elapsedSeconds, 1);
     if (progressRate <= 0 || !isFinite(progressRate)) {
       return formatTimeRemaining(adjustedEstimate);
     }
