@@ -19,24 +19,28 @@ export const saveToSupabase = async (
 ) => {
   try {
     // Generate a unique file path for storage
-    const storagePath = `${userId}/${crypto.randomUUID()}.opus`;
+    const storagePath = `${userId}/${crypto.randomUUID()}.mp3`;
     
     // Compress the audio if it's larger than 10MB
     let finalAudio = audio;
     let finalPath = storagePath;
+    let contentType = 'audio/mpeg';
     
     if (audio.byteLength > 10 * 1024 * 1024) {
       const zip = new JSZip();
-      zip.file('audio.opus', audio);
+      zip.file('audio.mp3', audio);
       finalAudio = await zip.generateAsync({ type: 'arraybuffer' });
       finalPath = storagePath + '.zip';
+      contentType = 'application/zip';
     }
+    
+    console.log('Uploading file with content type:', contentType);
     
     // Upload the audio file to storage
     const { error: uploadError } = await supabase.storage
       .from('audio_cache')
       .upload(finalPath, finalAudio, {
-        contentType: finalPath.endsWith('.zip') ? 'application/zip' : 'audio/ogg',
+        contentType: contentType,
         upsert: false
       });
 
@@ -92,6 +96,8 @@ export const fetchFromCache = async (storagePath: string): Promise<ArrayBuffer |
       }
     }
 
+    console.log('Fetching from Supabase storage:', storagePath);
+
     // Fetch from Supabase if not in cache
     const { data, error } = await supabase.storage
       .from('audio_cache')
@@ -108,7 +114,7 @@ export const fetchFromCache = async (storagePath: string): Promise<ArrayBuffer |
     if (storagePath.endsWith('.zip')) {
       const zip = new JSZip();
       const zipContent = await zip.loadAsync(arrayBuffer);
-      const audioFile = zipContent.file('audio.opus');
+      const audioFile = zipContent.file('audio.mp3');
       if (!audioFile) {
         throw new Error('No audio file found in zip');
       }
@@ -119,7 +125,7 @@ export const fetchFromCache = async (storagePath: string): Promise<ArrayBuffer |
       localStorage.setItem(`audio-${storagePath}`, JSON.stringify({
         data: base64Audio,
         timestamp: Date.now(),
-        format: 'opus'
+        format: 'mp3'
       }));
       
       return unzippedAudio;
@@ -130,7 +136,7 @@ export const fetchFromCache = async (storagePath: string): Promise<ArrayBuffer |
     localStorage.setItem(`audio-${storagePath}`, JSON.stringify({
       data: base64Audio,
       timestamp: Date.now(),
-      format: 'opus'
+      format: 'mp3'
     }));
 
     return arrayBuffer;

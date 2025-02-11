@@ -58,12 +58,15 @@ export async function uploadToStorage(
   audioBuffer: ArrayBuffer
 ): Promise<{ error: Error | null }> {
   try {
+    const contentType = storagePath.endsWith('.zip') ? 'application/zip' : 'audio/mpeg';
+    console.log('Uploading to storage with content type:', contentType);
+    
     return await retryOperation(
       async () => {
         const { error } = await supabase.storage
           .from('audio_cache')
           .upload(storagePath, audioBuffer, {
-            contentType: 'audio/mpeg',
+            contentType: contentType,
             upsert: true,
             duplex: 'half'
           });
