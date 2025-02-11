@@ -18,7 +18,7 @@ export const useConversionProgress = (
   useEffect(() => {
     let channel;
     
-    if (conversionId) {
+    if (conversionId && (status === 'converting' || status === 'processing')) {
       console.log('Setting up real-time updates for conversion:', conversionId);
       channel = supabase
         .channel(`conversion-${conversionId}`)
@@ -30,27 +30,30 @@ export const useConversionProgress = (
             table: 'text_conversions',
             filter: `id=eq.${conversionId}`,
           },
-          (payload) => {
+          (payload: any) => {
             console.log('Received progress update:', payload);
-            const { progress: newProgress } = payload.new;
+            const newProgress = payload.new.progress;
             if (typeof newProgress === 'number') {
               setSmoothProgress(newProgress);
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+        });
     }
 
     return () => {
       if (channel) {
+        console.log('Cleaning up subscription');
         supabase.removeChannel(channel);
       }
     };
-  }, [conversionId]);
+  }, [conversionId, status]);
 
   // Track elapsed time and adjust estimation
   useEffect(() => {
-    let intervalId;
+    let intervalId: number;
     
     if (status === 'converting' || status === 'processing') {
       intervalId = window.setInterval(() => {
@@ -108,4 +111,3 @@ export const useConversionProgress = (
     elapsedSeconds
   };
 };
-
