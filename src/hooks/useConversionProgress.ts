@@ -14,11 +14,6 @@ export const useConversionProgress = (
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [adjustedEstimate, setAdjustedEstimate] = useState(estimatedSeconds);
 
-  // Update smooth progress when actual progress changes
-  useEffect(() => {
-    setSmoothProgress(progress);
-  }, [progress]);
-
   // Real-time updates subscription
   useEffect(() => {
     let channel;
@@ -116,4 +111,3 @@ export const useConversionProgress = (
     elapsedSeconds
   };
 };
-
