@@ -5,9 +5,9 @@ let performanceMetrics: {
   lastMeasurements: number[];
   baseLatency: number;
 } = {
-  averageTimePerCharacter: 0.02, // 20ms por carácter como valor inicial
+  averageTimePerCharacter: 0.05, // 50ms por carácter como valor inicial para simular más tiempo
   lastMeasurements: [],
-  baseLatency: 2000, // 2 segundos de latencia base inicial
+  baseLatency: 5000, // 5 segundos de latencia base inicial para simular carga
 };
 
 // Actualiza las métricas de rendimiento con una nueva medición
@@ -34,11 +34,16 @@ export const updatePerformanceMetrics = (
 // Calcula el tiempo estimado basado en el texto
 export const calculateEstimatedTime = (text: string): number => {
   const characterCount = text.length;
-  const chunkOverhead = Math.ceil(characterCount / 4800) * 500; // 500ms de overhead por chunk
-  const estimatedTime = Math.ceil(
-    (characterCount * performanceMetrics.averageTimePerCharacter) +
-    performanceMetrics.baseLatency +
-    chunkOverhead
+  const chunkOverhead = Math.ceil(characterCount / 4800) * 2000; // 2000ms de overhead por chunk
+  const minProcessingTime = 15000; // Mínimo 15 segundos para simular procesamiento
+  
+  const estimatedTime = Math.max(
+    minProcessingTime,
+    Math.ceil(
+      (characterCount * performanceMetrics.averageTimePerCharacter) +
+      performanceMetrics.baseLatency +
+      chunkOverhead
+    )
   );
   
   console.log('Estimated time calculation:', {
@@ -46,8 +51,10 @@ export const calculateEstimatedTime = (text: string): number => {
     chunkOverhead,
     averageTimePerCharacter: performanceMetrics.averageTimePerCharacter,
     baseLatency: performanceMetrics.baseLatency,
-    estimatedTime
+    estimatedTime,
+    minProcessingTime
   });
   
   return estimatedTime;
 };
+
