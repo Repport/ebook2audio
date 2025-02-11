@@ -14,6 +14,13 @@ export const useConversionProgress = (
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [adjustedEstimate, setAdjustedEstimate] = useState(estimatedSeconds);
 
+  // Update smooth progress when initial progress changes
+  useEffect(() => {
+    if (progress > smoothProgress) {
+      setSmoothProgress(progress);
+    }
+  }, [progress, smoothProgress]);
+
   // Real-time updates subscription
   useEffect(() => {
     let channel;
@@ -33,7 +40,7 @@ export const useConversionProgress = (
           (payload: any) => {
             console.log('Received progress update:', payload);
             const newProgress = payload.new.progress;
-            if (typeof newProgress === 'number') {
+            if (typeof newProgress === 'number' && newProgress > smoothProgress) {
               setSmoothProgress(newProgress);
             }
           }
@@ -49,7 +56,7 @@ export const useConversionProgress = (
         supabase.removeChannel(channel);
       }
     };
-  }, [conversionId, status]);
+  }, [conversionId, status, smoothProgress]);
 
   // Track elapsed time and adjust estimation
   useEffect(() => {
