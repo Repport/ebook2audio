@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -96,12 +95,17 @@ export const useConversionLogic = (
 
   const calculateEstimatedSeconds = () => {
     if (!extractedText) return 0;
-    const baseTimePerChar = 0.015;
-    const overhead = 5;
+    
+    const wordsCount = extractedText.split(/\s+/).length;
+    const avgWordsPerSecond = 5; // Based on typical TTS processing speed
     const chunkSize = 5000;
     const numberOfChunks = Math.ceil(extractedText.length / chunkSize);
-    const chunkOverhead = numberOfChunks * 0.5;
-    return Math.ceil((extractedText.length * baseTimePerChar) + overhead + chunkOverhead);
+    const chunkProcessingOverhead = 1; // 1 second per chunk overhead
+    
+    const baseTime = Math.ceil(wordsCount / avgWordsPerSecond);
+    const totalOverhead = numberOfChunks * chunkProcessingOverhead;
+    
+    return baseTime + totalOverhead + 2; // Add 2 seconds for initial setup
   };
 
   return {
