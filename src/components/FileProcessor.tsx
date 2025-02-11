@@ -7,6 +7,8 @@ import VoiceSettingsStep from '@/components/VoiceSettingsStep';
 import ConversionStep from './file-processor/ConversionStep';
 import TermsDialog from '@/components/TermsDialog';
 import { useConversionLogic } from './file-processor/useConversionLogic';
+import { Button } from './ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
@@ -56,6 +58,10 @@ const FileProcessor = ({
 
   if (!selectedFile) return null;
 
+  const handleGoBack = () => {
+    onFileSelect(null);
+  };
+
   const handleVoiceSettingsComplete = () => {
     onNextStep();
   };
@@ -71,6 +77,18 @@ const FileProcessor = ({
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
+      <div className="flex justify-start">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          onClick={handleGoBack}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Change File
+        </Button>
+      </div>
+
       {currentStep === 2 && (
         <div className="animate-fade-up">
           <VoiceSettingsStep
