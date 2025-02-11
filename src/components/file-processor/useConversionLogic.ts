@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -7,7 +8,7 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { generateHash } from '@/services/conversion/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchFromCache } from '@/services/conversion/cacheService';
-import { calculateEstimatedTime } from '@/services/conversion/estimationService';
+import { calculateEstimatedTime, updatePerformanceMetrics } from '@/services/conversion/estimationService';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -200,3 +201,4 @@ export const useConversionLogic = (
     setConversionStatus
   };
 };
+
