@@ -7,7 +7,12 @@ import {
   synthesizeSpeech 
 } from "./speech.ts"
 
-const PREVIEW_TEXT = "Hello! This is a preview of my voice.";
+const PREVIEW_TEXTS = {
+  english: "Hello! This is a preview of my voice.",
+  spanish: "¡Hola! Este es un adelanto de mi voz.",
+  french: "Bonjour! Ceci est un aperçu de ma voix.",
+  german: "Hallo! Dies ist eine Vorschau meiner Stimme.",
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -16,7 +21,7 @@ serve(async (req) => {
 
   try {
     console.log('Processing voice preview request');
-    const { voiceId } = await req.json();
+    const { voiceId, previewText } = await req.json();
 
     if (!voiceId) {
       throw new Error('voiceId is required');
@@ -24,8 +29,18 @@ serve(async (req) => {
 
     const { languageCode, ssmlGender } = parseVoiceId(voiceId);
     
+    // Determine the language from the voiceId (e.g., "es-US-Standard-A" -> "spanish")
+    const language = languageCode.startsWith('es') ? 'spanish' :
+                    languageCode.startsWith('fr') ? 'french' :
+                    languageCode.startsWith('de') ? 'german' :
+                    'english';
+
+    // Use provided preview text or fallback to language-specific default
+    const textToSpeak = previewText?.trim() || PREVIEW_TEXTS[language];
+    console.log('Using preview text:', textToSpeak, 'for language:', language);
+    
     const requestBody: TextToSpeechRequest = {
-      input: { text: PREVIEW_TEXT.trim() },
+      input: { text: textToSpeak },
       voice: {
         languageCode,
         name: voiceId,
