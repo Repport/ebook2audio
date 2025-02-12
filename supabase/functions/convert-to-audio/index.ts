@@ -8,9 +8,16 @@ import type { ConversionRequest, ConversionResponse, ErrorResponse } from './typ
 console.log('Loading convert-to-audio function...');
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: { 
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'POST',
+        'Access-Control-Max-Age': '86400',
+      } 
+    });
   }
 
   try {
@@ -52,18 +59,18 @@ serve(async (req) => {
     const accessToken = await getGoogleAccessToken();
     console.log('Successfully obtained access token');
 
-    // Actualizar el progreso inicial y establecer el número total de chunks
-    const totalChunks = Math.ceil(text.length / 4800);
+    // Update initial progress and set total characters
     await supabaseClient
       .from('text_conversions')
       .update({ 
         progress: 5,
-        total_chunks: totalChunks,
-        processed_chunks: 0
+        total_characters: text.length,
+        processed_characters: 0,
+        status: 'processing'
       })
       .eq('id', conversionId);
 
-    console.log(`Processing text of length ${text.length} in ${totalChunks} chunks`);
+    console.log(`Processing text of length ${text.length}`);
     
     // Process text in chunks
     const { audioContents } = await processTextInChunks(
@@ -72,23 +79,31 @@ serve(async (req) => {
       accessToken, 
       conversionId,
       supabaseClient,
-      async (chunk: number) => {
-        const progress = Math.round((chunk / totalChunks) * 90) + 5; // 5-95%
-        console.log(`Processed chunk ${chunk}/${totalChunks}, progress: ${progress}%`);
+      async (processedChars: number) => {
+        const progress = Math.round((processedChars / text.length) * 90) + 5; // 5-95%
+        console.log(`Processed ${processedChars}/${text.length} characters, progress: ${progress}%`);
+        
+        await supabaseClient
+          .from('text_conversions')
+          .update({ 
+            progress,
+            processed_characters: processedChars
+          })
+          .eq('id', conversionId);
       }
     );
     
-    // Combinar los chunks de audio y actualizar el progreso final
+    // Combine audio chunks and update final progress
     console.log('Combining audio chunks');
     const combinedAudioContent = await combineAudioChunks(audioContents);
     
-    // Actualizar progreso al 100% cuando termine
+    // Update progress to 100% when complete
     await supabaseClient
       .from('text_conversions')
       .update({ 
         progress: 100,
-        processed_chunks: totalChunks,
-        total_chunks: totalChunks
+        processed_characters: text.length,
+        status: 'completed'
       })
       .eq('id', conversionId);
 
@@ -102,7 +117,15 @@ serve(async (req) => {
       }
     };
 
-    return new Response(JSON.stringify(response), { headers: responseHeaders });
+    return new Response(
+      JSON.stringify(response), 
+      { 
+        headers: { 
+          ...responseHeaders,
+          'Content-Type': 'application/json'
+        } 
+      }
+    );
 
   } catch (error) {
     console.error('Error in convert-to-audio function:', error);
@@ -118,7 +141,10 @@ serve(async (req) => {
       JSON.stringify(errorResponse),
       { 
         status: error.status || 500,
-        headers: responseHeaders
+        headers: { 
+          ...responseHeaders,
+          'Content-Type': 'application/json'
+        }
       }
     );
   }
