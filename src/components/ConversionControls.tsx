@@ -14,6 +14,7 @@ interface ConversionControlsProps {
   audioDuration?: number;
   estimatedSeconds?: number;
   conversionId?: string | null;
+  progress: number;
 }
 
 const ConversionControls = ({ 
@@ -24,11 +25,12 @@ const ConversionControls = ({
   audioData, 
   audioDuration,
   estimatedSeconds = 0,
-  conversionId
+  conversionId,
+  progress
 }: ConversionControlsProps) => {
-  const { progress, timeRemaining, elapsedTime } = useConversionProgress(
+  const { timeRemaining, elapsedTime } = useConversionProgress(
     status,
-    0,
+    progress,
     estimatedSeconds,
     conversionId
   );
@@ -78,7 +80,7 @@ const ConversionControls = ({
             {timeRemaining && <span>{timeRemaining} remaining</span>}
           </div>
           <div className="text-sm text-muted-foreground animate-pulse text-center">
-            Converting...
+            Converting... {progress}%
           </div>
         </div>
       )}

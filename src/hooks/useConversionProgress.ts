@@ -22,7 +22,6 @@ export const useConversionProgress = (
     }
   }, [startTime]);
 
-  // Handle initial progress
   useEffect(() => {
     if (initialProgress > 0) {
       console.log('Setting initial progress:', initialProgress);
@@ -30,7 +29,6 @@ export const useConversionProgress = (
     }
   }, [initialProgress, updateProgress]);
 
-  // Real-time updates subscription
   useEffect(() => {
     let channel;
     
@@ -67,7 +65,6 @@ export const useConversionProgress = (
     };
   }, [conversionId, status, progress, updateProgress]);
 
-  // Time tracking
   useEffect(() => {
     let intervalId: number;
     
@@ -95,7 +92,6 @@ export const useConversionProgress = (
       return formatTimeRemaining(Math.max(0, estimatedSeconds - elapsedTime));
     }
 
-    // Calculate rate based on recent progress
     const recentHistory = progressHistory.slice(-5);
     if (recentHistory.length >= 2) {
       const [startTime, startProgress] = recentHistory[0];

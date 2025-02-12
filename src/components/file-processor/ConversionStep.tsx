@@ -53,6 +53,7 @@ const ConversionStep = ({
         audioDuration={audioDuration}
         estimatedSeconds={estimatedSeconds}
         conversionId={conversionId}
+        progress={progress}
       />
     </Card>
   );
