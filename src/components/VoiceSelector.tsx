@@ -1,4 +1,5 @@
 
+import React, { useEffect } from "react";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAudioPrelisten } from "@/hooks/useAudioPrelisten";
@@ -40,7 +41,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: Voice
   const availableVoices = VOICES[mappedLanguage];
 
   // Set initial voice if none selected
-  React.useEffect(() => {
+  useEffect(() => {
     if (!selectedVoice && availableVoices.length > 0) {
       onVoiceChange(availableVoices[0].id);
     }
