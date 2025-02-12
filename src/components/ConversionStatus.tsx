@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Loader2, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Chapter } from '@/utils/textExtraction';
@@ -28,7 +28,7 @@ const ConversionStatus = ({
   estimatedSeconds = 0,
   conversionId
 }: ConversionStatusProps) => {
-  const { progress: currentProgress, timeRemaining, elapsedTime, hasStarted } = useConversionProgress(
+  const { timeRemaining, elapsedTime, hasStarted } = useConversionProgress(
     status,
     progress,
     estimatedSeconds,
@@ -45,7 +45,7 @@ const ConversionStatus = ({
     processing: `Converting ${fileType} to MP3...`
   };
 
-  const formatElapsedTime = (seconds: number) => {
+  const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -60,7 +60,7 @@ const ConversionStatus = ({
               <Loader2 className="w-12 h-12 animate-spin text-primary" />
               {hasStarted && (
                 <div className="absolute -bottom-1 -right-1 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full">
-                  {Math.round(currentProgress)}%
+                  {Math.round(progress)}%
                 </div>
               )}
             </div>
@@ -97,28 +97,13 @@ const ConversionStatus = ({
       
       {(displayStatus === 'converting' && hasStarted) && (
         <div className="w-full space-y-4">
-          <Progress value={currentProgress} className="h-2" />
-          
-          <div className="flex items-center justify-between text-sm text-muted-foreground w-full px-1">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span>
-                {formatElapsedTime(elapsedTime)}
-              </span>
+          <Progress value={progress} className="h-2" />
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="text-center w-full">
+              {timeRemaining && `${timeRemaining} remaining (${formatTime(elapsedTime)} elapsed)`}
             </div>
-            {timeRemaining && (
-              <div>
-                {timeRemaining} remaining
-              </div>
-            )}
           </div>
         </div>
-      )}
-
-      {detectingChapters && (
-        <p className="text-sm text-muted-foreground text-center animate-pulse">
-          Detecting chapters... {chaptersFound} chapters found
-        </p>
       )}
       
       <ChaptersList chapters={chapters} />

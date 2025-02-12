@@ -88,10 +88,7 @@ export const useConversionProgress = (
       return null;
     }
 
-    if (progressHistory.length < 2) {
-      return formatTimeRemaining(Math.max(0, estimatedSeconds - elapsedTime));
-    }
-
+    // Use progress history to calculate a more accurate estimate
     const recentHistory = progressHistory.slice(-5);
     if (recentHistory.length >= 2) {
       const [startTime, startProgress] = recentHistory[0];
@@ -107,6 +104,7 @@ export const useConversionProgress = (
       }
     }
 
+    // Fallback to initial estimate
     return formatTimeRemaining(Math.max(0, estimatedSeconds - elapsedTime));
   }, [progress, status, progressHistory, estimatedSeconds, elapsedTime]);
 
