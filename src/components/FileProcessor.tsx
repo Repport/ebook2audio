@@ -7,6 +7,7 @@ import TermsDialog from './TermsDialog';
 import { useConversionLogic } from './file-processor/useConversionLogic';
 import { Button } from './ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface FileProcessorProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
@@ -32,6 +33,7 @@ const FileProcessor = ({
   const [selectedVoice, setSelectedVoice] = useState<string>('');
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const [notifyOnComplete, setNotifyOnComplete] = useState(false);
+  const { toast } = useToast();
 
   const {
     detectChapters,
@@ -64,6 +66,11 @@ const FileProcessor = ({
   const handleVoiceSettingsComplete = () => {
     if (!selectedVoice) {
       console.error('No voice selected');
+      toast({
+        title: "Voice Required",
+        description: "Please select a voice before continuing",
+        variant: "destructive",
+      });
       return;
     }
     onNextStep();
@@ -72,6 +79,11 @@ const FileProcessor = ({
   const handleConversionStart = async () => {
     if (!selectedVoice) {
       console.error('No voice selected', { selectedVoice });
+      toast({
+        title: "Voice Required",
+        description: "Please select a voice before starting conversion",
+        variant: "destructive",
+      });
       return;
     }
     setShowTerms(true);
@@ -80,6 +92,11 @@ const FileProcessor = ({
   const handleAcceptTermsAndConvert = async () => {
     if (!selectedVoice) {
       console.error('No voice selected during terms acceptance', { selectedVoice });
+      toast({
+        title: "Voice Required",
+        description: "Please select a voice before starting conversion",
+        variant: "destructive",
+      });
       return;
     }
     await handleAcceptTerms({ 
