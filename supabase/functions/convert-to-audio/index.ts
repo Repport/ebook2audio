@@ -1,8 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { synthesizeSpeech } from './speech-service.ts'
-import { corsHeaders, MAX_REQUEST_SIZE } from './constants.ts'
+import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts'
 
 console.log('Loading convert-to-audio function...')
 
@@ -12,7 +10,8 @@ serve(async (req) => {
     console.log('Handling CORS preflight request')
     return new Response(null, { 
       headers: {
-        ...corsHeaders,
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
         'Access-Control-Max-Age': '86400',
       }
     })
@@ -21,12 +20,6 @@ serve(async (req) => {
   try {
     console.log('Starting text-to-speech conversion request')
     
-    // Check content length
-    const contentLength = parseInt(req.headers.get('content-length') || '0')
-    if (contentLength > MAX_REQUEST_SIZE) {
-      throw new Error('Request body too large')
-    }
-
     // Parse request body
     let body
     try {
@@ -97,25 +90,27 @@ serve(async (req) => {
 
     console.log('Successfully obtained access token')
 
-    // Extract language code from voiceId (e.g., "en-US-Standard-C" -> "en-US")
-    const langCode = voiceId.split('-').slice(0, 2).join('-')
+    // Process text in chunks
+    console.log(`Processing text of length ${text.length} in chunks`)
+    const audioContents = await processTextInChunks(text, voiceId, access_token)
     
-    // Use the speech service to handle synthesis
-    console.log(`Synthesizing speech with language code: ${langCode}`)
-    const audioContent = await synthesizeSpeech(text, voiceId, access_token)
+    // Combine audio chunks
+    console.log('Combining audio chunks')
+    const combinedAudioContent = await combineAudioChunks(audioContents)
     
     console.log('Successfully generated audio content')
     
     return new Response(
       JSON.stringify({ 
         data: { 
-          audioContent,
-          id: crypto.randomUUID() // Add a unique ID for the conversion
+          audioContent: combinedAudioContent,
+          id: crypto.randomUUID()
         }
       }),
       { 
         headers: { 
-          ...corsHeaders,
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store, no-cache, must-revalidate',
           'Pragma': 'no-cache'
@@ -138,7 +133,8 @@ serve(async (req) => {
       { 
         status: error.status || 500,
         headers: { 
-          ...corsHeaders,
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store, no-cache, must-revalidate',
           'Pragma': 'no-cache'
