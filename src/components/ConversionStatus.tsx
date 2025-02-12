@@ -46,11 +46,11 @@ const ConversionStatus = ({
   const displayStatus = status === 'processing' ? 'converting' : status;
   
   const statusMessages = {
-    idle: 'Ready to convert',
-    converting: `Converting ${fileType} to MP3...`,
-    completed: 'Conversion completed!',
-    error: 'Conversion error',
-    processing: `Converting ${fileType} to MP3...`
+    idle: 'Listo para convertir',
+    converting: `Convirtiendo ${fileType} a MP3...`,
+    completed: '¡Conversión completada!',
+    error: 'Error en la conversión',
+    processing: `Convirtiendo ${fileType} a MP3...`
   };
 
   const formatTime = (seconds: number) => {
@@ -80,12 +80,12 @@ const ConversionStatus = ({
         <div className="text-sm text-muted-foreground text-center space-y-1">
           {totalChunks > 0 && (
             <div>
-              Processing chunk {processedChunks} of {totalChunks}
+              Procesando chunk {processedChunks} de {totalChunks}
             </div>
           )}
           <div>
-            {elapsedTime > 0 && `${formatTime(elapsedTime)} elapsed`}
-            {timeRemaining && ` • ${timeRemaining} remaining`}
+            {elapsedTime > 0 && `${formatTime(elapsedTime)} transcurridos`}
+            {timeRemaining && ` • ${timeRemaining} restantes`}
           </div>
         </div>
       </div>

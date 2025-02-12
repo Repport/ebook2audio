@@ -1,16 +1,10 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
+import { calculateSimulatedProgress } from '@/utils/progressSimulation';
 import { supabase } from '@/integrations/supabase/client';
 
-interface ProgressUpdate {
-  timestamp: number;
-  progress: number;
-}
-
 const CHUNK_SIZE = 4800;
-const CHUNK_PROCESSING_TIME = 6;
-const FINALIZATION_TIME = 15;
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -19,25 +13,38 @@ export const useConversionProgress = (
   conversionId?: string | null,
   textLength?: number
 ) => {
-  const [progress, setProgress] = useState(initialProgress);
+  const [realProgress, setRealProgress] = useState(initialProgress);
+  const [simulatedProgress, setSimulatedProgress] = useState(initialProgress);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [startTime] = useState(Date.now());
   const [totalChunks, setTotalChunks] = useState(0);
   const [processedChunks, setProcessedChunks] = useState(0);
-  const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
+  const startTimeRef = useRef(Date.now());
+  const simulationIntervalRef = useRef<number>();
 
-  // Aseguramos que el progreso nunca retroceda
-  const updateProgress = useCallback((progressData: { progress: number, processed_chunks?: number | null, total_chunks?: number | null }) => {
-    console.log('Progress update received:', progressData);
-    const { progress: newProgress, processed_chunks, total_chunks } = progressData;
+  // Calcular número total de chunks cuando cambia el texto
+  useEffect(() => {
+    if (textLength) {
+      const chunks = Math.ceil(textLength / CHUNK_SIZE);
+      setTotalChunks(chunks);
+      console.log(`Texto dividido en ${chunks} chunks (${textLength} caracteres)`);
+    }
+  }, [textLength]);
 
-    if (typeof newProgress === 'number' && newProgress >= 0) {
-      setProgress(prev => Math.max(prev, Math.round(newProgress)));
+  // Manejar actualizaciones reales de progreso
+  const handleProgressUpdate = useCallback((data: { 
+    progress: number, 
+    processed_chunks?: number | null, 
+    total_chunks?: number | null 
+  }) => {
+    console.log('Actualización de progreso recibida:', data);
+    const { progress, processed_chunks, total_chunks } = data;
+
+    if (typeof progress === 'number' && progress >= 0) {
+      setRealProgress(prev => Math.max(prev, progress));
     }
 
     if (typeof processed_chunks === 'number') {
       setProcessedChunks(prev => Math.max(prev, processed_chunks));
-      setLastUpdateTime(Date.now());
     }
 
     if (typeof total_chunks === 'number' && total_chunks > 0) {
@@ -45,21 +52,14 @@ export const useConversionProgress = (
     }
   }, []);
 
-  useEffect(() => {
-    if (textLength) {
-      const chunks = Math.ceil(textLength / CHUNK_SIZE);
-      setTotalChunks(chunks);
-      console.log(`Text divided into ${chunks} chunks (${textLength} characters)`);
-    }
-  }, [textLength]);
-
+  // Configurar escucha de eventos en tiempo real
   useEffect(() => {
     let channel;
     
     if (conversionId && (status === 'converting' || status === 'processing')) {
-      console.log('Setting up realtime updates for conversion:', conversionId);
+      console.log('Configurando actualizaciones en tiempo real para conversión:', conversionId);
       
-      // Primero obtenemos el estado inicial
+      // Obtener estado inicial
       supabase
         .from('text_conversions')
         .select('progress, processed_chunks, total_chunks')
@@ -67,21 +67,17 @@ export const useConversionProgress = (
         .single()
         .then(({ data, error }) => {
           if (error) {
-            console.error('Error fetching initial conversion state:', error);
+            console.error('Error al obtener estado inicial:', error);
             return;
           }
           
           if (data) {
-            console.log('Initial conversion state:', data);
-            updateProgress({
-              progress: data.progress ?? 0,
-              processed_chunks: data.processed_chunks,
-              total_chunks: data.total_chunks
-            });
+            console.log('Estado inicial:', data);
+            handleProgressUpdate(data);
           }
         });
       
-      // Luego configuramos las actualizaciones en tiempo real
+      // Configurar canal en tiempo real
       const channelName = `conversion-${conversionId}`;
       channel = supabase
         .channel(channelName)
@@ -94,69 +90,81 @@ export const useConversionProgress = (
             filter: `id=eq.${conversionId}`,
           },
           (payload: any) => {
-            console.log('Realtime update received:', payload);
+            console.log('Actualización en tiempo real recibida:', payload);
             if (payload.new) {
-              const { progress = 0, processed_chunks, total_chunks } = payload.new;
-              updateProgress({
-                progress,
-                processed_chunks,
-                total_chunks
-              });
+              handleProgressUpdate(payload.new);
             }
           }
         )
         .subscribe((status) => {
-          console.log(`Channel ${channelName} status:`, status);
+          console.log(`Estado del canal ${channelName}:`, status);
         });
-
-      return () => {
-        console.log('Cleaning up realtime subscription');
-        if (channel) {
-          supabase.removeChannel(channel);
-        }
-      };
-    }
-  }, [conversionId, status, updateProgress]);
-
-  useEffect(() => {
-    let intervalId: number;
-    
-    if ((status === 'converting' || status === 'processing') && progress < 100) {
-      intervalId = window.setInterval(() => {
-        setElapsedTime(prev => prev + 1);
-      }, 1000);
-    } else if (status === 'completed' || progress >= 100) {
-      setElapsedTime(0);
     }
 
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
+      if (channel) {
+        console.log('Limpiando suscripción en tiempo real');
+        supabase.removeChannel(channel);
       }
     };
-  }, [status, progress]);
+  }, [conversionId, status, handleProgressUpdate]);
 
+  // Manejar la simulación de progreso
+  useEffect(() => {
+    if ((status === 'converting' || status === 'processing') && realProgress < 100) {
+      // Actualizar tiempo transcurrido
+      const elapsedInterval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }, 1000);
+
+      // Actualizar simulación de progreso
+      simulationIntervalRef.current = window.setInterval(() => {
+        setSimulatedProgress(prev => {
+          const simulated = calculateSimulatedProgress(
+            elapsedTime,
+            totalChunks,
+            processedChunks,
+            realProgress
+          );
+          return Math.max(prev, simulated);
+        });
+      }, 200);
+
+      return () => {
+        clearInterval(elapsedInterval);
+        if (simulationIntervalRef.current) {
+          clearInterval(simulationIntervalRef.current);
+        }
+      };
+    }
+
+    // Limpiar cuando se completa
+    if (status === 'completed' || realProgress >= 100) {
+      setElapsedTime(0);
+      if (simulationIntervalRef.current) {
+        clearInterval(simulationIntervalRef.current);
+      }
+    }
+  }, [status, realProgress, elapsedTime, totalChunks, processedChunks]);
+
+  // Calcular tiempo restante estimado
   const getEstimatedTimeRemaining = useCallback(() => {
-    if (progress >= 100 || status === 'completed') {
+    if (realProgress >= 100 || status === 'completed') {
       return null;
     }
 
-    if (processedChunks === 0 || totalChunks === 0) {
+    if (processedChunks === 0) {
       return 'Calculando...';
     }
 
-    const timePerChunk = (Date.now() - startTime) / processedChunks;
+    const averageTimePerChunk = elapsedTime / processedChunks;
     const remainingChunks = totalChunks - processedChunks;
-    
-    const remainingProcessingTime = Math.ceil((remainingChunks * timePerChunk) / 1000);
-    const remainingFinalizationTime = progress < 90 ? FINALIZATION_TIME : 
-      Math.round((FINALIZATION_TIME * (100 - progress)) / 10);
+    const estimatedRemainingSeconds = Math.ceil(remainingChunks * averageTimePerChunk);
 
-    const totalRemainingTime = remainingProcessingTime + remainingFinalizationTime;
-    const adjustedTime = Math.max(Math.ceil(totalRemainingTime * 1.1), 5);
-    
-    return formatTimeRemaining(adjustedTime);
-  }, [progress, status, totalChunks, processedChunks, startTime]);
+    return formatTimeRemaining(Math.max(estimatedRemainingSeconds, 5));
+  }, [realProgress, status, processedChunks, totalChunks, elapsedTime]);
+
+  const progress = Math.max(realProgress, simulatedProgress);
 
   return {
     progress,
