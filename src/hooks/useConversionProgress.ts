@@ -4,8 +4,6 @@ import { formatTimeRemaining } from '@/utils/timeFormatting';
 import { calculateSimulatedProgress } from '@/utils/progressSimulation';
 import { supabase } from '@/integrations/supabase/client';
 
-const CHUNK_SIZE = 4800;
-
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
   initialProgress: number,
@@ -13,13 +11,11 @@ export const useConversionProgress = (
   conversionId?: string | null,
   textLength?: number
 ) => {
-  const [realProgress, setRealProgress] = useState(initialProgress);
-  const [simulatedProgress, setSimulatedProgress] = useState(initialProgress);
+  const [progress, setProgress] = useState(initialProgress);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [processedCharacters, setProcessedCharacters] = useState(0);
   const [totalCharacters, setTotalCharacters] = useState(textLength || 0);
   const startTimeRef = useRef(Date.now());
-  const simulationIntervalRef = useRef<number>();
 
   // Handle progress updates from realtime subscription
   const handleProgressUpdate = useCallback((data: { 
@@ -28,14 +24,14 @@ export const useConversionProgress = (
     total_characters?: number | null 
   }) => {
     console.log('Progress update received:', data);
-    const { progress, processed_characters, total_characters } = data;
+    const { progress: newProgress, processed_characters, total_characters } = data;
 
-    if (typeof progress === 'number' && progress >= 0) {
-      setRealProgress(prev => Math.max(prev, progress));
+    if (typeof newProgress === 'number' && newProgress >= 0) {
+      setProgress(Math.max(newProgress, 0));
     }
 
     if (typeof processed_characters === 'number') {
-      setProcessedCharacters(prev => Math.max(prev, processed_characters));
+      setProcessedCharacters(processed_characters);
     }
 
     if (typeof total_characters === 'number' && total_characters > 0) {
@@ -99,62 +95,42 @@ export const useConversionProgress = (
     };
   }, [conversionId, status, handleProgressUpdate]);
 
-  // Handle progress simulation and elapsed time
+  // Update elapsed time
   useEffect(() => {
-    if ((status === 'converting' || status === 'processing') && realProgress < 100) {
-      // Update elapsed time
-      const elapsedInterval = setInterval(() => {
+    let interval: number | undefined;
+
+    if ((status === 'converting' || status === 'processing') && progress < 100) {
+      interval = window.setInterval(() => {
         setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
       }, 1000);
-
-      // Update simulated progress
-      simulationIntervalRef.current = window.setInterval(() => {
-        setSimulatedProgress(prev => {
-          const simulated = calculateSimulatedProgress(
-            elapsedTime,
-            totalCharacters,
-            processedCharacters,
-            realProgress
-          );
-          return Math.max(prev, simulated);
-        });
-      }, 200);
-
-      return () => {
-        clearInterval(elapsedInterval);
-        if (simulationIntervalRef.current) {
-          clearInterval(simulationIntervalRef.current);
-        }
-      };
+    } else if (status === 'completed' || progress >= 100) {
+      setElapsedTime(prev => prev); // Keep final elapsed time
     }
 
-    // Clean up when completed
-    if (status === 'completed' || realProgress >= 100) {
-      setElapsedTime(0);
-      if (simulationIntervalRef.current) {
-        clearInterval(simulationIntervalRef.current);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
       }
-    }
-  }, [status, realProgress, elapsedTime, totalCharacters, processedCharacters]);
+    };
+  }, [status, progress]);
 
   // Calculate estimated time remaining
   const getEstimatedTimeRemaining = useCallback(() => {
-    if (realProgress >= 100 || status === 'completed') {
+    if (progress >= 100 || status === 'completed') {
       return null;
     }
 
-    if (processedCharacters === 0 || totalCharacters === 0) {
+    if (progress === 0) {
       return 'Calculating...';
     }
 
-    const averageTimePerChar = elapsedTime / processedCharacters;
-    const remainingChars = totalCharacters - processedCharacters;
-    const estimatedRemainingSeconds = Math.ceil(remainingChars * averageTimePerChar);
+    // Calculate based on elapsed time and progress
+    const timePerPercent = elapsedTime / progress;
+    const remainingPercent = 100 - progress;
+    const estimatedRemainingSeconds = Math.ceil(timePerPercent * remainingPercent);
 
     return formatTimeRemaining(Math.max(estimatedRemainingSeconds, 5));
-  }, [realProgress, status, processedCharacters, totalCharacters, elapsedTime]);
-
-  const progress = Math.max(realProgress, simulatedProgress);
+  }, [progress, status, elapsedTime]);
 
   return {
     progress,
