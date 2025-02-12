@@ -1,24 +1,30 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
-  progress: number,
+  initialProgress: number,
   estimatedSeconds: number,
   conversionId?: string | null
 ) => {
-  const [smoothProgress, setSmoothProgress] = useState(progress);
-  const [showEstimate, setShowEstimate] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [progress, setProgress] = useState(initialProgress);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [startTime] = useState(Date.now());
+  const [progressHistory, setProgressHistory] = useState<Array<[number, number]>>([]);
 
-  // Handle progress updates from both props and real-time
+  const updateProgress = useCallback((newProgress: number) => {
+    setProgress(newProgress);
+    setProgressHistory(prev => [...prev, [Date.now() - startTime, newProgress]]);
+  }, [startTime]);
+
+  // Handle initial progress
   useEffect(() => {
-    // Always update progress to ensure initial value is set
-    setSmoothProgress(progress);
-    console.log('Progress updated:', progress);
-  }, [progress]);
+    if (initialProgress > progress) {
+      updateProgress(initialProgress);
+    }
+  }, [initialProgress, progress, updateProgress]);
 
   // Real-time updates subscription
   useEffect(() => {
@@ -41,41 +47,31 @@ export const useConversionProgress = (
             console.log('Received real-time update:', payload);
             const newProgress = payload.new.progress;
             
-            if (typeof newProgress === 'number') {
-              setSmoothProgress(newProgress);
-              console.log('Updated progress:', newProgress);
+            if (typeof newProgress === 'number' && newProgress > progress) {
+              updateProgress(newProgress);
             }
           }
         )
-        .subscribe((status) => {
-          console.log('Real-time subscription status:', status);
-        });
+        .subscribe();
     }
 
     return () => {
       if (channel) {
-        console.log('Cleaning up real-time subscription');
         supabase.removeChannel(channel);
       }
     };
-  }, [conversionId, status]);
+  }, [conversionId, status, progress, updateProgress]);
 
-  // Track elapsed time and handle estimation
+  // Time tracking
   useEffect(() => {
     let intervalId: number;
     
     if (status === 'converting' || status === 'processing') {
       intervalId = window.setInterval(() => {
-        setElapsedSeconds(prev => prev + 1);
+        setElapsedTime(prev => prev + 1);
       }, 1000);
-
-      // Show estimate once we have any progress
-      if (progress > 0) {
-        setShowEstimate(true);
-      }
     } else {
-      setElapsedSeconds(0);
-      setShowEstimate(false);
+      setElapsedTime(0);
     }
 
     return () => {
@@ -83,32 +79,40 @@ export const useConversionProgress = (
         clearInterval(intervalId);
       }
     };
-  }, [status, progress]);
+  }, [status]);
 
-  const getEstimatedTimeRemaining = () => {
-    if (!showEstimate || smoothProgress >= 100) {
+  const getEstimatedTimeRemaining = useCallback(() => {
+    if (progress >= 100 || status === 'completed') {
       return null;
     }
 
-    if (smoothProgress <= 0 || elapsedSeconds <= 0) {
+    if (progressHistory.length < 2) {
       return formatTimeRemaining(estimatedSeconds);
     }
 
-    const progressRate = smoothProgress / elapsedSeconds;
-    if (progressRate <= 0) {
-      return formatTimeRemaining(estimatedSeconds);
+    // Calculate rate based on recent progress
+    const recentHistory = progressHistory.slice(-5);
+    if (recentHistory.length >= 2) {
+      const [startTime, startProgress] = recentHistory[0];
+      const [endTime, endProgress] = recentHistory[recentHistory.length - 1];
+      const timeElapsed = (endTime - startTime) / 1000; // Convert to seconds
+      const progressMade = endProgress - startProgress;
+      
+      if (timeElapsed > 0 && progressMade > 0) {
+        const progressPerSecond = progressMade / timeElapsed;
+        const remainingProgress = 100 - progress;
+        const estimatedSeconds = Math.ceil(remainingProgress / progressPerSecond);
+        return formatTimeRemaining(estimatedSeconds);
+      }
     }
 
-    const remainingProgress = 100 - smoothProgress;
-    const estimatedRemainingSeconds = Math.ceil(remainingProgress / progressRate);
-    
-    return formatTimeRemaining(estimatedRemainingSeconds);
-  };
+    return formatTimeRemaining(estimatedSeconds);
+  }, [progress, status, progressHistory, estimatedSeconds]);
 
   return {
-    smoothProgress,
-    showEstimate,
+    progress,
+    elapsedTime,
     timeRemaining: getEstimatedTimeRemaining(),
-    elapsedSeconds
+    hasStarted: progress > 0
   };
 };

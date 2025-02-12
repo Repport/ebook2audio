@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Chapter } from '@/utils/textExtraction';
@@ -28,7 +28,7 @@ const ConversionStatus = ({
   estimatedSeconds = 0,
   conversionId
 }: ConversionStatusProps) => {
-  const { smoothProgress, showEstimate, timeRemaining } = useConversionProgress(
+  const { progress: currentProgress, timeRemaining, elapsedTime, hasStarted } = useConversionProgress(
     status,
     progress,
     estimatedSeconds,
@@ -45,27 +45,44 @@ const ConversionStatus = ({
     processing: `Converting ${fileType} to MP3...`
   };
 
+  const formatElapsedTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="flex flex-col items-center space-y-4 w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-      <div className="flex items-center justify-center w-full">
+      <div className="flex items-center justify-center w-full mb-2">
         {(displayStatus === 'converting') && (
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-lg font-medium text-center animate-pulse">
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative">
+              <Loader2 className="w-12 h-12 animate-spin text-primary" />
+              {hasStarted && (
+                <div className="absolute -bottom-1 -right-1 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full">
+                  {Math.round(currentProgress)}%
+                </div>
+              )}
+            </div>
+            <p className="text-lg font-medium text-center">
               {statusMessages[status]}
             </p>
           </div>
         )}
         
         {displayStatus === 'completed' && (
-          <p className="text-lg font-medium text-center text-green-600 dark:text-green-400">
-            {statusMessages[status]}
-          </p>
+          <div className="flex flex-col items-center gap-3">
+            <CheckCircle2 className="w-12 h-12 text-green-500 dark:text-green-400" />
+            <p className="text-lg font-medium text-center text-green-600 dark:text-green-400">
+              {statusMessages[status]}
+            </p>
+          </div>
         )}
 
         {displayStatus === 'error' && (
           <Alert variant="destructive" className="w-full">
-            <AlertDescription>
+            <AlertCircle className="h-5 w-5" />
+            <AlertDescription className="ml-2">
               {statusMessages[status]}
             </AlertDescription>
           </Alert>
@@ -78,31 +95,35 @@ const ConversionStatus = ({
         )}
       </div>
       
-      {timeRemaining && showEstimate && (
-        <p className="text-sm text-muted-foreground text-center">
-          Estimated time remaining: {timeRemaining}
-        </p>
+      {(displayStatus === 'converting' && hasStarted) && (
+        <div className="w-full space-y-4">
+          <Progress value={currentProgress} className="h-2" />
+          
+          <div className="flex items-center justify-between text-sm text-muted-foreground w-full px-1">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span>
+                {formatElapsedTime(elapsedTime)}
+              </span>
+            </div>
+            {timeRemaining && (
+              <div>
+                {timeRemaining} remaining
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {detectingChapters && (
-        <p className="text-sm text-muted-foreground text-center">
+        <p className="text-sm text-muted-foreground text-center animate-pulse">
           Detecting chapters... {chaptersFound} chapters found
         </p>
       )}
       
       <ChaptersList chapters={chapters} />
-
-      {(displayStatus === 'converting') && (
-        <div className="w-full space-y-2">
-          <Progress value={smoothProgress} className="h-2" />
-          <p className="text-sm text-muted-foreground text-center">
-            {Math.round(smoothProgress)}%
-          </p>
-        </div>
-      )}
     </div>
   );
 };
 
 export default ConversionStatus;
-
