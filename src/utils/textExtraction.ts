@@ -1,10 +1,11 @@
+
 import { extractPdfText } from './pdfUtils';
 import { extractEpubText } from './epubUtils';
 
 export type Chapter = {
   title: string;
   startIndex: number;
-  timestamp?: number; // Time in minutes where the chapter starts in the audio
+  timestamp?: number;
   metadata?: {
     language?: string;
   };
@@ -28,11 +29,10 @@ const LANGUAGE_PATTERNS = {
 } as const;
 
 const detectLanguage = (text: string): string => {
-  const sampleText = text.slice(0, 2000); // Increased sample size for better detection
+  const sampleText = text.slice(0, 2000);
   
   const scores = Object.entries(LANGUAGE_PATTERNS).map(([language, pattern]) => {
     const matches = sampleText.match(pattern) || [];
-    // Count unique matches to avoid bias from repeated words
     const uniqueMatches = new Set(matches.map(m => m.toLowerCase()));
     return {
       language,
@@ -66,14 +66,27 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
       ? await extractPdfText(file)
       : await extractEpubText(file);
 
-    console.log('Detected chapters:', chapters); // Debug log
+    const detectedLanguage = detectLanguage(text);
+    
+    // Create a new first chapter with the detected language if no chapters exist
+    const updatedChapters = chapters?.length > 0 
+      ? chapters.map((chapter, index) => 
+          index === 0 
+            ? { ...chapter, metadata: { ...chapter.metadata, language: detectedLanguage } }
+            : chapter
+        )
+      : [{
+          title: 'Chapter 1',
+          startIndex: 0,
+          metadata: { language: detectedLanguage }
+        }];
 
     return {
       text,
       metadata: {
         totalCharacters: text.length,
-        language: detectLanguage(text),
-        chapters: chapters || []
+        language: detectedLanguage,
+        chapters: updatedChapters
       }
     };
   } catch (error) {
