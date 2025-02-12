@@ -8,9 +8,10 @@ interface ProgressUpdate {
   progress: number;
 }
 
+// Adjusted constants for more accurate timing
 const CHUNK_SIZE = 4800;
-const CHUNK_PROCESSING_TIME = 3;
-const FINALIZATION_TIME = 10;
+const CHUNK_PROCESSING_TIME = 6; // Increased to account for network latency
+const FINALIZATION_TIME = 15; // Increased for better estimate
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -24,17 +25,18 @@ export const useConversionProgress = (
   const [startTime] = useState(Date.now());
   const [totalChunks, setTotalChunks] = useState(0);
   const [processedChunks, setProcessedChunks] = useState(0);
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
 
   useEffect(() => {
     if (textLength) {
       const chunks = Math.ceil(textLength / CHUNK_SIZE);
       setTotalChunks(chunks);
-      console.log(`Texto dividido en ${chunks} chunks (${textLength} caracteres)`);
+      console.log(`Text divided into ${chunks} chunks (${textLength} characters)`);
     }
   }, [textLength]);
 
-  const updateProgress = useCallback((progressData: { progress: number, processed_chunks?: number, total_chunks?: number }) => {
-    console.log('Recibida actualización de progreso:', progressData);
+  const updateProgress = useCallback((progressData: { progress: number, processed_chunks?: number | null, total_chunks?: number | null }) => {
+    console.log('Progress update received:', progressData);
     const { progress: newProgress, processed_chunks, total_chunks } = progressData;
 
     if (typeof newProgress === 'number' && newProgress >= 0) {
@@ -43,6 +45,7 @@ export const useConversionProgress = (
 
     if (typeof processed_chunks === 'number') {
       setProcessedChunks(processed_chunks);
+      setLastUpdateTime(Date.now()); // Update timestamp when chunks are processed
     }
 
     if (typeof total_chunks === 'number') {
@@ -54,9 +57,8 @@ export const useConversionProgress = (
     let channel;
     
     if (conversionId && (status === 'converting' || status === 'processing')) {
-      console.log('Configurando actualizaciones en tiempo real para conversión:', conversionId);
+      console.log('Setting up realtime updates for conversion:', conversionId);
       
-      // Crear un canal específico para esta conversión
       const channelName = `conversion-${conversionId}`;
       channel = supabase
         .channel(channelName)
@@ -69,7 +71,7 @@ export const useConversionProgress = (
             filter: `id=eq.${conversionId}`,
           },
           (payload: any) => {
-            console.log('Actualización en tiempo real recibida:', payload);
+            console.log('Realtime update received:', payload);
             if (payload.new) {
               const { progress = 0, processed_chunks, total_chunks } = payload.new;
               updateProgress({
@@ -81,10 +83,10 @@ export const useConversionProgress = (
           }
         )
         .subscribe((status) => {
-          console.log(`Estado del canal ${channelName}:`, status);
+          console.log(`Channel ${channelName} status:`, status);
         });
 
-      // Hacer una consulta inicial para obtener el estado actual
+      // Initial state query
       supabase
         .from('text_conversions')
         .select('progress, processed_chunks, total_chunks')
@@ -97,7 +99,7 @@ export const useConversionProgress = (
           }
           
           if (data) {
-            console.log('Estado inicial de la conversión:', data);
+            console.log('Initial conversion state:', data);
             updateProgress({
               progress: data.progress ?? 0,
               processed_chunks: data.processed_chunks,
@@ -107,7 +109,7 @@ export const useConversionProgress = (
         });
 
       return () => {
-        console.log('Limpiando suscripción en tiempo real');
+        console.log('Cleaning up realtime subscription');
         if (channel) {
           supabase.removeChannel(channel);
         }
@@ -138,14 +140,25 @@ export const useConversionProgress = (
       return null;
     }
 
+    if (processedChunks === 0 || totalChunks === 0) {
+      return 'Calculating...';
+    }
+
+    const timePerChunk = (Date.now() - startTime) / processedChunks;
     const remainingChunks = totalChunks - processedChunks;
-    const remainingChunkTime = remainingChunks * CHUNK_PROCESSING_TIME;
+    
+    // Calculate remaining time based on actual processing speed
+    const remainingProcessingTime = Math.ceil((remainingChunks * timePerChunk) / 1000);
     const remainingFinalizationTime = progress < 90 ? FINALIZATION_TIME : 
       Math.round((FINALIZATION_TIME * (100 - progress)) / 10);
 
-    const totalRemainingTime = remainingChunkTime + remainingFinalizationTime;
-    return formatTimeRemaining(Math.max(0, totalRemainingTime));
-  }, [progress, status, totalChunks, processedChunks]);
+    const totalRemainingTime = remainingProcessingTime + remainingFinalizationTime;
+    
+    // Add some buffer time for network latency and processing
+    const adjustedTime = Math.max(Math.ceil(totalRemainingTime * 1.1), 5);
+    
+    return formatTimeRemaining(adjustedTime);
+  }, [progress, status, totalChunks, processedChunks, startTime]);
 
   return {
     progress,
