@@ -398,11 +398,13 @@ export type Database = {
           file_size: number | null
           id: string
           notify_on_complete: boolean | null
+          processed_characters: number | null
           processed_chunks: number | null
           progress: number | null
           status: string
           storage_path: string | null
           text_hash: string
+          total_characters: number | null
           total_chunks: number | null
           user_id: string | null
         }
@@ -415,11 +417,13 @@ export type Database = {
           file_size?: number | null
           id?: string
           notify_on_complete?: boolean | null
+          processed_characters?: number | null
           processed_chunks?: number | null
           progress?: number | null
           status?: string
           storage_path?: string | null
           text_hash: string
+          total_characters?: number | null
           total_chunks?: number | null
           user_id?: string | null
         }
@@ -432,11 +436,13 @@ export type Database = {
           file_size?: number | null
           id?: string
           notify_on_complete?: boolean | null
+          processed_characters?: number | null
           processed_chunks?: number | null
           progress?: number | null
           status?: string
           storage_path?: string | null
           text_hash?: string
+          total_characters?: number | null
           total_chunks?: number | null
           user_id?: string | null
         }
