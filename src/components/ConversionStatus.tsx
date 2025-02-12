@@ -56,15 +56,17 @@ const ConversionStatus = ({
       <div className="flex items-center justify-center w-full mb-2">
         {(displayStatus === 'converting') && (
           <div className="flex flex-col items-center gap-3">
-            <div className="relative">
-              <Loader2 className="w-12 h-12 animate-spin text-primary" />
+            <div className="relative flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Loader2 className="w-12 h-12 animate-spin stroke-primary fill-transparent" />
+              </div>
               {hasStarted && (
                 <div className="absolute -bottom-1 -right-1 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full">
                   {Math.round(progress)}%
                 </div>
               )}
             </div>
-            <p className="text-lg font-medium text-center">
+            <p className="text-lg font-medium text-center mt-6">
               {statusMessages[status]}
             </p>
           </div>
@@ -97,7 +99,7 @@ const ConversionStatus = ({
       
       {(displayStatus === 'converting' && hasStarted) && (
         <div className="w-full space-y-4">
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} max={100} className="h-2" />
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="text-center w-full">
               {timeRemaining && `${timeRemaining} remaining (${formatTime(elapsedTime)} elapsed)`}

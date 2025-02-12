@@ -17,8 +17,9 @@ export const useConversionProgress = (
   const updateProgress = useCallback((newProgress: number) => {
     if (typeof newProgress === 'number' && newProgress >= 0) {
       console.log('Updating progress:', newProgress);
-      setProgress(Math.min(100, Math.round(newProgress)));
-      setProgressHistory(prev => [...prev, [Date.now() - startTime, newProgress]]);
+      const roundedProgress = Math.min(100, Math.round(newProgress));
+      setProgress(roundedProgress);
+      setProgressHistory(prev => [...prev, [Date.now() - startTime, roundedProgress]]);
     }
   }, [startTime]);
 
@@ -49,20 +50,20 @@ export const useConversionProgress = (
             console.log('Received real-time update:', payload);
             const newProgress = payload.new.progress;
             
-            if (typeof newProgress === 'number' && newProgress > progress) {
+            if (typeof newProgress === 'number' && newProgress !== progress) {
               updateProgress(newProgress);
             }
           }
         )
         .subscribe();
-    }
 
-    return () => {
-      if (channel) {
-        console.log('Cleaning up real-time subscription');
-        supabase.removeChannel(channel);
-      }
-    };
+      return () => {
+        if (channel) {
+          console.log('Cleaning up real-time subscription');
+          supabase.removeChannel(channel);
+        }
+      };
+    }
   }, [conversionId, status, progress, updateProgress]);
 
   useEffect(() => {
@@ -88,8 +89,8 @@ export const useConversionProgress = (
       return null;
     }
 
-    // Use progress history to calculate a more accurate estimate
-    const recentHistory = progressHistory.slice(-5);
+    // Calculate based on recent progress rate
+    const recentHistory = progressHistory.slice(-3);
     if (recentHistory.length >= 2) {
       const [startTime, startProgress] = recentHistory[0];
       const [endTime, endProgress] = recentHistory[recentHistory.length - 1];
@@ -98,14 +99,24 @@ export const useConversionProgress = (
       
       if (timeElapsed > 0 && progressMade > 0) {
         const progressPerSecond = progressMade / timeElapsed;
-        const remainingProgress = 100 - progress;
-        const estimatedSeconds = Math.ceil(remainingProgress / progressPerSecond);
-        return formatTimeRemaining(estimatedSeconds);
+        if (progressPerSecond > 0) {
+          const remainingProgress = 100 - progress;
+          const estimatedSeconds = Math.ceil(remainingProgress / progressPerSecond);
+          console.log('Estimated seconds remaining:', estimatedSeconds, {
+            progressPerSecond,
+            remainingProgress,
+            timeElapsed,
+            progressMade
+          });
+          return formatTimeRemaining(estimatedSeconds);
+        }
       }
     }
 
-    // Fallback to initial estimate
-    return formatTimeRemaining(Math.max(0, estimatedSeconds - elapsedTime));
+    // Fallback to initial estimate if we can't calculate based on progress
+    const remainingTime = Math.max(0, estimatedSeconds - elapsedTime);
+    console.log('Using fallback time estimate:', remainingTime);
+    return formatTimeRemaining(remainingTime);
   }, [progress, status, progressHistory, estimatedSeconds, elapsedTime]);
 
   return {
