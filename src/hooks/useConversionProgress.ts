@@ -50,7 +50,7 @@ export const useConversionProgress = (
             console.log('Received real-time update:', payload);
             const newProgress = payload.new.progress;
             
-            if (typeof newProgress === 'number' && newProgress !== progress) {
+            if (typeof newProgress === 'number') {
               updateProgress(newProgress);
             }
           }
@@ -64,7 +64,7 @@ export const useConversionProgress = (
         }
       };
     }
-  }, [conversionId, status, progress, updateProgress]);
+  }, [conversionId, status, updateProgress]);
 
   useEffect(() => {
     let intervalId: number;
@@ -90,10 +90,10 @@ export const useConversionProgress = (
     }
 
     // Calculate based on recent progress rate
-    const recentHistory = progressHistory.slice(-3);
-    if (recentHistory.length >= 2) {
+    const recentHistory = progressHistory.slice(-2);
+    if (recentHistory.length === 2) {
       const [startTime, startProgress] = recentHistory[0];
-      const [endTime, endProgress] = recentHistory[recentHistory.length - 1];
+      const [endTime, endProgress] = recentHistory[1];
       const timeElapsed = (endTime - startTime) / 1000; // Convert to seconds
       const progressMade = endProgress - startProgress;
       
@@ -102,11 +102,12 @@ export const useConversionProgress = (
         if (progressPerSecond > 0) {
           const remainingProgress = 100 - progress;
           const estimatedSeconds = Math.ceil(remainingProgress / progressPerSecond);
-          console.log('Estimated seconds remaining:', estimatedSeconds, {
+          console.log('Progress calculation:', {
+            timeElapsed,
+            progressMade,
             progressPerSecond,
             remainingProgress,
-            timeElapsed,
-            progressMade
+            estimatedSeconds
           });
           return formatTimeRemaining(estimatedSeconds);
         }
