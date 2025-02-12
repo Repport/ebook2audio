@@ -6,6 +6,7 @@ import { Chapter } from '@/utils/textExtraction';
 import { ChaptersList } from './ChaptersList';
 import { useConversionProgress } from '@/hooks/useConversionProgress';
 import { Progress } from '@/components/ui/progress';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface ConversionStatusProps {
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
@@ -28,6 +29,7 @@ const ConversionStatus = ({
   conversionId,
   textLength = 0
 }: ConversionStatusProps) => {
+  const { translations } = useLanguage();
   const { 
     progress: currentProgress, 
     timeRemaining, 
@@ -46,11 +48,11 @@ const ConversionStatus = ({
   const displayStatus = status === 'processing' ? 'converting' : status;
   
   const statusMessages = {
-    idle: 'Listo para convertir',
-    converting: `Convirtiendo ${fileType} a MP3...`,
-    completed: '¡Conversión completada!',
-    error: 'Error en la conversión',
-    processing: `Convirtiendo ${fileType} a MP3...`
+    idle: translations.readyToConvert,
+    converting: translations.converting.replace('{fileType}', fileType),
+    completed: translations.conversionCompleted,
+    error: translations.conversionError,
+    processing: translations.converting.replace('{fileType}', fileType)
   };
 
   const formatTime = (seconds: number) => {
@@ -80,12 +82,14 @@ const ConversionStatus = ({
         <div className="text-sm text-muted-foreground text-center space-y-1">
           {totalChunks > 0 && (
             <div>
-              Procesando chunk {processedChunks} de {totalChunks}
+              {translations.processingChunk
+                .replace('{current}', processedChunks.toString())
+                .replace('{total}', totalChunks.toString())}
             </div>
           )}
           <div>
-            {elapsedTime > 0 && `${formatTime(elapsedTime)} transcurridos`}
-            {timeRemaining && ` • ${timeRemaining} restantes`}
+            {elapsedTime > 0 && translations.timeElapsed.replace('{time}', formatTime(elapsedTime))}
+            {timeRemaining && ` • ${translations.timeRemaining.replace('{time}', timeRemaining)}`}
           </div>
         </div>
       </div>
