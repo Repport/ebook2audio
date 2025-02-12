@@ -69,6 +69,25 @@ export const useConversionActions = ({
       const textHash = await generateHash(extractedText, selectedVoice);
       console.log('Generated text hash:', textHash);
       
+      // Crear un nuevo registro de conversión
+      const { data: conversionRecord, error: insertError } = await supabase
+        .from('text_conversions')
+        .insert({
+          user_id: user?.id,
+          status: 'processing',
+          file_name: fileName,
+          voice_id: selectedVoice,
+          progress: 0
+        })
+        .select()
+        .single();
+
+      if (insertError || !conversionRecord) {
+        throw new Error('Failed to create conversion record');
+      }
+
+      setConversionId(conversionRecord.id);
+      
       // Check for existing conversion
       const existingConversion = await checkExistingConversion(textHash);
       
@@ -108,9 +127,10 @@ export const useConversionActions = ({
 
       const { audio, id } = await convertToAudio(
         extractedText, 
-        selectedVoice, 
+        selectedVoice,
         detectChapters ? chaptersWithTimestamps : undefined,
-        fileName
+        fileName,
+        conversionRecord.id // Pasar el ID de la conversión
       );
       
       if (!audio) {
