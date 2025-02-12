@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 
 interface ConversionStepProps {
   selectedFile: File;
-  conversionStatus: 'idle' | 'converting' | 'completed' | 'error';
+  conversionStatus: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
   progress: number;
   audioData: ArrayBuffer | null;
   audioDuration: number;
@@ -15,6 +15,7 @@ interface ConversionStepProps {
   onDownloadClick: () => void;
   onViewConversions: () => void;
   conversionId: string | null;
+  textLength?: number;
 }
 
 const ConversionStep = ({
@@ -27,7 +28,8 @@ const ConversionStep = ({
   onViewConversions,
   audioData,
   audioDuration,
-  conversionId
+  conversionId,
+  textLength
 }: ConversionStepProps) => {
   return (
     <Card className="p-6 space-y-6">
@@ -41,6 +43,7 @@ const ConversionStep = ({
           chapters={[]}
           estimatedSeconds={estimatedSeconds}
           conversionId={conversionId}
+          textLength={textLength}
         />
       </div>
       
