@@ -1,4 +1,5 @@
 
+import React from 'react';
 import {
   Select,
   SelectContent,
@@ -8,11 +9,15 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from "@/hooks/useLanguage";
 
-const LanguageSelector = () => {
+const LanguageSelector: React.FC = () => {
   const { language, setLanguage } = useLanguage();
 
+  const handleValueChange = (value: string) => {
+    setLanguage(value);
+  };
+
   return (
-    <Select value={language} onValueChange={(value: any) => setLanguage(value)}>
+    <Select defaultValue={language} onValueChange={handleValueChange}>
       <SelectTrigger className="w-[130px]">
         <SelectValue placeholder="Language" />
       </SelectTrigger>
