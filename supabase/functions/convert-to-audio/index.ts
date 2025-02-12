@@ -34,8 +34,7 @@ serve(async (req) => {
       console.log('Request body received:', {
         textLength: body.text?.length,
         voiceId: body.voiceId,
-        isChunk: body.isChunk,
-        chunkIndex: body.chunkIndex
+        fileName: body.fileName
       })
     } catch (e) {
       console.error('Failed to parse request body:', e)
@@ -44,9 +43,14 @@ serve(async (req) => {
 
     const { text, voiceId, fileName } = body
 
-    if (!text || !voiceId) {
-      console.error('Missing required parameters:', { hasText: !!text, hasVoiceId: !!voiceId })
-      throw new Error('Missing required parameters: text and voiceId are required')
+    if (!text || typeof text !== 'string') {
+      console.error('Missing or invalid text parameter:', { text })
+      throw new Error('Text parameter must be a non-empty string')
+    }
+
+    if (!voiceId || typeof voiceId !== 'string') {
+      console.error('Missing or invalid voiceId parameter:', { voiceId })
+      throw new Error('VoiceId parameter must be a non-empty string')
     }
 
     // Initialize Google Cloud TTS client
@@ -123,12 +127,14 @@ serve(async (req) => {
     console.error('Error in convert-to-audio function:', error)
     console.error('Error stack:', error.stack)
     
+    const errorResponse = {
+      error: error.message || 'Internal server error',
+      details: error.stack,
+      timestamp: new Date().toISOString()
+    }
+    
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Internal server error',
-        details: error.stack,
-        timestamp: new Date().toISOString()
-      }),
+      JSON.stringify(errorResponse),
       { 
         status: error.status || 500,
         headers: { 
