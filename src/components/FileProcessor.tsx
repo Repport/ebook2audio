@@ -105,7 +105,7 @@ const FileProcessor = ({
     setShowTerms(false);
   };
 
-  // Get the detected language from metadata
+  // Get the detected language from metadata of the first chapter
   const detectedLanguage = chapters?.[0]?.metadata?.language || 'english';
   console.log('Using detected language:', detectedLanguage);
 
