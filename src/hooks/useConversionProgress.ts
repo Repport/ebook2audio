@@ -91,16 +91,18 @@ export const useConversionProgress = (
         .eq('id', conversionId)
         .single()
         .then(({ data, error }) => {
-          if (!error && data) {
-            console.log('Estado inicial de la conversión:', data);
-            const { progress = 0, processed_chunks, total_chunks } = data;
-            updateProgress({
-              progress,
-              processed_chunks,
-              total_chunks
-            });
-          } else {
+          if (error) {
             console.error('Error fetching initial conversion state:', error);
+            return;
+          }
+          
+          if (data) {
+            console.log('Estado inicial de la conversión:', data);
+            updateProgress({
+              progress: data.progress ?? 0,
+              processed_chunks: data.processed_chunks,
+              total_chunks: data.total_chunks
+            });
           }
         });
 
