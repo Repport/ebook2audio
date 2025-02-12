@@ -30,13 +30,15 @@ const VoiceSettingsStep = ({
   setNotifyOnComplete
 }: VoiceSettingsStepProps) => {
   const { user } = useAuth();
+  
+  console.log('VoiceSettingsStep - Received language:', detectedLanguage);
 
   return (
     <>
       <VoiceSelector 
         selectedVoice={selectedVoice}
         onVoiceChange={setSelectedVoice}
-        detectedLanguage={detectedLanguage}
+        detectedLanguage={detectedLanguage || 'english'}
       />
       
       <div className="space-y-6 mt-8">
