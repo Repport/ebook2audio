@@ -5,6 +5,8 @@ export async function processTextInChunks(
   text: string,
   voiceId: string,
   accessToken: string,
+  conversionId: string,
+  supabaseClient: any,
   maxChunkSize: number = 2500 // Reduced to ensure we stay well under the 5000 byte limit
 ): Promise<{ audioContents: string[], progress: number }> {
   // Dividir el texto en chunks respetando palabras completas
@@ -44,7 +46,20 @@ export async function processTextInChunks(
     console.log(`Processing chunk ${i + 1}/${chunks.length}`);
     const audioContent = await synthesizeSpeech(chunks[i], voiceId, accessToken);
     audioContents.push(audioContent);
+    
+    // Calcular y actualizar el progreso
     progress = Math.round(((i + 1) / totalChunks) * 100);
+    console.log(`Updating progress to ${progress}%`);
+    
+    // Actualizar el progreso en la base de datos
+    const { error: updateError } = await supabaseClient
+      .from('text_conversions')
+      .update({ progress })
+      .eq('id', conversionId);
+      
+    if (updateError) {
+      console.error('Error updating progress:', updateError);
+    }
   }
 
   return { audioContents, progress };

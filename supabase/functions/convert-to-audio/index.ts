@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
 console.log('Loading convert-to-audio function...')
 
@@ -27,14 +28,15 @@ serve(async (req) => {
       console.log('Request body received:', {
         textLength: body.text?.length,
         voiceId: body.voiceId,
-        fileName: body.fileName
+        fileName: body.fileName,
+        conversionId: body.conversionId
       })
     } catch (e) {
       console.error('Failed to parse request body:', e)
       throw new Error('Invalid request body')
     }
 
-    const { text, voiceId, fileName } = body
+    const { text, voiceId, fileName, conversionId } = body
 
     if (!text || typeof text !== 'string') {
       console.error('Missing or invalid text parameter:', { text })
@@ -45,6 +47,21 @@ serve(async (req) => {
       console.error('Missing or invalid voiceId parameter:', { voiceId })
       throw new Error('VoiceId parameter must be a non-empty string')
     }
+
+    if (!conversionId) {
+      console.error('Missing conversionId parameter')
+      throw new Error('conversionId parameter is required')
+    }
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration')
+    }
+    
+    const supabaseClient = createClient(supabaseUrl, supabaseKey)
 
     // Initialize Google Cloud TTS client
     const credentialsString = Deno.env.get('GCP_SERVICE_ACCOUNT')
@@ -92,7 +109,13 @@ serve(async (req) => {
 
     // Process text in chunks
     console.log(`Processing text of length ${text.length} in chunks`)
-    const { audioContents, progress } = await processTextInChunks(text, voiceId, access_token)
+    const { audioContents, progress } = await processTextInChunks(
+      text, 
+      voiceId, 
+      access_token, 
+      conversionId,
+      supabaseClient
+    )
     
     // Combine audio chunks
     console.log('Combining audio chunks')
