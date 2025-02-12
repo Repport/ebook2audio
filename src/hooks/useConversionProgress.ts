@@ -8,58 +8,57 @@ interface ProgressUpdate {
   progress: number;
 }
 
+const CHUNK_SIZE = 4800; // API limit per chunk
+const CHUNK_PROCESSING_TIME = 3; // segundos estimados por chunk
+const FINALIZATION_TIME = 10; // segundos extra para combinar archivos
+
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
   initialProgress: number,
   estimatedSeconds: number,
-  conversionId?: string | null
+  conversionId?: string | null,
+  textLength?: number
 ) => {
   const [progress, setProgress] = useState(initialProgress);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [startTime] = useState(Date.now());
-  const [progressUpdates, setProgressUpdates] = useState<ProgressUpdate[]>([]);
-  const [lastCalculatedRate, setLastCalculatedRate] = useState<number | null>(null);
+  const [totalChunks, setTotalChunks] = useState(0);
+  const [processedChunks, setProcessedChunks] = useState(0);
 
-  const calculateProgressRate = useCallback((updates: ProgressUpdate[]) => {
-    if (updates.length < 2) return null;
-    const recent = updates.slice(-2);
-    const timeDiff = (recent[1].timestamp - recent[0].timestamp) / 1000;
-    const progressDiff = recent[1].progress - recent[0].progress;
+  // Calcular el número total de chunks basado en la longitud del texto
+  useEffect(() => {
+    if (textLength) {
+      const chunks = Math.ceil(textLength / CHUNK_SIZE);
+      setTotalChunks(chunks);
+      console.log(`Texto dividido en ${chunks} chunks (${textLength} caracteres)`);
+    }
+  }, [textLength]);
 
-    if (timeDiff <= 0 || progressDiff <= 0) return null;
-
-    return progressDiff / timeDiff;
-  }, []);
-
+  // Actualizar el progreso basado en los chunks procesados
   const updateProgress = useCallback((newProgress: number) => {
     if (typeof newProgress !== 'number' || newProgress < 0) {
       console.warn('Invalid progress value:', newProgress);
       return;
     }
 
-    const now = Date.now();
-    const roundedProgress = Math.min(100, Math.round(newProgress));
-    
-    console.log('Progress update received:', {
-      previous: progress,
-      new: roundedProgress,
-      timestamp: now,
-      timeSinceStart: (now - startTime) / 1000
+    // Calcular cuántos chunks se han procesado basado en el progreso
+    const chunksCompleted = Math.floor((newProgress / 100) * totalChunks);
+    setProcessedChunks(chunksCompleted);
+
+    // Calcular el progreso total incluyendo el tiempo de finalización
+    const chunkProgress = (chunksCompleted / totalChunks) * 90; // 90% para procesamiento
+    const finalizationProgress = newProgress >= 95 ? (newProgress - 95) * 2 : 0; // 10% para finalización
+    const totalProgress = Math.min(100, chunkProgress + finalizationProgress);
+
+    console.log('Progress update:', {
+      chunks: `${chunksCompleted}/${totalChunks}`,
+      chunkProgress,
+      finalizationProgress,
+      totalProgress
     });
 
-    setProgress(roundedProgress);
-    setProgressUpdates(prev => {
-      const update = { timestamp: now, progress: roundedProgress };
-      const newUpdates = [...prev.slice(-4), update];
-      
-      const rate = calculateProgressRate(newUpdates);
-      if (rate !== null) {
-        setLastCalculatedRate(rate);
-      }
-      
-      return newUpdates;
-    });
-  }, [progress, startTime, calculateProgressRate]);
+    setProgress(Math.round(totalProgress));
+  }, [totalChunks]);
 
   // Efecto para las actualizaciones en tiempo real
   useEffect(() => {
@@ -123,20 +122,22 @@ export const useConversionProgress = (
       return null;
     }
 
-    if (lastCalculatedRate && lastCalculatedRate > 0) {
-      const remainingProgress = 100 - progress;
-      const estimatedSeconds = Math.ceil(remainingProgress / lastCalculatedRate);
-      return formatTimeRemaining(estimatedSeconds);
-    }
+    // Calcular tiempo restante basado en chunks y tiempo de procesamiento
+    const remainingChunks = totalChunks - processedChunks;
+    const remainingChunkTime = remainingChunks * CHUNK_PROCESSING_TIME;
+    const remainingFinalizationTime = progress < 90 ? FINALIZATION_TIME : 
+      Math.round((FINALIZATION_TIME * (100 - progress)) / 10);
 
-    const remainingTime = Math.max(0, estimatedSeconds - elapsedTime);
-    return formatTimeRemaining(remainingTime);
-  }, [progress, status, lastCalculatedRate, estimatedSeconds, elapsedTime]);
+    const totalRemainingTime = remainingChunkTime + remainingFinalizationTime;
+    return formatTimeRemaining(Math.max(0, totalRemainingTime));
+  }, [progress, status, totalChunks, processedChunks]);
 
   return {
     progress,
     elapsedTime,
     timeRemaining: getEstimatedTimeRemaining(),
-    hasStarted: progress > 0 || status === 'converting' || status === 'processing'
+    hasStarted: progress > 0 || status === 'converting' || status === 'processing',
+    processedChunks,
+    totalChunks
   };
 };

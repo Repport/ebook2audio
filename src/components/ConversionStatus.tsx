@@ -16,6 +16,7 @@ interface ConversionStatusProps {
   chapters?: Chapter[];
   estimatedSeconds?: number;
   conversionId?: string | null;
+  textLength?: number;
 }
 
 const ConversionStatus = ({ 
@@ -24,13 +25,22 @@ const ConversionStatus = ({
   fileType = 'EPUB',
   chapters = [],
   estimatedSeconds = 0,
-  conversionId
+  conversionId,
+  textLength = 0
 }: ConversionStatusProps) => {
-  const { progress: currentProgress, timeRemaining, elapsedTime, hasStarted } = useConversionProgress(
+  const { 
+    progress: currentProgress, 
+    timeRemaining, 
+    elapsedTime, 
+    hasStarted,
+    processedChunks,
+    totalChunks 
+  } = useConversionProgress(
     status,
     progress,
     estimatedSeconds,
-    conversionId
+    conversionId,
+    textLength
   );
 
   const displayStatus = status === 'processing' ? 'converting' : status;
@@ -67,9 +77,16 @@ const ConversionStatus = ({
       </p>
       <div className="w-full space-y-3">
         <Progress value={currentProgress} className="w-full" />
-        <div className="text-sm text-muted-foreground text-center">
-          {elapsedTime > 0 && `${formatTime(elapsedTime)} elapsed`}
-          {timeRemaining && ` • ${timeRemaining} remaining`}
+        <div className="text-sm text-muted-foreground text-center space-y-1">
+          {totalChunks > 0 && (
+            <div>
+              Processing chunk {processedChunks} of {totalChunks}
+            </div>
+          )}
+          <div>
+            {elapsedTime > 0 && `${formatTime(elapsedTime)} elapsed`}
+            {timeRemaining && ` • ${timeRemaining} remaining`}
+          </div>
         </div>
       </div>
     </div>
