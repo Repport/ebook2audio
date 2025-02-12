@@ -10,24 +10,25 @@ export async function processTextInChunks(
   updateProgress: (chunk: number) => Promise<void>,
   maxChunkSize: number = 4800
 ): Promise<{ audioContents: string[] }> {
-  // Dividir el texto en chunks respetando palabras completas
+  const encoder = new TextEncoder();
+  
+  // Dividir el texto en chunks respetando palabras completas y límite de bytes
   const words = text.split(/\s+/);
   const chunks: string[] = [];
   let currentChunk: string[] = [];
-  let currentLength = 0;
+  let currentBytes = 0;
 
   for (const word of words) {
-    const wordLength = word.length;
-    const spaceLength = currentChunk.length > 0 ? 1 : 0;
-    const potentialLength = currentLength + wordLength + spaceLength;
+    const wordBytes = encoder.encode(word + ' ').length;
+    const potentialBytes = currentBytes + wordBytes;
 
-    if (potentialLength > maxChunkSize && currentChunk.length > 0) {
+    if (potentialBytes > 4500 && currentChunk.length > 0) { // Dejamos margen de seguridad
       chunks.push(currentChunk.join(' '));
       currentChunk = [word];
-      currentLength = wordLength;
+      currentBytes = wordBytes;
     } else {
       currentChunk.push(word);
-      currentLength = potentialLength;
+      currentBytes = potentialBytes;
     }
   }
 
@@ -37,7 +38,10 @@ export async function processTextInChunks(
 
   console.log(`Split text into ${chunks.length} chunks`);
   console.log('Total text length:', text.length);
-  console.log('Chunk sizes:', chunks.map(chunk => chunk.length));
+  chunks.forEach((chunk, i) => {
+    const chunkBytes = encoder.encode(chunk).length;
+    console.log(`Chunk ${i + 1} size: ${chunk.length} chars, ${chunkBytes} bytes`);
+  });
 
   const audioContents: string[] = [];
   const totalChunks = chunks.length;

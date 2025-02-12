@@ -18,7 +18,10 @@ export async function synthesizeSpeech(
     // Validate text length
     const encoder = new TextEncoder();
     const textBytes = encoder.encode(text);
+    console.log(`Text bytes length: ${textBytes.length}`);
+
     if (textBytes.length > 5000) {
+      console.error(`Text exceeds maximum length: ${textBytes.length} bytes`);
       throw new Error(`Text exceeds maximum length of 5000 bytes (current: ${textBytes.length} bytes)`);
     }
 
