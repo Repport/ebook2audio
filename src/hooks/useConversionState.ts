@@ -2,10 +2,9 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Chapter } from '@/utils/textExtraction';
 
 interface ConversionState {
-  conversionStatus: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
+  conversionStatus: 'idle' | 'converting' | 'completed' | 'error';
   progress: number;
   audioData: ArrayBuffer | null;
   audioDuration: number;

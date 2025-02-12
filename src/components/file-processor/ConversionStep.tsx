@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 
 interface ConversionStepProps {
   selectedFile: File;
-  conversionStatus: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
+  conversionStatus: 'idle' | 'converting' | 'completed' | 'error';
   progress: number;
   audioData: ArrayBuffer | null;
   audioDuration: number;
