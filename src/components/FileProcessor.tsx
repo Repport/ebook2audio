@@ -105,6 +105,10 @@ const FileProcessor = ({
     setShowTerms(false);
   };
 
+  // Get the detected language from metadata
+  const detectedLanguage = chapters?.[0]?.metadata?.language || 'english';
+  console.log('Using detected language:', detectedLanguage);
+
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
       <div className="flex justify-start">
@@ -124,7 +128,7 @@ const FileProcessor = ({
           <VoiceSettingsStep
             selectedVoice={selectedVoice}
             setSelectedVoice={setSelectedVoice}
-            detectedLanguage={chapters[0]?.metadata?.language || "english"}
+            detectedLanguage={detectedLanguage}
             detectChapters={detectChapters}
             setDetectChapters={setDetectChapters}
             onNextStep={handleVoiceSettingsComplete}
