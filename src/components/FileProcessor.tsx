@@ -1,11 +1,9 @@
 
 import React, { useState } from 'react';
-import { VOICES } from '@/constants/voices';
 import { Chapter } from '@/utils/textExtraction';
-import { useAuth } from '@/hooks/useAuth';
-import VoiceSettingsStep from '@/components/VoiceSettingsStep';
+import VoiceSettingsStep from './VoiceSettingsStep';
 import ConversionStep from './file-processor/ConversionStep';
-import TermsDialog from '@/components/TermsDialog';
+import TermsDialog from './TermsDialog';
 import { useConversionLogic } from './file-processor/useConversionLogic';
 import { Button } from './ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -31,9 +29,8 @@ const FileProcessor = ({
   onNextStep,
   onPreviousStep
 }: FileProcessorProps) => {
-  const [selectedVoice, setSelectedVoice] = useState<string>(VOICES.english[0].id);
+  const [selectedVoice, setSelectedVoice] = useState<string>('');
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
-  const { user } = useAuth();
   const [notifyOnComplete, setNotifyOnComplete] = useState(false);
 
   const {
@@ -51,7 +48,9 @@ const FileProcessor = ({
     handleDownloadClick,
     handleViewConversions,
     calculateEstimatedSeconds,
-    conversionId
+    conversionId,
+    setProgress,
+    setConversionStatus
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
   const estimatedSeconds = calculateEstimatedSeconds();
