@@ -1,21 +1,20 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import ConversionStatus from '@/components/ConversionStatus';
 import ConversionControls from '@/components/ConversionControls';
 import { Card } from '@/components/ui/card';
 
 interface ConversionStepProps {
   selectedFile: File;
-  conversionStatus: 'idle' | 'converting' | 'completed' | 'error';
+  conversionStatus: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
   progress: number;
-  audioData?: ArrayBuffer;
-  audioDuration?: number;
+  audioData: ArrayBuffer | null;
+  audioDuration: number;
   estimatedSeconds: number;
   onConvert: () => void;
   onDownloadClick: () => void;
   onViewConversions: () => void;
-  conversionId?: string | null;
+  conversionId: string | null;
 }
 
 const ConversionStep = ({
@@ -49,21 +48,12 @@ const ConversionStep = ({
         status={conversionStatus}
         onConvert={onConvert}
         onDownload={onDownloadClick}
-        fileSize={audioData?.byteLength}
-        duration={audioDuration}
+        onViewConversions={onViewConversions}
+        audioData={audioData}
+        audioDuration={audioDuration}
+        estimatedSeconds={estimatedSeconds}
+        conversionId={conversionId}
       />
-
-      {conversionStatus === 'completed' && (
-        <div className="flex justify-center">
-          <Button
-            variant="outline"
-            onClick={onViewConversions}
-            className="w-full max-w-xs"
-          >
-            View All Conversions
-          </Button>
-        </div>
-      )}
     </Card>
   );
 };

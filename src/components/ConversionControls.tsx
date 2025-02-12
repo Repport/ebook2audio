@@ -2,16 +2,37 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, RefreshCw } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { useConversionProgress } from '@/hooks/useConversionProgress';
 
 interface ConversionControlsProps {
-  status: 'idle' | 'converting' | 'completed' | 'error';
+  status: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
   onConvert: () => void;
   onDownload: () => void;
-  fileSize?: number;
-  duration?: number;
+  onViewConversions: () => void;
+  audioData?: ArrayBuffer | null;
+  audioDuration?: number;
+  estimatedSeconds?: number;
+  conversionId?: string | null;
 }
 
-const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration }: ConversionControlsProps) => {
+const ConversionControls = ({ 
+  status, 
+  onConvert, 
+  onDownload,
+  onViewConversions,
+  audioData, 
+  audioDuration,
+  estimatedSeconds = 0,
+  conversionId
+}: ConversionControlsProps) => {
+  const { progress, timeRemaining, elapsedTime } = useConversionProgress(
+    status,
+    0,
+    estimatedSeconds,
+    conversionId
+  );
+
   const formatFileSize = (bytes?: number): string => {
     if (!bytes) return '';
     const mb = bytes / (1024 * 1024);
@@ -22,6 +43,12 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
     if (!seconds) return '';
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const formatElapsedTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
@@ -43,19 +70,26 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
         </Button>
       )}
       
-      {status === 'converting' && (
-        <div className="text-sm text-muted-foreground animate-pulse">
-          Converting...
+      {(status === 'converting' || status === 'processing') && (
+        <div className="w-full max-w-xs space-y-4">
+          <Progress value={progress} className="h-2" />
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>{formatElapsedTime(elapsedTime)}</span>
+            {timeRemaining && <span>{timeRemaining} remaining</span>}
+          </div>
+          <div className="text-sm text-muted-foreground animate-pulse text-center">
+            Converting...
+          </div>
         </div>
       )}
       
       {status === 'completed' && (
         <div className="w-full max-w-xs space-y-4">
-          {(fileSize || duration) && (
+          {(audioData || audioDuration) && (
             <div className="text-sm text-muted-foreground text-center">
-              {fileSize ? `Size: ${formatFileSize(fileSize)}` : ''}
-              {fileSize && duration ? ' • ' : ''}
-              {duration ? `Duration: ${formatDuration(duration)}` : ''}
+              {audioData ? `Size: ${formatFileSize(audioData.byteLength)}` : ''}
+              {audioData && audioDuration ? ' • ' : ''}
+              {audioDuration ? `Duration: ${formatDuration(audioDuration)}` : ''}
             </div>
           )}
           <Button 
@@ -65,6 +99,13 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
             <Download className="mr-2 h-4 w-4" />
             Download Audio
           </Button>
+          <Button
+            variant="outline"
+            onClick={onViewConversions}
+            className="w-full"
+          >
+            View All Conversions
+          </Button>
         </div>
       )}
     </div>
@@ -72,4 +113,3 @@ const ConversionControls = ({ status, onConvert, onDownload, fileSize, duration 
 };
 
 export default ConversionControls;
-
