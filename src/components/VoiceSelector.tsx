@@ -13,14 +13,27 @@ interface VoiceSelectorProps {
 
 const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: VoiceSelectorProps) => {
   const { isPlaying, playPrelisten } = useAudioPrelisten();
+  
+  // Map detected language to voice language
+  const languageMap: Record<string, keyof typeof VOICES> = {
+    'eng': 'english',
+    'en': 'english',
+    'spa': 'spanish',
+    'es': 'spanish',
+    'fra': 'french',
+    'fr': 'french',
+    'deu': 'german',
+    'de': 'german'
+  };
 
-  // Get available voices for the detected language or fallback to English
-  const availableVoices = VOICES[detectedLanguage as keyof typeof VOICES] || VOICES.english;
+  // Get the mapped language or fallback to english
+  const mappedLanguage = languageMap[detectedLanguage.toLowerCase()] || 'english';
+  const availableVoices = VOICES[mappedLanguage];
 
   return (
     <div className="w-full max-w-xl mx-auto">
       <Label className="text-base font-medium mb-4 block text-center">
-        Select Voice Type ({detectedLanguage.charAt(0).toUpperCase() + detectedLanguage.slice(1)})
+        Select Voice Type ({mappedLanguage.charAt(0).toUpperCase() + mappedLanguage.slice(1)})
       </Label>
       <RadioGroup
         defaultValue={selectedVoice}
@@ -33,7 +46,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: Voice
             voiceId={voice.id}
             label={voice.label}
             isPlaying={isPlaying === voice.id}
-            onPrelisten={() => playPrelisten(voice.id, detectedLanguage)}
+            onPrelisten={() => playPrelisten(voice.id, mappedLanguage)}
           />
         ))}
       </RadioGroup>
