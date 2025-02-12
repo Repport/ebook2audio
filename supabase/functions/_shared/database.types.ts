@@ -17,6 +17,8 @@ export interface Database {
           storage_path: string | null
           expires_at: string
           status: string
+          processed_chunks: number | null
+          total_chunks: number | null
         }
         Insert: {
           id?: string
@@ -24,6 +26,8 @@ export interface Database {
           storage_path?: string | null
           expires_at?: string
           status?: string
+          processed_chunks?: number | null
+          total_chunks?: number | null
         }
         Update: {
           id?: string
@@ -31,6 +35,8 @@ export interface Database {
           storage_path?: string | null
           expires_at?: string
           status?: string
+          processed_chunks?: number | null
+          total_chunks?: number | null
         }
       }
       conversion_chunks: {
