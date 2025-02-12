@@ -71,10 +71,11 @@ export const useConversionProgress = (
           (payload: any) => {
             console.log('Actualización en tiempo real recibida:', payload);
             if (payload.new) {
+              const { progress = 0, processed_chunks, total_chunks } = payload.new;
               updateProgress({
-                progress: payload.new.progress,
-                processed_chunks: payload.new.processed_chunks,
-                total_chunks: payload.new.total_chunks
+                progress,
+                processed_chunks,
+                total_chunks
               });
             }
           }
@@ -92,7 +93,14 @@ export const useConversionProgress = (
         .then(({ data, error }) => {
           if (!error && data) {
             console.log('Estado inicial de la conversión:', data);
-            updateProgress(data);
+            const { progress = 0, processed_chunks, total_chunks } = data;
+            updateProgress({
+              progress,
+              processed_chunks,
+              total_chunks
+            });
+          } else {
+            console.error('Error fetching initial conversion state:', error);
           }
         });
 
