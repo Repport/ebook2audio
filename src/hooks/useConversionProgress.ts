@@ -16,71 +16,61 @@ export const useConversionProgress = (
   const [realProgress, setRealProgress] = useState(initialProgress);
   const [simulatedProgress, setSimulatedProgress] = useState(initialProgress);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [totalChunks, setTotalChunks] = useState(0);
-  const [processedChunks, setProcessedChunks] = useState(0);
+  const [processedCharacters, setProcessedCharacters] = useState(0);
+  const [totalCharacters, setTotalCharacters] = useState(textLength || 0);
   const startTimeRef = useRef(Date.now());
   const simulationIntervalRef = useRef<number>();
 
-  // Calcular número total de chunks cuando cambia el texto
-  useEffect(() => {
-    if (textLength) {
-      const chunks = Math.ceil(textLength / CHUNK_SIZE);
-      setTotalChunks(chunks);
-      console.log(`Texto dividido en ${chunks} chunks (${textLength} caracteres)`);
-    }
-  }, [textLength]);
-
-  // Manejar actualizaciones reales de progreso
+  // Handle progress updates from realtime subscription
   const handleProgressUpdate = useCallback((data: { 
     progress: number, 
-    processed_chunks?: number | null, 
-    total_chunks?: number | null 
+    processed_characters?: number | null,
+    total_characters?: number | null 
   }) => {
-    console.log('Actualización de progreso recibida:', data);
-    const { progress, processed_chunks, total_chunks } = data;
+    console.log('Progress update received:', data);
+    const { progress, processed_characters, total_characters } = data;
 
     if (typeof progress === 'number' && progress >= 0) {
       setRealProgress(prev => Math.max(prev, progress));
     }
 
-    if (typeof processed_chunks === 'number') {
-      setProcessedChunks(prev => Math.max(prev, processed_chunks));
+    if (typeof processed_characters === 'number') {
+      setProcessedCharacters(prev => Math.max(prev, processed_characters));
     }
 
-    if (typeof total_chunks === 'number' && total_chunks > 0) {
-      setTotalChunks(total_chunks);
+    if (typeof total_characters === 'number' && total_characters > 0) {
+      setTotalCharacters(total_characters);
     }
   }, []);
 
-  // Configurar escucha de eventos en tiempo real
+  // Set up realtime subscription
   useEffect(() => {
     let channel;
     
     if (conversionId && (status === 'converting' || status === 'processing')) {
-      console.log('Configurando actualizaciones en tiempo real para conversión:', conversionId);
+      console.log('Setting up realtime updates for conversion:', conversionId);
       
-      // Obtener estado inicial
+      // Get initial state
       supabase
         .from('text_conversions')
-        .select('progress, processed_chunks, total_chunks')
+        .select('progress, processed_characters, total_characters')
         .eq('id', conversionId)
         .single()
         .then(({ data, error }) => {
           if (error) {
-            console.error('Error al obtener estado inicial:', error);
+            console.error('Error fetching initial state:', error);
             return;
           }
           
           if (data) {
-            console.log('Estado inicial:', data);
+            console.log('Initial state:', data);
             handleProgressUpdate(data);
           }
         });
       
-      // Configurar canal en tiempo real
-      const channelName = `conversion-${conversionId}`;
+      // Set up realtime channel
       channel = supabase
-        .channel(channelName)
+        .channel(`conversion-${conversionId}`)
         .on(
           'postgres_changes',
           {
@@ -90,40 +80,40 @@ export const useConversionProgress = (
             filter: `id=eq.${conversionId}`,
           },
           (payload: any) => {
-            console.log('Actualización en tiempo real recibida:', payload);
+            console.log('Realtime update received:', payload);
             if (payload.new) {
               handleProgressUpdate(payload.new);
             }
           }
         )
         .subscribe((status) => {
-          console.log(`Estado del canal ${channelName}:`, status);
+          console.log(`Channel status (${conversionId}):`, status);
         });
     }
 
     return () => {
       if (channel) {
-        console.log('Limpiando suscripción en tiempo real');
+        console.log('Cleaning up realtime subscription');
         supabase.removeChannel(channel);
       }
     };
   }, [conversionId, status, handleProgressUpdate]);
 
-  // Manejar la simulación de progreso
+  // Handle progress simulation and elapsed time
   useEffect(() => {
     if ((status === 'converting' || status === 'processing') && realProgress < 100) {
-      // Actualizar tiempo transcurrido
+      // Update elapsed time
       const elapsedInterval = setInterval(() => {
         setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
       }, 1000);
 
-      // Actualizar simulación de progreso
+      // Update simulated progress
       simulationIntervalRef.current = window.setInterval(() => {
         setSimulatedProgress(prev => {
           const simulated = calculateSimulatedProgress(
             elapsedTime,
-            totalChunks,
-            processedChunks,
+            totalCharacters,
+            processedCharacters,
             realProgress
           );
           return Math.max(prev, simulated);
@@ -138,31 +128,31 @@ export const useConversionProgress = (
       };
     }
 
-    // Limpiar cuando se completa
+    // Clean up when completed
     if (status === 'completed' || realProgress >= 100) {
       setElapsedTime(0);
       if (simulationIntervalRef.current) {
         clearInterval(simulationIntervalRef.current);
       }
     }
-  }, [status, realProgress, elapsedTime, totalChunks, processedChunks]);
+  }, [status, realProgress, elapsedTime, totalCharacters, processedCharacters]);
 
-  // Calcular tiempo restante estimado
+  // Calculate estimated time remaining
   const getEstimatedTimeRemaining = useCallback(() => {
     if (realProgress >= 100 || status === 'completed') {
       return null;
     }
 
-    if (processedChunks === 0) {
-      return 'Calculando...';
+    if (processedCharacters === 0 || totalCharacters === 0) {
+      return 'Calculating...';
     }
 
-    const averageTimePerChunk = elapsedTime / processedChunks;
-    const remainingChunks = totalChunks - processedChunks;
-    const estimatedRemainingSeconds = Math.ceil(remainingChunks * averageTimePerChunk);
+    const averageTimePerChar = elapsedTime / processedCharacters;
+    const remainingChars = totalCharacters - processedCharacters;
+    const estimatedRemainingSeconds = Math.ceil(remainingChars * averageTimePerChar);
 
     return formatTimeRemaining(Math.max(estimatedRemainingSeconds, 5));
-  }, [realProgress, status, processedChunks, totalChunks, elapsedTime]);
+  }, [realProgress, status, processedCharacters, totalCharacters, elapsedTime]);
 
   const progress = Math.max(realProgress, simulatedProgress);
 
@@ -171,7 +161,7 @@ export const useConversionProgress = (
     elapsedTime,
     timeRemaining: getEstimatedTimeRemaining(),
     hasStarted: progress > 0 || status === 'converting' || status === 'processing',
-    processedChunks,
-    totalChunks
+    processedCharacters,
+    totalCharacters
   };
 };
