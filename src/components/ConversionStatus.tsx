@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Chapter } from '@/utils/textExtraction';
 import { ChaptersList } from './ChaptersList';
@@ -22,8 +21,6 @@ const ConversionStatus = ({
   status, 
   progress = 0, 
   fileType = 'EPUB',
-  chaptersFound = 0,
-  detectingChapters = false,
   chapters = [],
   estimatedSeconds = 0,
   conversionId
@@ -51,66 +48,72 @@ const ConversionStatus = ({
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  return (
-    <div className="flex flex-col items-center space-y-4 w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-      <div className="flex items-center justify-center w-full mb-2">
-        {(displayStatus === 'converting') && (
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative flex items-center justify-center">
-              <Loader2 className="w-12 h-12 animate-spin stroke-primary" />
-              {hasStarted && (
-                <div className="absolute -bottom-1 -right-1 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full">
-                  {Math.round(progress)}%
-                </div>
-              )}
-            </div>
-            <p className="text-lg font-medium text-center mt-6">
-              {statusMessages[status]}
-            </p>
-          </div>
-        )}
-        
-        {displayStatus === 'completed' && (
-          <div className="flex flex-col items-center gap-3">
-            <CheckCircle2 className="w-12 h-12 text-green-500 dark:text-green-400" />
-            <p className="text-lg font-medium text-center text-green-600 dark:text-green-400">
-              {statusMessages[status]}
-            </p>
-          </div>
-        )}
-
-        {displayStatus === 'error' && (
-          <Alert variant="destructive" className="w-full">
-            <AlertCircle className="h-5 w-5" />
-            <AlertDescription className="ml-2">
-              {statusMessages[status]}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {displayStatus === 'idle' && (
-          <p className="text-lg font-medium text-center">
-            {statusMessages[status]}
-          </p>
+  const renderConvertingStatus = () => (
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative">
+        <Loader2 
+          className="w-12 h-12 animate-spin text-primary" 
+          strokeWidth={2.5}
+        />
+        {hasStarted && progress > 0 && (
+          <span className="absolute -bottom-1 -right-1 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full">
+            {Math.round(progress)}%
+          </span>
         )}
       </div>
-      
-      {(displayStatus === 'converting' && hasStarted) && (
-        <div className="w-full space-y-4">
-          <div className="w-full bg-secondary rounded-full h-2">
-            <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300" 
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <div className="text-center w-full">
-              {elapsedTime > 0 && `${formatTime(elapsedTime)} elapsed`}
-              {timeRemaining && ` (${timeRemaining} remaining)`}
-            </div>
-          </div>
+      <p className="text-lg font-medium">
+        {statusMessages[status]}
+      </p>
+      <div className="w-full space-y-3">
+        <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-primary transition-all duration-300 ease-in-out rounded-full"
+            style={{ 
+              width: `${Math.min(100, Math.max(0, progress))}%`,
+              transition: 'width 0.3s ease-in-out'
+            }}
+          />
         </div>
-      )}
+        <div className="text-sm text-muted-foreground text-center">
+          {elapsedTime > 0 && `${formatTime(elapsedTime)} elapsed`}
+          {timeRemaining && ` • ${timeRemaining} remaining`}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCompletedStatus = () => (
+    <div className="flex flex-col items-center gap-3">
+      <CheckCircle2 className="w-12 h-12 text-green-500" />
+      <p className="text-lg font-medium text-green-600">
+        {statusMessages[status]}
+      </p>
+    </div>
+  );
+
+  const renderErrorStatus = () => (
+    <Alert variant="destructive">
+      <AlertCircle className="h-5 w-5" />
+      <AlertDescription className="ml-2">
+        {statusMessages[status]}
+      </AlertDescription>
+    </Alert>
+  );
+
+  const renderIdleStatus = () => (
+    <p className="text-lg font-medium text-center">
+      {statusMessages[status]}
+    </p>
+  );
+
+  return (
+    <div className="w-full max-w-md bg-card p-6 rounded-lg shadow-sm space-y-6">
+      <div className="flex justify-center">
+        {displayStatus === 'converting' && renderConvertingStatus()}
+        {displayStatus === 'completed' && renderCompletedStatus()}
+        {displayStatus === 'error' && renderErrorStatus()}
+        {displayStatus === 'idle' && renderIdleStatus()}
+      </div>
       
       <ChaptersList chapters={chapters} />
     </div>
