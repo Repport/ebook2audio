@@ -76,8 +76,9 @@ export const useConversionActions = ({
           user_id: user?.id,
           status: 'processing',
           file_name: fileName,
-          voice_id: selectedVoice,
-          progress: 0
+          text_hash: textHash,
+          progress: 0,
+          notify_on_complete: false
         })
         .select()
         .single();
@@ -125,12 +126,12 @@ export const useConversionActions = ({
         )
       }));
 
+      // Actualizar la llamada a convertToAudio para que coincida con su firma
       const { audio, id } = await convertToAudio(
         extractedText, 
         selectedVoice,
         detectChapters ? chaptersWithTimestamps : undefined,
-        fileName,
-        conversionRecord.id // Pasar el ID de la conversión
+        fileName
       );
       
       if (!audio) {
