@@ -15,18 +15,20 @@ export const useConversionProgress = (
   const [progressHistory, setProgressHistory] = useState<Array<[number, number]>>([]);
 
   const updateProgress = useCallback((newProgress: number) => {
-    console.log('Updating progress:', newProgress);
-    setProgress(newProgress);
-    setProgressHistory(prev => [...prev, [Date.now() - startTime, newProgress]]);
+    if (typeof newProgress === 'number' && newProgress >= 0) {
+      console.log('Updating progress:', newProgress);
+      setProgress(Math.min(100, Math.round(newProgress)));
+      setProgressHistory(prev => [...prev, [Date.now() - startTime, newProgress]]);
+    }
   }, [startTime]);
 
   // Handle initial progress
   useEffect(() => {
-    if (initialProgress > 0 && initialProgress > progress) {
+    if (initialProgress > 0) {
       console.log('Setting initial progress:', initialProgress);
       updateProgress(initialProgress);
     }
-  }, [initialProgress, progress, updateProgress]);
+  }, [initialProgress, updateProgress]);
 
   // Real-time updates subscription
   useEffect(() => {
@@ -73,7 +75,7 @@ export const useConversionProgress = (
       intervalId = window.setInterval(() => {
         setElapsedTime(prev => prev + 1);
       }, 1000);
-    } else {
+    } else if (status === 'completed') {
       setElapsedTime(0);
     }
 
@@ -90,7 +92,7 @@ export const useConversionProgress = (
     }
 
     if (progressHistory.length < 2) {
-      return formatTimeRemaining(estimatedSeconds);
+      return formatTimeRemaining(Math.max(0, estimatedSeconds - elapsedTime));
     }
 
     // Calculate rate based on recent progress
@@ -109,13 +111,13 @@ export const useConversionProgress = (
       }
     }
 
-    return formatTimeRemaining(estimatedSeconds);
-  }, [progress, status, progressHistory, estimatedSeconds]);
+    return formatTimeRemaining(Math.max(0, estimatedSeconds - elapsedTime));
+  }, [progress, status, progressHistory, estimatedSeconds, elapsedTime]);
 
   return {
     progress,
     elapsedTime,
     timeRemaining: getEstimatedTimeRemaining(),
-    hasStarted: progress > 0
+    hasStarted: progress > 0 || status === 'converting' || status === 'processing'
   };
 };
