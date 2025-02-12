@@ -1,8 +1,10 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
-import { calculateSimulatedProgress } from '@/utils/progressSimulation';
 import { supabase } from '@/integrations/supabase/client';
+
+const AVERAGE_CHUNK_PROCESSING_TIME = 10; // seconds per chunk
+const AUDIO_COMPOSITION_TIME = 15; // seconds for final composition
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -13,29 +15,29 @@ export const useConversionProgress = (
 ) => {
   const [progress, setProgress] = useState(initialProgress);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [processedCharacters, setProcessedCharacters] = useState(0);
-  const [totalCharacters, setTotalCharacters] = useState(textLength || 0);
+  const [processedChunks, setProcessedChunks] = useState(0);
+  const [totalChunks, setTotalChunks] = useState(0);
   const startTimeRef = useRef(Date.now());
 
   // Handle progress updates from realtime subscription
   const handleProgressUpdate = useCallback((data: { 
     progress: number, 
-    processed_characters?: number | null,
-    total_characters?: number | null 
+    processed_chunks?: number | null,
+    total_chunks?: number | null 
   }) => {
     console.log('Progress update received:', data);
-    const { progress: newProgress, processed_characters, total_characters } = data;
+    const { progress: newProgress, processed_chunks, total_chunks } = data;
 
     if (typeof newProgress === 'number' && newProgress >= 0) {
       setProgress(Math.max(newProgress, 0));
     }
 
-    if (typeof processed_characters === 'number') {
-      setProcessedCharacters(processed_characters);
+    if (typeof processed_chunks === 'number') {
+      setProcessedChunks(processed_chunks);
     }
 
-    if (typeof total_characters === 'number' && total_characters > 0) {
-      setTotalCharacters(total_characters);
+    if (typeof total_chunks === 'number' && total_chunks > 0) {
+      setTotalChunks(total_chunks);
     }
   }, []);
 
@@ -49,7 +51,7 @@ export const useConversionProgress = (
       // Get initial state
       supabase
         .from('text_conversions')
-        .select('progress, processed_characters, total_characters')
+        .select('progress, processed_chunks, total_chunks')
         .eq('id', conversionId)
         .single()
         .then(({ data, error }) => {
@@ -114,30 +116,34 @@ export const useConversionProgress = (
     };
   }, [status, progress]);
 
-  // Calculate estimated time remaining
+  // Calculate estimated time remaining based on chunks
   const getEstimatedTimeRemaining = useCallback(() => {
     if (progress >= 100 || status === 'completed') {
       return null;
     }
 
-    if (progress === 0) {
+    if (progress === 0 || totalChunks === 0) {
       return 'Calculating...';
     }
 
-    // Calculate based on elapsed time and progress
-    const timePerPercent = elapsedTime / progress;
-    const remainingPercent = 100 - progress;
-    const estimatedRemainingSeconds = Math.ceil(timePerPercent * remainingPercent);
-
-    return formatTimeRemaining(Math.max(estimatedRemainingSeconds, 5));
-  }, [progress, status, elapsedTime]);
+    // Calculate remaining time based on chunks and composition
+    const remainingChunks = totalChunks - processedChunks;
+    const estimatedChunkTime = remainingChunks * AVERAGE_CHUNK_PROCESSING_TIME;
+    
+    // Add composition time if we haven't reached that stage yet
+    const compositionTimeRemaining = progress < 90 ? AUDIO_COMPOSITION_TIME : 0;
+    
+    const totalRemainingSeconds = estimatedChunkTime + compositionTimeRemaining;
+    
+    return formatTimeRemaining(Math.max(totalRemainingSeconds, 5));
+  }, [progress, status, totalChunks, processedChunks]);
 
   return {
     progress,
     elapsedTime,
     timeRemaining: getEstimatedTimeRemaining(),
     hasStarted: progress > 0 || status === 'converting' || status === 'processing',
-    processedCharacters,
-    totalCharacters
+    processedChunks,
+    totalChunks
   };
 };
