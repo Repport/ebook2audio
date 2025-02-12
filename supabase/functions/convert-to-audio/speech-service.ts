@@ -16,8 +16,10 @@ export async function synthesizeSpeech(
     console.log(`Using language code: ${langCode}`);
 
     // Validate text length
-    if (text.length > 5000) {
-      throw new Error('Text exceeds maximum length of 5000 characters');
+    const encoder = new TextEncoder();
+    const textBytes = encoder.encode(text);
+    if (textBytes.length > 5000) {
+      throw new Error(`Text exceeds maximum length of 5000 bytes (current: ${textBytes.length} bytes)`);
     }
 
     const requestBody = {

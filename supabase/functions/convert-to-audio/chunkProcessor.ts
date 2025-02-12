@@ -5,7 +5,7 @@ export async function processTextInChunks(
   text: string,
   voiceId: string,
   accessToken: string,
-  maxChunkSize: number = 4800 // Dejamos margen para caracteres especiales
+  maxChunkSize: number = 2500 // Reduced to ensure we stay well under the 5000 byte limit
 ): Promise<{ audioContents: string[], progress: number }> {
   // Dividir el texto en chunks respetando palabras completas
   const words = text.split(/\s+/);
