@@ -26,7 +26,25 @@ export async function convertToAudio(
   try {
     // Create or get existing conversion
     console.log('Creating conversion record...');
-    const conversionId = await createConversion(textHash, fileName, userId);
+    const { data: conversionRecord, error: insertError } = await supabase
+      .from('text_conversions')
+      .insert({
+        user_id: userId,
+        status: 'processing',
+        file_name: fileName,
+        text_hash: textHash,
+        progress: 0,
+        notify_on_complete: false
+      })
+      .select()
+      .single();
+
+    if (insertError || !conversionRecord) {
+      console.error('Error creating conversion record:', insertError);
+      throw new Error('Failed to create conversion record');
+    }
+
+    const conversionId = conversionRecord.id;
     console.log('Created conversion with ID:', conversionId);
     
     try {
@@ -37,7 +55,32 @@ export async function convertToAudio(
       console.log(`Created ${chunks.length} chunks for processing`);
 
       // Process chunks and get combined audio
-      const audioBuffer = await processConversionChunks(text, voiceId, fileName, conversionId);
+      const { data, error } = await supabase.functions.invoke('convert-to-audio', {
+        body: {
+          text,
+          voiceId,
+          fileName,
+          conversionId
+        },
+      });
+
+      if (error) {
+        console.error('Error in text-to-speech conversion:', error);
+        throw error;
+      }
+
+      if (!data?.audioContent) {
+        throw new Error('No audio content received from conversion');
+      }
+
+      // Convert base64 to ArrayBuffer
+      const binaryString = atob(data.audioContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const audioBuffer = bytes.buffer;
 
       // Save the final audio to storage
       const storagePath = `${userId}/${conversionId}.mp3`;
