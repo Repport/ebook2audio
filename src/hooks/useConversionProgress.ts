@@ -15,13 +15,15 @@ export const useConversionProgress = (
   const [progressHistory, setProgressHistory] = useState<Array<[number, number]>>([]);
 
   const updateProgress = useCallback((newProgress: number) => {
+    console.log('Updating progress:', newProgress);
     setProgress(newProgress);
     setProgressHistory(prev => [...prev, [Date.now() - startTime, newProgress]]);
   }, [startTime]);
 
   // Handle initial progress
   useEffect(() => {
-    if (initialProgress > progress) {
+    if (initialProgress > 0 && initialProgress > progress) {
+      console.log('Setting initial progress:', initialProgress);
       updateProgress(initialProgress);
     }
   }, [initialProgress, progress, updateProgress]);
@@ -57,6 +59,7 @@ export const useConversionProgress = (
 
     return () => {
       if (channel) {
+        console.log('Cleaning up real-time subscription');
         supabase.removeChannel(channel);
       }
     };
