@@ -67,6 +67,13 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
       : await extractEpubText(file);
 
     const detectedLanguage = detectLanguage(text);
+    console.log('Detected language in processFile:', detectedLanguage);
+
+    const metadata = {
+      totalCharacters: text.length,
+      language: detectedLanguage,
+      processedPages: 1
+    };
 
     // Create an initial chapter with metadata if no chapters exist
     const firstChapter: Chapter = {
@@ -79,18 +86,22 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
     
     // Use the existing chapters or create one with the detected language
     const updatedChapters = chapters?.length > 0 
-      ? chapters.map((chapter, index) => 
-          index === 0 
-            ? { ...chapter, metadata: { ...chapter.metadata, language: detectedLanguage } }
-            : chapter
-        )
+      ? chapters.map((chapter, index) => ({
+          ...chapter,
+          metadata: { 
+            ...chapter.metadata,
+            language: detectedLanguage 
+          }
+        }))
       : [firstChapter];
+
+    console.log('Returning with language:', detectedLanguage);
+    console.log('First chapter metadata:', updatedChapters[0].metadata);
 
     return {
       text,
       metadata: {
-        totalCharacters: text.length,
-        language: detectedLanguage,
+        ...metadata,
         chapters: updatedChapters
       }
     };

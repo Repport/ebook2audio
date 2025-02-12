@@ -32,20 +32,28 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: Voice
     'german': 'german'
   };
 
-  console.log('VoiceSelector - Detected language:', detectedLanguage);
+  console.log('VoiceSelector received language:', detectedLanguage);
   
   // Get the mapped language or fallback to english
   const mappedLanguage = languageMap[detectedLanguage.toLowerCase()] || 'english';
-  console.log('VoiceSelector - Mapped language:', mappedLanguage);
+  console.log('VoiceSelector mapped to:', mappedLanguage);
   
   const availableVoices = VOICES[mappedLanguage];
 
   // Reset selected voice when language changes
   useEffect(() => {
-    if (availableVoices.length > 0) {
-      onVoiceChange(availableVoices[0].id);
+    console.log('Language changed, resetting voice selection. Available voices:', availableVoices);
+    if (availableVoices && availableVoices.length > 0) {
+      const newVoice = availableVoices[0].id;
+      console.log('Setting new voice to:', newVoice);
+      onVoiceChange(newVoice);
     }
   }, [mappedLanguage, availableVoices, onVoiceChange]);
+
+  if (!availableVoices) {
+    console.error('No voices available for language:', mappedLanguage);
+    return null;
+  }
 
   return (
     <div className="w-full max-w-xl mx-auto">
