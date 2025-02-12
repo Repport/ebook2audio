@@ -62,15 +62,30 @@ const FileProcessor = ({
   };
 
   const handleVoiceSettingsComplete = () => {
+    if (!selectedVoice) {
+      console.error('No voice selected');
+      return;
+    }
     onNextStep();
   };
 
   const handleConversionStart = async () => {
+    if (!selectedVoice) {
+      console.error('No voice selected', { selectedVoice });
+      return;
+    }
     setShowTerms(true);
   };
 
   const handleAcceptTermsAndConvert = async () => {
-    await handleAcceptTerms({ selectedVoice, notifyOnComplete });
+    if (!selectedVoice) {
+      console.error('No voice selected during terms acceptance', { selectedVoice });
+      return;
+    }
+    await handleAcceptTerms({ 
+      selectedVoice,
+      notifyOnComplete 
+    });
     setShowTerms(false);
   };
 
