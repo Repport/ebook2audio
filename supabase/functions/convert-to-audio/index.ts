@@ -52,26 +52,53 @@ serve(async (req) => {
     const accessToken = await getGoogleAccessToken();
     console.log('Successfully obtained access token');
 
+    // Actualizar el progreso inicial
+    await supabaseClient
+      .from('text_conversions')
+      .update({ progress: 5 })
+      .eq('id', conversionId);
+
     // Process text in chunks
     console.log(`Processing text of length ${text.length} in chunks`);
-    const { audioContents, progress } = await processTextInChunks(
+    const totalChunks = Math.ceil(text.length / 4000); // Asumiendo chunks de 4000 caracteres
+    let processedChunks = 0;
+
+    const updateProgress = async (chunk: number) => {
+      processedChunks = chunk;
+      const progress = Math.round((processedChunks / totalChunks) * 90) + 5; // 5-95%
+      await supabaseClient
+        .from('text_conversions')
+        .update({ progress })
+        .eq('id', conversionId);
+      console.log(`Updated progress to ${progress}%`);
+    };
+
+    const { audioContents } = await processTextInChunks(
       text, 
       voiceId, 
       accessToken, 
       conversionId,
-      supabaseClient
+      supabaseClient,
+      updateProgress
     );
     
-    // Combine audio chunks
+    // Combinar los chunks de audio y actualizar el progreso final
     console.log('Combining audio chunks');
     const combinedAudioContent = await combineAudioChunks(audioContents);
+    
+    // Actualizar progreso al 100% cuando termine
+    await supabaseClient
+      .from('text_conversions')
+      .update({ progress: 100 })
+      .eq('id', conversionId);
+
     console.log('Successfully generated audio content');
     
     const response: ConversionResponse = {
       data: {
         audioContent: combinedAudioContent,
         id: crypto.randomUUID(),
-        progress
+        progress: 100
       }
     };
 
