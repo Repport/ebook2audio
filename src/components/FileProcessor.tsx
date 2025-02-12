@@ -31,7 +31,6 @@ const FileProcessor = ({
   onPreviousStep
 }: FileProcessorProps) => {
   const [selectedVoice, setSelectedVoice] = useState<string>('');
-  const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const [notifyOnComplete, setNotifyOnComplete] = useState(false);
   const { toast } = useToast();
 
@@ -125,7 +124,7 @@ const FileProcessor = ({
           <VoiceSettingsStep
             selectedVoice={selectedVoice}
             setSelectedVoice={setSelectedVoice}
-            detectedLanguage={detectedLanguage}
+            detectedLanguage={chapters[0]?.metadata?.language || 'english'}
             detectChapters={detectChapters}
             setDetectChapters={setDetectChapters}
             onNextStep={handleVoiceSettingsComplete}
