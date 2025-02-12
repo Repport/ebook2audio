@@ -2,6 +2,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { CacheError } from '../errors/CacheError';
 import { retryOperation } from '../utils/retryUtils';
+import JSZip from 'jszip';
+
+const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
 
 export async function downloadFromStorage(
   storagePath: string
@@ -26,27 +29,21 @@ export async function downloadFromStorage(
       return { data: null, error: new Error('No data found in cache') };
     }
 
-    const reader = result.data.stream().getReader();
-    const chunks: Uint8Array[] = [];
-    let totalSize = 0;
+    const arrayBuffer = await result.data.arrayBuffer();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      chunks.push(value);
-      totalSize += value.length;
+    // If it's a zip file, extract the audio
+    if (storagePath.endsWith('.zip')) {
+      const zip = new JSZip();
+      const zipContent = await zip.loadAsync(arrayBuffer);
+      const audioFile = zipContent.file('audio.mp3');
+      if (!audioFile) {
+        throw new Error('No audio file found in zip');
+      }
+      const unzippedAudio = await audioFile.async('arraybuffer');
+      return { data: unzippedAudio, error: null };
     }
 
-    const combinedArray = new Uint8Array(totalSize);
-    let position = 0;
-    for (const chunk of chunks) {
-      combinedArray.set(chunk, position);
-      position += chunk.length;
-    }
-
-    console.log('Successfully fetched cached audio data');
-    return { data: combinedArray.buffer, error: null };
+    return { data: arrayBuffer, error: null };
   } catch (error) {
     console.error('Cache fetch failed:', error);
     return { data: null, error: error as Error };
@@ -58,24 +55,50 @@ export async function uploadToStorage(
   audioBuffer: ArrayBuffer
 ): Promise<{ error: Error | null }> {
   try {
-    const contentType = storagePath.endsWith('.zip') ? 'application/zip' : 'audio/mpeg';
-    console.log('Uploading to storage with content type:', contentType);
-    
-    return await retryOperation(
-      async () => {
-        const { error } = await supabase.storage
-          .from('audio_cache')
-          .upload(storagePath, audioBuffer, {
-            contentType: contentType,
-            upsert: true,
-            duplex: 'half'
-          });
-        
-        if (error) throw error;
-        return { error: null };
-      },
-      { operation: 'Storage upload' }
-    );
+    // If file is larger than 5MB, compress it
+    if (audioBuffer.byteLength > MAX_CHUNK_SIZE) {
+      console.log('File is large, compressing...');
+      const zip = new JSZip();
+      zip.file('audio.mp3', audioBuffer);
+      const compressedData = await zip.generateAsync({
+        type: 'arraybuffer',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      const zipPath = storagePath + '.zip';
+      console.log('Uploading compressed file:', zipPath);
+
+      const { error: uploadError } = await supabase.storage
+        .from('audio_cache')
+        .upload(zipPath, compressedData, {
+          contentType: 'application/zip',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('Compressed upload failed:', uploadError);
+        throw uploadError;
+      }
+
+      return { error: null };
+    }
+
+    // For smaller files, upload directly
+    console.log('Uploading uncompressed file:', storagePath);
+    const { error: uploadError } = await supabase.storage
+      .from('audio_cache')
+      .upload(storagePath, audioBuffer, {
+        contentType: 'audio/mpeg',
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Direct upload failed:', uploadError);
+      throw uploadError;
+    }
+
+    return { error: null };
   } catch (error) {
     console.error('Storage upload failed:', error);
     return { error: error as Error };
