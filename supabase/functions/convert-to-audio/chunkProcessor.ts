@@ -37,11 +37,20 @@ export async function processTextInChunks(
 
   // Procesar cada chunk
   const audioContents: string[] = [];
+  const totalChunks = chunks.length;
   
   for (let i = 0; i < chunks.length; i++) {
     console.log(`Processing chunk ${i + 1}/${chunks.length}`);
     const audioContent = await synthesizeSpeech(chunks[i], voiceId, accessToken);
     audioContents.push(audioContent);
+    
+    // Calcular y actualizar el progreso
+    const progress = Math.round(((i + 1) / totalChunks) * 100);
+    
+    // Enviar actualización de progreso a través de una señal broadcast
+    const bc = new BroadcastChannel('conversion-progress');
+    bc.postMessage({ progress });
+    bc.close();
   }
 
   return audioContents;
