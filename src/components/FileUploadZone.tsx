@@ -1,5 +1,5 @@
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { validateFile } from '@/utils/fileUtils';
@@ -8,6 +8,8 @@ import { checkCache } from '@/services/conversion/cacheService';
 import { generateHash } from '@/services/conversion/utils';
 import FileInfo from './FileInfo';
 import DropZone from './DropZone';
+import { Button } from './ui/button';
+import { ArrowRight } from 'lucide-react';
 
 interface FileUploadZoneProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string } | null) => void;
@@ -15,8 +17,10 @@ interface FileUploadZoneProps {
 
 const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   const { toast } = useToast();
-  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-  const [isProcessing, setIsProcessing] = React.useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [processedText, setProcessedText] = useState<string>('');
+  const [processedLanguage, setProcessedLanguage] = useState<string | undefined>();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0] || null;
@@ -90,11 +94,8 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
         console.log('No cached version found');
       }
 
-      onFileSelect({
-        file,
-        text: result.text,
-        language: result.metadata?.language
-      });
+      setProcessedText(result.text);
+      setProcessedLanguage(result.metadata?.language);
       
     } catch (error) {
       console.error('Error processing file:', error);
@@ -111,11 +112,29 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     } finally {
       setIsProcessing(false);
     }
-  }, [onFileSelect, toast]);
+  }, [toast]);
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
+    setProcessedText('');
+    setProcessedLanguage(undefined);
     onFileSelect(null);
+  };
+
+  const handleContinue = () => {
+    if (!selectedFile || !processedText) {
+      toast({
+        title: "Error",
+        description: "Please upload a valid file first",
+        variant: "destructive",
+      });
+      return;
+    }
+    onFileSelect({
+      file: selectedFile,
+      text: processedText,
+      language: processedLanguage
+    });
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -129,7 +148,21 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   });
 
   if (selectedFile) {
-    return <FileInfo file={selectedFile} onRemove={handleRemoveFile} />;
+    return (
+      <div className="space-y-4">
+        <FileInfo file={selectedFile} onRemove={handleRemoveFile} />
+        <div className="flex justify-end mt-4">
+          <Button 
+            onClick={handleContinue}
+            className="flex items-center gap-2"
+            disabled={isProcessing}
+          >
+            Continue
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
