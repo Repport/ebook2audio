@@ -11,8 +11,14 @@ export async function synthesizeSpeech(
   console.log(`Starting speech synthesis for text of length ${text.length} with voice ${voiceId}`);
   
   try {
+    // Extract language code from voiceId (e.g., "en-US-Standard-C" -> "en-US")
     const langCode = voiceId.split('-').slice(0, 2).join('-');
     console.log(`Using language code: ${langCode}`);
+
+    // Validate text length
+    if (text.length > 5000) {
+      throw new Error('Text exceeds maximum length of 5000 characters');
+    }
 
     const requestBody = {
       input: { text },
@@ -21,7 +27,7 @@ export async function synthesizeSpeech(
         name: voiceId,
       },
       audioConfig: {
-        audioEncoding: 'OGG_OPUS',
+        audioEncoding: 'MP3',
         speakingRate: 1.0,
         pitch: 0.0,
         sampleRateHertz: 24000,
@@ -65,4 +71,3 @@ export async function synthesizeSpeech(
     throw error;
   }
 }
-

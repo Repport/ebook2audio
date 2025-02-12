@@ -5,6 +5,7 @@ import { createConversion, updateConversionStatus } from "./conversionManager";
 import { ChapterWithTimestamp } from "./types";
 import { uploadToStorage } from "./storage/cacheStorage";
 import { processConversionChunks } from "./chunkProcessingService";
+import { createChunksForConversion } from "./chunkManager";
 
 export async function convertToAudio(
   text: string,
@@ -31,31 +32,12 @@ export async function convertToAudio(
     try {
       await updateConversionStatus(conversionId, 'processing');
 
-      // Call the convert-to-audio edge function
-      const { data, error } = await supabase.functions.invoke('convert-to-audio', {
-        body: {
-          text,
-          voiceId,
-          fileName
-        }
-      });
+      // Create chunks for the conversion
+      const chunks = await createChunksForConversion(conversionId, text);
+      console.log(`Created ${chunks.length} chunks for processing`);
 
-      if (error) {
-        console.error('Conversion error:', error);
-        throw error;
-      }
-
-      if (!data?.audioContent) {
-        throw new Error('No audio content received from conversion');
-      }
-
-      // Convert base64 to ArrayBuffer
-      const binaryString = atob(data.audioContent);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const audioBuffer = bytes.buffer;
+      // Process chunks and get combined audio
+      const audioBuffer = await processConversionChunks(text, voiceId, fileName, conversionId);
 
       // Save the final audio to storage
       const storagePath = `${userId}/${conversionId}.mp3`;
