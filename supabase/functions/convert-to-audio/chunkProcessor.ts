@@ -8,7 +8,7 @@ export async function processTextInChunks(
   conversionId: string,
   supabaseClient: any,
   updateProgress: (chunk: number) => Promise<void>,
-  maxChunkSize: number = 2500 // Reduced to ensure we stay well under the 5000 byte limit
+  maxChunkSize: number = 4800 // Aumentado a 4800 para optimizar el número de chunks
 ): Promise<{ audioContents: string[] }> {
   // Dividir el texto en chunks respetando palabras completas
   const words = text.split(/\s+/);
