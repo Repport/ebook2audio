@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -68,10 +67,29 @@ export const useConversionLogic = (
   };
 
   const handleAcceptTerms = async (options: ConversionOptions) => {
-    if (!selectedFile || !extractedText) return;
+    if (!selectedFile || !extractedText || !options.selectedVoice) {
+      console.error('Missing required parameters:', {
+        hasFile: !!selectedFile,
+        hasText: !!extractedText,
+        hasVoice: !!options.selectedVoice
+      });
+      toast({
+        title: "Error",
+        description: "Missing required parameters. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setDetectingChapters(true);
     try {
-      const result = await handleConversion(extractedText, options.selectedVoice, detectChapters, chapters, selectedFile.name);
+      const result = await handleConversion(
+        extractedText,
+        options.selectedVoice,
+        detectChapters,
+        chapters,
+        selectedFile.name
+      );
       
       // Create notification if notification is enabled and user is authenticated
       if (options.notifyOnComplete && user && result.id) {

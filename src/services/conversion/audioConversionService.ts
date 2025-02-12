@@ -31,9 +31,33 @@ export async function convertToAudio(
     try {
       await updateConversionStatus(conversionId, 'processing');
 
-      const audioBuffer = await processConversionChunks(text, voiceId, fileName, conversionId);
-      
-      // Save the final combined audio to storage
+      // Call the convert-to-audio edge function
+      const { data, error } = await supabase.functions.invoke('convert-to-audio', {
+        body: {
+          text,
+          voiceId,
+          fileName
+        }
+      });
+
+      if (error) {
+        console.error('Conversion error:', error);
+        throw error;
+      }
+
+      if (!data?.audioContent) {
+        throw new Error('No audio content received from conversion');
+      }
+
+      // Convert base64 to ArrayBuffer
+      const binaryString = atob(data.audioContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const audioBuffer = bytes.buffer;
+
+      // Save the final audio to storage
       const storagePath = `${userId}/${conversionId}.mp3`;
       const { error: uploadError } = await uploadToStorage(storagePath, audioBuffer);
 
@@ -42,7 +66,7 @@ export async function convertToAudio(
         throw uploadError;
       }
 
-      // Update the conversion record with the storage path and trigger notification
+      // Update the conversion record
       const { error: updateError } = await supabase
         .from('text_conversions')
         .update({ 
