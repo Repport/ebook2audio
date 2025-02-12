@@ -35,8 +35,8 @@ const ConversionStatus = ({
     timeRemaining, 
     elapsedTime, 
     hasStarted,
-    processedCharacters,
-    totalCharacters 
+    processedChunks,
+    totalChunks
   } = useConversionProgress(
     status,
     progress,
@@ -80,11 +80,11 @@ const ConversionStatus = ({
       <div className="w-full space-y-3">
         <Progress value={currentProgress} className="w-full" />
         <div className="text-sm text-muted-foreground text-center space-y-1">
-          {totalCharacters > 0 && (
+          {totalChunks > 0 && (
             <div>
               {translations.processingChunk
-                .replace('{current}', processedCharacters.toString())
-                .replace('{total}', totalCharacters.toString())}
+                .replace('{current}', processedChunks.toString())
+                .replace('{total}', totalChunks.toString())}
             </div>
           )}
           <div>
