@@ -52,34 +52,30 @@ serve(async (req) => {
     const accessToken = await getGoogleAccessToken();
     console.log('Successfully obtained access token');
 
-    // Actualizar el progreso inicial
+    // Actualizar el progreso inicial y establecer el número total de chunks
+    const totalChunks = Math.ceil(text.length / 4800);
     await supabaseClient
       .from('text_conversions')
-      .update({ progress: 5 })
+      .update({ 
+        progress: 5,
+        total_chunks: totalChunks,
+        processed_chunks: 0
+      })
       .eq('id', conversionId);
 
+    console.log(`Processing text of length ${text.length} in ${totalChunks} chunks`);
+    
     // Process text in chunks
-    console.log(`Processing text of length ${text.length} in chunks`);
-    const totalChunks = Math.ceil(text.length / 4000); // Asumiendo chunks de 4000 caracteres
-    let processedChunks = 0;
-
-    const updateProgress = async (chunk: number) => {
-      processedChunks = chunk;
-      const progress = Math.round((processedChunks / totalChunks) * 90) + 5; // 5-95%
-      await supabaseClient
-        .from('text_conversions')
-        .update({ progress })
-        .eq('id', conversionId);
-      console.log(`Updated progress to ${progress}%`);
-    };
-
     const { audioContents } = await processTextInChunks(
       text, 
       voiceId, 
       accessToken, 
       conversionId,
       supabaseClient,
-      updateProgress
+      async (chunk: number) => {
+        const progress = Math.round((chunk / totalChunks) * 90) + 5; // 5-95%
+        console.log(`Processed chunk ${chunk}/${totalChunks}, progress: ${progress}%`);
+      }
     );
     
     // Combinar los chunks de audio y actualizar el progreso final
@@ -89,7 +85,11 @@ serve(async (req) => {
     // Actualizar progreso al 100% cuando termine
     await supabaseClient
       .from('text_conversions')
-      .update({ progress: 100 })
+      .update({ 
+        progress: 100,
+        processed_chunks: totalChunks,
+        total_chunks: totalChunks
+      })
       .eq('id', conversionId);
 
     console.log('Successfully generated audio content');

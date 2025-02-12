@@ -8,9 +8,9 @@ interface ProgressUpdate {
   progress: number;
 }
 
-const CHUNK_SIZE = 4800; // API limit per chunk
-const CHUNK_PROCESSING_TIME = 3; // segundos estimados por chunk
-const FINALIZATION_TIME = 10; // segundos extra para combinar archivos
+const CHUNK_SIZE = 4800;
+const CHUNK_PROCESSING_TIME = 3;
+const FINALIZATION_TIME = 10;
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -25,7 +25,6 @@ export const useConversionProgress = (
   const [totalChunks, setTotalChunks] = useState(0);
   const [processedChunks, setProcessedChunks] = useState(0);
 
-  // Calcular el número total de chunks basado en la longitud del texto
   useEffect(() => {
     if (textLength) {
       const chunks = Math.ceil(textLength / CHUNK_SIZE);
@@ -34,33 +33,28 @@ export const useConversionProgress = (
     }
   }, [textLength]);
 
-  // Actualizar el progreso basado en los chunks procesados
-  const updateProgress = useCallback((newProgress: number) => {
-    if (typeof newProgress !== 'number' || newProgress < 0) {
-      console.warn('Invalid progress value:', newProgress);
-      return;
+  const updateProgress = useCallback((progressData: { progress: number, processed_chunks?: number, total_chunks?: number }) => {
+    const { progress: newProgress, processed_chunks, total_chunks } = progressData;
+
+    if (typeof newProgress === 'number' && newProgress >= 0) {
+      setProgress(Math.round(newProgress));
     }
 
-    // Calcular cuántos chunks se han procesado basado en el progreso
-    const chunksCompleted = Math.floor((newProgress / 100) * totalChunks);
-    setProcessedChunks(chunksCompleted);
+    if (typeof processed_chunks === 'number') {
+      setProcessedChunks(processed_chunks);
+    }
 
-    // Calcular el progreso total incluyendo el tiempo de finalización
-    const chunkProgress = (chunksCompleted / totalChunks) * 90; // 90% para procesamiento
-    const finalizationProgress = newProgress >= 95 ? (newProgress - 95) * 2 : 0; // 10% para finalización
-    const totalProgress = Math.min(100, chunkProgress + finalizationProgress);
+    if (typeof total_chunks === 'number') {
+      setTotalChunks(total_chunks);
+    }
 
     console.log('Progress update:', {
-      chunks: `${chunksCompleted}/${totalChunks}`,
-      chunkProgress,
-      finalizationProgress,
-      totalProgress
+      progress: newProgress,
+      processedChunks: processed_chunks,
+      totalChunks: total_chunks
     });
+  }, []);
 
-    setProgress(Math.round(totalProgress));
-  }, [totalChunks]);
-
-  // Efecto para las actualizaciones en tiempo real
   useEffect(() => {
     let channel;
     
@@ -79,10 +73,11 @@ export const useConversionProgress = (
           },
           (payload: any) => {
             console.log('Realtime update received:', payload.new);
-            const newProgress = payload.new.progress;
-            if (typeof newProgress === 'number') {
-              updateProgress(newProgress);
-            }
+            updateProgress({
+              progress: payload.new.progress,
+              processed_chunks: payload.new.processed_chunks,
+              total_chunks: payload.new.total_chunks
+            });
           }
         )
         .subscribe((status) => {
@@ -98,7 +93,6 @@ export const useConversionProgress = (
     }
   }, [conversionId, status, updateProgress]);
 
-  // Efecto para el tiempo transcurrido
   useEffect(() => {
     let intervalId: number;
     
@@ -122,7 +116,6 @@ export const useConversionProgress = (
       return null;
     }
 
-    // Calcular tiempo restante basado en chunks y tiempo de procesamiento
     const remainingChunks = totalChunks - processedChunks;
     const remainingChunkTime = remainingChunks * CHUNK_PROCESSING_TIME;
     const remainingFinalizationTime = progress < 90 ? FINALIZATION_TIME : 
