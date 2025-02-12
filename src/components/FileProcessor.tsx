@@ -124,7 +124,7 @@ const FileProcessor = ({
           <VoiceSettingsStep
             selectedVoice={selectedVoice}
             setSelectedVoice={setSelectedVoice}
-            detectedLanguage={chapters[0]?.metadata?.language || 'english'}
+            detectedLanguage={chapters[0]?.metadata?.language || "english"}
             detectChapters={detectChapters}
             setDetectChapters={setDetectChapters}
             onNextStep={handleVoiceSettingsComplete}
