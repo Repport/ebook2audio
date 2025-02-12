@@ -6,7 +6,7 @@ export async function processTextInChunks(
   voiceId: string,
   accessToken: string,
   maxChunkSize: number = 4800 // Dejamos margen para caracteres especiales
-): Promise<string[]> {
+): Promise<{ audioContents: string[], progress: number }> {
   // Dividir el texto en chunks respetando palabras completas
   const words = text.split(/\s+/);
   const chunks: string[] = [];
@@ -38,22 +38,16 @@ export async function processTextInChunks(
   // Procesar cada chunk
   const audioContents: string[] = [];
   const totalChunks = chunks.length;
+  let progress = 0;
   
   for (let i = 0; i < chunks.length; i++) {
     console.log(`Processing chunk ${i + 1}/${chunks.length}`);
     const audioContent = await synthesizeSpeech(chunks[i], voiceId, accessToken);
     audioContents.push(audioContent);
-    
-    // Calcular y actualizar el progreso
-    const progress = Math.round(((i + 1) / totalChunks) * 100);
-    
-    // Enviar actualización de progreso a través de una señal broadcast
-    const bc = new BroadcastChannel('conversion-progress');
-    bc.postMessage({ progress });
-    bc.close();
+    progress = Math.round(((i + 1) / totalChunks) * 100);
   }
 
-  return audioContents;
+  return { audioContents, progress };
 }
 
 export async function combineAudioChunks(audioContents: string[]): Promise<string> {

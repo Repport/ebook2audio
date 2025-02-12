@@ -92,7 +92,7 @@ serve(async (req) => {
 
     // Process text in chunks
     console.log(`Processing text of length ${text.length} in chunks`)
-    const audioContents = await processTextInChunks(text, voiceId, access_token)
+    const { audioContents, progress } = await processTextInChunks(text, voiceId, access_token)
     
     // Combine audio chunks
     console.log('Combining audio chunks')
@@ -104,7 +104,8 @@ serve(async (req) => {
       JSON.stringify({ 
         data: { 
           audioContent: combinedAudioContent,
-          id: crypto.randomUUID()
+          id: crypto.randomUUID(),
+          progress
         }
       }),
       { 
