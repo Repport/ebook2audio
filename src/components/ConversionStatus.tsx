@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Chapter } from '@/utils/textExtraction';
 import { ChaptersList } from './ChaptersList';
 import { useConversionProgress } from '@/hooks/useConversionProgress';
+import { Progress } from '@/components/ui/progress';
 
 interface ConversionStatusProps {
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
@@ -25,7 +26,7 @@ const ConversionStatus = ({
   estimatedSeconds = 0,
   conversionId
 }: ConversionStatusProps) => {
-  const { timeRemaining, elapsedTime, hasStarted } = useConversionProgress(
+  const { progress: currentProgress, timeRemaining, elapsedTime, hasStarted } = useConversionProgress(
     status,
     progress,
     estimatedSeconds,
@@ -55,9 +56,9 @@ const ConversionStatus = ({
           className="w-12 h-12 animate-spin text-primary" 
           strokeWidth={2.5}
         />
-        {hasStarted && progress > 0 && (
+        {hasStarted && currentProgress > 0 && (
           <span className="absolute -bottom-1 -right-1 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full">
-            {Math.round(progress)}%
+            {Math.round(currentProgress)}%
           </span>
         )}
       </div>
@@ -65,15 +66,7 @@ const ConversionStatus = ({
         {statusMessages[status]}
       </p>
       <div className="w-full space-y-3">
-        <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary transition-all duration-300 ease-in-out rounded-full"
-            style={{ 
-              width: `${Math.min(100, Math.max(0, progress))}%`,
-              transition: 'width 0.3s ease-in-out'
-            }}
-          />
-        </div>
+        <Progress value={currentProgress} className="w-full" />
         <div className="text-sm text-muted-foreground text-center">
           {elapsedTime > 0 && `${formatTime(elapsedTime)} elapsed`}
           {timeRemaining && ` • ${timeRemaining} remaining`}
