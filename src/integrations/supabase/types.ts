@@ -398,10 +398,12 @@ export type Database = {
           file_size: number | null
           id: string
           notify_on_complete: boolean | null
+          processed_chunks: number | null
           progress: number | null
           status: string
           storage_path: string | null
           text_hash: string
+          total_chunks: number | null
           user_id: string | null
         }
         Insert: {
@@ -413,10 +415,12 @@ export type Database = {
           file_size?: number | null
           id?: string
           notify_on_complete?: boolean | null
+          processed_chunks?: number | null
           progress?: number | null
           status?: string
           storage_path?: string | null
           text_hash: string
+          total_chunks?: number | null
           user_id?: string | null
         }
         Update: {
@@ -428,10 +432,12 @@ export type Database = {
           file_size?: number | null
           id?: string
           notify_on_complete?: boolean | null
+          processed_chunks?: number | null
           progress?: number | null
           status?: string
           storage_path?: string | null
           text_hash?: string
+          total_chunks?: number | null
           user_id?: string | null
         }
         Relationships: []
