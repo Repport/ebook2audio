@@ -14,21 +14,37 @@ interface VoiceSelectorProps {
 const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: VoiceSelectorProps) => {
   const { isPlaying, playPrelisten } = useAudioPrelisten();
   
-  // Map detected language to voice language
+  // Map detected language to voice language with more variations
   const languageMap: Record<string, keyof typeof VOICES> = {
     'eng': 'english',
     'en': 'english',
+    'english': 'english',
     'spa': 'spanish',
     'es': 'spanish',
+    'spanish': 'spanish',
+    'español': 'spanish',
     'fra': 'french',
     'fr': 'french',
+    'french': 'french',
     'deu': 'german',
-    'de': 'german'
+    'de': 'german',
+    'german': 'german'
   };
 
+  console.log('Detected language:', detectedLanguage);
+  
   // Get the mapped language or fallback to english
   const mappedLanguage = languageMap[detectedLanguage.toLowerCase()] || 'english';
+  console.log('Mapped language:', mappedLanguage);
+  
   const availableVoices = VOICES[mappedLanguage];
+
+  // Set initial voice if none selected
+  React.useEffect(() => {
+    if (!selectedVoice && availableVoices.length > 0) {
+      onVoiceChange(availableVoices[0].id);
+    }
+  }, [selectedVoice, availableVoices, onVoiceChange]);
 
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -36,7 +52,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: Voice
         Select Voice Type ({mappedLanguage.charAt(0).toUpperCase() + mappedLanguage.slice(1)})
       </Label>
       <RadioGroup
-        defaultValue={selectedVoice}
+        value={selectedVoice}
         onValueChange={onVoiceChange}
         className="flex justify-center gap-6"
       >
