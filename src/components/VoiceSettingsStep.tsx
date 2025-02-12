@@ -38,7 +38,7 @@ const VoiceSettingsStep = ({
       <VoiceSelector 
         selectedVoice={selectedVoice}
         onVoiceChange={setSelectedVoice}
-        detectedLanguage={detectedLanguage || 'english'}
+        detectedLanguage={detectedLanguage}
       />
       
       <div className="space-y-6 mt-8">

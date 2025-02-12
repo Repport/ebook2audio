@@ -36,12 +36,14 @@ const Index = () => {
   const [extractedText, setExtractedText] = useState<string>('');
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
+  const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
 
   const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
     if (!fileInfo) {
       setSelectedFile(null);
       setExtractedText('');
       setChapters([]);
+      setDetectedLanguage('english');
       setCurrentStep(1);
       return;
     }
@@ -49,7 +51,9 @@ const Index = () => {
     setSelectedFile(fileInfo.file);
     setExtractedText(fileInfo.text);
     setChapters(fileInfo.chapters || []);
+    setDetectedLanguage(fileInfo.language || 'english');
     setCurrentStep(2);
+    console.log('Index - Setting detected language:', fileInfo.language);
   };
 
   const goToNextStep = () => {
@@ -126,6 +130,7 @@ const Index = () => {
                     selectedFile={selectedFile}
                     extractedText={extractedText}
                     chapters={chapters}
+                    detectedLanguage={detectedLanguage}
                     onStepComplete={() => setCurrentStep(3)}
                     currentStep={currentStep}
                     onNextStep={goToNextStep}

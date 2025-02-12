@@ -14,6 +14,7 @@ interface FileProcessorProps {
   selectedFile: File | null;
   extractedText: string;
   chapters: Chapter[];
+  detectedLanguage: string;
   onStepComplete?: () => void;
   currentStep: number;
   onNextStep: () => void;
@@ -23,8 +24,9 @@ interface FileProcessorProps {
 const FileProcessor = ({ 
   onFileSelect, 
   selectedFile, 
-  extractedText, 
+  extractedText,
   chapters,
+  detectedLanguage,
   onStepComplete,
   currentStep,
   onNextStep,
@@ -105,9 +107,7 @@ const FileProcessor = ({
     setShowTerms(false);
   };
 
-  // Get the detected language from metadata of the first chapter
-  const detectedLanguage = chapters?.[0]?.metadata?.language || 'english';
-  console.log('Using detected language:', detectedLanguage);
+  console.log('FileProcessor - Using detected language:', detectedLanguage);
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
