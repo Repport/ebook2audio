@@ -34,6 +34,7 @@ export const useConversionProgress = (
   }, [textLength]);
 
   const updateProgress = useCallback((progressData: { progress: number, processed_chunks?: number, total_chunks?: number }) => {
+    console.log('Recibida actualización de progreso:', progressData);
     const { progress: newProgress, processed_chunks, total_chunks } = progressData;
 
     if (typeof newProgress === 'number' && newProgress >= 0) {
@@ -47,45 +48,56 @@ export const useConversionProgress = (
     if (typeof total_chunks === 'number') {
       setTotalChunks(total_chunks);
     }
-
-    console.log('Progress update:', {
-      progress: newProgress,
-      processedChunks: processed_chunks,
-      totalChunks: total_chunks
-    });
   }, []);
 
   useEffect(() => {
     let channel;
     
     if (conversionId && (status === 'converting' || status === 'processing')) {
-      console.log('Setting up realtime updates for conversion:', conversionId);
+      console.log('Configurando actualizaciones en tiempo real para conversión:', conversionId);
       
+      // Crear un canal específico para esta conversión
+      const channelName = `conversion-${conversionId}`;
       channel = supabase
-        .channel(`conversion-${conversionId}`)
+        .channel(channelName)
         .on(
           'postgres_changes',
           {
-            event: 'UPDATE',
+            event: '*',
             schema: 'public',
             table: 'text_conversions',
             filter: `id=eq.${conversionId}`,
           },
           (payload: any) => {
-            console.log('Realtime update received:', payload.new);
-            updateProgress({
-              progress: payload.new.progress,
-              processed_chunks: payload.new.processed_chunks,
-              total_chunks: payload.new.total_chunks
-            });
+            console.log('Actualización en tiempo real recibida:', payload);
+            if (payload.new) {
+              updateProgress({
+                progress: payload.new.progress,
+                processed_chunks: payload.new.processed_chunks,
+                total_chunks: payload.new.total_chunks
+              });
+            }
           }
         )
         .subscribe((status) => {
-          console.log('Channel status:', status);
+          console.log(`Estado del canal ${channelName}:`, status);
+        });
+
+      // Hacer una consulta inicial para obtener el estado actual
+      supabase
+        .from('text_conversions')
+        .select('progress, processed_chunks, total_chunks')
+        .eq('id', conversionId)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            console.log('Estado inicial de la conversión:', data);
+            updateProgress(data);
+          }
         });
 
       return () => {
-        console.log('Cleaning up realtime subscription');
+        console.log('Limpiando suscripción en tiempo real');
         if (channel) {
           supabase.removeChannel(channel);
         }
