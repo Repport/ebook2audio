@@ -65,15 +65,15 @@ const ConversionStatus = ({
 
   const renderConvertingStatus = () => (
     <div className="flex flex-col items-center gap-4">
-      <div className="relative">
+      <div className="relative inline-flex items-center justify-center">
         <Loader2 
           className="w-12 h-12 animate-spin text-primary" 
           strokeWidth={2.5}
         />
         {hasStarted && currentProgress > 0 && (
-          <span className="absolute -bottom-1 -right-1 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full">
+          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full min-w-[40px] text-center">
             {Math.round(currentProgress)}%
-          </span>
+          </div>
         )}
       </div>
       <p className="text-lg font-medium">
@@ -137,3 +137,4 @@ const ConversionStatus = ({
 };
 
 export default ConversionStatus;
+
