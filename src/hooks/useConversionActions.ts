@@ -69,34 +69,10 @@ export const useConversionActions = ({
       const textHash = await generateHash(extractedText, selectedVoice);
       console.log('Generated text hash:', textHash);
       
-      const createConversionResponse = await retryOperation<PostgrestResponse<TextConversion>>(async () => {
-        const response = await supabase
-          .from('text_conversions')
-          .insert({
-            user_id: user?.id,
-            status: 'processing',
-            file_name: fileName,
-            text_hash: textHash,
-            progress: 0,
-            notify_on_complete: false
-          })
-          .select()
-          .single();
-          
-        return response;
-      });
-
-      if (createConversionResponse.error || !createConversionResponse.data) {
-        throw new Error('Failed to create conversion record');
-      }
-
-      const conversionRecord = createConversionResponse.data;
-      setConversionId(conversionRecord.id);
-      
       const existingConversion = await checkExistingConversion(textHash);
       
       if (existingConversion) {
-        console.log('Found existing conversion in cache');
+        console.log('⚡ Found existing conversion in cache');
         const { conversion, audioBuffer } = existingConversion;
         
         setConversionId(conversion.id);
@@ -119,20 +95,48 @@ export const useConversionActions = ({
         };
       }
 
+      console.log('No cached version found, creating new conversion record');
+      const { data: conversionRecord, error: createError } = await supabase
+        .from('text_conversions')
+        .insert({
+          user_id: user?.id,
+          status: 'processing',
+          file_name: fileName,
+          text_hash: textHash,
+          progress: 0,
+          notify_on_complete: false
+        })
+        .select()
+        .single();
+
+      if (createError || !conversionRecord) {
+        throw new Error('Failed to create conversion record');
+      }
+
+      setConversionId(conversionRecord.id);
+
       console.log('No cached version found, starting new conversion');
       
-      const chaptersWithTimestamps = chapters.map(chapter => ({
-        ...chapter,
-        timestamp: Math.floor(
-          extractedText.substring(0, chapter.startIndex).split(/\s+/).length / 150
-        )
-      }));
+      // Optimización en el cálculo de timestamps
+      let wordCount = 0;
+      const chaptersWithTimestamps = chapters.map(chapter => {
+        const currentText = extractedText.substring(0, chapter.startIndex);
+        wordCount = currentText.split(/\s+/).length;
+        return {
+          ...chapter,
+          timestamp: Math.floor(wordCount / 150)
+        };
+      });
 
-      const { audio, id } = await convertToAudio(
-        extractedText, 
-        selectedVoice,
-        detectChapters ? chaptersWithTimestamps : undefined,
-        fileName
+      // Reintentos automáticos para convertToAudio
+      const { audio, id } = await retryOperation(
+        () => convertToAudio(
+          extractedText, 
+          selectedVoice,
+          detectChapters ? chaptersWithTimestamps : undefined,
+          fileName
+        ),
+        { maxRetries: 3 }
       );
       
       if (!audio) {
@@ -150,10 +154,10 @@ export const useConversionActions = ({
         const chaptersResponse = await retryOperation<PostgrestResponse<DatabaseChapter>>(async () => {
           const response = await supabase.from('chapters').insert(chapterInserts);
           return response;
-        });
+        }, { maxRetries: 3 });
 
         if (chaptersResponse.error) {
-          console.error('Error storing chapters:', chaptersResponse.error);
+          console.error('❌ Error storing chapters:', chaptersResponse.error);
         }
       }
 
@@ -202,8 +206,12 @@ export const useConversionActions = ({
     const link = document.createElement('a');
     link.href = url;
     
-    const originalName = fileName || currentFileName || 'converted';
-    const baseName = originalName.substring(0, originalName.lastIndexOf('.') || originalName.length);
+    const sanitizedFileName = (fileName || currentFileName || 'converted')
+      .replace(/[<>:"/\\|?*]+/g, '') // Remueve caracteres no válidos
+      .replace(/\s+/g, '_') // Reemplaza espacios por guiones bajos
+      .substring(0, 255); // Limita la longitud del nombre
+    
+    const baseName = sanitizedFileName.substring(0, sanitizedFileName.lastIndexOf('.') || sanitizedFileName.length);
     link.download = `${baseName}.mp3`;
     
     document.body.appendChild(link);
