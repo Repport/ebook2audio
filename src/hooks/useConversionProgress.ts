@@ -38,7 +38,7 @@ export const useConversionProgress = (
     calculatedTotalChunks
   );
 
-  const getEstimatedTimeRemaining = useTimeEstimation(
+  const timeRemaining = useTimeEstimation(
     progress,
     status,
     processedChunks,
@@ -162,7 +162,7 @@ export const useConversionProgress = (
   return {
     progress,
     elapsedTime,
-    timeRemaining: getEstimatedTimeRemaining(),
+    timeRemaining,
     hasStarted: processedChunks > 0 || status === 'converting' || status === 'processing',
     processedChunks,
     totalChunks: effectiveTotalChunks
