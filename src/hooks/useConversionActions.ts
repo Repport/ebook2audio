@@ -30,6 +30,29 @@ interface ConversionResult {
   id: string;
 }
 
+const retryDownload = async (
+  fn: () => void, 
+  retries = 3,
+  toast: any
+) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      fn();
+      return;
+    } catch (error) {
+      console.warn(`⚠️ Retry download attempt ${i + 1} failed`, error);
+      if (i === retries - 1) {
+        toast({
+          title: "Download failed",
+          description: "Could not generate the download file. Please try again.",
+          variant: "destructive",
+        });
+      }
+      await new Promise(res => setTimeout(res, 1000));
+    }
+  }
+};
+
 export const useConversionActions = ({
   user,
   toast,
@@ -95,40 +118,27 @@ export const useConversionActions = ({
         };
       }
 
-      console.log('No cached version found, creating new conversion record');
-      const { data: conversionRecord, error: createError } = await supabase
-        .from('text_conversions')
-        .insert({
-          user_id: user?.id,
-          status: 'processing',
-          file_name: fileName,
-          text_hash: textHash,
-          progress: 0,
-          notify_on_complete: false
-        })
-        .select()
-        .single();
-
-      if (createError || !conversionRecord) {
-        throw new Error('Failed to create conversion record');
-      }
-
-      setConversionId(conversionRecord.id);
-
-      console.log('No cached version found, starting new conversion');
-      
       // Optimización en el cálculo de timestamps
       let wordCount = 0;
       const chaptersWithTimestamps = chapters.map(chapter => {
-        const currentText = extractedText.substring(0, chapter.startIndex);
-        wordCount = currentText.split(/\s+/).length;
+        if ('text' in chapter) {
+          wordCount += (chapter.text as string).split(/\s+/).length;
+        } else {
+          // Si no hay texto, calcular desde el extractedText
+          const chapterText = extractedText.substring(
+            chapter.startIndex,
+            chapters[chapters.indexOf(chapter) + 1]?.startIndex || extractedText.length
+          );
+          wordCount += chapterText.split(/\s+/).length;
+        }
         return {
           ...chapter,
           timestamp: Math.floor(wordCount / 150)
         };
       });
 
-      // Reintentos automáticos para convertToAudio
+      // Primero intentamos la conversión antes de crear el registro
+      console.log('Starting audio conversion...');
       const { audio, id } = await retryOperation(
         () => convertToAudio(
           extractedText, 
@@ -143,6 +153,27 @@ export const useConversionActions = ({
         throw new Error('No audio data received from conversion');
       }
 
+      // Solo después de una conversión exitosa, creamos el registro
+      console.log('Audio conversion successful, creating database record...');
+      const { data: conversionRecord, error: createError } = await supabase
+        .from('text_conversions')
+        .insert({
+          user_id: user?.id,
+          status: 'completed', // Ya sabemos que la conversión fue exitosa
+          file_name: fileName,
+          text_hash: textHash,
+          progress: 100,
+          notify_on_complete: false
+        })
+        .select()
+        .single();
+
+      if (createError || !conversionRecord) {
+        throw new Error('Failed to create conversion record');
+      }
+
+      setConversionId(conversionRecord.id);
+
       if (detectChapters && chapters.length > 0) {
         const chapterInserts: DatabaseChapter[] = chaptersWithTimestamps.map(chapter => ({
           conversion_id: id,
@@ -151,13 +182,21 @@ export const useConversionActions = ({
           timestamp: chapter.timestamp
         }));
 
-        const chaptersResponse = await retryOperation<PostgrestResponse<DatabaseChapter>>(async () => {
-          const response = await supabase.from('chapters').insert(chapterInserts);
-          return response;
-        }, { maxRetries: 3 });
+        const chaptersResponse = await retryOperation<PostgrestResponse<DatabaseChapter>>(
+          async () => {
+            const response = await supabase.from('chapters').insert(chapterInserts);
+            return response;
+          },
+          { maxRetries: 3 }
+        );
 
         if (chaptersResponse.error) {
           console.error('❌ Error storing chapters:', chaptersResponse.error);
+          toast({
+            title: "Warning",
+            description: "Audio conversion successful but chapter markers couldn't be saved.",
+            variant: "destructive",
+          });
         }
       }
 
@@ -172,16 +211,30 @@ export const useConversionActions = ({
         await saveToSupabase(audio, extractedText, duration, fileName, user.id);
       }
       
-      await safeSupabaseUpdate(
-        supabase,
-        'text_conversions',
-        id,
-        { 
-          status: 'completed',
-          progress: 100,
-          duration
-        }
-      );
+      try {
+        await retryOperation(
+          async () => {
+            await safeSupabaseUpdate(
+              supabase,
+              'text_conversions',
+              id,
+              { 
+                status: 'completed',
+                progress: 100,
+                duration
+              }
+            );
+          },
+          { maxRetries: 3 }
+        );
+      } catch (error) {
+        console.error('Failed to update conversion status:', error);
+        toast({
+          title: "Warning",
+          description: "Conversion successful but status update failed. Some features might be limited.",
+          variant: "destructive",
+        });
+      }
       
       setConversionStatus('completed');
       setProgress(100);
@@ -207,17 +260,23 @@ export const useConversionActions = ({
     link.href = url;
     
     const sanitizedFileName = (fileName || currentFileName || 'converted')
-      .replace(/[<>:"/\\|?*]+/g, '') // Remueve caracteres no válidos
-      .replace(/\s+/g, '_') // Reemplaza espacios por guiones bajos
-      .substring(0, 255); // Limita la longitud del nombre
+      .replace(/[<>:"/\\|?*]+/g, '') 
+      .replace(/\s+/g, '_')
+      .substring(0, 255);
     
     const baseName = sanitizedFileName.substring(0, sanitizedFileName.lastIndexOf('.') || sanitizedFileName.length);
     link.download = `${baseName}.mp3`;
     
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    await retryDownload(
+      () => {
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      },
+      3,
+      toast
+    );
   };
 
   return {
