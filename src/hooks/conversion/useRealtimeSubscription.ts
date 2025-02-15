@@ -19,6 +19,7 @@ export const useRealtimeSubscription = (
         textLength
       });
       
+      // Consulta manual inicial
       supabase
         .from('text_conversions')
         .select('progress, processed_chunks, total_chunks')
