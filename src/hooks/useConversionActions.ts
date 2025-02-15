@@ -9,6 +9,7 @@ import { Chapter } from '@/utils/textExtraction';
 import { supabase } from '@/integrations/supabase/client';
 import { checkExistingConversion } from '@/services/conversion/cacheCheckService';
 import { generateHash } from '@/services/conversion/utils';
+import { retryOperation } from '@/services/conversion/utils/retryUtils';
 
 interface UseConversionActionsProps {
   user: User | null;
@@ -70,18 +71,21 @@ export const useConversionActions = ({
       console.log('Generated text hash:', textHash);
       
       // Crear un nuevo registro de conversión
-      const { data: conversionRecord, error: insertError } = await supabase
-        .from('text_conversions')
-        .insert({
-          user_id: user?.id,
-          status: 'processing',
-          file_name: fileName,
-          text_hash: textHash,
-          progress: 0,
-          notify_on_complete: false
-        })
-        .select()
-        .single();
+      const { data: conversionRecord, error: insertError } = await retryOperation(
+        () => supabase
+          .from('text_conversions')
+          .insert({
+            user_id: user?.id,
+            status: 'processing',
+            file_name: fileName,
+            text_hash: textHash,
+            progress: 0,
+            notify_on_complete: false
+          })
+          .select()
+          .single(),
+        { operation: 'Create conversion record' }
+      );
 
       if (insertError || !conversionRecord) {
         throw new Error('Failed to create conversion record');
@@ -147,9 +151,10 @@ export const useConversionActions = ({
           timestamp: chapter.timestamp
         }));
 
-        const { error: chaptersError } = await supabase
-          .from('chapters')
-          .insert(chapterInserts);
+        const { error: chaptersError } = await retryOperation(
+          () => supabase.from('chapters').insert(chapterInserts),
+          { operation: 'Insert chapters' }
+        );
 
         if (chaptersError) {
           console.error('Error storing chapters:', chaptersError);
