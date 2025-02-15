@@ -27,8 +27,12 @@ export async function retryOperation<T>(
   try {
     const result = await operation();
     
-    if ((result as any).error) {
-      throw (result as any).error;
+    // Manejo específico para respuestas de Supabase
+    if (result && typeof result === 'object' && 'error' in result) {
+      const supabaseResult = result as { error: PostgrestError | null };
+      if (supabaseResult.error) {
+        throw supabaseResult.error;
+      }
     }
     
     return result;
@@ -59,23 +63,32 @@ export async function safeSupabaseUpdate<T>(
   data: Partial<T>,
   options: RetryOptions = {}
 ): Promise<PostgrestResponse<T>> {
-  const result = await retryOperation(
-    async () => {
-      const { data: updatedData, error } = await supabaseClient
-        .from(table)
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
-        
-      if (error) throw error;
-      return { data: updatedData, error: null, count: null, status: 200, statusText: 'OK' };
-    },
-    {
-      ...options,
-      operation: `Update ${table}`
-    }
-  );
+  try {
+    const result = await retryOperation(
+      async () => {
+        const response = await supabaseClient
+          .from(table)
+          .update(data)
+          .eq('id', id)
+          .select()
+          .single();
 
-  return result as PostgrestResponse<T>;
+        // Verificación explícita de error
+        if (response?.error) {
+          throw new Error(response.error.message);
+        }
+
+        return response;
+      },
+      {
+        ...options,
+        operation: `Update ${table}`
+      }
+    );
+
+    return result;
+  } catch (error) {
+    console.error(`Error updating ${table}:`, error);
+    throw error;
+  }
 }
