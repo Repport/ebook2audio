@@ -1,5 +1,5 @@
 
-import { PostgrestError, PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js';
+import { PostgrestError, PostgrestResponse } from '@supabase/supabase-js';
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
@@ -13,9 +13,9 @@ interface RetryOptions {
 }
 
 export async function retryOperation<T>(
-  operation: () => Promise<PostgrestResponse<T>>,
+  operation: () => Promise<T>,
   options: RetryOptions = {}
-): Promise<PostgrestResponse<T>> {
+): Promise<T> {
   const {
     retryCount = 0,
     maxRetries = MAX_RETRIES,
@@ -27,15 +27,15 @@ export async function retryOperation<T>(
   try {
     const result = await operation();
     
-    if (result.error) {
-      throw result.error;
+    if ((result as any).error) {
+      throw (result as any).error;
     }
     
     return result;
   } catch (error) {
     if (retryCount >= maxRetries) {
       console.error(`${opName} failed after ${maxRetries} retries:`, error);
-      return { data: null, error: error as PostgrestError, count: null, status: 500, statusText: 'ERROR' };
+      throw error;
     }
 
     const exponentialDelay = initialDelay * Math.pow(2, retryCount);
@@ -59,14 +59,23 @@ export async function safeSupabaseUpdate<T>(
   data: Partial<T>,
   options: RetryOptions = {}
 ): Promise<PostgrestResponse<T>> {
-  return retryOperation(
-    () => supabaseClient
-      .from(table)
-      .update(data)
-      .eq('id', id),
+  const result = await retryOperation(
+    async () => {
+      const { data: updatedData, error } = await supabaseClient
+        .from(table)
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return { data: updatedData, error: null, count: null, status: 200, statusText: 'OK' };
+    },
     {
       ...options,
       operation: `Update ${table}`
     }
   );
+
+  return result as PostgrestResponse<T>;
 }

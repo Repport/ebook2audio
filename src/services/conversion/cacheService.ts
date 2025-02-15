@@ -6,6 +6,10 @@ import { downloadFromStorage, uploadToStorage } from './storage/cacheStorage';
 
 const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
 
+interface CacheRecord {
+  storage_path: string;
+}
+
 export async function checkCache(textHash: string): Promise<{ storagePath: string | null; error: CacheError | null }> {
   try {
     console.log('Checking cache for text hash:', textHash);
@@ -19,20 +23,17 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
         .gt('expires_at', new Date().toISOString())
         .maybeSingle();
       
-      if (error) throw error;
-      return { data, error: null };
+      return { data: data as CacheRecord | null, error };
     });
 
     if (result.data?.storage_path) {
       console.log('Found cached conversion with storage path:', result.data.storage_path);
-    } else {
-      console.log('No cached conversion found');
+      return { storagePath: result.data.storage_path, error: null };
     }
 
-    return { 
-      storagePath: result.data?.storage_path || null, 
-      error: null 
-    };
+    console.log('No cached conversion found');
+    return { storagePath: null, error: null };
+
   } catch (error) {
     console.error('Cache check failed:', error);
     return { 
@@ -62,7 +63,7 @@ export async function saveToCache(
 
     console.log('Successfully uploaded audio to storage');
 
-    const insertResult = await retryOperation(
+    await retryOperation(
       async () => {
         const now = new Date();
         const expiresAt = new Date(now.getTime() + CACHE_DURATION);
@@ -111,7 +112,7 @@ export async function cleanupExpiredCache(): Promise<{ error: Error | null }> {
 
     if (expiredRecords?.length) {
       const storagePaths = expiredRecords
-        .map(record => record.storage_path)
+        .map(record => (record as CacheRecord).storage_path)
         .filter((path): path is string => !!path);
 
       if (storagePaths.length > 0) {
