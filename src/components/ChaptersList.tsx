@@ -13,7 +13,12 @@ interface ChaptersListProps {
 }
 
 export const ChaptersList = ({ chapters }: ChaptersListProps) => {
-  if (!chapters || chapters.length === 0) return null;
+  console.log('ChaptersList received chapters:', chapters);
+
+  if (!chapters || chapters.length === 0) {
+    console.log('No chapters to display');
+    return null;
+  }
 
   return (
     <Accordion type="single" collapsible className="w-full">
@@ -23,14 +28,17 @@ export const ChaptersList = ({ chapters }: ChaptersListProps) => {
         </AccordionTrigger>
         <AccordionContent>
           <div className="space-y-2 text-sm text-muted-foreground">
-            {chapters.map((chapter, index) => (
-              <div key={index} className="flex justify-between items-center py-1">
-                <span className="font-medium truncate flex-1 mr-4">{chapter.title}</span>
-                <span className="text-muted-foreground whitespace-nowrap">
-                  {formatTimestamp(chapter.timestamp || 0)}
-                </span>
-              </div>
-            ))}
+            {chapters.map((chapter, index) => {
+              console.log('Rendering chapter:', chapter);
+              return (
+                <div key={index} className="flex justify-between items-center py-1">
+                  <span className="font-medium truncate flex-1 mr-4">{chapter.title}</span>
+                  <span className="text-muted-foreground whitespace-nowrap">
+                    {formatTimestamp(chapter.timestamp || 0)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </AccordionContent>
       </AccordionItem>
