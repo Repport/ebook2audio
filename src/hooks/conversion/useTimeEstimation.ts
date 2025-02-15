@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 
 export const useTimeEstimation = (
@@ -7,31 +7,51 @@ export const useTimeEstimation = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
   processedChunks: number,
   elapsedTime: number,
-  effectiveTotalChunks: number
+  totalChunks: number
 ) => {
-  return useCallback(() => {
+  const [timeRemaining, setTimeRemaining] = useState<string | null>('Calculating...');
+  const [chunkTimes, setChunkTimes] = useState<number[]>([]);
+
+  useEffect(() => {
     if (progress >= 100 || status === 'completed') {
-      return null;
+      setTimeRemaining(null);
+      return;
     }
 
-    if (processedChunks === 0 || effectiveTotalChunks === 0 || elapsedTime === 0) {
-      return 'Calculating...';
+    if (processedChunks === 0 || totalChunks === 0 || elapsedTime === 0) {
+      setTimeRemaining('Calculating...');
+      return;
     }
 
-    const avgTimePerChunk = elapsedTime / processedChunks;
-    const estimatedRemainingSeconds = Math.ceil((effectiveTotalChunks - processedChunks) * avgTimePerChunk);
-    const safeEstimatedTime = Math.max(estimatedRemainingSeconds, 5);
+    const remainingChunks = totalChunks - processedChunks;
 
-    console.log('⏱️ Time estimation:', {
-      remainingChunks: effectiveTotalChunks - processedChunks,
+    // Guardar los últimos tiempos por chunk
+    setChunkTimes(prev => {
+      const newChunkTimes = [...prev, elapsedTime / processedChunks];
+      return newChunkTimes.length > 5 ? newChunkTimes.slice(1) : newChunkTimes;
+    });
+
+    // Promedio móvil de los últimos 5 tiempos por chunk
+    const avgTimePerChunk = chunkTimes.length > 0
+      ? chunkTimes.reduce((acc, val) => acc + val, 0) / chunkTimes.length
+      : elapsedTime / processedChunks;
+
+    const estimatedRemainingSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
+    const safeEstimatedTime = Math.max(estimatedRemainingSeconds, 5); // Evitar valores negativos
+
+    console.log('⏱️ Time estimation updated:', {
+      remainingChunks,
       avgTimePerChunk: `${avgTimePerChunk.toFixed(1)}s`,
       estimatedRemainingSeconds,
       elapsedTime,
       processedChunks,
-      effectiveTotalChunks,
-      currentProgress: `${progress.toFixed(1)}%`
+      totalChunks,
+      currentProgress: `${progress.toFixed(1)}%`,
+      chunkTimesHistory: chunkTimes.map(t => t.toFixed(1) + 's')
     });
 
-    return formatTimeRemaining(safeEstimatedTime);
-  }, [progress, status, processedChunks, elapsedTime, effectiveTotalChunks]);
+    setTimeRemaining(formatTimeRemaining(safeEstimatedTime));
+  }, [progress, status, processedChunks, elapsedTime, totalChunks, chunkTimes]);
+
+  return timeRemaining;
 };
