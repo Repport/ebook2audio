@@ -1,7 +1,7 @@
 
 import { useEffect } from 'react';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
-import { Chapter } from '@/utils/textExtraction';
+import { ExtractedChapter } from '@/types/conversion';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { generateHash } from '@/services/conversion/utils';
 import { checkExistingConversion } from '@/services/conversion/cacheCheckService';
@@ -16,7 +16,7 @@ export interface ConversionOptions {
 export const useConversionLogic = (
   selectedFile: File | null,
   extractedText: string,
-  chapters: Chapter[],
+  chapters: ExtractedChapter[],
   onStepComplete?: () => void
 ) => {
   const {
@@ -80,7 +80,13 @@ export const useConversionLogic = (
         return;
       }
 
-      const result = await handleConversion(extractedText, options.selectedVoice, detectChapters, chapters, selectedFile.name);
+      const result = await handleConversion(
+        extractedText,
+        options.selectedVoice,
+        detectChapters,
+        chapters,
+        selectedFile.name
+      );
       
       const endTime = performance.now();
       const executionTime = endTime - startTime;
@@ -156,4 +162,3 @@ export const useConversionLogic = (
     setConversionStatus
   };
 };
-

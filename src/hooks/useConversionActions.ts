@@ -5,7 +5,7 @@ import { saveToSupabase } from '@/services/storage/supabaseStorageService';
 import { calculateAudioDuration } from '@/services/audio/audioUtils';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { User } from '@supabase/supabase-js';
-import { Chapter } from '@/utils/textExtraction';
+import { ExtractedChapter, TextConversion, PostgrestResponse, DatabaseChapter } from '@/types/conversion';
 import { supabase } from '@/integrations/supabase/client';
 import { checkExistingConversion } from '@/services/conversion/cacheCheckService';
 import { generateHash } from '@/services/conversion/utils';
@@ -28,24 +28,6 @@ interface UseConversionActionsProps {
 interface ConversionResult {
   audio: ArrayBuffer;
   id: string;
-}
-
-interface TextConversion {
-  id: string;
-  user_id: string | null;
-  status: string;
-  file_name: string;
-  text_hash: string;
-  progress: number;
-  notify_on_complete: boolean;
-  duration?: number;
-}
-
-interface Chapter {
-  conversion_id: string;
-  title: string;
-  start_index: number;
-  timestamp: number;
 }
 
 export const useConversionActions = ({
@@ -74,7 +56,7 @@ export const useConversionActions = ({
     extractedText: string,
     selectedVoice: string,
     detectChapters: boolean,
-    chapters: Chapter[],
+    chapters: ExtractedChapter[],
     fileName: string
   ): Promise<ConversionResult> => {
     setConversionStatus('converting');
@@ -158,14 +140,14 @@ export const useConversionActions = ({
       }
 
       if (detectChapters && chapters.length > 0) {
-        const chapterInserts = chaptersWithTimestamps.map(chapter => ({
+        const chapterInserts: DatabaseChapter[] = chaptersWithTimestamps.map(chapter => ({
           conversion_id: id,
           title: chapter.title,
           start_index: chapter.startIndex,
           timestamp: chapter.timestamp
         }));
 
-        const chaptersResponse = await retryOperation<PostgrestResponse<Chapter>>(async () => {
+        const chaptersResponse = await retryOperation<PostgrestResponse<DatabaseChapter>>(async () => {
           const response = await supabase.from('chapters').insert(chapterInserts);
           return response;
         });
