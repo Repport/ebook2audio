@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
@@ -7,6 +7,7 @@ import { Chapter } from '@/utils/textExtraction';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { retryOperation } from '@/services/conversion/utils/retryUtils';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -52,7 +53,7 @@ export const useConversionLogic = (
     }
   }, [conversionStatus, onStepComplete]);
 
-  const initiateConversion = () => {
+  const initiateConversion = useCallback(() => {
     if (!selectedFile || !extractedText) {
       toast({
         title: "Error",
@@ -65,7 +66,7 @@ export const useConversionLogic = (
     resetConversion();
     clearConversionStorage();
     setShowTerms(true);
-  };
+  }, [selectedFile, extractedText, toast, resetConversion]);
 
   const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText || !options.selectedVoice) {
@@ -82,6 +83,15 @@ export const useConversionLogic = (
       return;
     }
 
+    if (detectingChapters) {
+      toast({
+        title: "Please wait",
+        description: "Still detecting chapters. Please wait a moment.",
+        variant: "default",
+      });
+      return;
+    }
+
     setDetectingChapters(true);
     try {
       const result = await handleConversion(
@@ -94,25 +104,25 @@ export const useConversionLogic = (
       
       // Create notification if notification is enabled and user is authenticated
       if (options.notifyOnComplete && user && result.id) {
-        const { error: notificationError } = await supabase
-          .from('conversion_notifications')
-          .insert({
+        const notificationResult = await retryOperation(async () => {
+          return supabase.from('conversion_notifications').insert({
             conversion_id: result.id,
             user_id: user.id,
             email: user.email,
           });
+        }, { maxRetries: 3 });
 
-        if (notificationError) {
-          console.error('Error creating notification:', notificationError);
+        if (notificationResult.error) {
+          console.error('Error creating notification:', notificationResult.error);
           toast({
             title: "Notification Error",
-            description: "Could not set up email notification",
+            description: "Could not set up email notification. Please try again later.",
             variant: "destructive",
           });
         } else {
           toast({
             title: "Notification Set",
-            description: "We'll email you when your conversion is ready!",
+            description: "You'll receive an email when your conversion is ready!",
           });
         }
       }
@@ -131,27 +141,32 @@ export const useConversionLogic = (
     }
   };
 
-  const handleDownloadClick = () => {
-    if (selectedFile) {
-      handleDownload(selectedFile.name);
+  const handleDownloadClick = useCallback(() => {
+    if (!audioData || !selectedFile) {
+      toast({
+        title: "Download Failed",
+        description: "No audio file available for download.",
+        variant: "destructive",
+      });
+      return;
     }
-  };
 
-  const handleViewConversions = () => {
+    handleDownload(selectedFile.name);
+  }, [audioData, selectedFile, toast, handleDownload]);
+
+  const handleViewConversions = useCallback(() => {
     navigate('/conversions');
-  };
+  }, [navigate]);
 
-  const calculateEstimatedSeconds = () => {
+  const estimatedSeconds = useMemo(() => {
     if (!extractedText) return 0;
-    
-    // More accurate calculation formula
+
     const wordsCount = extractedText.split(/\s+/).length;
-    const averageWordsPerMinute = 150; // Average reading speed
-    const minutes = wordsCount / averageWordsPerMinute;
-    const processingOverhead = 2; // Base processing time in seconds
-    
-    return Math.ceil(minutes * 60 + processingOverhead);
-  };
+    const averageWordsPerMinute = 150;
+    const processingOverhead = Math.max(2, Math.log(wordsCount) * 5);
+
+    return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + processingOverhead);
+  }, [extractedText]);
 
   return {
     detectChapters,
@@ -167,7 +182,7 @@ export const useConversionLogic = (
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
-    calculateEstimatedSeconds,
+    calculateEstimatedSeconds: () => estimatedSeconds,
     conversionId,
     setProgress,
     setConversionStatus
