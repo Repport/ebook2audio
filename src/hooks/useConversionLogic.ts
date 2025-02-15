@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
@@ -116,7 +117,7 @@ export const useConversionLogic = (
         }
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Conversion error:', error);
       toast({
         title: "Conversion failed",
