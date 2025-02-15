@@ -9,7 +9,7 @@ import { Chapter } from '@/utils/textExtraction';
 import { supabase } from '@/integrations/supabase/client';
 import { checkExistingConversion } from '@/services/conversion/cacheCheckService';
 import { generateHash } from '@/services/conversion/utils';
-import { retryOperation } from '@/services/conversion/utils/retryUtils';
+import { retryOperation, safeSupabaseUpdate } from '@/services/conversion/utils/retryUtils';
 
 interface UseConversionActionsProps {
   user: User | null;
@@ -66,13 +66,11 @@ export const useConversionActions = ({
     try {
       console.log('Starting conversion process for file:', fileName);
       
-      // Generate hash for cache checking
       const textHash = await generateHash(extractedText, selectedVoice);
       console.log('Generated text hash:', textHash);
       
-      // Crear un nuevo registro de conversión
-      const { data: conversionRecord, error: insertError } = await retryOperation(
-        () => supabase
+      const createConversionResponse = await retryOperation(() => 
+        supabase
           .from('text_conversions')
           .insert({
             user_id: user?.id,
@@ -83,17 +81,16 @@ export const useConversionActions = ({
             notify_on_complete: false
           })
           .select()
-          .single(),
-        { operation: 'Create conversion record' }
+          .single()
       );
 
-      if (insertError || !conversionRecord) {
+      if (createConversionResponse.error || !createConversionResponse.data) {
         throw new Error('Failed to create conversion record');
       }
 
+      const conversionRecord = createConversionResponse.data;
       setConversionId(conversionRecord.id);
       
-      // Check for existing conversion
       const existingConversion = await checkExistingConversion(textHash);
       
       if (existingConversion) {
@@ -121,8 +118,7 @@ export const useConversionActions = ({
       }
 
       console.log('No cached version found, starting new conversion');
-      console.log('Processing chapters:', chapters);
-
+      
       const chaptersWithTimestamps = chapters.map(chapter => ({
         ...chapter,
         timestamp: Math.floor(
@@ -130,7 +126,6 @@ export const useConversionActions = ({
         )
       }));
 
-      // Actualizar la llamada a convertToAudio para que coincida con su firma
       const { audio, id } = await convertToAudio(
         extractedText, 
         selectedVoice,
@@ -142,7 +137,6 @@ export const useConversionActions = ({
         throw new Error('No audio data received from conversion');
       }
 
-      // Store chapters in database if detected
       if (detectChapters && chapters.length > 0) {
         const chapterInserts = chaptersWithTimestamps.map(chapter => ({
           conversion_id: id,
@@ -151,13 +145,12 @@ export const useConversionActions = ({
           timestamp: chapter.timestamp
         }));
 
-        const { error: chaptersError } = await retryOperation(
-          () => supabase.from('chapters').insert(chapterInserts),
-          { operation: 'Insert chapters' }
+        const chaptersResponse = await retryOperation(() => 
+          supabase.from('chapters').insert(chapterInserts)
         );
 
-        if (chaptersError) {
-          console.error('Error storing chapters:', chaptersError);
+        if (chaptersResponse.error) {
+          console.error('Error storing chapters:', chaptersResponse.error);
         }
       }
 
@@ -171,6 +164,17 @@ export const useConversionActions = ({
         console.log('Saving to Supabase for user:', user.id);
         await saveToSupabase(audio, extractedText, duration, fileName, user.id);
       }
+      
+      await safeSupabaseUpdate(
+        supabase,
+        'text_conversions',
+        id,
+        { 
+          status: 'completed',
+          progress: 100,
+          duration
+        }
+      );
       
       setConversionStatus('completed');
       setProgress(100);

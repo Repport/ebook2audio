@@ -1,38 +1,41 @@
 
-import { CacheError } from '../errors/CacheError';
+import { PostgrestError, PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js';
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 
+interface RetryOptions {
+  retryCount?: number;
+  maxRetries?: number;
+  initialDelay?: number;
+  maxDelay?: number;
+  operation?: string;
+}
+
 export async function retryOperation<T>(
-  operation: () => Promise<T>,
-  options: {
-    retryCount?: number;
-    maxRetries?: number;
-    initialDelay?: number;
-    maxDelay?: number;
-    timeout?: number;
-    operation?: string;
-  } = {}
-): Promise<T> {
+  operation: () => Promise<PostgrestResponse<T>>,
+  options: RetryOptions = {}
+): Promise<PostgrestResponse<T>> {
   const {
     retryCount = 0,
     maxRetries = MAX_RETRIES,
     initialDelay = INITIAL_RETRY_DELAY,
     maxDelay = 10000,
-    timeout = 30000,
     operation: opName = 'Operation'
   } = options;
 
   try {
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new CacheError(`${opName} timed out after ${timeout}ms`)), timeout);
-    });
-    return await Promise.race([operation(), timeoutPromise]) as T;
+    const result = await operation();
+    
+    if (result.error) {
+      throw result.error;
+    }
+    
+    return result;
   } catch (error) {
     if (retryCount >= maxRetries) {
       console.error(`${opName} failed after ${maxRetries} retries:`, error);
-      throw error;
+      return { data: null, error: error as PostgrestError, count: null, status: 500, statusText: 'ERROR' };
     }
 
     const exponentialDelay = initialDelay * Math.pow(2, retryCount);
@@ -47,4 +50,23 @@ export async function retryOperation<T>(
       retryCount: retryCount + 1
     });
   }
+}
+
+export async function safeSupabaseUpdate<T>(
+  supabaseClient: any,
+  table: string,
+  id: string,
+  data: Partial<T>,
+  options: RetryOptions = {}
+): Promise<PostgrestResponse<T>> {
+  return retryOperation(
+    () => supabaseClient
+      .from(table)
+      .update(data)
+      .eq('id', id),
+    {
+      ...options,
+      operation: `Update ${table}`
+    }
+  );
 }
