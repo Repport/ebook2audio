@@ -50,7 +50,6 @@ const Header = () => {
           <ul className="flex justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
             <li>Smart Chapter Detection</li>
             <li>Multiple Voices</li>
-            <li>24/7 Support</li>
           </ul>
         </nav>
       </div>
@@ -59,4 +58,3 @@ const Header = () => {
 };
 
 export default Header;
-
