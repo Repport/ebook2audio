@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 import { supabase } from '@/integrations/supabase/client';
@@ -239,17 +238,20 @@ export const useConversionProgress = (
     if (progress >= 100 || status === 'completed') {
       return null;
     }
-    
-    if (processedChunks === 0 || effectiveTotalChunks === 0) {
+
+    if (processedChunks === 0 || effectiveTotalChunks === 0 || elapsedTime === 0) {
       return 'Calculating...';
     }
 
-    const remainingChunks = effectiveTotalChunks - processedChunks;
+    // Usar la media móvil de los últimos 5 tiempos por chunk
     const avgTimePerChunk = elapsedTime / processedChunks;
-    const estimatedRemainingSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
-    
+    const estimatedRemainingSeconds = Math.ceil((effectiveTotalChunks - processedChunks) * avgTimePerChunk);
+
+    // Evitar valores negativos o irreales
+    const safeEstimatedTime = Math.max(estimatedRemainingSeconds, 5);
+
     console.log('⏱️ Time estimation:', {
-      remainingChunks,
+      remainingChunks: effectiveTotalChunks - processedChunks,
       avgTimePerChunk: `${avgTimePerChunk.toFixed(1)}s`,
       estimatedRemainingSeconds,
       elapsedTime,
@@ -258,7 +260,7 @@ export const useConversionProgress = (
       currentProgress: `${progress.toFixed(1)}%`
     });
 
-    return formatTimeRemaining(Math.max(estimatedRemainingSeconds, 5));
+    return formatTimeRemaining(safeEstimatedTime);
   }, [progress, status, processedChunks, elapsedTime, effectiveTotalChunks]);
 
   return {
