@@ -108,6 +108,7 @@ const FileProcessor = ({
   };
 
   console.log('FileProcessor - Using detected language:', detectedLanguage);
+  console.log('FileProcessor - Chapters:', chapters);
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
@@ -151,6 +152,9 @@ const FileProcessor = ({
             onDownloadClick={handleDownloadClick}
             onViewConversions={handleViewConversions}
             conversionId={conversionId}
+            chapters={chapters}
+            detectingChapters={detectingChapters}
+            textLength={extractedText.length}
           />
         </div>
       )}
