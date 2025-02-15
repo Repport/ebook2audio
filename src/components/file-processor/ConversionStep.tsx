@@ -44,6 +44,7 @@ const ConversionStep = ({
           estimatedSeconds={estimatedSeconds}
           conversionId={conversionId}
           textLength={textLength}
+          showPercentage={false} // Deshabilitamos el porcentaje aquí ya que se muestra en la barra de progreso
         />
       </div>
       

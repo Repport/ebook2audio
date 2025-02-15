@@ -18,6 +18,7 @@ interface ConversionStatusProps {
   estimatedSeconds?: number;
   conversionId?: string | null;
   textLength?: number;
+  showPercentage?: boolean;
 }
 
 const ConversionStatus = ({ 
@@ -27,7 +28,8 @@ const ConversionStatus = ({
   chapters = [],
   estimatedSeconds = 0,
   conversionId,
-  textLength = 0
+  textLength = 0,
+  showPercentage = true
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
   const { 
@@ -78,7 +80,7 @@ const ConversionStatus = ({
         {statusMessages[status]}
       </p>
       <div className="w-full space-y-3">
-        <Progress value={currentProgress} className="w-full" />
+        <Progress value={currentProgress} className="w-full" showPercentage={showPercentage} />
         <div className="text-sm text-muted-foreground text-center space-y-1">
           {totalChunks > 0 && (
             <div>
