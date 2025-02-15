@@ -5,22 +5,22 @@ export function calculateSimulatedProgress(
   processedChunks: number,
   realProgress: number
 ): number {
-  // Si tenemos progreso real, lo usamos como base
+  // If we have real progress from the server, use it
   if (realProgress > 0) {
-    return realProgress;
+    return Math.min(realProgress, 100);
   }
 
-  // Simulación basada en tiempo transcurrido
+  // If we know the total chunks, use that for progress calculation
+  if (totalChunks > 0 && processedChunks > 0) {
+    const chunkProgress = (processedChunks / totalChunks) * 85; // Up to 85% for chunks
+    return Math.min(chunkProgress + 5, 90); // Start at 5%, cap at 90%
+  }
+
+  // Fallback to time-based simulation
   const baseProgress = Math.min(
-    (elapsedTime / (totalChunks * 6)) * 100, // 6 segundos por chunk estimados
-    90 // Máximo 90% para simulación
+    (elapsedTime / (totalChunks * 8)) * 100, // Estimate 8 seconds per chunk
+    90 // Maximum 90% for simulation
   );
 
-  // Si tenemos chunks procesados, ajustamos la simulación
-  if (processedChunks > 0 && totalChunks > 0) {
-    const chunkProgress = (processedChunks / totalChunks) * 100;
-    return Math.max(baseProgress, chunkProgress);
-  }
-
-  return Math.min(Math.max(0, baseProgress), 100);
+  return Math.min(Math.max(5, baseProgress), 90); // Keep between 5-90%
 }
