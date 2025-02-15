@@ -9,6 +9,8 @@ export type Chapter = {
   metadata?: {
     language?: string;
   };
+  confidence?: number;
+  type?: 'pattern' | 'style' | 'heading';
 };
 
 export type FileProcessingResult = {
