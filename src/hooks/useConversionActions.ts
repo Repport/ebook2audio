@@ -30,6 +30,24 @@ interface ConversionResult {
   id: string;
 }
 
+interface TextConversion {
+  id: string;
+  user_id: string | null;
+  status: string;
+  file_name: string;
+  text_hash: string;
+  progress: number;
+  notify_on_complete: boolean;
+  duration?: number;
+}
+
+interface Chapter {
+  conversion_id: string;
+  title: string;
+  start_index: number;
+  timestamp: number;
+}
+
 export const useConversionActions = ({
   user,
   toast,
@@ -69,8 +87,8 @@ export const useConversionActions = ({
       const textHash = await generateHash(extractedText, selectedVoice);
       console.log('Generated text hash:', textHash);
       
-      const createConversionResponse = await retryOperation(() => 
-        supabase
+      const createConversionResponse = await retryOperation<PostgrestResponse<TextConversion>>(async () => {
+        const response = await supabase
           .from('text_conversions')
           .insert({
             user_id: user?.id,
@@ -81,8 +99,10 @@ export const useConversionActions = ({
             notify_on_complete: false
           })
           .select()
-          .single()
-      );
+          .single();
+          
+        return response;
+      });
 
       if (createConversionResponse.error || !createConversionResponse.data) {
         throw new Error('Failed to create conversion record');
@@ -145,9 +165,10 @@ export const useConversionActions = ({
           timestamp: chapter.timestamp
         }));
 
-        const chaptersResponse = await retryOperation(() => 
-          supabase.from('chapters').insert(chapterInserts)
-        );
+        const chaptersResponse = await retryOperation<PostgrestResponse<Chapter>>(async () => {
+          const response = await supabase.from('chapters').insert(chapterInserts);
+          return response;
+        });
 
         if (chaptersResponse.error) {
           console.error('Error storing chapters:', chaptersResponse.error);
