@@ -70,11 +70,6 @@ const ConversionStatus = ({
           className="w-12 h-12 animate-spin text-primary" 
           strokeWidth={2.5}
         />
-        {hasStarted && currentProgress > 0 && (
-          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full min-w-[40px] text-center">
-            {Math.round(currentProgress)}%
-          </div>
-        )}
       </div>
       <p className="text-lg font-medium">
         {statusMessages[status]}
@@ -137,4 +132,3 @@ const ConversionStatus = ({
 };
 
 export default ConversionStatus;
-
