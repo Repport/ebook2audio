@@ -2,9 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 import { supabase } from '@/integrations/supabase/client';
-
-const AVERAGE_CHUNK_PROCESSING_TIME = 10; // seconds per chunk
-const AUDIO_COMPOSITION_TIME = 15; // seconds for final composition
+import { calculateSimulatedProgress } from '@/utils/progressSimulation';
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -34,10 +32,12 @@ export const useConversionProgress = (
 
     if (typeof processed_chunks === 'number') {
       setProcessedChunks(processed_chunks);
+      console.log('Updated processed chunks:', processed_chunks);
     }
 
     if (typeof total_chunks === 'number' && total_chunks > 0) {
       setTotalChunks(total_chunks);
+      console.log('Updated total chunks:', total_chunks);
     }
   }, []);
 
@@ -103,7 +103,19 @@ export const useConversionProgress = (
 
     if ((status === 'converting' || status === 'processing') && progress < 100) {
       interval = window.setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        setElapsedTime(elapsed);
+        
+        // If we don't have real progress yet, calculate simulated progress
+        if (progress === 0) {
+          const simulatedProgress = calculateSimulatedProgress(
+            elapsed,
+            totalChunks,
+            processedChunks,
+            progress
+          );
+          setProgress(simulatedProgress);
+        }
       }, 1000);
     } else if (status === 'completed' || progress >= 100) {
       setElapsedTime(prev => prev); // Keep final elapsed time
@@ -114,29 +126,33 @@ export const useConversionProgress = (
         clearInterval(interval);
       }
     };
-  }, [status, progress]);
+  }, [status, progress, totalChunks, processedChunks]);
 
-  // Calculate estimated time remaining based on chunks
+  // Calculate estimated time remaining
   const getEstimatedTimeRemaining = useCallback(() => {
     if (progress >= 100 || status === 'completed') {
       return null;
     }
 
-    if (progress === 0 || totalChunks === 0) {
+    if (totalChunks === 0) {
       return 'Calculating...';
     }
 
-    // Calculate remaining time based on chunks and composition
     const remainingChunks = totalChunks - processedChunks;
-    const estimatedChunkTime = remainingChunks * AVERAGE_CHUNK_PROCESSING_TIME;
+    const avgTimePerChunk = elapsedTime / Math.max(processedChunks, 1);
+    const estimatedRemainingSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
     
-    // Add composition time if we haven't reached that stage yet
-    const compositionTimeRemaining = progress < 90 ? AUDIO_COMPOSITION_TIME : 0;
-    
-    const totalRemainingSeconds = estimatedChunkTime + compositionTimeRemaining;
-    
-    return formatTimeRemaining(Math.max(totalRemainingSeconds, 5));
-  }, [progress, status, totalChunks, processedChunks]);
+    console.log('Time estimation:', {
+      remainingChunks,
+      avgTimePerChunk,
+      estimatedRemainingSeconds,
+      elapsedTime,
+      processedChunks,
+      totalChunks
+    });
+
+    return formatTimeRemaining(Math.max(estimatedRemainingSeconds, 5));
+  }, [progress, status, totalChunks, processedChunks, elapsedTime]);
 
   return {
     progress,
