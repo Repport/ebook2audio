@@ -40,12 +40,16 @@ export const useConversionLogic = (
     setConversionStatus
   } = useAudioConversion();
 
+  // Optimizado para evitar reejecution innecesaria
   useEffect(() => {
-    if (selectedFile) {
+    const shouldReset = selectedFile && 
+      (conversionStatus !== 'idle' || audioData !== null);
+    
+    if (shouldReset) {
       resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile, resetConversion]);
+  }, [selectedFile]); // Removido resetConversion de las dependencias
 
   useEffect(() => {
     if (conversionStatus === 'completed' && onStepComplete) {
@@ -83,16 +87,18 @@ export const useConversionLogic = (
       return;
     }
 
-    if (detectingChapters) {
+    if (detectingChapters || conversionStatus === 'converting') {
       toast({
         title: "Please wait",
-        description: "Still detecting chapters. Please wait a moment.",
+        description: "A conversion is already in progress.",
         variant: "default",
       });
       return;
     }
 
     setDetectingChapters(true);
+    setConversionStatus('converting'); // Evitar conversiones duplicadas
+    
     try {
       const result = await handleConversion(
         extractedText,
@@ -142,16 +148,24 @@ export const useConversionLogic = (
   };
 
   const handleDownloadClick = useCallback(() => {
-    if (!audioData || !selectedFile) {
+    if (!audioData) {
       toast({
-        title: "Download Failed",
-        description: "No audio file available for download.",
+        title: "Download Unavailable",
+        description: "The audio file is not ready yet. Please try again later.",
         variant: "destructive",
       });
       return;
     }
 
-    handleDownload(selectedFile.name);
+    if (!selectedFile) {
+      toast({
+        title: "Missing File Name",
+        description: "Could not determine the file name. Using default.",
+        variant: "default",
+      });
+    }
+
+    handleDownload(selectedFile?.name || "converted_audio");
   }, [audioData, selectedFile, toast, handleDownload]);
 
   const handleViewConversions = useCallback(() => {
@@ -163,9 +177,12 @@ export const useConversionLogic = (
 
     const wordsCount = extractedText.split(/\s+/).length;
     const averageWordsPerMinute = 150;
-    const processingOverhead = Math.max(2, Math.log(wordsCount) * 5);
+    const baseProcessingTime = 5; // Tiempo mínimo en segundos
 
-    return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + processingOverhead);
+    // Factor logarítmico para evitar tiempos excesivos en textos largos
+    const processingOverhead = Math.min(30, Math.log(wordsCount) * 5);
+
+    return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime + processingOverhead);
   }, [extractedText]);
 
   return {
