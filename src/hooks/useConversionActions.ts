@@ -44,8 +44,12 @@ const retryDownload = async (
       if (i === retries - 1) {
         toast({
           title: "Download failed",
-          description: "Could not generate the download file. Please try again.",
+          description: "Could not generate the download file. Check your connection and try again.",
           variant: "destructive",
+          action: {
+            label: "Retry",
+            onClick: () => retryDownload(fn, retries, toast)
+          }
         });
       }
       await new Promise(res => setTimeout(res, 1000));
@@ -120,17 +124,23 @@ export const useConversionActions = ({
 
       // Optimización en el cálculo de timestamps
       let wordCount = 0;
-      const chaptersWithTimestamps = chapters.map(chapter => {
+      const chaptersWithTimestamps = chapters.map((chapter, index) => {
+        let chapterText = "";
+
         if ('text' in chapter) {
-          wordCount += (chapter.text as string).split(/\s+/).length;
-        } else {
-          // Si no hay texto, calcular desde el extractedText
-          const chapterText = extractedText.substring(
-            chapter.startIndex,
-            chapters[chapters.indexOf(chapter) + 1]?.startIndex || extractedText.length
-          );
-          wordCount += chapterText.split(/\s+/).length;
+          chapterText = chapter.text as string;
+        } else if (typeof chapter.startIndex === 'number' && chapter.startIndex >= 0) {
+          const nextStartIndex = chapters[index + 1]?.startIndex;
+          if (typeof nextStartIndex === 'number' && nextStartIndex > chapter.startIndex) {
+            chapterText = extractedText.substring(chapter.startIndex, nextStartIndex);
+          } else {
+            chapterText = extractedText.substring(chapter.startIndex);
+          }
         }
+
+        const wordsInChapter = chapterText ? chapterText.split(/\s+/).filter(Boolean).length : 0;
+        wordCount += wordsInChapter;
+
         return {
           ...chapter,
           timestamp: Math.floor(wordCount / 150)
@@ -159,7 +169,7 @@ export const useConversionActions = ({
         .from('text_conversions')
         .insert({
           user_id: user?.id,
-          status: 'completed', // Ya sabemos que la conversión fue exitosa
+          status: 'completed',
           file_name: fileName,
           text_hash: textHash,
           progress: 100,
@@ -194,8 +204,12 @@ export const useConversionActions = ({
           console.error('❌ Error storing chapters:', chaptersResponse.error);
           toast({
             title: "Warning",
-            description: "Audio conversion successful but chapter markers couldn't be saved.",
+            description: "Audio conversion successful but chapter markers couldn't be saved. Try refreshing the page.",
             variant: "destructive",
+            action: {
+              label: "Refresh",
+              onClick: () => window.location.reload()
+            }
           });
         }
       }
@@ -231,8 +245,12 @@ export const useConversionActions = ({
         console.error('Failed to update conversion status:', error);
         toast({
           title: "Warning",
-          description: "Conversion successful but status update failed. Some features might be limited.",
+          description: "Conversion successful but status update failed. Try refreshing the page.",
           variant: "destructive",
+          action: {
+            label: "Refresh",
+            onClick: () => window.location.reload()
+          }
         });
       }
       
