@@ -51,6 +51,11 @@ export async function processTextInChunks(
     
     try {
       const audioContent = await synthesizeSpeech(chunks[i], voiceId, accessToken);
+      
+      if (!audioContent) {
+        throw new Error(`Failed to generate audio for chunk ${i + 1}`);
+      }
+      
       audioContents.push(audioContent);
       
       // Calcular el progreso actual basado en chunks completados
@@ -75,7 +80,7 @@ export async function processTextInChunks(
       
     } catch (error) {
       console.error(`Error processing chunk ${i + 1}:`, error);
-      throw error;
+      throw new Error(`Failed to process chunk ${i + 1}: ${error.message}`);
     }
   }
 
@@ -89,10 +94,18 @@ export async function processTextInChunks(
     })
     .eq('id', conversionId);
 
+  if (audioContents.length === 0) {
+    throw new Error('No audio content generated');
+  }
+
   return { audioContents };
 }
 
 export async function combineAudioChunks(audioContents: string[]): Promise<string> {
+  if (audioContents.length === 0) {
+    throw new Error('No audio chunks to combine');
+  }
+  
   // Por ahora simplemente devolvemos el primer chunk mientras implementamos
   // la combinación real de audio
   return audioContents[0];
