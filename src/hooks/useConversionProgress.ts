@@ -137,6 +137,59 @@ export const useConversionProgress = (
     };
   }, [conversionId, status, handleProgressUpdate, calculatedTotalChunks, textLength]);
 
+  // Avance mínimo garantizado en caso de inactividad
+  useEffect(() => {
+    let interval: number | undefined;
+
+    if ((status === 'converting' || status === 'processing') && progress < 100) {
+      interval = window.setInterval(() => {
+        setProgress(prev => {
+          const newValue = Math.min(prev + 0.5, 90); // Limitar a 90% para evitar falsos completados
+          if (newValue !== prev) {
+            console.log('🔄 Minimum progress increment:', {
+              previous: prev.toFixed(1),
+              new: newValue.toFixed(1)
+            });
+          }
+          return newValue;
+        });
+      }, 3000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [status, progress]);
+
+  // Animación suave al completar
+  useEffect(() => {
+    if (status === 'completed' && progress < 100) {
+      console.log('🎉 Animating completion...');
+      const startValue = progress;
+      const startTime = performance.now();
+      const duration = 500; // 500ms de duración
+
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Función de easing para una animación más suave
+        const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+        const currentProgress = startValue + (100 - startValue) * easeOut(progress);
+        
+        setProgress(currentProgress);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+
+      requestAnimationFrame(animate);
+    }
+  }, [status, progress]);
+
   // Simulación de progreso mejorada
   useEffect(() => {
     let interval: number | undefined;
@@ -172,8 +225,6 @@ export const useConversionProgress = (
           });
         }
       }, 1000);
-    } else if (status === 'completed' || progress >= 100) {
-      setProgress(100);
     }
 
     return () => {
