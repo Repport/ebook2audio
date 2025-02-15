@@ -9,5 +9,6 @@ export const corsHeaders = {
 export const responseHeaders = {
   ...corsHeaders,
   'Cache-Control': 'no-store, no-cache, must-revalidate',
-  'Pragma': 'no-cache'
+  'Pragma': 'no-cache',
+  'Content-Type': 'application/json'
 };

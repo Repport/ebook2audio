@@ -12,11 +12,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
     return new Response(null, { 
-      headers: { 
-        ...corsHeaders,
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Max-Age': '86400',
-      } 
+      headers: corsHeaders
     });
   }
 
@@ -64,8 +60,8 @@ serve(async (req) => {
       .from('text_conversions')
       .update({ 
         progress: 5,
-        total_characters: text.length,
-        processed_characters: 0,
+        total_chunks: Math.ceil(text.length / 4800),  // Approximate chunk size
+        processed_chunks: 0,
         status: 'processing'
       })
       .eq('id', conversionId);
@@ -79,15 +75,16 @@ serve(async (req) => {
       accessToken, 
       conversionId,
       supabaseClient,
-      async (processedChars: number) => {
-        const progress = Math.round((processedChars / text.length) * 90) + 5; // 5-95%
-        console.log(`Processed ${processedChars}/${text.length} characters, progress: ${progress}%`);
+      async (processedChunks: number) => {
+        const totalChunks = Math.ceil(text.length / 4800);
+        const progress = Math.round((processedChunks / totalChunks) * 90) + 5; // 5-95%
+        console.log(`Processed ${processedChunks}/${totalChunks} chunks, progress: ${progress}%`);
         
         await supabaseClient
           .from('text_conversions')
           .update({ 
             progress,
-            processed_characters: processedChars
+            processed_chunks: processedChunks
           })
           .eq('id', conversionId);
       }
@@ -102,7 +99,7 @@ serve(async (req) => {
       .from('text_conversions')
       .update({ 
         progress: 100,
-        processed_characters: text.length,
+        processed_chunks: Math.ceil(text.length / 4800),
         status: 'completed'
       })
       .eq('id', conversionId);
@@ -119,12 +116,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(response), 
-      { 
-        headers: { 
-          ...responseHeaders,
-          'Content-Type': 'application/json'
-        } 
-      }
+      { headers: responseHeaders }
     );
 
   } catch (error) {
@@ -141,10 +133,7 @@ serve(async (req) => {
       JSON.stringify(errorResponse),
       { 
         status: error.status || 500,
-        headers: { 
-          ...responseHeaders,
-          'Content-Type': 'application/json'
-        }
+        headers: responseHeaders
       }
     );
   }
