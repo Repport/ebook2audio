@@ -178,11 +178,8 @@ export const useConversionLogic = (
     const wordsCount = extractedText.split(/\s+/).length;
     const averageWordsPerMinute = 150;
     const baseProcessingTime = 5; // Tiempo mínimo en segundos
-
-    // Factor logarítmico para evitar tiempos excesivos en textos largos
-    const processingOverhead = Math.min(30, Math.log(wordsCount) * 5);
-
-    return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime + processingOverhead);
+    
+    return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime);
   }, [extractedText]);
 
   return {
