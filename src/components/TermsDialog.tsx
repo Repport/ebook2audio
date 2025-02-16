@@ -56,7 +56,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col sm:max-w-xl md:max-w-2xl">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-none">
           <DialogTitle>{translations.termsTitle}</DialogTitle>
           <DialogDescription className="text-sm">
@@ -64,32 +64,32 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 pr-4 my-2">
+        <ScrollArea className="flex-1 my-4 max-h-[50vh] pr-4">
           <div className="space-y-4">
             <section>
-              <h3 className="text-base font-semibold mb-1">{translations.userResponsibility}</h3>
+              <h3 className="text-base font-semibold mb-2">{translations.userResponsibility}</h3>
               <p className="text-sm text-muted-foreground">
                 {translations.userResponsibilityDesc}
               </p>
             </section>
 
             <section>
-              <h3 className="text-base font-semibold mb-1">{translations.copyrightCompliance}</h3>
+              <h3 className="text-base font-semibold mb-2">{translations.copyrightCompliance}</h3>
               <p className="text-sm text-muted-foreground">
                 {translations.copyrightComplianceDesc}
               </p>
             </section>
 
             <section>
-              <h3 className="text-base font-semibold mb-1">{translations.fileRetention}</h3>
-              <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+              <h3 className="text-base font-semibold mb-2">{translations.fileRetention}</h3>
+              <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
                 <li>{translations.fileRetentionDesc1}</li>
                 <li>{translations.fileRetentionDesc2}</li>
               </ul>
             </section>
 
             <section>
-              <h3 className="text-base font-semibold mb-1">{translations.privacySection}</h3>
+              <h3 className="text-base font-semibold mb-2">{translations.privacySection}</h3>
               <p className="text-sm text-muted-foreground">
                 {translations.privacyDesc}
               </p>
@@ -97,8 +97,8 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           </div>
         </ScrollArea>
 
-        <div className="flex-none border-t pt-3">
-          <div className="flex items-start space-x-2 mb-3">
+        <div className="flex-none pt-4 border-t">
+          <div className="flex items-start space-x-2 mb-4">
             <Checkbox 
               id="terms" 
               checked={accepted}
@@ -111,24 +111,24 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               {translations.acceptTerms}
             </label>
           </div>
-        </div>
         
-        <DialogFooter className="flex-none sm:flex sm:justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            className="w-full sm:w-auto"
-          >
-            {translations.cancel}
-          </Button>
-          <Button 
-            onClick={handleAccept}
-            disabled={!accepted}
-            className="w-full sm:w-auto"
-          >
-            {translations.acceptAndContinue}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="flex justify-end space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              className="flex-1 sm:flex-none"
+            >
+              {translations.cancel}
+            </Button>
+            <Button 
+              onClick={handleAccept}
+              disabled={!accepted}
+              className="flex-1 sm:flex-none"
+            >
+              {translations.acceptAndContinue}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
