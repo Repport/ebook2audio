@@ -34,64 +34,49 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl h-[90vh] flex flex-col">
+      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col sm:max-w-xl md:max-w-2xl">
         <DialogHeader className="flex-none">
           <DialogTitle>{translations.termsTitle}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             {translations.termsDescription}
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 pr-4 my-4">
-          <div className="space-y-6">
+        <ScrollArea className="flex-1 pr-4 my-2">
+          <div className="space-y-4">
             <section>
-              <h3 className="text-lg font-semibold mb-2">{translations.userResponsibility}</h3>
+              <h3 className="text-base font-semibold mb-1">{translations.userResponsibility}</h3>
               <p className="text-sm text-muted-foreground">
                 {translations.userResponsibilityDesc}
               </p>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold mb-2">{translations.copyrightCompliance}</h3>
+              <h3 className="text-base font-semibold mb-1">{translations.copyrightCompliance}</h3>
               <p className="text-sm text-muted-foreground">
                 {translations.copyrightComplianceDesc}
               </p>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold mb-2">{translations.liabilityDisclaimer}</h3>
-              <p className="text-sm text-muted-foreground">
-                {translations.liabilityDisclaimerDesc}
-              </p>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold mb-2">{translations.fileRetention}</h3>
-              <ul className="list-disc pl-6 space-y-2 text-sm text-muted-foreground">
+              <h3 className="text-base font-semibold mb-1">{translations.fileRetention}</h3>
+              <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
                 <li>{translations.fileRetentionDesc1}</li>
                 <li>{translations.fileRetentionDesc2}</li>
-                <li>{translations.fileRetentionDesc3}</li>
               </ul>
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold mb-2">{translations.privacySection}</h3>
+              <h3 className="text-base font-semibold mb-1">{translations.privacySection}</h3>
               <p className="text-sm text-muted-foreground">
                 {translations.privacyDesc}
-              </p>
-            </section>
-
-            <section>
-              <h3 className="text-lg font-semibold mb-2">{translations.termsSection}</h3>
-              <p className="text-sm text-muted-foreground">
-                {translations.termsDesc}
               </p>
             </section>
           </div>
         </ScrollArea>
 
-        <div className="flex-none border-t pt-4">
-          <div className="flex items-start space-x-2">
+        <div className="flex-none border-t pt-3">
+          <div className="flex items-start space-x-2 mb-3">
             <Checkbox 
               id="terms" 
               checked={accepted}
@@ -106,13 +91,18 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           </div>
         </div>
         
-        <DialogFooter className="flex-none flex justify-end space-x-2 border-t pt-4">
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="flex-none sm:flex sm:justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+          <Button 
+            variant="outline" 
+            onClick={onClose}
+            className="w-full sm:w-auto"
+          >
             {translations.cancel}
           </Button>
           <Button 
             onClick={handleAccept}
             disabled={!accepted}
+            className="w-full sm:w-auto"
           >
             {translations.acceptAndContinue}
           </Button>
