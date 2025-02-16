@@ -5,7 +5,7 @@ import { updateConversionStatus } from "./conversionManager";
 import { decodeBase64Audio, combineAudioChunks } from "./utils/audioUtils";
 
 const MAX_CONCURRENT_CHUNKS = 5;
-const CHUNK_TIMEOUT = 60000; // Increased to 60 seconds
+const CHUNK_TIMEOUT = 60000; // 60 segundos
 
 interface AudioResponse {
   data: {
@@ -67,7 +67,8 @@ async function processChunkBatch(
   voiceId: string,
   fileName: string | undefined,
   conversionId: string,
-  totalChunks: number
+  totalChunks: number,
+  totalCharacters: number
 ): Promise<ArrayBuffer[]> {
   console.log(`Processing batch starting at index ${startIndex} with ${chunks.length} chunks`);
   
@@ -75,11 +76,27 @@ async function processChunkBatch(
     processChunkWithTimeout(chunk, startIndex + index, voiceId, fileName)
       .then(async (audioBuffer) => {
         const completedChunks = startIndex + index + 1;
-        const progress = Math.round((completedChunks / totalChunks) * 100);
+        const progress = Math.round((completedChunks / totalChunks) * 90) + 5;
+        const chunkCharacters = chunk.length;
         
-        console.log(`Chunk ${startIndex + index} completed. Progress: ${progress}%`);
+        console.log(`Chunk ${startIndex + index} completed. Progress: ${progress}%. Characters: ${chunkCharacters}`);
         
-        // Actualizar el estado del chunk en la tabla conversion_chunks
+        // Actualizar el estado usando la nueva función increment_processed_characters
+        const { error: incrementError } = await supabase.rpc('increment_processed_characters', {
+          p_conversion_id: conversionId,
+          p_increment: chunkCharacters,
+          p_progress: progress,
+          p_total_characters: totalCharacters,
+          p_processed_chunks: completedChunks,
+          p_total_chunks: totalChunks
+        });
+
+        if (incrementError) {
+          console.error(`Error incrementing processed characters for chunk ${startIndex + index}:`, incrementError);
+          throw incrementError;
+        }
+
+        // Actualizar el estado del chunk
         const { error: chunkError } = await supabase
           .from('conversion_chunks')
           .upsert({
@@ -92,18 +109,8 @@ async function processChunkBatch(
 
         if (chunkError) {
           console.error(`Error updating chunk ${startIndex + index} status:`, chunkError);
+          throw chunkError;
         }
-
-        // Actualizar el progreso general en text_conversions
-        await supabase
-          .from('text_conversions')
-          .update({
-            progress,
-            processed_chunks: completedChunks,
-            total_chunks: totalChunks,
-            status: 'processing'
-          })
-          .eq('id', conversionId);
         
         return audioBuffer;
       })
@@ -137,6 +144,7 @@ export async function processConversionChunks(
   console.log('Starting parallel chunk processing...');
   const chunks = splitTextIntoChunks(text);
   const totalChunks = chunks.length;
+  const totalCharacters = text.length;
   const audioBuffers: ArrayBuffer[] = [];
 
   // Crear registros iniciales para todos los chunks
@@ -164,7 +172,9 @@ export async function processConversionChunks(
       total_chunks: totalChunks,
       status: 'processing',
       progress: 0,
-      processed_chunks: 0
+      processed_chunks: 0,
+      total_characters: totalCharacters,
+      processed_characters: 0
     })
     .eq('id', conversionId);
 
@@ -178,7 +188,8 @@ export async function processConversionChunks(
       voiceId,
       fileName,
       conversionId,
-      totalChunks
+      totalChunks,
+      totalCharacters
     );
 
     audioBuffers.push(...batchBuffers);
@@ -190,7 +201,8 @@ export async function processConversionChunks(
     .update({
       status: 'completed',
       progress: 100,
-      processed_chunks: totalChunks
+      processed_chunks: totalChunks,
+      processed_characters: totalCharacters
     })
     .eq('id', conversionId);
 
