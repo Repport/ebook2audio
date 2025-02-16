@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
-import { Chapter } from '@/utils/textExtraction';
+import { Chapter } from '@/types/conversion';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
+import { generateHash } from '@/services/conversion/utils';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -37,9 +38,7 @@ export const useConversionLogic = (
     conversionId,
     setProgress,
     setConversionStatus,
-    setAudioData,
-    setAudioDuration,
-    setCurrentFileName
+    setConversionId
   } = useAudioConversion();
 
   useEffect(() => {
@@ -50,7 +49,7 @@ export const useConversionLogic = (
       resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile]);
+  }, [selectedFile, conversionStatus, audioData, resetConversion]);
 
   useEffect(() => {
     if (conversionStatus === 'completed' && onStepComplete) {
@@ -122,12 +121,41 @@ export const useConversionLogic = (
     setConversionStatus('converting');
 
     try {
+      const textHash = await generateHash(extractedText, options.selectedVoice);
+      console.log('Generated text hash:', textHash);
+
+      // Create initial conversion record
+      const { data: conversionRecord, error: conversionError } = await supabase
+        .from('text_conversions')
+        .insert({
+          file_name: selectedFile.name,
+          status: 'processing',
+          file_size: extractedText.length,
+          progress: 0,
+          user_id: user?.id,
+          processed_characters: 0,
+          total_characters: extractedText.length,
+          total_chunks: Math.ceil(extractedText.length / 4800),
+          text_hash: textHash,
+          notify_on_complete: options.notifyOnComplete || false
+        })
+        .select()
+        .single();
+
+      if (conversionError || !conversionRecord) {
+        throw new Error(conversionError?.message || 'Failed to create conversion record');
+      }
+
+      console.log('Created conversion record:', conversionRecord.id);
+      setConversionId(conversionRecord.id);
+
       const result = await handleConversion(
         extractedText,
         options.selectedVoice,
         detectChapters,
         chapters,
-        selectedFile.name
+        selectedFile.name,
+        conversionRecord.id
       );
       
       if (options.notifyOnComplete && user && result.id) {
@@ -193,7 +221,7 @@ export const useConversionLogic = (
     navigate('/conversions');
   }, [navigate]);
 
-  const estimatedSeconds = useMemo(() => {
+  const calculateEstimatedSeconds = useCallback(() => {
     if (!extractedText) return 0;
 
     const wordsCount = extractedText.split(/\s+/).length;
@@ -217,7 +245,7 @@ export const useConversionLogic = (
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
-    calculateEstimatedSeconds: () => estimatedSeconds,
+    calculateEstimatedSeconds,
     conversionId,
     setProgress,
     setConversionStatus,

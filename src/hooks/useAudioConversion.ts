@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useConversionProcess } from '@/hooks/conversion/useConversionProcess';
-import { Chapter } from '@/types/conversion';
+import { Chapter, ConversionResult } from '@/types/conversion';
 import { saveToSupabase } from '@/services/storage/supabaseStorageService';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -43,7 +43,7 @@ export const useAudioConversion = () => {
     chapters: Chapter[],
     fileName: string,
     conversionId?: string
-  ) => {
+  ): Promise<ConversionResult> => {
     try {
       console.log('Starting conversion process with ID:', conversionId);
       const result = await conversionProcess(
@@ -102,6 +102,9 @@ export const useAudioConversion = () => {
     resetConversion,
     setProgress,
     setConversionStatus,
-    setConversionId
+    setConversionId,
+    setAudioData,
+    setAudioDuration,
+    setCurrentFileName
   };
 };
