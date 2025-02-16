@@ -2,31 +2,6 @@
 import { useState, useEffect } from 'react';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 
-export const calculateTimeRemaining = (
-  progress: number,
-  processedChunks: number,
-  totalChunks: number,
-  elapsedTime: number
-): string | null => {
-  if (progress >= 100) return null;
-  
-  // Si no hay chunks procesados, usar el progreso general
-  if (processedChunks === 0) {
-    if (progress > 0) {
-      // Estimar basado en el progreso actual
-      const estimatedTotalTime = (elapsedTime * 100) / Math.max(progress, 1);
-      return formatTimeRemaining(Math.ceil(estimatedTotalTime - elapsedTime));
-    }
-    return 'Estimating...';
-  }
-
-  const remainingChunks = Math.max(totalChunks - processedChunks, 1);
-  const avgTimePerChunk = elapsedTime / Math.max(processedChunks, 1);
-  const estimatedRemainingSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
-
-  return formatTimeRemaining(estimatedRemainingSeconds);
-};
-
 export const useTimeEstimation = (
   progress: number,
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -43,12 +18,19 @@ export const useTimeEstimation = (
     }
 
     if (processedChunks === 0) {
-      // Usar una estimación inicial basada en el progreso
+      // Usar progreso general para estimación inicial
       if (progress > 0) {
         const estimatedTotalTime = (elapsedTime * 100) / Math.max(progress, 1);
-        setTimeRemaining(Math.ceil(estimatedTotalTime - elapsedTime));
+        const estimated = Math.ceil(estimatedTotalTime - elapsedTime);
+        console.log('⏱️ Initial time estimation based on progress:', {
+          progress,
+          elapsedTime,
+          estimated
+        });
+        setTimeRemaining(estimated);
       } else {
-        setTimeRemaining(null);
+        console.log('⏱️ Using default initial estimation');
+        setTimeRemaining(60); // Valor inicial de fallback
       }
       return;
     }

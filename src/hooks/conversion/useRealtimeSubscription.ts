@@ -11,6 +11,7 @@ export const useRealtimeSubscription = (
 ) => {
   useEffect(() => {
     let channel;
+    let intervalId: number;
     
     if (conversionId && (status === 'converting' || status === 'processing')) {
       console.log('🔌 Setting up realtime updates:', {
@@ -36,6 +37,7 @@ export const useRealtimeSubscription = (
           }
         });
       
+      // Configurar la suscripción en tiempo real
       channel = supabase
         .channel(`conversion-${conversionId}`)
         .on(
@@ -56,11 +58,6 @@ export const useRealtimeSubscription = (
               }
             });
             if (payload.new) {
-              console.log('✅ Applying progress update:', {
-                progress: payload.new.progress,
-                processed: payload.new.processed_chunks,
-                total: payload.new.total_chunks || calculatedTotalChunks
-              });
               handleProgressUpdate(payload.new);
             }
           }
@@ -68,12 +65,36 @@ export const useRealtimeSubscription = (
         .subscribe((status) => {
           console.log(`📡 Channel status (${conversionId}):`, status);
         });
+
+      // Refetch manual cada 5 segundos como respaldo
+      intervalId = window.setInterval(async () => {
+        console.log('🔄 Manual refetch triggered');
+        const { data, error } = await supabase
+          .from('text_conversions')
+          .select('progress, processed_chunks, total_chunks')
+          .eq('id', conversionId)
+          .single();
+
+        if (error) {
+          console.error('❌ Error in manual refetch:', error);
+          return;
+        }
+
+        if (data) {
+          console.log('📊 Manual refetch data:', data);
+          handleProgressUpdate(data);
+        }
+      }, 5000);
     }
 
     return () => {
       if (channel) {
         console.log('🔌 Cleaning up realtime subscription');
         supabase.removeChannel(channel);
+      }
+      if (intervalId) {
+        console.log('⏱️ Clearing refetch interval');
+        clearInterval(intervalId);
       }
     };
   }, [conversionId, status, handleProgressUpdate, calculatedTotalChunks, textLength]);
