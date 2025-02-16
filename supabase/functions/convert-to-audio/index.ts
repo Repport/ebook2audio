@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
 import { corsHeaders, responseHeaders } from './config/constants.ts';
@@ -300,14 +301,3 @@ serve(async (req) => {
     );
   }
 });
-
-async function safeSupabaseUpdate(supabaseClient, id, data) {
-  try {
-    await supabaseClient
-      .from('text_conversions')
-      .update(data)
-      .eq('id', id);
-  } catch (error) {
-    console.error('Error updating supabase:', error);
-  }
-}
