@@ -80,7 +80,7 @@ const ConversionStep = ({
             <Button
               onClick={handleConvertClick}
               className="flex items-center gap-2"
-              disabled={isConverting || conversionStatus === 'converting'}
+              disabled={isConverting}
             >
               <Play className="w-4 h-4" />
               {isConverting ? "Starting..." : "Start Conversion"}
