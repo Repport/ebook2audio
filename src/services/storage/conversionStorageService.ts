@@ -90,7 +90,10 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
   try {
     // Primero intentar cargar desde sessionStorage
     const stored = sessionStorage.getItem('conversionState');
-    if (!stored) return null;
+    if (!stored) {
+      console.log('No hay estado guardado en sessionStorage');
+      return null;
+    }
     
     const state = JSON.parse(stored);
     
@@ -100,19 +103,34 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
       
       const { data: conversionData, error } = await supabase
         .from('text_conversions')
-        .select('status, progress')
+        .select('status, progress, storage_path')
         .eq('id', state.conversionId)
         .maybeSingle();
 
       if (error) {
         console.error('❌ Error al cargar estado de conversión:', error);
-      } else if (conversionData) {
+        return state;
+      }
+
+      if (conversionData) {
         console.log('✅ Estado de conversión encontrado:', conversionData);
-        state.status = conversionData.status;
-        state.progress = conversionData.progress;
+        
+        // Solo actualizar el estado si la conversión está realmente completada
+        // y tiene una ruta de almacenamiento válida
+        if (conversionData.status === 'completed' && !conversionData.storage_path) {
+          console.warn('⚠️ Conversión marcada como completada pero sin audio, reseteando estado');
+          state.status = 'converting';
+          state.progress = 0;
+        } else {
+          state.status = conversionData.status;
+          state.progress = conversionData.progress;
+        }
       } else {
         console.warn('⚠️ No se encontró la conversión:', state.conversionId);
-        // Si no encontramos la conversión, mantenemos el estado local
+        // Si no encontramos la conversión, resetear el estado
+        state.status = 'idle';
+        state.progress = 0;
+        state.conversionId = undefined;
       }
     }
 
@@ -129,6 +147,13 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
       state.audioData = audioData;
     }
     
+    console.log('Estado final cargado:', {
+      status: state.status,
+      progress: state.progress,
+      hasAudio: !!state.audioData,
+      conversionId: state.conversionId
+    });
+    
     return state;
   } catch (error) {
     console.error('❌ Error loading conversion state:', error);
@@ -138,6 +163,7 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
 };
 
 export const clearConversionStorage = () => {
+  console.log('🧹 Limpiando estado de conversión del sessionStorage');
   // Obtener todas las claves en sessionStorage
   const keys = Object.keys(sessionStorage);
   
