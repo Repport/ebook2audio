@@ -3,7 +3,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
 import { corsHeaders, responseHeaders } from './config/constants.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
-import { synthesizeSpeech } from './speech-service.ts';
 import type { ConversionRequest, ConversionResponse, ErrorResponse } from './types/index.ts';
 
 console.log('Loading convert-to-audio function...');
@@ -25,7 +24,6 @@ serve(async (req) => {
     let body: ConversionRequest;
     try {
       const rawBody = await req.text();
-      console.log('Raw request body:', rawBody);
       body = JSON.parse(rawBody);
       console.log('📝 Request parsed:', {
         textLength: body.text?.length,
@@ -60,20 +58,39 @@ serve(async (req) => {
 
     // Configurar estado inicial
     const totalCharacters = text.length;
+    let processedCharacters = 0;
     
     try {
-      // Dividir el texto en chunks respetando palabras completas
-      const chunks = text.match(/[\s\S]{1,4800}(?=\s|$)/g) || [text];
-      console.log(`📝 Text split into ${chunks.length} chunks`);
+      // Dividir el texto en chunks respetando palabras completas y puntuación
+      const chunks = text.match(/[^.!?]+[.!?]+|\s+|[^\s]+/g) || [text];
+      const MAX_CHUNK_SIZE = 4800;
+      let currentChunk = '';
+      const processableChunks: string[] = [];
+      
+      // Agrupar chunks hasta alcanzar el tamaño máximo
+      for (const chunk of chunks) {
+        if ((currentChunk + chunk).length <= MAX_CHUNK_SIZE) {
+          currentChunk += chunk;
+        } else {
+          if (currentChunk) {
+            processableChunks.push(currentChunk);
+          }
+          currentChunk = chunk;
+        }
+      }
+      if (currentChunk) {
+        processableChunks.push(currentChunk);
+      }
+
+      console.log(`📝 Text split into ${processableChunks.length} chunks`);
       
       // Procesar chunks en batches para controlar concurrencia
       const BATCH_SIZE = 3;
-      let processedCharacters = 0;
       const audioContents: Uint8Array[] = [];
       
-      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-        const batchChunks = chunks.slice(i, i + BATCH_SIZE);
-        console.log(`🔄 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(chunks.length / BATCH_SIZE)}`);
+      for (let i = 0; i < processableChunks.length; i += BATCH_SIZE) {
+        const batchChunks = processableChunks.slice(i, i + BATCH_SIZE);
+        console.log(`🔄 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(processableChunks.length / BATCH_SIZE)}`);
         
         const batchResults = await Promise.all(
           batchChunks.map(async (chunk) => {
@@ -95,7 +112,9 @@ serve(async (req) => {
                 progress,
                 processed_characters: processedCharacters,
                 total_characters: totalCharacters,
-                status: 'processing'
+                status: 'processing',
+                processed_chunks: i + batchChunks.length,
+                total_chunks: processableChunks.length
               })
               .eq('id', conversionId);
 
@@ -135,7 +154,9 @@ serve(async (req) => {
           status: 'completed',
           progress: 100,
           processed_characters: totalCharacters,
-          total_characters: totalCharacters
+          total_characters: totalCharacters,
+          processed_chunks: processableChunks.length,
+          total_chunks: processableChunks.length
         })
         .eq('id', conversionId);
 
