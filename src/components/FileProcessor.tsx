@@ -73,6 +73,7 @@ const FileProcessor = ({
       });
       return;
     }
+    setConversionStatus('idle'); // Aseguramos que el estado esté en 'idle' al cambiar de paso
     onNextStep();
   };
 
@@ -172,4 +173,3 @@ const FileProcessor = ({
 };
 
 export default FileProcessor;
-
