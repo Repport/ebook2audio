@@ -90,7 +90,13 @@ export const useConversionProgress = (
         
         // Simular progreso si no hay actualizaciones recientes
         const timeSinceLastUpdate = (Date.now() - lastUpdateRef.current) / 1000;
-        console.log(`⏳ Time since last update: ${timeSinceLastUpdate.toFixed(1)}s`);
+        console.log(`⏳ Time since last update: ${timeSinceLastUpdate.toFixed(1)}s`, {
+          status,
+          progress,
+          processedChunks,
+          totalChunks: Math.ceil(totalCharacters / 4800),
+          conversionId
+        });
         
         if (timeSinceLastUpdate > 5 && progress < 90) {
           const simulatedProgress = calculateSimulatedProgress(
