@@ -46,6 +46,8 @@ export const useAudioConversion = () => {
   ): Promise<ConversionResult> => {
     try {
       console.log('Starting conversion process with ID:', existingConversionId);
+      setConversionStatus('converting');
+
       const result = await conversionProcess(
         extractedText,
         selectedVoice,

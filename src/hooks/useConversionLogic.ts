@@ -123,10 +123,10 @@ export const useConversionLogic = (
       return;
     }
 
-    setDetectingChapters(true);
-    setConversionStatus('converting');
-
     try {
+      setDetectingChapters(true);
+      setConversionStatus('converting');
+
       const textHash = await generateHash(extractedText, options.selectedVoice);
       console.log('Generated text hash:', textHash);
 
@@ -158,7 +158,8 @@ export const useConversionLogic = (
         textLength: extractedText.length,
         voice: options.selectedVoice,
         chapters: chapters.length,
-        fileName: selectedFile.name
+        fileName: selectedFile.name,
+        conversionId: conversionRecord.id
       });
 
       const result = await handleConversion(
