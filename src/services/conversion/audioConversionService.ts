@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import JSZip from "jszip";
 import { generateHash } from "./utils";
 import { createConversion, updateConversionStatus } from "./conversionManager";
 import { ChapterWithTimestamp } from "./types";
@@ -35,7 +36,8 @@ export async function convertToAudio(
         file_name: fileName,
         text_hash: textHash,
         progress: 0,
-        notify_on_complete: false
+        notify_on_complete: false,
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       })
       .select()
       .single();
@@ -49,20 +51,13 @@ export async function convertToAudio(
     console.log('Created conversion with ID:', conversionId);
     
     try {
-      await updateConversionStatus(conversionId, 'processing');
-
-      // Crear chunks para la conversión
-      const chunks = await createChunksForConversion(conversionId, text);
-      console.log(`Created ${chunks.length} chunks for processing`);
-
-      // Procesar chunks y obtener audio combinado
+      // Llamar a la edge function para convertir
       const { data, error } = await supabase.functions.invoke('convert-to-audio', {
         body: {
           text,
           voiceId,
           fileName,
-          conversionId,
-          onProgress // Pasar el callback al edge function
+          conversionId
         },
       });
 
@@ -82,61 +77,21 @@ export async function convertToAudio(
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      const audioBuffer = bytes.buffer;
-
-      // Guardar el audio final en storage
-      const storagePath = `${userId}/${conversionId}.mp3`;
-      console.log('Uploading audio to storage path:', storagePath);
-      
-      const { error: uploadError } = await uploadToStorage(storagePath, audioBuffer);
-
-      if (uploadError) {
-        console.error('Error uploading final audio:', uploadError);
-        throw uploadError;
-      }
-
-      // Actualizar el registro de conversión
-      const { error: updateError } = await supabase
-        .from('text_conversions')
-        .update({ 
-          storage_path: storagePath,
-          status: 'completed',
-          progress: 100
-        })
-        .eq('id', conversionId);
-
-      if (updateError) {
-        console.error('Error updating storage path:', updateError);
-        throw updateError;
-      }
-
       console.log('Conversion completed successfully');
       
-      // Si hay un callback de progreso, notificar que hemos terminado
-      if (onProgress) {
-        onProgress(text, text.length, text.length);
-      }
-      
       return { 
-        audio: audioBuffer,
+        audio: bytes.buffer,
         id: conversionId
       };
 
     } catch (error) {
-      console.error('Error during conversion:', {
-        error,
-        context: { conversionId, fileName }
-      });
+      console.error('Error during conversion:', error);
       await updateConversionStatus(conversionId, 'failed', error.message);
       throw error;
     }
 
   } catch (error) {
-    console.error('Fatal error in convertToAudio:', {
-      error,
-      stack: error.stack,
-      context: { fileName, textLength: text?.length }
-    });
+    console.error('Fatal error in convertToAudio:', error);
     throw error;
   }
 }

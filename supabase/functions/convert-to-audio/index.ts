@@ -52,6 +52,7 @@ async function updateProgress(
     processed_characters: number;
     status: string;
     error_message?: string;
+    storage_path?: string;
   }>
 ) {
   const currentState = conversionStates.get(conversionId);
@@ -62,7 +63,8 @@ async function updateProgress(
     !currentState.lastUpdate || // Primera actualización
     (now - currentState.lastUpdate) > 2000 || // Han pasado 2 segundos
     updates.status || // Cambio de estado
-    updates.error_message; // Error
+    updates.error_message || // Error
+    updates.storage_path; // Nueva ruta de almacenamiento
 
   if (shouldUpdate) {
     console.log('📝 Updating Supabase:', { conversionId, updates });
@@ -178,22 +180,40 @@ serve(async (req) => {
       if (!combinedAudioContent) {
         throw new Error('Failed to combine audio chunks');
       }
+
+      // Guardar el audio en storage
+      const storagePath = `${conversionId}.mp3`;
+      const audioBuffer = Uint8Array.from(atob(combinedAudioContent), c => c.charCodeAt(0));
+
+      const { error: uploadError } = await supabaseClient.storage
+        .from('audio_cache')
+        .upload(storagePath, audioBuffer, {
+          contentType: 'audio/mpeg',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('❌ Error uploading to storage:', uploadError);
+        throw new Error('Failed to store audio file');
+      }
       
-      // Marcar como completado
+      // Marcar como completado y guardar ruta de storage
       await updateProgress(supabaseClient, conversionId, {
         progress: 100,
         processed_characters: totalCharacters,
-        status: 'completed'
+        status: 'completed',
+        storage_path: storagePath
       });
 
-      console.log('✅ Successfully generated audio content');
+      console.log('✅ Successfully generated and stored audio content');
       
       return new Response(
         JSON.stringify({
           data: {
             audioContent: combinedAudioContent,
-            id: crypto.randomUUID(),
-            progress: 100
+            id: conversionId,
+            progress: 100,
+            storagePath
           }
         }),
         { headers: responseHeaders }
