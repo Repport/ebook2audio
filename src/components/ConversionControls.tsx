@@ -36,6 +36,8 @@ const ConversionControls = ({
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  console.log('ConversionControls render:', { status, audioData, audioDuration }); // Debug log
+
   return (
     <div className="flex flex-col items-center gap-4">
       {(status === 'idle' || status === 'error') && (
@@ -72,18 +74,18 @@ const ConversionControls = ({
           </Button>
           <Button
             variant="outline"
+            onClick={onViewConversions}
+            className="w-full"
+          >
+            View All Conversions
+          </Button>
+          <Button
+            variant="outline"
             onClick={onConvert}
             className="w-full"
           >
             <RefreshCw className="mr-2 h-4 w-4" />
             Convert Again
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onViewConversions}
-            className="w-full"
-          >
-            View All Conversions
           </Button>
         </div>
       )}
