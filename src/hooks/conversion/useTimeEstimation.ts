@@ -2,42 +2,21 @@
 import { useState, useEffect } from 'react';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 
-export const useTimeEstimation = (
+export const calculateTimeRemaining = (
   progress: number,
-  status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
   processedChunks: number,
-  elapsedTime: number,
-  totalChunks: number
-) => {
-  const [timeRemaining, setTimeRemaining] = useState<string | null>('Calculating...');
-  const [chunkTimes, setChunkTimes] = useState<number[]>([]);
+  totalChunks: number,
+  elapsedTime: number
+): string | null => {
+  if (progress >= 100 || processedChunks === 0) {
+    return null;
+  }
 
-  useEffect(() => {
-    if (progress >= 100 || status === 'completed') {
-      setTimeRemaining(null);
-      return;
-    }
-
-    if (processedChunks === 0 || totalChunks === 0 || elapsedTime === 0) {
-      setTimeRemaining('Calculating...');
-      return;
-    }
-
+  if (processedChunks > 0 && totalChunks > 0) {
     const remainingChunks = totalChunks - processedChunks;
-
-    // Guardar los últimos tiempos por chunk
-    setChunkTimes(prev => {
-      const newChunkTimes = [...prev, elapsedTime / processedChunks];
-      return newChunkTimes.length > 5 ? newChunkTimes.slice(1) : newChunkTimes;
-    });
-
-    // Promedio móvil de los últimos 5 tiempos por chunk
-    const avgTimePerChunk = chunkTimes.length > 0
-      ? chunkTimes.reduce((acc, val) => acc + val, 0) / chunkTimes.length
-      : elapsedTime / processedChunks;
-
+    const avgTimePerChunk = elapsedTime / processedChunks;
     const estimatedRemainingSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
-    const safeEstimatedTime = Math.max(estimatedRemainingSeconds, 5); // Evitar valores negativos
+    const safeEstimatedTime = Math.max(estimatedRemainingSeconds, 5);
 
     console.log('⏱️ Time estimation updated:', {
       remainingChunks,
@@ -46,12 +25,28 @@ export const useTimeEstimation = (
       elapsedTime,
       processedChunks,
       totalChunks,
-      currentProgress: `${progress.toFixed(1)}%`,
-      chunkTimesHistory: chunkTimes.map(t => t.toFixed(1) + 's')
+      progress: `${progress.toFixed(1)}%`
     });
 
-    setTimeRemaining(formatTimeRemaining(safeEstimatedTime));
-  }, [progress, status, processedChunks, elapsedTime, totalChunks, chunkTimes]);
+    return formatTimeRemaining(safeEstimatedTime);
+  }
+
+  return 'Calculating...';
+};
+
+export const useTimeEstimation = (
+  progress: number,
+  status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
+  processedChunks: number,
+  elapsedTime: number,
+  totalChunks: number
+): string | null => {
+  const [timeRemaining, setTimeRemaining] = useState<string | null>('Calculating...');
+
+  useEffect(() => {
+    const estimated = calculateTimeRemaining(progress, processedChunks, totalChunks, elapsedTime);
+    setTimeRemaining(estimated);
+  }, [progress, status, processedChunks, elapsedTime, totalChunks]);
 
   return timeRemaining;
 };
