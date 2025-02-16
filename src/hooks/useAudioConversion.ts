@@ -42,24 +42,24 @@ export const useAudioConversion = () => {
     detectChapters: boolean,
     chapters: Chapter[],
     fileName: string,
-    conversionId?: string
+    existingConversionId?: string
   ): Promise<ConversionResult> => {
     try {
-      console.log('Starting conversion process with ID:', conversionId);
+      console.log('Starting conversion process with ID:', existingConversionId);
       const result = await conversionProcess(
         extractedText,
         selectedVoice,
         detectChapters,
         chapters,
         fileName,
-        conversionId
+        existingConversionId
       );
 
       if (user && result.audio) {
         await saveToSupabase(
           result.audio,
           extractedText,
-          result.duration || 0,
+          result.duration,
           fileName,
           user.id
         );

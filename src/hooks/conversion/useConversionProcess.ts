@@ -1,10 +1,9 @@
-
 import { useCallback } from 'react';
 import { convertToAudio } from '@/services/conversion';
 import { saveToSupabase } from '@/services/storage/supabaseStorageService';
 import { calculateAudioDuration } from '@/services/audio/audioUtils';
 import { User } from '@supabase/supabase-js';
-import { ExtractedChapter } from '@/types/conversion';
+import { ExtractedChapter, ConversionResult } from '@/types/conversion';
 import { checkExistingConversion } from '@/services/conversion/cacheCheckService';
 import { generateHash } from '@/services/conversion/utils';
 import { retryOperation, safeSupabaseUpdate } from '@/services/conversion/utils/retryUtils';
@@ -37,8 +36,9 @@ export const useConversionProcess = ({
     selectedVoice: string,
     detectChapters: boolean,
     chapters: ExtractedChapter[],
-    fileName: string
-  ) => {
+    fileName: string,
+    existingConversionId?: string
+  ): Promise<ConversionResult> => {
     setConversionStatus('converting');
     setProgress(0);
     setCurrentFileName(fileName);
@@ -71,7 +71,8 @@ export const useConversionProcess = ({
         
         return { 
           audio: audioBuffer, 
-          id: conversion.id 
+          id: conversion.id,
+          duration 
         };
       }
 
@@ -225,7 +226,7 @@ export const useConversionProcess = ({
       setConversionStatus('completed');
       setProgress(100);
 
-      return { audio, id };
+      return { audio, id, duration };
 
     } catch (error) {
       console.error('Conversion error:', error);
