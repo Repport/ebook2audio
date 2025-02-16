@@ -1,6 +1,5 @@
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { Chapter } from '@/utils/textExtraction';
@@ -8,6 +7,10 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
+import { useChaptersDetection } from './conversion/useChaptersDetection';
+import { useTermsAcceptance } from './conversion/useTermsAcceptance';
+import { useEstimatedTime } from './conversion/useEstimatedTime';
+import { useNavigationHandlers } from './conversion/useNavigationHandlers';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -20,12 +23,12 @@ export const useConversionLogic = (
   chapters: Chapter[],
   onStepComplete?: () => void
 ) => {
-  const [detectChapters, setDetectChapters] = useState(true);
-  const [detectingChapters, setDetectingChapters] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const { showTerms, setShowTerms, checkRecentTermsAcceptance } = useTermsAcceptance();
+  const { detectChapters, setDetectChapters, detectingChapters, setDetectingChapters } = useChaptersDetection();
+  const { calculateEstimatedSeconds } = useEstimatedTime(extractedText);
+  const { handleViewConversions } = useNavigationHandlers();
 
   const {
     conversionStatus,
@@ -40,7 +43,6 @@ export const useConversionLogic = (
     setConversionStatus
   } = useAudioConversion();
 
-  // Optimizado para evitar reejecution innecesaria
   useEffect(() => {
     const shouldReset = selectedFile && 
       (conversionStatus !== 'idle' || audioData !== null);
@@ -49,7 +51,7 @@ export const useConversionLogic = (
       resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile]); // Removido resetConversion de las dependencias
+  }, [selectedFile, conversionStatus, audioData, resetConversion]);
 
   useEffect(() => {
     if (conversionStatus === 'completed' && onStepComplete) {
@@ -64,13 +66,12 @@ export const useConversionLogic = (
         description: "Please select a file first",
         variant: "destructive",
       });
-      return;
+      return false;
     }
     
-    resetConversion();
-    clearConversionStorage();
-    setShowTerms(true);
-  }, [selectedFile, extractedText, toast, resetConversion]);
+    checkRecentTermsAcceptance();
+    return true;
+  }, [selectedFile, extractedText, toast, checkRecentTermsAcceptance]);
 
   const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText || !options.selectedVoice) {
@@ -97,7 +98,7 @@ export const useConversionLogic = (
     }
 
     setDetectingChapters(true);
-    setConversionStatus('converting'); // Evitar conversiones duplicadas
+    setConversionStatus('converting');
     
     try {
       const result = await handleConversion(
@@ -108,7 +109,6 @@ export const useConversionLogic = (
         selectedFile.name
       );
       
-      // Create notification if notification is enabled and user is authenticated
       if (options.notifyOnComplete && user && result.id) {
         const notificationResult = await retryOperation(async () => {
           return supabase.from('conversion_notifications').insert({
@@ -168,20 +168,6 @@ export const useConversionLogic = (
     handleDownload(selectedFile?.name || "converted_audio");
   }, [audioData, selectedFile, toast, handleDownload]);
 
-  const handleViewConversions = useCallback(() => {
-    navigate('/conversions');
-  }, [navigate]);
-
-  const estimatedSeconds = useMemo(() => {
-    if (!extractedText) return 0;
-
-    const wordsCount = extractedText.split(/\s+/).length;
-    const averageWordsPerMinute = 150;
-    const baseProcessingTime = 5; // Tiempo mínimo en segundos
-    
-    return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime);
-  }, [extractedText]);
-
   return {
     detectChapters,
     setDetectChapters,
@@ -196,7 +182,7 @@ export const useConversionLogic = (
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
-    calculateEstimatedSeconds: () => estimatedSeconds,
+    calculateEstimatedSeconds,
     conversionId,
     setProgress,
     setConversionStatus
