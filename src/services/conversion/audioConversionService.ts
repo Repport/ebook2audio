@@ -24,7 +24,6 @@ export async function convertToAudio(
   const userId = (await supabase.auth.getUser()).data.user?.id;
   
   try {
-    // Create or get existing conversion
     console.log('Creating conversion record...');
     const { data: conversionRecord, error: insertError } = await supabase
       .from('text_conversions')
@@ -50,11 +49,11 @@ export async function convertToAudio(
     try {
       await updateConversionStatus(conversionId, 'processing');
 
-      // Create chunks for the conversion
+      // Crear chunks para la conversión
       const chunks = await createChunksForConversion(conversionId, text);
       console.log(`Created ${chunks.length} chunks for processing`);
 
-      // Process chunks and get combined audio
+      // Procesar chunks y obtener audio combinado
       const { data, error } = await supabase.functions.invoke('convert-to-audio', {
         body: {
           text,
@@ -73,7 +72,7 @@ export async function convertToAudio(
         throw new Error('No audio content received from conversion');
       }
 
-      // Convert base64 to ArrayBuffer
+      // Convertir base64 a ArrayBuffer
       const binaryString = atob(data.audioContent);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
@@ -82,8 +81,10 @@ export async function convertToAudio(
 
       const audioBuffer = bytes.buffer;
 
-      // Save the final audio to storage
+      // Guardar el audio final en storage
       const storagePath = `${userId}/${conversionId}.mp3`;
+      console.log('Uploading audio to storage path:', storagePath);
+      
       const { error: uploadError } = await uploadToStorage(storagePath, audioBuffer);
 
       if (uploadError) {
@@ -91,12 +92,13 @@ export async function convertToAudio(
         throw uploadError;
       }
 
-      // Update the conversion record
+      // Actualizar el registro de conversión
       const { error: updateError } = await supabase
         .from('text_conversions')
         .update({ 
           storage_path: storagePath,
-          status: 'completed'
+          status: 'completed',
+          progress: 100
         })
         .eq('id', conversionId);
 
@@ -105,23 +107,7 @@ export async function convertToAudio(
         throw updateError;
       }
 
-      // Trigger notification if user is authenticated
-      if (userId) {
-        try {
-          const { error: notificationError } = await supabase.functions.invoke('send-conversion-notification', {
-            body: { conversion_id: conversionId }
-          });
-
-          if (notificationError) {
-            console.error('Error sending notification:', notificationError);
-          }
-        } catch (error) {
-          console.error('Error invoking notification function:', error);
-        }
-      }
-
       console.log('Conversion completed successfully');
-      await updateConversionStatus(conversionId, 'completed');
       
       return { 
         audio: audioBuffer,
