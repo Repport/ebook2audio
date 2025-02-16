@@ -146,31 +146,6 @@ export const useConversionProgress = (
     textLength
   );
 
-  // Animación de completado
-  useEffect(() => {
-    if (status === 'completed' && progress < 100) {
-      console.log('🎉 Animating completion...');
-      const startValue = progress;
-      const startTime = performance.now();
-      const duration = 500;
-
-      const animate = (currentTime: number) => {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
-        const currentProgress = startValue + (100 - startValue) * easeOut(progress);
-        
-        setProgress(currentProgress);
-
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        }
-      };
-
-      requestAnimationFrame(animate);
-    }
-  }, [status, progress, setProgress]);
-
   return {
     progress,
     elapsedTime,
