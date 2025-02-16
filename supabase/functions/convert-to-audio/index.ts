@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
-import { corsHeaders, responseHeaders } from './config/constants.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
 import type { ConversionRequest, ConversionResponse, ErrorResponse } from './types/index.ts';
 
@@ -13,6 +12,15 @@ const conversionStates = new Map<string, {
   totalCharacters: number;
   lastUpdate: number;
 }>();
+
+// Headers CORS completos
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, Authorization, X-Client-Info',
+  'Access-Control-Max-Age': '86400',
+  'Content-Type': 'application/json'
+};
 
 // Función para dividir texto respetando palabras completas
 function splitTextIntoChunks(text: string, maxChunkSize: number = 4800): string[] {
@@ -77,8 +85,12 @@ async function updateProgress(
 }
 
 serve(async (req) => {
+  // Manejar preflight CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
 
   try {
@@ -216,7 +228,7 @@ serve(async (req) => {
             storagePath
           }
         }),
-        { headers: responseHeaders }
+        { headers: corsHeaders }
       );
 
     } catch (error) {
@@ -242,13 +254,13 @@ serve(async (req) => {
       }),
       { 
         status: error.status || 500,
-        headers: responseHeaders
+        headers: corsHeaders
       }
     );
   }
 });
 
-async function safeSupabaseUpdate(supabaseClient, id, data) {
+async function safeSupabaseUpdate(supabaseClient: any, id: string, data: any) {
   try {
     await supabaseClient
       .from('text_conversions')
