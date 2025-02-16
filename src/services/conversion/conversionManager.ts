@@ -47,7 +47,7 @@ export async function createConversion(
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
       })
       .select('id')
-      .single();
+      .maybeSingle();
 
     if (insertError) {
       console.error('Error creating conversion:', {
@@ -147,4 +147,3 @@ export async function updateConversionStatus(
     }
   });
 }
-

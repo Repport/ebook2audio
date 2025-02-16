@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 interface StoredConversionState {
@@ -20,7 +19,7 @@ export const saveConversionState = async (state: StoredConversionState) => {
         .from('text_conversions')
         .select('text_hash, status')
         .eq('id', state.conversionId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error al verificar la conversión:', error);
@@ -100,7 +99,7 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
         .from('text_conversions')
         .select('*')
         .eq('id', state.conversionId)
-        .single();
+        .maybeSingle();
 
       if (!error && conversionData) {
         state.status = conversionData.status;
