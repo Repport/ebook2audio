@@ -79,11 +79,7 @@ serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
-      headers: {
-        ...corsHeaders,
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Max-Age': '86400',
-      }
+      headers: corsHeaders
     });
   }
 
@@ -106,7 +102,7 @@ serve(async (req) => {
 
     const { text, voiceId, conversionId } = body;
 
-    // Validaciones
+    // Validaciones básicas
     if (!text || typeof text !== 'string') {
       throw new Error('Text parameter must be a non-empty string');
     }
@@ -222,14 +218,7 @@ serve(async (req) => {
             storagePath
           }
         }),
-        { 
-          headers: {
-            ...responseHeaders,
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-          }
-        }
+        { headers: responseHeaders }
       );
 
     } catch (error) {
@@ -255,12 +244,7 @@ serve(async (req) => {
       }),
       { 
         status: error.status || 500,
-        headers: {
-          ...responseHeaders,
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        }
+        headers: responseHeaders
       }
     );
   }
