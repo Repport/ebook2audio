@@ -53,6 +53,8 @@ const ConversionStep = ({
     }
   };
 
+  console.log('ConversionStep render:', { conversionStatus, isConverting }); // Debugging log
+
   return (
     <Card className="p-6">
       <div className="space-y-6">

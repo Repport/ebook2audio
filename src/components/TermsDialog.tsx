@@ -26,11 +26,13 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   const [accepted, setAccepted] = React.useState(false);
   const { translations } = useLanguage();
 
+  console.log('TermsDialog render:', { open, fileName, fileType }); // Debugging log
+
   const handleAccept = async () => {
     if (!accepted) return;
 
     try {
-      // Registrar la aceptación de términos
+      console.log('Registering terms acceptance...'); // Debugging log
       const { error } = await supabase
         .from('terms_acceptance_logs')
         .insert({
@@ -47,7 +49,6 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
       }
 
       onAccept();
-      onClose();
     } catch (error) {
       console.error('Error al procesar aceptación de términos:', error);
     }
