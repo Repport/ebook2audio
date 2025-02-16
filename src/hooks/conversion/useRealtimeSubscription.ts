@@ -16,14 +16,16 @@ export const useRealtimeSubscription = (
     if (conversionId && (status === 'converting' || status === 'processing')) {
       console.log('🔌 Setting up realtime updates:', {
         conversionId,
+        status,
         calculatedTotalChunks,
-        textLength
+        textLength,
+        timestamp: new Date().toISOString()
       });
       
-      // Consulta manual inicial
+      // Initial manual query
       supabase
         .from('text_conversions')
-        .select('progress, processed_characters, total_characters')
+        .select('progress, processed_characters, total_characters, status')
         .eq('id', conversionId)
         .single()
         .then(({ data, error }) => {
@@ -32,12 +34,12 @@ export const useRealtimeSubscription = (
             return;
           }
           if (data) {
-            console.log('📝 Initial state:', data);
+            console.log('📝 Initial conversion state:', data);
             handleProgressUpdate(data);
           }
         });
       
-      // Configurar la suscripción en tiempo real
+      // Set up realtime subscription
       channel = supabase
         .channel(`conversion-${conversionId}`)
         .on(
@@ -49,13 +51,14 @@ export const useRealtimeSubscription = (
             filter: `id=eq.${conversionId}`,
           },
           (payload: any) => {
-            console.log('⚡ Realtime update received:', {
+            console.log('⚡ Realtime update:', {
               old: payload.old,
               new: payload.new,
               diff: {
                 progress: payload.new.progress - (payload.old?.progress || 0),
                 processed_characters: payload.new.processed_characters - (payload.old?.processed_characters || 0)
-              }
+              },
+              timestamp: new Date().toISOString()
             });
             if (payload.new) {
               handleProgressUpdate(payload.new);
@@ -66,12 +69,12 @@ export const useRealtimeSubscription = (
           console.log(`📡 Channel status (${conversionId}):`, status);
         });
 
-      // Refetch manual cada 5 segundos como respaldo
+      // Manual refetch every 5 seconds as backup
       intervalId = window.setInterval(async () => {
         console.log('🔄 Manual refetch triggered');
         const { data, error } = await supabase
           .from('text_conversions')
-          .select('progress, processed_characters, total_characters')
+          .select('progress, processed_characters, total_characters, status')
           .eq('id', conversionId)
           .single();
 
