@@ -49,29 +49,37 @@ async function updateProgress(
   updates: Partial<{
     progress: number;
     processed_characters: number;
+    total_characters?: number;
     status: string;
     error_message?: string;
     storage_path?: string;
   }>
 ) {
-  const currentState = conversionStates.get(conversionId);
-  if (!currentState) return;
-
-  const now = Date.now();
-  const shouldUpdate = 
-    !currentState.lastUpdate || // Primera actualización
-    (now - currentState.lastUpdate) > 2000 || // Han pasado 2 segundos
-    updates.status || // Cambio de estado
-    updates.error_message || // Error
-    updates.storage_path; // Nueva ruta de almacenamiento
-
-  if (shouldUpdate) {
-    console.log('📝 Updating Supabase:', { conversionId, updates });
-    await safeSupabaseUpdate(supabaseClient, conversionId, updates);
-    conversionStates.set(conversionId, {
-      ...currentState,
-      lastUpdate: now
+  try {
+    console.log('📊 Progress update:', {
+      conversionId,
+      updates,
+      timestamp: new Date().toISOString()
     });
+
+    const { data, error } = await supabaseClient
+      .from('text_conversions')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', conversionId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error updating progress:', error);
+      return;
+    }
+
+    console.log('✅ Progress updated successfully:', data);
+  } catch (error) {
+    console.error('❌ Error in updateProgress:', error);
   }
 }
 
@@ -122,16 +130,12 @@ serve(async (req) => {
 
     // Configurar estado inicial
     const totalCharacters = text.length;
-    conversionStates.set(conversionId, {
-      processedCharacters: 0,
-      totalCharacters,
-      lastUpdate: 0
-    });
-
-    // Actualizar estado inicial
+    
+    // Actualizar estado inicial con el total de caracteres
     await updateProgress(supabaseClient, conversionId, {
       progress: 5,
       processed_characters: 0,
+      total_characters: totalCharacters,
       status: 'processing'
     });
 
@@ -154,6 +158,7 @@ serve(async (req) => {
             const result = await processTextInChunks(chunk, voiceId, accessToken);
             processedCharacters += chunk.length;
             
+            // Calcular progreso basado en caracteres procesados
             const progress = Math.min(
               Math.round((processedCharacters / totalCharacters) * 90) + 5,
               95
@@ -161,7 +166,8 @@ serve(async (req) => {
 
             await updateProgress(supabaseClient, conversionId, {
               progress,
-              processed_characters: processedCharacters
+              processed_characters: processedCharacters,
+              total_characters: totalCharacters
             });
 
             return result;
@@ -203,6 +209,7 @@ serve(async (req) => {
       await updateProgress(supabaseClient, conversionId, {
         progress: 100,
         processed_characters: totalCharacters,
+        total_characters: totalCharacters,
         status: 'completed',
         storage_path: storagePath
       });
