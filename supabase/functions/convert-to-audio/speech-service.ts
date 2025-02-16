@@ -11,18 +11,66 @@ export async function synthesizeSpeech(
     const langCode = voiceId.split('-').slice(0, 2).join('-');
     console.log(`Using language code: ${langCode}`);
 
-    // Validate text length
-    const encoder = new TextEncoder();
-    const textBytes = encoder.encode(text);
-    console.log(`Text bytes length: ${textBytes.length}`);
+    // Split text into chunks of approximately 5000 bytes
+    const chunks = splitTextIntoChunks(text);
+    console.log(`Split text into ${chunks.length} chunks`);
 
-    if (textBytes.length > 5000) {
-      console.error(`Text exceeds maximum length: ${textBytes.length} bytes`);
-      throw new Error(`Text exceeds maximum length of 5000 bytes (current: ${textBytes.length} bytes)`);
+    // Process first chunk to test configuration
+    const firstChunkResult = await processChunk(
+      chunks[0],
+      langCode,
+      voiceId,
+      accessToken
+    );
+
+    if (!firstChunkResult) {
+      throw new Error('Failed to process first chunk');
     }
 
+    return firstChunkResult;
+
+  } catch (error) {
+    console.error('Error in synthesizeSpeech:', error);
+    throw error;
+  }
+}
+
+function splitTextIntoChunks(text: string, maxBytes: number = 4800): string[] {
+  const chunks: string[] = [];
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  let currentChunk = '';
+  const encoder = new TextEncoder();
+
+  for (const sentence of sentences) {
+    const potentialChunk = currentChunk + sentence;
+    const byteLength = encoder.encode(potentialChunk).length;
+
+    if (byteLength > maxBytes && currentChunk) {
+      chunks.push(currentChunk.trim());
+      currentChunk = sentence;
+    } else {
+      currentChunk = potentialChunk;
+    }
+  }
+
+  if (currentChunk) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks.filter(chunk => chunk.length > 0);
+}
+
+async function processChunk(
+  chunk: string,
+  langCode: string,
+  voiceId: string,
+  accessToken: string
+): Promise<string> {
+  console.log(`Processing chunk of length ${chunk.length}`);
+
+  try {
     const requestBody = {
-      input: { text },
+      input: { text: chunk },
       voice: {
         languageCode: langCode,
         name: voiceId,
@@ -68,7 +116,7 @@ export async function synthesizeSpeech(
     return result.audioContent;
 
   } catch (error) {
-    console.error('Error in synthesizeSpeech:', error);
+    console.error('Error in processChunk:', error);
     throw error;
   }
 }
