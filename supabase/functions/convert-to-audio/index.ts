@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from './config/constants.ts';
+import { getGoogleAccessToken } from './services/clients.ts';
 
 console.log('Loading convert-to-audio function...');
 
@@ -125,62 +126,3 @@ serve(async (req) => {
     );
   }
 });
-
-async function getGoogleAccessToken(): Promise<string> {
-  try {
-    const credentialsString = Deno.env.get('GCP_SERVICE_ACCOUNT');
-    if (!credentialsString) {
-      throw new Error('GCP credentials missing');
-    }
-
-    const credentials = JSON.parse(atob(credentialsString));
-    
-    // Create JWT assertion
-    const now = Math.floor(Date.now() / 1000);
-    const jwt = {
-      iss: credentials.client_email,
-      scope: 'https://www.googleapis.com/auth/cloud-platform',
-      aud: 'https://oauth2.googleapis.com/token',
-      exp: now + 3600,
-      iat: now,
-    };
-
-    const encoder = new TextEncoder();
-    const jwtHeader = encoder.encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-    const jwtPayload = encoder.encode(JSON.stringify(jwt));
-
-    const base64url = (buffer: Uint8Array) =>
-      btoa(String.fromCharCode(...buffer))
-        .replace(/=/g, '')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_');
-
-    const assertion = `${base64url(jwtHeader)}.${base64url(jwtPayload)}`;
-
-    const tokenResponse = await fetch(
-      'https://oauth2.googleapis.com/token',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-          assertion,
-        }),
-      }
-    );
-
-    if (!tokenResponse.ok) {
-      throw new Error(`Failed to get access token: ${await tokenResponse.text()}`);
-    }
-
-    const { access_token } = await tokenResponse.json();
-    if (!access_token) {
-      throw new Error('No access token received');
-    }
-
-    return access_token;
-  } catch (error) {
-    console.error('Error getting Google access token:', error);
-    throw error;
-  }
-}
