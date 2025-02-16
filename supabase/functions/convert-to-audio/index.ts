@@ -99,7 +99,6 @@ serve(async (req) => {
     await updateProgress(supabaseClient, conversionId, {
       progress: 5,
       processed_characters: 0,
-      total_characters: totalCharacters,
       status: 'processing'
     });
 
