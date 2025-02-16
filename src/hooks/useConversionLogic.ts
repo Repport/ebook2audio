@@ -1,4 +1,6 @@
-import { useCallback, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
 import { Chapter } from '@/utils/textExtraction';
@@ -6,10 +8,6 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
-import { useChaptersDetection } from './conversion/useChaptersDetection';
-import { useTermsAcceptance } from './conversion/useTermsAcceptance';
-import { useEstimatedTime } from './conversion/useEstimatedTime';
-import { useNavigationHandlers } from './conversion/useNavigationHandlers';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -22,12 +20,12 @@ export const useConversionLogic = (
   chapters: Chapter[],
   onStepComplete?: () => void
 ) => {
+  const [detectChapters, setDetectChapters] = useState(true);
+  const [detectingChapters, setDetectingChapters] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const { showTerms, setShowTerms, checkRecentTermsAcceptance } = useTermsAcceptance();
-  const { detectChapters, setDetectChapters, detectingChapters, setDetectingChapters } = useChaptersDetection();
-  const { calculateEstimatedSeconds } = useEstimatedTime(extractedText);
-  const { handleViewConversions } = useNavigationHandlers();
 
   const {
     conversionStatus,
@@ -50,7 +48,7 @@ export const useConversionLogic = (
       resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile, conversionStatus, audioData, resetConversion]);
+  }, [selectedFile]);
 
   useEffect(() => {
     if (conversionStatus === 'completed' && onStepComplete) {
@@ -58,7 +56,7 @@ export const useConversionLogic = (
     }
   }, [conversionStatus, onStepComplete]);
 
-  const handleConversionStart = async () => {
+  const initiateConversion = useCallback(() => {
     if (!selectedFile || !extractedText) {
       toast({
         title: "Error",
@@ -67,16 +65,32 @@ export const useConversionLogic = (
       });
       return false;
     }
-
-    // Verificar términos y condiciones
-    const termsAccepted = await checkRecentTermsAcceptance();
-    if (!termsAccepted) {
-      setShowTerms(true);
-      return false;
-    }
     
+    const checkRecentTermsAcceptance = async () => {
+      const { data, error } = await supabase
+        .from('terms_acceptance_logs')
+        .select('*')
+        .order('accepted_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking terms acceptance:', error);
+        setShowTerms(true);
+        return;
+      }
+
+      if (!data || data.length === 0 || 
+          new Date(data[0].accepted_at).getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+        setShowTerms(true);
+      } else {
+        resetConversion();
+        clearConversionStorage();
+      }
+    };
+
+    checkRecentTermsAcceptance();
     return true;
-  };
+  }, [selectedFile, extractedText, toast, resetConversion]);
 
   const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText || !options.selectedVoice) {
@@ -104,14 +118,38 @@ export const useConversionLogic = (
 
     setDetectingChapters(true);
     setConversionStatus('converting');
-    
+
     try {
+      // Crear primero el registro de conversión
+      const { data: conversionRecord, error: conversionError } = await supabase
+        .from('text_conversions')
+        .insert({
+          file_name: selectedFile.name,
+          status: 'processing',
+          text_length: extractedText.length,
+          voice_id: options.selectedVoice,
+          progress: 0,
+          user_id: user?.id,
+          processed_characters: 0,
+          total_characters: extractedText.length,
+          total_chunks: Math.ceil(extractedText.length / 4800)
+        })
+        .select()
+        .single();
+
+      if (conversionError || !conversionRecord) {
+        throw new Error(conversionError?.message || 'Failed to create conversion record');
+      }
+
+      console.log('Created conversion with ID:', conversionRecord.id);
+
       const result = await handleConversion(
         extractedText,
         options.selectedVoice,
         detectChapters,
         chapters,
-        selectedFile.name
+        selectedFile.name,
+        conversionRecord.id
       );
       
       if (options.notifyOnComplete && user && result.id) {
@@ -173,6 +211,20 @@ export const useConversionLogic = (
     handleDownload(selectedFile?.name || "converted_audio");
   }, [audioData, selectedFile, toast, handleDownload]);
 
+  const handleViewConversions = useCallback(() => {
+    navigate('/conversions');
+  }, [navigate]);
+
+  const calculateEstimatedSeconds = useCallback(() => {
+    if (!extractedText) return 0;
+
+    const wordsCount = extractedText.split(/\s+/).length;
+    const averageWordsPerMinute = 150;
+    const baseProcessingTime = 5;
+
+    return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime);
+  }, [extractedText]);
+
   return {
     detectChapters,
     setDetectChapters,
@@ -183,13 +235,14 @@ export const useConversionLogic = (
     progress,
     audioData,
     audioDuration,
-    initiateConversion: handleConversionStart,
+    initiateConversion,
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
     calculateEstimatedSeconds,
     conversionId,
     setProgress,
-    setConversionStatus
+    setConversionStatus,
+    resetConversion
   };
 };
