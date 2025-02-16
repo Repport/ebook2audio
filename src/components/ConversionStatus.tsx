@@ -96,9 +96,9 @@ const ConversionStatus = ({
   );
 
   const renderCompletedStatus = () => (
-    <div className="flex flex-col items-center gap-3">
+    <div className="w-full flex flex-col items-center justify-center gap-3">
       <CheckCircle2 className="w-12 h-12 text-green-500" />
-      <p className="text-lg font-medium text-green-600">
+      <p className="text-lg font-medium text-green-600 text-center">
         {statusMessages[status]}
       </p>
     </div>
@@ -120,8 +120,8 @@ const ConversionStatus = ({
   );
 
   return (
-    <div className="w-full max-w-md bg-card p-6 rounded-lg shadow-sm space-y-6">
-      <div className="flex justify-center">
+    <div className="w-full max-w-md mx-auto bg-card p-6 rounded-lg shadow-sm space-y-6">
+      <div className="flex justify-center w-full">
         {displayStatus === 'converting' && renderConvertingStatus()}
         {displayStatus === 'completed' && renderCompletedStatus()}
         {displayStatus === 'error' && renderErrorStatus()}
