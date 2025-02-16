@@ -9,9 +9,8 @@ console.log('Loading convert-to-audio function...');
 
 // Estado global para tracking de progreso
 const conversionStates = new Map<string, {
-  progress: number;
-  processedChunks: number;
-  totalChunks: number;
+  processedCharacters: number;
+  totalCharacters: number;
   lastUpdate: number;
 }>();
 
@@ -21,7 +20,7 @@ async function updateProgress(
   conversionId: string,
   updates: Partial<{
     progress: number;
-    processed_chunks: number;
+    processed_characters: number;
     status: string;
     error_message?: string;
   }>
@@ -89,19 +88,18 @@ serve(async (req) => {
     console.log('🔑 Successfully obtained access token');
 
     // Configurar estado inicial
-    const totalChunks = Math.ceil(text.length / 4800);
+    const totalCharacters = text.length;
     conversionStates.set(conversionId, {
-      progress: 0,
-      processedChunks: 0,
-      totalChunks,
+      processedCharacters: 0,
+      totalCharacters,
       lastUpdate: 0
     });
 
     // Actualizar estado inicial
     await updateProgress(supabaseClient, conversionId, {
       progress: 5,
-      processed_chunks: 0,
-      total_chunks: totalChunks,
+      processed_characters: 0,
+      total_characters: totalCharacters,
       status: 'processing'
     });
 
@@ -109,7 +107,7 @@ serve(async (req) => {
       // Procesar el texto en chunks con concurrencia limitada
       const BATCH_SIZE = 3;
       const chunks = [];
-      let processedChunks = 0;
+      let processedCharacters = 0;
 
       for (let i = 0; i < text.length; i += 4800) {
         const chunkText = text.slice(i, i + 4800);
@@ -125,16 +123,16 @@ serve(async (req) => {
         const batchResults = await Promise.all(
           batchChunks.map(async (chunk) => {
             const result = await processTextInChunks(chunk, voiceId, accessToken);
-            processedChunks++;
+            processedCharacters += chunk.length;
             
             const progress = Math.min(
-              Math.round((processedChunks / totalChunks) * 90) + 5,
+              Math.round((processedCharacters / totalCharacters) * 90) + 5,
               95
             );
 
             await updateProgress(supabaseClient, conversionId, {
               progress,
-              processed_chunks: processedChunks
+              processed_characters: processedCharacters
             });
 
             return result;
@@ -159,7 +157,7 @@ serve(async (req) => {
       // Marcar como completado
       await updateProgress(supabaseClient, conversionId, {
         progress: 100,
-        processed_chunks: totalChunks,
+        processed_characters: totalCharacters,
         status: 'completed'
       });
 

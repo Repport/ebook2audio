@@ -23,7 +23,7 @@ export const useRealtimeSubscription = (
       // Consulta manual inicial
       supabase
         .from('text_conversions')
-        .select('progress, processed_chunks, total_chunks')
+        .select('progress, processed_characters, total_characters')
         .eq('id', conversionId)
         .single()
         .then(({ data, error }) => {
@@ -54,7 +54,7 @@ export const useRealtimeSubscription = (
               new: payload.new,
               diff: {
                 progress: payload.new.progress - (payload.old?.progress || 0),
-                processed_chunks: payload.new.processed_chunks - (payload.old?.processed_chunks || 0)
+                processed_characters: payload.new.processed_characters - (payload.old?.processed_characters || 0)
               }
             });
             if (payload.new) {
@@ -71,7 +71,7 @@ export const useRealtimeSubscription = (
         console.log('🔄 Manual refetch triggered');
         const { data, error } = await supabase
           .from('text_conversions')
-          .select('progress, processed_chunks, total_chunks')
+          .select('progress, processed_characters, total_characters')
           .eq('id', conversionId)
           .single();
 
