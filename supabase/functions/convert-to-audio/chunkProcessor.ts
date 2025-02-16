@@ -1,4 +1,6 @@
 
+import { synthesizeSpeech } from './speech-service.ts';
+
 export async function combineAudioChunks(audioChunks: Uint8Array[]): Promise<ArrayBuffer> {
   // Calculate total length
   const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
