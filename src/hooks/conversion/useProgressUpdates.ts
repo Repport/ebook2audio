@@ -27,24 +27,31 @@ export const useProgressUpdates = (
     const { progress: newProgress, processed_chunks, total_chunks } = data;
     lastUpdateRef.current = currentTime;
 
+    // Actualizar total_chunks solo si es necesario y manteniendo el valor más alto
     if (typeof total_chunks === 'number' && !isNaN(total_chunks) && total_chunks > 0) {
-      setTotalChunks(total_chunks);
+      setTotalChunks(prev => Math.max(prev, total_chunks));
     } else if (calculatedTotalChunks > 0) {
-      setTotalChunks(calculatedTotalChunks);
+      setTotalChunks(prev => Math.max(prev, calculatedTotalChunks));
     }
 
-    if (typeof processed_chunks === 'number' && !isNaN(processed_chunks)) {
+    // Actualizar processed_chunks solo si es válido y mayor que el valor actual
+    if (typeof processed_chunks === 'number' && !isNaN(processed_chunks) && processed_chunks > 0) {
       setProcessedChunks(prev => {
         const newValue = Math.max(prev, processed_chunks);
-        console.log(`📈 Processed chunks updated: ${prev} -> ${newValue}`);
+        if (newValue !== prev) {
+          console.log(`📈 Processed chunks updated: ${prev} -> ${newValue}`);
+        }
         return newValue;
       });
     }
 
+    // Actualizar progress solo si es válido y mayor que el valor actual
     if (typeof newProgress === 'number' && !isNaN(newProgress) && newProgress >= 0) {
       setProgress(prev => {
         const newValue = Math.max(prev, newProgress);
-        console.log(`🎯 Progress updated: ${prev.toFixed(1)}% -> ${newValue.toFixed(1)}%`);
+        if (newValue !== prev) {
+          console.log(`🎯 Progress updated: ${prev.toFixed(1)}% -> ${newValue.toFixed(1)}%`);
+        }
         return newValue;
       });
     }
