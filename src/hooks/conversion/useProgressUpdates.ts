@@ -34,7 +34,9 @@ export const useProgressUpdates = (
     } else if (typeof newProgress === 'number' && newProgress >= 0) {
       setProgress((prev) => {
         const nextProgress = Math.max(prev, Math.min(newProgress, 99));
-        console.log(`📈 Updated progress: ${prev}% -> ${nextProgress}%`);
+        if (nextProgress !== prev) {
+          console.log(`📈 Updated progress: ${prev}% -> ${nextProgress}%`);
+        }
         return nextProgress;
       });
     }

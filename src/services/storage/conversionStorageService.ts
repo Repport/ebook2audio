@@ -33,7 +33,7 @@ export const saveConversionState = async (state: StoredConversionState) => {
       if (existingConversion?.text_hash && 
           !(existingConversion.status === 'completed' && state.status !== 'completed')) {
         
-        console.log('Actualizando estado de conversión:', {
+        console.log('🔄 Actualizando estado de conversión:', {
           id: state.conversionId,
           status: state.status,
           progress: state.progress,
@@ -50,10 +50,10 @@ export const saveConversionState = async (state: StoredConversionState) => {
           .eq('id', state.conversionId);
 
         if (updateError) {
-          console.error('Error al actualizar la conversión:', updateError);
+          console.error('❌ Error al actualizar la conversión:', updateError);
         }
       } else {
-        console.warn('No se actualizó la conversión:', {
+        console.warn('⚠️ No se actualizó la conversión:', {
           reason: existingConversion ? 'conversión ya completada' : 'text_hash no encontrado',
           conversionId: state.conversionId
         });
@@ -81,7 +81,7 @@ export const saveConversionState = async (state: StoredConversionState) => {
       sessionStorage.setItem('conversionState', JSON.stringify(state));
     }
   } catch (error) {
-    console.error('Error saving conversion state:', error);
+    console.error('❌ Error saving conversion state:', error);
     clearConversionStorage();
   }
 };
@@ -123,7 +123,7 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
     
     return state;
   } catch (error) {
-    console.error('Error loading conversion state:', error);
+    console.error('❌ Error loading conversion state:', error);
     clearConversionStorage();
     return null;
   }
