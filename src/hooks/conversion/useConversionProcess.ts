@@ -9,6 +9,7 @@ import { checkExistingConversion } from '@/services/conversion/cacheCheckService
 import { generateHash } from '@/services/conversion/utils';
 import { retryOperation, safeSupabaseUpdate } from '@/services/conversion/utils/retryUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { TextChunkCallback } from '@/services/conversion/types/chunks';
 
 interface UseConversionProcessProps {
   user: User | null;
@@ -100,12 +101,28 @@ export const useConversionProcess = ({
       });
 
       console.log('Starting audio conversion...');
+      
+      // Crear callback para tracking de progreso
+      let processedCharacters = 0;
+      const totalCharacters = extractedText.length;
+      
+      const onChunkProcessed: TextChunkCallback = (chunkText, processed, total) => {
+        processedCharacters = processed;
+        const progress = Math.min(
+          Math.round((processedCharacters / totalCharacters) * 90) + 5,
+          95
+        );
+        console.log(`📊 Progress update: ${progress}% (${processedCharacters}/${totalCharacters} characters)`);
+        setProgress(progress);
+      };
+
       const { audio, id } = await retryOperation(
         () => convertToAudio(
           extractedText, 
           selectedVoice,
           detectChapters ? chaptersWithTimestamps : undefined,
-          fileName
+          fileName,
+          onChunkProcessed
         ),
         { maxRetries: 3 }
       );
@@ -123,7 +140,9 @@ export const useConversionProcess = ({
           file_name: fileName,
           text_hash: textHash,
           progress: 100,
-          notify_on_complete: false
+          notify_on_complete: false,
+          processed_characters: totalCharacters,
+          total_characters: totalCharacters
         })
         .select()
         .single();
@@ -182,7 +201,9 @@ export const useConversionProcess = ({
               { 
                 status: 'completed',
                 progress: 100,
-                duration
+                duration,
+                processed_characters: totalCharacters,
+                total_characters: totalCharacters
               }
             );
           },
