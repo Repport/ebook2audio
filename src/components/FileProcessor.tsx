@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Chapter } from '@/utils/textExtraction';
 import VoiceSettingsStep from './VoiceSettingsStep';
 import ConversionStep from './file-processor/ConversionStep';
@@ -52,23 +52,14 @@ const FileProcessor = ({
     calculateEstimatedSeconds,
     conversionId,
     setProgress,
-    setConversionStatus,
-    resetConversion
+    setConversionStatus
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
   const estimatedSeconds = calculateEstimatedSeconds();
 
-  // Reiniciar el estado cuando cambia el archivo seleccionado
-  useEffect(() => {
-    resetConversion();
-    setConversionStatus('idle');
-    setProgress(0);
-  }, [selectedFile]);
-
   if (!selectedFile) return null;
 
   const handleGoBack = () => {
-    resetConversion();
     onFileSelect(null);
   };
 

@@ -37,11 +37,7 @@ export async function convertToAudio(
         text_hash: textHash,
         progress: 0,
         notify_on_complete: false,
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        total_characters: text.length,
-        processed_characters: 0,
-        total_chunks: Math.ceil(text.length / 4800),
-        processed_chunks: 0
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       })
       .select()
       .single();
@@ -67,14 +63,6 @@ export async function convertToAudio(
 
       if (error) {
         console.error('Error in text-to-speech conversion:', error);
-        // Actualizar estado de error
-        await supabase
-          .from('text_conversions')
-          .update({
-            status: 'failed',
-            error_message: error.message
-          })
-          .eq('id', conversionId);
         throw error;
       }
 
@@ -89,17 +77,6 @@ export async function convertToAudio(
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      // Actualizar estado final
-      await supabase
-        .from('text_conversions')
-        .update({
-          status: 'completed',
-          progress: 100,
-          processed_characters: text.length,
-          processed_chunks: Math.ceil(text.length / 4800)
-        })
-        .eq('id', conversionId);
-
       console.log('Conversion completed successfully');
       
       return { 
@@ -109,14 +86,7 @@ export async function convertToAudio(
 
     } catch (error) {
       console.error('Error during conversion:', error);
-      // Actualizar estado de error
-      await supabase
-        .from('text_conversions')
-        .update({
-          status: 'failed',
-          error_message: error.message
-        })
-        .eq('id', conversionId);
+      await updateConversionStatus(conversionId, 'failed', error.message);
       throw error;
     }
 

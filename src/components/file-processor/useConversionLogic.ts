@@ -1,13 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
-import { Chapter } from '@/types/conversion';
+import { Chapter } from '@/utils/textExtraction';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
-import { generateHash } from '@/services/conversion/utils';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -37,10 +36,10 @@ export const useConversionLogic = (
     resetConversion,
     conversionId,
     setProgress,
-    setConversionStatus,
-    setConversionId
+    setConversionStatus
   } = useAudioConversion();
 
+  // Optimizado para evitar reejecution innecesaria
   useEffect(() => {
     const shouldReset = selectedFile && 
       (conversionStatus !== 'idle' || audioData !== null);
@@ -49,7 +48,7 @@ export const useConversionLogic = (
       resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile, conversionStatus, audioData, resetConversion]);
+  }, [selectedFile]); // Removido resetConversion de las dependencias
 
   useEffect(() => {
     if (conversionStatus === 'completed' && onStepComplete) {
@@ -67,6 +66,7 @@ export const useConversionLogic = (
       return false;
     }
     
+    // Verificar si hay una aceptación reciente de términos
     const checkRecentTermsAcceptance = async () => {
       const { data, error } = await supabase
         .from('terms_acceptance_logs')
@@ -80,10 +80,12 @@ export const useConversionLogic = (
         return;
       }
 
+      // Si no hay registros o el último registro es de hace más de 24 horas
       if (!data || data.length === 0 || 
           new Date(data[0].accepted_at).getTime() < Date.now() - 24 * 60 * 60 * 1000) {
         setShowTerms(true);
       } else {
+        // Términos aceptados recientemente, proceder con la conversión
         resetConversion();
         clearConversionStorage();
       }
@@ -118,46 +120,18 @@ export const useConversionLogic = (
     }
 
     setDetectingChapters(true);
-    setConversionStatus('converting');
-
+    setConversionStatus('converting'); // Evitar conversiones duplicadas
+    
     try {
-      const textHash = await generateHash(extractedText, options.selectedVoice);
-      console.log('Generated text hash:', textHash);
-
-      // Create initial conversion record
-      const { data: conversionRecord, error: conversionError } = await supabase
-        .from('text_conversions')
-        .insert({
-          file_name: selectedFile.name,
-          status: 'processing',
-          file_size: extractedText.length,
-          progress: 0,
-          user_id: user?.id,
-          processed_characters: 0,
-          total_characters: extractedText.length,
-          total_chunks: Math.ceil(extractedText.length / 4800),
-          text_hash: textHash,
-          notify_on_complete: options.notifyOnComplete || false
-        })
-        .select()
-        .single();
-
-      if (conversionError || !conversionRecord) {
-        throw new Error(conversionError?.message || 'Failed to create conversion record');
-      }
-
-      console.log('Created conversion record:', conversionRecord.id);
-      setConversionId(conversionRecord.id);
-
       const result = await handleConversion(
         extractedText,
         options.selectedVoice,
         detectChapters,
         chapters,
-        selectedFile.name,
-        conversionRecord.id
+        selectedFile.name
       );
       
+      // Create notification if notification is enabled and user is authenticated
       if (options.notifyOnComplete && user && result.id) {
         const notificationResult = await retryOperation(async () => {
           return supabase.from('conversion_notifications').insert({
@@ -221,13 +195,13 @@ export const useConversionLogic = (
     navigate('/conversions');
   }, [navigate]);
 
-  const calculateEstimatedSeconds = useCallback(() => {
+  const estimatedSeconds = useMemo(() => {
     if (!extractedText) return 0;
 
     const wordsCount = extractedText.split(/\s+/).length;
     const averageWordsPerMinute = 150;
-    const baseProcessingTime = 5;
-
+    const baseProcessingTime = 5; // Tiempo mínimo en segundos
+    
     return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime);
   }, [extractedText]);
 
@@ -245,10 +219,9 @@ export const useConversionLogic = (
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
-    calculateEstimatedSeconds,
+    calculateEstimatedSeconds: () => estimatedSeconds,
     conversionId,
     setProgress,
-    setConversionStatus,
-    resetConversion
+    setConversionStatus
   };
 };

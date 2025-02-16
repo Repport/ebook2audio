@@ -36,12 +36,4 @@ export interface TextConversion {
   duration?: number;
 }
 
-export type Chapter = ExtractedChapter;
-
-export interface ConversionResult {
-  audio: ArrayBuffer;
-  id: string;
-  duration: number;
-}
-
 export type { PostgrestResponse };
