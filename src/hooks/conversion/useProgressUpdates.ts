@@ -3,8 +3,8 @@ import { useCallback } from 'react';
 
 interface ProgressUpdateData {
   progress: number;
-  processed_chunks?: number | null;
-  total_chunks?: number | null;
+  processed_characters?: number | null;
+  total_characters?: number | null;
 }
 
 export const useProgressUpdates = (
@@ -24,31 +24,28 @@ export const useProgressUpdates = (
       calculatedTotalChunks 
     });
     
-    const { progress: newProgress, processed_chunks, total_chunks } = data;
+    const { progress: newProgress, processed_characters, total_characters } = data;
     lastUpdateRef.current = currentTime;
-
-    if (typeof total_chunks === 'number' && total_chunks > 0) {
-      console.log(`📊 Setting total chunks: ${total_chunks}`);
-      setTotalChunks(total_chunks);
-    } else if (calculatedTotalChunks > 0) {
-      console.log(`📊 Using calculated total chunks: ${calculatedTotalChunks}`);
-      setTotalChunks(calculatedTotalChunks);
-    }
-
-    if (typeof processed_chunks === 'number') {
-      setProcessedChunks((prev) => {
-        const newProcessed = Math.max(prev, processed_chunks);
-        console.log(`📈 Updated processed chunks: ${prev} -> ${newProcessed}`);
-        return newProcessed;
-      });
-    }
-
-    if (typeof newProgress === 'number' && newProgress >= 0) {
+    
+    if (processed_characters && total_characters) {
+      const calculatedProgress = Math.min((processed_characters / total_characters) * 100, 99);
+      console.log(`📊 Progress from characters: ${processed_characters}/${total_characters} (${calculatedProgress.toFixed(1)}%)`);
+      setProgress(calculatedProgress);
+    } else if (typeof newProgress === 'number' && newProgress >= 0) {
       setProgress((prev) => {
-        const nextProgress = Math.max(prev, newProgress);
+        const nextProgress = Math.max(prev, Math.min(newProgress, 99));
         console.log(`📈 Updated progress: ${prev}% -> ${nextProgress}%`);
         return nextProgress;
       });
+    }
+
+    if (total_characters) {
+      const estimatedChunks = Math.ceil(total_characters / 4800); // Tamaño aproximado de chunk
+      setTotalChunks(estimatedChunks);
+      if (processed_characters) {
+        const processedChunks = Math.ceil(processed_characters / 4800);
+        setProcessedChunks(processedChunks);
+      }
     }
   }, [setProgress, setProcessedChunks, setTotalChunks, lastUpdateRef, calculatedTotalChunks]);
 };

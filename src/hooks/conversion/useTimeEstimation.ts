@@ -1,13 +1,12 @@
 
 import { useState, useEffect } from 'react';
-import { formatTimeRemaining } from '@/utils/timeFormatting';
 
 export const useTimeEstimation = (
   progress: number,
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
-  processedChunks: number,
+  processedCharacters: number,
   elapsedTime: number,
-  totalChunks: number
+  totalCharacters: number
 ): number | null => {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
@@ -17,7 +16,7 @@ export const useTimeEstimation = (
       return;
     }
 
-    if (processedChunks === 0) {
+    if (processedCharacters === 0) {
       // Usar progreso general para estimación inicial
       if (progress > 0) {
         const estimatedTotalTime = (elapsedTime * 100) / Math.max(progress, 1);
@@ -35,20 +34,22 @@ export const useTimeEstimation = (
       return;
     }
 
-    const remainingChunks = Math.max(totalChunks - processedChunks, 1);
-    const avgTimePerChunk = elapsedTime / Math.max(processedChunks, 1);
-    const estimatedSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
-    
-    console.log('⏱️ Time estimation update:', {
-      processedChunks,
-      totalChunks,
-      elapsedTime,
-      avgTimePerChunk,
-      estimatedSeconds
-    });
-    
-    setTimeRemaining(estimatedSeconds);
-  }, [progress, status, processedChunks, elapsedTime, totalChunks]);
+    if (elapsedTime > 0) {
+      const speed = processedCharacters / elapsedTime; // Caracteres por segundo
+      const remainingCharacters = totalCharacters - processedCharacters;
+      const estimatedSeconds = Math.ceil(remainingCharacters / speed);
+      
+      console.log('⏱️ Time estimation update:', {
+        processedCharacters,
+        totalCharacters,
+        elapsedTime,
+        speed: `${speed.toFixed(1)} chars/sec`,
+        estimatedSeconds
+      });
+      
+      setTimeRemaining(estimatedSeconds);
+    }
+  }, [progress, status, processedCharacters, elapsedTime, totalCharacters]);
 
   return timeRemaining;
 };

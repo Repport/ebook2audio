@@ -1,11 +1,12 @@
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useProgressState } from './conversion/useProgressState';
 import { useTimeTracking } from './conversion/useTimeTracking';
 import { useProgressUpdates } from './conversion/useProgressUpdates';
 import { useTimeEstimation } from './conversion/useTimeEstimation';
 import { useRealtimeSubscription } from './conversion/useRealtimeSubscription';
 import { calculateSimulatedProgress } from '@/utils/progressSimulation';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -26,44 +27,58 @@ export const useConversionProgress = (
   } = useProgressState(initialProgress);
 
   const { startTimeRef, lastUpdateRef } = useTimeTracking();
+  const batchUpdateTimeoutRef = useRef<number | null>(null);
+  const processedCharactersRef = useRef<number>(0);
 
-  // Calcular el número total de chunks basado en la longitud del texto
-  const calculatedTotalChunks = textLength ? Math.ceil(textLength / 4800) : 0;
-  const effectiveTotalChunks = totalChunks || calculatedTotalChunks;
+  // Calcular el número total de caracteres
+  const totalCharacters = textLength || 0;
 
   const handleProgressUpdate = useProgressUpdates(
     setProgress,
     setProcessedChunks,
     setTotalChunks,
     lastUpdateRef,
-    calculatedTotalChunks
+    Math.ceil(totalCharacters / 4800)
   );
 
   const timeRemaining = useTimeEstimation(
     progress,
     status,
-    processedChunks,
+    processedCharactersRef.current,
     elapsedTime,
-    effectiveTotalChunks
+    totalCharacters
   );
 
-  // Actualizar el progreso cuando cambian los chunks procesados
-  useEffect(() => {
-    if (processedChunks > 0 && effectiveTotalChunks > 0) {
-      const calculatedProgress = Math.min((processedChunks / effectiveTotalChunks) * 100, 100);
-      setProgress(prev => Math.max(prev, calculatedProgress));
-      console.log(`📊 Progress update from chunks: ${processedChunks}/${effectiveTotalChunks} chunks (${calculatedProgress.toFixed(1)}%)`);
+  // Función para actualizar el progreso en Supabase en lotes
+  const updateProgressInBatches = useCallback(async () => {
+    if (conversionId && processedCharactersRef.current > 0) {
+      console.log('📝 Batch updating progress in Supabase:', {
+        processed: processedCharactersRef.current,
+        total: totalCharacters
+      });
+
+      const calculatedProgress = Math.min(
+        (processedCharactersRef.current / totalCharacters) * 100,
+        99
+      );
+
+      await supabase
+        .from('text_conversions')
+        .update({
+          processed_characters: processedCharactersRef.current,
+          progress: calculatedProgress,
+        })
+        .eq('id', conversionId);
     }
-  }, [processedChunks, effectiveTotalChunks, setProgress]);
+  }, [conversionId, totalCharacters]);
 
-  // Suscripción a actualizaciones en tiempo real
-  useRealtimeSubscription(
-    conversionId,
-    status,
-    handleProgressUpdate,
-    calculatedTotalChunks,
-    textLength
-  );
+  // Configurar intervalo para actualizaciones en lote
+  useEffect(() => {
+    if (status === 'converting' || status === 'processing') {
+      const interval = setInterval(updateProgressInBatches, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [status, updateProgressInBatches]);
 
   // Actualizar el tiempo transcurrido
   useEffect(() => {
@@ -81,7 +96,7 @@ export const useConversionProgress = (
         if (timeSinceLastUpdate > 5 && progress < 90) {
           const simulatedProgress = calculateSimulatedProgress(
             elapsed,
-            effectiveTotalChunks,
+            Math.ceil(totalCharacters / 4800),
             processedChunks,
             progress
           );
@@ -93,7 +108,8 @@ export const useConversionProgress = (
                 previous: prev.toFixed(1),
                 new: newValue.toFixed(1),
                 elapsed,
-                chunks: `${processedChunks}/${effectiveTotalChunks}`
+                processed: processedCharactersRef.current,
+                total: totalCharacters
               });
             }
             return newValue;
@@ -107,7 +123,16 @@ export const useConversionProgress = (
         clearInterval(interval);
       }
     };
-  }, [status, progress, effectiveTotalChunks, processedChunks, setProgress, setElapsedTime]);
+  }, [status, progress, totalCharacters, processedChunks, setProgress, setElapsedTime]);
+
+  // Suscripción a actualizaciones en tiempo real
+  useRealtimeSubscription(
+    conversionId,
+    status,
+    handleProgressUpdate,
+    Math.ceil(totalCharacters / 4800),
+    textLength
+  );
 
   // Animación de completado
   useEffect(() => {
@@ -138,8 +163,8 @@ export const useConversionProgress = (
     progress,
     elapsedTime,
     timeRemaining,
-    hasStarted: processedChunks > 0 || status === 'converting' || status === 'processing',
+    hasStarted: processedCharactersRef.current > 0 || status === 'converting' || status === 'processing',
     processedChunks,
-    totalChunks: effectiveTotalChunks
+    totalChunks: Math.ceil(totalCharacters / 4800)
   };
 };
