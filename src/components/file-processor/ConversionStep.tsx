@@ -41,6 +41,10 @@ const ConversionStep = ({
   const [isConverting, setIsConverting] = useState(false);
 
   const handleConvertClick = async () => {
+    if (isConverting || conversionStatus === 'converting') {
+      return;
+    }
+
     setIsConverting(true);
     try {
       const canProceed = await onConvert();
@@ -53,7 +57,7 @@ const ConversionStep = ({
     }
   };
 
-  console.log('ConversionStep render:', { conversionStatus, isConverting }); // Debugging log
+  console.log('ConversionStep render:', { conversionStatus, isConverting });
 
   return (
     <Card className="p-6">
@@ -72,11 +76,11 @@ const ConversionStep = ({
             </Button>
           </div>
 
-          {conversionStatus === 'idle' && (
+          {conversionStatus === 'idle' && !isConverting && (
             <Button
               onClick={handleConvertClick}
               className="flex items-center gap-2"
-              disabled={isConverting}
+              disabled={isConverting || conversionStatus === 'converting'}
             >
               <Play className="w-4 h-4" />
               {isConverting ? "Starting..." : "Start Conversion"}
@@ -94,7 +98,7 @@ const ConversionStep = ({
           )}
 
           <ConversionStatus
-            status={conversionStatus}
+            status={conversionStatus === 'idle' && isConverting ? 'converting' : conversionStatus}
             progress={progress}
             estimatedSeconds={estimatedSeconds}
             detectingChapters={detectingChapters}
