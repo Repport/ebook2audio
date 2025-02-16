@@ -72,6 +72,14 @@ const ConversionControls = ({
           </Button>
           <Button
             variant="outline"
+            onClick={onConvert}
+            className="w-full"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Convert Again
+          </Button>
+          <Button
+            variant="outline"
             onClick={onViewConversions}
             className="w-full"
           >
