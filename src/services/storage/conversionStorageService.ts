@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 interface StoredConversionState {
@@ -95,15 +96,23 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
     
     // Si hay un ID de conversión, obtener el estado más reciente de Supabase
     if (state.conversionId) {
+      console.log('🔍 Buscando conversión en Supabase:', state.conversionId);
+      
       const { data: conversionData, error } = await supabase
         .from('text_conversions')
-        .select('*')
+        .select('status, progress')
         .eq('id', state.conversionId)
         .maybeSingle();
 
-      if (!error && conversionData) {
+      if (error) {
+        console.error('❌ Error al cargar estado de conversión:', error);
+      } else if (conversionData) {
+        console.log('✅ Estado de conversión encontrado:', conversionData);
         state.status = conversionData.status;
         state.progress = conversionData.progress;
+      } else {
+        console.warn('⚠️ No se encontró la conversión:', state.conversionId);
+        // Si no encontramos la conversión, mantenemos el estado local
       }
     }
 
