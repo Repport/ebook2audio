@@ -78,17 +78,49 @@ async function processChunkBatch(
         const progress = Math.round((completedChunks / totalChunks) * 100);
         
         console.log(`Chunk ${startIndex + index} completed. Progress: ${progress}%`);
-        await updateConversionStatus(conversionId, 'processing', undefined, progress);
+        
+        // Actualizar el estado del chunk en la tabla conversion_chunks
+        const { error: chunkError } = await supabase
+          .from('conversion_chunks')
+          .upsert({
+            conversion_id: conversionId,
+            chunk_index: startIndex + index,
+            content: chunk,
+            status: 'completed',
+            audio_path: `chunk_${startIndex + index}.mp3`
+          });
+
+        if (chunkError) {
+          console.error(`Error updating chunk ${startIndex + index} status:`, chunkError);
+        }
+
+        // Actualizar el progreso general en text_conversions
+        await supabase
+          .from('text_conversions')
+          .update({
+            progress,
+            processed_chunks: completedChunks,
+            total_chunks: totalChunks,
+            status: 'processing'
+          })
+          .eq('id', conversionId);
         
         return audioBuffer;
       })
       .catch(async (error) => {
         console.error(`Error processing chunk ${startIndex + index}:`, error);
-        await updateConversionStatus(
-          conversionId,
-          'failed',
-          `Error processing chunk ${startIndex + index}: ${error.message}`
-        );
+        
+        // Actualizar el estado de error del chunk
+        await supabase
+          .from('conversion_chunks')
+          .upsert({
+            conversion_id: conversionId,
+            chunk_index: startIndex + index,
+            content: chunk,
+            status: 'failed',
+            error_message: error.message
+          });
+
         throw error;
       })
   );
@@ -107,6 +139,35 @@ export async function processConversionChunks(
   const totalChunks = chunks.length;
   const audioBuffers: ArrayBuffer[] = [];
 
+  // Crear registros iniciales para todos los chunks
+  const initialChunks = chunks.map((content, index) => ({
+    conversion_id: conversionId,
+    chunk_index: index,
+    content,
+    status: 'pending'
+  }));
+
+  // Insertar todos los chunks en la tabla
+  const { error: insertError } = await supabase
+    .from('conversion_chunks')
+    .insert(initialChunks);
+
+  if (insertError) {
+    console.error('Error creating initial chunks:', insertError);
+    throw insertError;
+  }
+
+  // Actualizar el número total de chunks en la conversión
+  await supabase
+    .from('text_conversions')
+    .update({
+      total_chunks: totalChunks,
+      status: 'processing',
+      progress: 0,
+      processed_chunks: 0
+    })
+    .eq('id', conversionId);
+
   for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
     const batchChunks = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS);
     console.log(`Processing batch ${i / MAX_CONCURRENT_CHUNKS + 1}, chunks ${i + 1}-${i + batchChunks.length} of ${totalChunks}`);
@@ -122,6 +183,16 @@ export async function processConversionChunks(
 
     audioBuffers.push(...batchBuffers);
   }
+
+  // Actualizar el estado final de la conversión
+  await supabase
+    .from('text_conversions')
+    .update({
+      status: 'completed',
+      progress: 100,
+      processed_chunks: totalChunks
+    })
+    .eq('id', conversionId);
 
   console.log('All chunks processed successfully');
   return combineAudioChunks(audioBuffers);
