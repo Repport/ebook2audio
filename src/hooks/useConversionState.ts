@@ -1,7 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { loadConversionState, saveConversionState } from '@/services/storage/conversionStorageService';
 
 interface ConversionState {
   conversionStatus: 'idle' | 'converting' | 'completed' | 'error';
@@ -19,13 +20,52 @@ export const useConversionState = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Audio conversion state
+  // Estado de conversión de audio
   const [conversionStatus, setConversionStatus] = useState<ConversionState['conversionStatus']>('idle');
   const [progress, setProgress] = useState(0);
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
   const [audioDuration, setAudioDuration] = useState(0);
   const [currentFileName, setCurrentFileName] = useState<string | null>(null);
   const [conversionId, setConversionId] = useState<string | null>(null);
+
+  // Cargar estado al iniciar
+  useEffect(() => {
+    const loadState = async () => {
+      const savedState = await loadConversionState();
+      if (savedState) {
+        setConversionStatus(savedState.status);
+        setProgress(savedState.progress);
+        setCurrentFileName(savedState.fileName || null);
+        setConversionId(savedState.conversionId || null);
+        if (savedState.audioData) {
+          const arrayBuffer = convertBase64ToArrayBuffer(savedState.audioData);
+          setAudioData(arrayBuffer);
+        }
+        setAudioDuration(savedState.audioDuration);
+      }
+    };
+
+    loadState();
+  }, []);
+
+  // Guardar estado cuando cambie
+  useEffect(() => {
+    const saveState = async () => {
+      if (conversionStatus !== 'idle') {
+        const state = {
+          status: conversionStatus,
+          progress,
+          audioData: audioData ? convertArrayBufferToBase64(audioData) : undefined,
+          audioDuration,
+          fileName: currentFileName || undefined,
+          conversionId: conversionId || undefined,
+        };
+        await saveConversionState(state);
+      }
+    };
+
+    saveState();
+  }, [conversionStatus, progress, audioData, audioDuration, currentFileName, conversionId]);
 
   const initiateConversion = (selectedFile: File | null, extractedText: string) => {
     if (!selectedFile || !extractedText) {
@@ -45,7 +85,7 @@ export const useConversionState = () => {
   };
 
   return {
-    // Basic conversion state
+    // Estado básico de conversión
     detectChapters,
     setDetectChapters,
     detectingChapters,
@@ -56,7 +96,7 @@ export const useConversionState = () => {
     handleViewConversions,
     toast,
     
-    // Audio conversion state
+    // Estado de conversión de audio
     conversionStatus,
     setConversionStatus,
     progress,

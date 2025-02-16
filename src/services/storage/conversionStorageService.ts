@@ -1,24 +1,37 @@
 
+import { supabase } from "@/integrations/supabase/client";
+
 interface StoredConversionState {
   status: 'idle' | 'converting' | 'completed' | 'error';
   progress: number;
   audioData?: string; // base64
   audioDuration: number;
   fileName?: string;
+  conversionId?: string;
 }
 
 const CHUNK_SIZE = 500000; // 500KB chunks
 
-export const saveConversionState = (state: StoredConversionState) => {
+export const saveConversionState = async (state: StoredConversionState) => {
   try {
-    // If there's audio data, we need to chunk it
+    // Si hay un ID de conversión, actualizar en Supabase
+    if (state.conversionId) {
+      await supabase
+        .from('text_conversions')
+        .upsert({
+          id: state.conversionId,
+          status: state.status,
+          progress: state.progress,
+          file_name: state.fileName,
+        });
+    }
+
+    // Si hay datos de audio, los almacenamos en chunks en sessionStorage
     if (state.audioData) {
       const chunks = Math.ceil(state.audioData.length / CHUNK_SIZE);
-      
-      // Store the number of chunks
       sessionStorage.setItem('conversionState_chunks', chunks.toString());
       
-      // Store each chunk separately
+      // Almacenar cada chunk por separado
       for (let i = 0; i < chunks; i++) {
         const start = i * CHUNK_SIZE;
         const end = start + CHUNK_SIZE;
@@ -26,30 +39,44 @@ export const saveConversionState = (state: StoredConversionState) => {
         sessionStorage.setItem(`conversionState_chunk_${i}`, chunk);
       }
       
-      // Store the main state without the audio data
+      // Almacenar el estado principal sin los datos de audio
       const stateWithoutAudio = { ...state, audioData: undefined };
       sessionStorage.setItem('conversionState', JSON.stringify(stateWithoutAudio));
     } else {
-      // If no audio data, store state normally
+      // Si no hay datos de audio, almacenar el estado normalmente
       sessionStorage.setItem('conversionState', JSON.stringify(state));
     }
   } catch (error) {
     console.error('Error saving conversion state:', error);
-    // Clear all related storage if we hit an error
     clearConversionStorage();
   }
 };
 
-export const loadConversionState = (): StoredConversionState | null => {
+export const loadConversionState = async (): Promise<StoredConversionState | null> => {
   try {
+    // Primero intentar cargar desde sessionStorage
     const stored = sessionStorage.getItem('conversionState');
     if (!stored) return null;
     
     const state = JSON.parse(stored);
-    const chunks = parseInt(sessionStorage.getItem('conversionState_chunks') || '0');
     
+    // Si hay un ID de conversión, obtener el estado más reciente de Supabase
+    if (state.conversionId) {
+      const { data: conversionData, error } = await supabase
+        .from('text_conversions')
+        .select('*')
+        .eq('id', state.conversionId)
+        .single();
+
+      if (!error && conversionData) {
+        state.status = conversionData.status;
+        state.progress = conversionData.progress;
+      }
+    }
+
+    // Reconstruir datos de audio desde chunks si existen
+    const chunks = parseInt(sessionStorage.getItem('conversionState_chunks') || '0');
     if (chunks > 0) {
-      // Reconstruct audio data from chunks
       let audioData = '';
       for (let i = 0; i < chunks; i++) {
         const chunk = sessionStorage.getItem(`conversionState_chunk_${i}`);
@@ -69,10 +96,10 @@ export const loadConversionState = (): StoredConversionState | null => {
 };
 
 export const clearConversionStorage = () => {
-  // Get all keys in sessionStorage
+  // Obtener todas las claves en sessionStorage
   const keys = Object.keys(sessionStorage);
   
-  // Remove all conversion-related items
+  // Eliminar todos los elementos relacionados con la conversión
   keys.forEach(key => {
     if (key.startsWith('conversionState')) {
       sessionStorage.removeItem(key);
@@ -97,4 +124,3 @@ export const convertBase64ToArrayBuffer = (base64: string): ArrayBuffer => {
   }
   return bytes.buffer;
 };
-
