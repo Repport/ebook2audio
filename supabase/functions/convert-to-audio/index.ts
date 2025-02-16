@@ -24,7 +24,7 @@ serve(async (req) => {
     let body: ConversionRequest;
     try {
       const rawBody = await req.json();
-      body = rawBody;
+      body = rawBody as ConversionRequest;
       console.log('📝 Request parsed:', {
         textLength: body.text?.length,
         voiceId: body.voiceId,
@@ -38,7 +38,7 @@ serve(async (req) => {
 
     const { text, voiceId, conversionId } = body;
 
-    // Validaciones básicas
+    // Basic validations
     if (!text || typeof text !== 'string') {
       throw new Error('Text parameter must be a non-empty string');
     }
@@ -51,16 +51,16 @@ serve(async (req) => {
       throw new Error('conversionId parameter is required');
     }
 
-    // Inicializar clientes con timeout más largo
+    // Initialize clients with longer timeout
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 540000); // 9 minutos de timeout
+    const timeout = setTimeout(() => controller.abort(), 540000); // 9 minutes timeout
 
     try {
       const supabaseClient = await initializeSupabaseClient();
       const accessToken = await getGoogleAccessToken();
       console.log('🔑 Successfully obtained access token');
 
-      // Obtener el estado actual de caracteres procesados
+      // Get current state of processed characters
       const { data: currentState, error: stateError } = await supabaseClient
         .from('text_conversions')
         .select('processed_characters')
@@ -72,7 +72,7 @@ serve(async (req) => {
         throw stateError;
       }
 
-      // Inicializar con los caracteres ya procesados
+      // Initialize with already processed characters
       const totalCharacters = text.length;
       let processedCharacters = currentState?.processed_characters || 0;
       
@@ -81,13 +81,13 @@ serve(async (req) => {
         currentProcessedCharacters: processedCharacters
       });
 
-      // Dividir el texto en chunks más pequeños (máximo 4000 caracteres)
+      // Split text into smaller chunks (max 4000 characters)
       const chunks = text.match(/[^.!?]+[.!?]+|\s+|[^\s]+/g) || [text];
       const MAX_CHUNK_SIZE = 4000;
       let currentChunk = '';
       const processableChunks: string[] = [];
       
-      // Agrupar chunks hasta alcanzar el tamaño máximo
+      // Group chunks until reaching max size
       for (const chunk of chunks) {
         if ((currentChunk + chunk).length <= MAX_CHUNK_SIZE) {
           currentChunk += chunk;
@@ -103,8 +103,8 @@ serve(async (req) => {
       }
 
       console.log(`📝 Text split into ${processableChunks.length} chunks`);
-      
-      // Procesar chunks en batches más pequeños para controlar concurrencia
+
+      // Process chunks in small batches to control concurrency
       const BATCH_SIZE = 2;
       const audioContents: Uint8Array[] = [];
       
@@ -114,44 +114,73 @@ serve(async (req) => {
         
         const batchResults = await Promise.all(
           batchChunks.map(async (chunk) => {
-            const audioContent = await processTextInChunks(chunk, voiceId, accessToken);
-            
-            // Incrementar caracteres procesados
-            const newProcessedCharacters = processedCharacters + chunk.length;
-            
-            // Calcular progreso basado en caracteres procesados
-            const progress = Math.min(
-              Math.round((newProcessedCharacters / totalCharacters) * 90) + 5,
-              95
-            );
+            try {
+              // Prepare request body
+              const requestBody = {
+                input: { text: chunk },
+                voice: {
+                  languageCode: voiceId.split('-').slice(0, 2).join('-'),
+                  name: voiceId
+                },
+                audioConfig: {
+                  audioEncoding: 'MP3',
+                  speakingRate: 1.0,
+                  pitch: 0.0,
+                  sampleRateHertz: 24000
+                }
+              };
 
-            console.log(`📊 Progress update: ${progress}% (${newProcessedCharacters}/${totalCharacters} characters)`);
+              // Call Google TTS API
+              const response = await fetch(
+                'https://texttospeech.googleapis.com/v1/text:synthesize',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(requestBody),
+                }
+              );
 
-            // Actualizar progreso en Supabase usando un incremento
-            const { error: updateError } = await supabaseClient
-              .rpc('increment_processed_characters', {
-                p_conversion_id: conversionId,
-                p_increment: chunk.length,
-                p_progress: progress,
-                p_total_characters: totalCharacters,
-                p_processed_chunks: i + batchChunks.length,
-                p_total_chunks: processableChunks.length
-              });
+              if (!response.ok) {
+                throw new Error(`Google TTS API error: ${response.status} ${response.statusText}`);
+              }
 
-            if (updateError) {
-              console.error('❌ Error updating progress:', updateError);
+              const result = await response.json();
+              
+              // Convert base64 to Uint8Array
+              const binaryString = atob(result.audioContent);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+
+              // Update progress
+              processedCharacters += chunk.length;
+              const progress = Math.min(
+                Math.round((processedCharacters / totalCharacters) * 90) + 5,
+                95
+              );
+
+              console.log(`📊 Progress update: ${progress}% (${processedCharacters}/${totalCharacters} characters)`);
+
+              // Update database progress
+              await supabaseClient
+                .rpc('increment_processed_characters', {
+                  p_conversion_id: conversionId,
+                  p_increment: chunk.length,
+                  p_progress: progress,
+                  p_total_characters: totalCharacters,
+                  p_processed_chunks: i + batchChunks.length,
+                  p_total_chunks: processableChunks.length
+                });
+
+              return bytes;
+            } catch (error) {
+              console.error(`Error processing chunk:`, error);
+              throw error;
             }
-
-            // Actualizar el contador local
-            processedCharacters = newProcessedCharacters;
-
-            // Convert base64 to Uint8Array
-            const binaryString = atob(audioContent);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-            return bytes;
           })
         );
 
@@ -164,7 +193,7 @@ serve(async (req) => {
         throw new Error('No audio content generated from chunks');
       }
       
-      // Combinar chunks de audio
+      // Combine audio chunks
       console.log('🔄 Combining audio chunks');
       const combinedAudioContent = await combineAudioChunks(audioContents);
       
@@ -172,7 +201,7 @@ serve(async (req) => {
         throw new Error('Failed to combine audio chunks');
       }
 
-      // Convertir ArrayBuffer a base64 para response
+      // Convert to base64 for response
       const uint8Array = new Uint8Array(combinedAudioContent);
       const base64Audio = btoa(String.fromCharCode(...uint8Array));
       
@@ -198,7 +227,7 @@ serve(async (req) => {
       console.error('❌ Error processing text:', error);
       clearTimeout(timeout);
       
-      // Actualizar estado de error
+      // Update error status
       const { error: updateError } = await supabaseClient
         .from('text_conversions')
         .update({
