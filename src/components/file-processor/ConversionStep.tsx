@@ -1,10 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Play, Download, List } from "lucide-react";
 import ConversionStatus from '@/components/ConversionStatus';
-import ChaptersList from '@/components/ChaptersList';
+import { ChaptersList } from '@/components/ChaptersList';
 import { Chapter } from '@/utils/textExtraction';
 
 interface ConversionStepProps {
@@ -95,7 +95,6 @@ const ConversionStep = ({
             status={conversionStatus}
             progress={progress}
             estimatedSeconds={estimatedSeconds}
-            audioDuration={audioDuration}
             detectingChapters={detectingChapters}
             textLength={textLength}
           />
