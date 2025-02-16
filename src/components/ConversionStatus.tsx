@@ -80,13 +80,6 @@ const ConversionStatus = ({
       <div className="w-full space-y-3">
         <Progress value={currentProgress} className="w-full" showPercentage={showPercentage} />
         <div className="text-sm text-muted-foreground text-center space-y-1">
-          {totalChunks > 0 && (
-            <div>
-              {translations.processingChunk
-                .replace('{current}', processedChunks.toString())
-                .replace('{total}', totalChunks.toString())}
-            </div>
-          )}
           <div>
             {elapsedTime > 0 && (
               <span>
