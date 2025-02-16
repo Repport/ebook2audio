@@ -14,6 +14,35 @@ const conversionStates = new Map<string, {
   lastUpdate: number;
 }>();
 
+// Función para dividir texto respetando palabras completas
+function splitTextIntoChunks(text: string, maxChunkSize: number = 4800): string[] {
+  const chunks: string[] = [];
+  const words = text.split(/\s+/);
+  let currentChunk: string[] = [];
+  let currentLength = 0;
+
+  for (const word of words) {
+    const wordLength = word.length;
+    const spaceLength = currentChunk.length > 0 ? 1 : 0;
+    const potentialLength = currentLength + wordLength + spaceLength;
+
+    if (potentialLength > maxChunkSize && currentChunk.length > 0) {
+      chunks.push(currentChunk.join(' '));
+      currentChunk = [word];
+      currentLength = wordLength;
+    } else {
+      currentChunk.push(word);
+      currentLength = potentialLength;
+    }
+  }
+
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk.join(' '));
+  }
+
+  return chunks;
+}
+
 // Función para actualizar el estado y decidir si escribir en Supabase
 async function updateProgress(
   supabaseClient: any,
@@ -103,21 +132,18 @@ serve(async (req) => {
     });
 
     try {
-      // Procesar el texto en chunks con concurrencia limitada
+      // Dividir el texto en chunks respetando palabras completas
+      const chunks = splitTextIntoChunks(text);
+      console.log(`📝 Text split into ${chunks.length} chunks`);
+      
+      // Procesar chunks en batches para controlar concurrencia
       const BATCH_SIZE = 3;
-      const chunks = [];
       let processedCharacters = 0;
-
-      for (let i = 0; i < text.length; i += 4800) {
-        const chunkText = text.slice(i, i + 4800);
-        chunks.push(chunkText);
-      }
-
       const audioContents = [];
       
       for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
         const batchChunks = chunks.slice(i, i + BATCH_SIZE);
-        console.log(`🔄 Processing batch ${i / BATCH_SIZE + 1}/${Math.ceil(chunks.length / BATCH_SIZE)}`);
+        console.log(`🔄 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(chunks.length / BATCH_SIZE)}`);
         
         const batchResults = await Promise.all(
           batchChunks.map(async (chunk) => {
