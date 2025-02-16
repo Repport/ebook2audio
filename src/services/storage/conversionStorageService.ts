@@ -16,14 +16,24 @@ export const saveConversionState = async (state: StoredConversionState) => {
   try {
     // Si hay un ID de conversión, actualizar en Supabase
     if (state.conversionId) {
-      await supabase
+      const { data: existingConversion } = await supabase
         .from('text_conversions')
-        .upsert({
-          id: state.conversionId,
-          status: state.status,
-          progress: state.progress,
-          file_name: state.fileName,
-        });
+        .select('text_hash')
+        .eq('id', state.conversionId)
+        .single();
+
+      if (existingConversion?.text_hash) {
+        await supabase
+          .from('text_conversions')
+          .update({
+            status: state.status,
+            progress: state.progress,
+            file_name: state.fileName,
+          })
+          .eq('id', state.conversionId);
+      } else {
+        console.warn('No se pudo actualizar la conversión: text_hash no encontrado');
+      }
     }
 
     // Si hay datos de audio, los almacenamos en chunks en sessionStorage

@@ -1,8 +1,12 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { loadConversionState, saveConversionState } from '@/services/storage/conversionStorageService';
+import { 
+  loadConversionState, 
+  saveConversionState, 
+  convertArrayBufferToBase64, 
+  convertBase64ToArrayBuffer 
+} from '@/services/storage/conversionStorageService';
 
 interface ConversionState {
   conversionStatus: 'idle' | 'converting' | 'completed' | 'error';
@@ -20,7 +24,6 @@ export const useConversionState = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Estado de conversión de audio
   const [conversionStatus, setConversionStatus] = useState<ConversionState['conversionStatus']>('idle');
   const [progress, setProgress] = useState(0);
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
@@ -28,7 +31,6 @@ export const useConversionState = () => {
   const [currentFileName, setCurrentFileName] = useState<string | null>(null);
   const [conversionId, setConversionId] = useState<string | null>(null);
 
-  // Cargar estado al iniciar
   useEffect(() => {
     const loadState = async () => {
       const savedState = await loadConversionState();
@@ -48,7 +50,6 @@ export const useConversionState = () => {
     loadState();
   }, []);
 
-  // Guardar estado cuando cambie
   useEffect(() => {
     const saveState = async () => {
       if (conversionStatus !== 'idle') {
@@ -85,7 +86,6 @@ export const useConversionState = () => {
   };
 
   return {
-    // Estado básico de conversión
     detectChapters,
     setDetectChapters,
     detectingChapters,
@@ -95,8 +95,6 @@ export const useConversionState = () => {
     initiateConversion,
     handleViewConversions,
     toast,
-    
-    // Estado de conversión de audio
     conversionStatus,
     setConversionStatus,
     progress,
