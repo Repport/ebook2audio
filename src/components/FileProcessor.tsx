@@ -73,7 +73,7 @@ const FileProcessor = ({
       });
       return;
     }
-    setConversionStatus('idle'); // Aseguramos que el estado esté en 'idle' al cambiar de paso
+    setConversionStatus('idle');
     onNextStep();
   };
 
@@ -113,8 +113,8 @@ const FileProcessor = ({
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
-      <div className="flex justify-start">
+    <div className="flex flex-col items-center justify-start w-full max-w-2xl mx-auto">
+      <div className="w-full mb-8">
         <Button
           variant="ghost"
           size="sm"
@@ -126,48 +126,50 @@ const FileProcessor = ({
         </Button>
       </div>
 
-      {currentStep === 2 && (
-        <div className="animate-fade-up">
-          <VoiceSettingsStep
-            selectedVoice={selectedVoice}
-            setSelectedVoice={setSelectedVoice}
-            detectedLanguage={detectedLanguage}
-            detectChapters={detectChapters}
-            setDetectChapters={setDetectChapters}
-            onNextStep={handleVoiceSettingsComplete}
-            notifyOnComplete={notifyOnComplete}
-            setNotifyOnComplete={setNotifyOnComplete}
-          />
-        </div>
-      )}
-      
-      {currentStep === 3 && (
-        <div className="animate-fade-up">
-          <ConversionStep
-            selectedFile={selectedFile}
-            conversionStatus={conversionStatus}
-            progress={progress}
-            audioData={audioData}
-            audioDuration={audioDuration}
-            estimatedSeconds={estimatedSeconds}
-            onConvert={handleConversionStart}
-            onDownloadClick={handleDownloadClick}
-            onViewConversions={handleViewConversions}
-            conversionId={conversionId}
-            chapters={chapters}
-            detectingChapters={detectingChapters}
-            textLength={extractedText.length}
-          />
-        </div>
-      )}
+      <div className="w-full space-y-8">
+        {currentStep === 2 && (
+          <div className="animate-fade-up w-full">
+            <VoiceSettingsStep
+              selectedVoice={selectedVoice}
+              setSelectedVoice={setSelectedVoice}
+              detectedLanguage={detectedLanguage}
+              detectChapters={detectChapters}
+              setDetectChapters={setDetectChapters}
+              onNextStep={handleVoiceSettingsComplete}
+              notifyOnComplete={notifyOnComplete}
+              setNotifyOnComplete={setNotifyOnComplete}
+            />
+          </div>
+        )}
+        
+        {currentStep === 3 && (
+          <div className="animate-fade-up w-full">
+            <ConversionStep
+              selectedFile={selectedFile}
+              conversionStatus={conversionStatus}
+              progress={progress}
+              audioData={audioData}
+              audioDuration={audioDuration}
+              estimatedSeconds={estimatedSeconds}
+              onConvert={handleConversionStart}
+              onDownloadClick={handleDownloadClick}
+              onViewConversions={handleViewConversions}
+              conversionId={conversionId}
+              chapters={chapters}
+              detectingChapters={detectingChapters}
+              textLength={extractedText.length}
+            />
+          </div>
+        )}
 
-      <TermsDialog 
-        open={isShowingTerms}
-        onClose={() => setIsShowingTerms(false)}
-        onAccept={handleAcceptTermsAndConvert}
-        fileName={selectedFile?.name || ''}
-        fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
-      />
+        <TermsDialog 
+          open={isShowingTerms}
+          onClose={() => setIsShowingTerms(false)}
+          onAccept={handleAcceptTermsAndConvert}
+          fileName={selectedFile?.name || ''}
+          fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
+        />
+      </div>
     </div>
   );
 };
