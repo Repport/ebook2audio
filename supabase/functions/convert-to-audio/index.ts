@@ -78,7 +78,7 @@ serve(async (req) => {
       // Procesar chunks en batches para controlar concurrencia
       const BATCH_SIZE = 3;
       let processedCharacters = 0;
-      const audioContents: ArrayBuffer[] = [];
+      const audioContents: Uint8Array[] = [];
       
       for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
         const batchChunks = chunks.slice(i, i + BATCH_SIZE);
@@ -106,7 +106,13 @@ serve(async (req) => {
               })
               .eq('id', conversionId);
 
-            return Buffer.from(audioContent, 'base64');
+            // Convert base64 to Uint8Array
+            const binaryString = atob(audioContent);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes;
           })
         );
 
@@ -138,9 +144,12 @@ serve(async (req) => {
 
       console.log('✅ Successfully generated and stored audio content');
       
+      // Convert Uint8Array back to base64 for response
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(combinedAudioContent)));
+      
       const response: ConversionResponse = {
         data: {
-          audioContent: combinedAudioContent.toString('base64'),
+          audioContent: base64Audio,
           id: conversionId,
           progress: 100
         }
