@@ -50,7 +50,7 @@ export const useConversionLogic = (
       resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile]);
+  }, [selectedFile, conversionStatus, audioData, resetConversion]);
 
   useEffect(() => {
     if (conversionStatus === 'completed' && onStepComplete) {
@@ -85,6 +85,7 @@ export const useConversionLogic = (
           new Date(data[0].accepted_at).getTime() < Date.now() - 24 * 60 * 60 * 1000) {
         setShowTerms(true);
       } else {
+        console.log('Recent terms acceptance found, proceeding with conversion');
         resetConversion();
         clearConversionStorage();
       }
@@ -149,6 +150,13 @@ export const useConversionLogic = (
 
       console.log('Created conversion record:', conversionRecord.id);
       setConversionId(conversionRecord.id);
+
+      console.log('Starting conversion with options:', {
+        textLength: extractedText.length,
+        voice: options.selectedVoice,
+        chapters: chapters.length,
+        fileName: selectedFile.name
+      });
 
       const result = await handleConversion(
         extractedText,
