@@ -38,7 +38,8 @@ const ConversionStatus = ({
     elapsedTime, 
     hasStarted,
     processedChunks,
-    totalChunks
+    totalChunks,
+    speed
   } = useConversionProgress(
     status,
     progress,
@@ -86,6 +87,9 @@ const ConversionStatus = ({
                 {translations.timeElapsed.replace('{time}', formatTime(elapsedTime))}
                 {typeof timeRemaining === 'number' && (
                   <span> • {translations.timeRemaining.replace('{time}', formatTime(timeRemaining))}</span>
+                )}
+                {speed > 0 && (
+                  <span> • {Math.round(speed)} chars/sec</span>
                 )}
               </span>
             )}

@@ -8,6 +8,7 @@ import { useRealtimeSubscription } from './conversion/useRealtimeSubscription';
 import { useBatchProgress } from './conversion/useBatchProgress';
 import { useProgressSimulation } from './conversion/useProgressSimulation';
 import { useBatchUpdates } from './conversion/useBatchUpdates';
+import { getProgress, updateProgress as updateCacheProgress } from '../services/conversion/progressCache';
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -29,59 +30,26 @@ export const useConversionProgress = (
 
   const { startTimeRef, lastUpdateRef } = useTimeTracking();
   const processedCharactersRef = useRef<number>(0);
-
   const totalCharacters = textLength || 0;
 
-  const handleProgressUpdate = useProgressUpdates(
-    setProgress,
-    setProcessedChunks,
-    setTotalChunks,
-    lastUpdateRef,
-    Math.ceil(totalCharacters / 4800)
-  );
+  const handleProgressUpdate = (data: any) => {
+    if (!conversionId) return;
 
-  const timeRemaining = useTimeEstimation(
-    progress,
-    status,
-    processedCharactersRef.current,
-    elapsedTime,
-    totalCharacters
-  );
+    const cached = getProgress(conversionId);
+    if (!cached) return;
 
-  const updateProgressInBatches = useBatchProgress(
-    conversionId,
-    processedCharactersRef,
-    totalCharacters
-  );
-
-  useBatchUpdates(status, updateProgressInBatches);
-
-  useProgressSimulation(
-    status,
-    progress,
-    totalCharacters,
-    processedChunks,
-    setProgress,
-    setElapsedTime,
-    startTimeRef,
-    lastUpdateRef,
-    processedCharactersRef
-  );
+    const updatedProgress = updateCacheProgress(conversionId, data.processed_characters || 0);
+    if (updatedProgress) {
+      setProgress(updatedProgress.progress);
+      setElapsedTime(updatedProgress.elapsedSeconds);
+      processedCharactersRef.current = updatedProgress.processedCharacters;
+    }
+  };
 
   useRealtimeSubscription(
     conversionId,
     status,
-    (data) => {
-      console.log('🔄 Realtime update received:', data);
-      if (data.progress !== undefined) {
-        setProgress(data.progress);
-      }
-      if (data.processed_characters !== undefined) {
-        processedCharactersRef.current = data.processed_characters;
-      }
-      handleProgressUpdate(data);
-      lastUpdateRef.current = Date.now();
-    },
+    handleProgressUpdate,
     Math.ceil(totalCharacters / 4800),
     textLength
   );
@@ -89,9 +57,10 @@ export const useConversionProgress = (
   return {
     progress,
     elapsedTime,
-    timeRemaining,
+    timeRemaining: getProgress(conversionId || '')?.estimatedSeconds || null,
     hasStarted: processedCharactersRef.current > 0 || status === 'converting' || status === 'processing',
     processedChunks,
-    totalChunks: Math.ceil(totalCharacters / 4800)
+    totalChunks: Math.ceil(totalCharacters / 4800),
+    speed: getProgress(conversionId || '')?.speed || 0
   };
 };
