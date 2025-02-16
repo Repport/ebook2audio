@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
 import { corsHeaders, responseHeaders } from './config/constants.ts';
@@ -5,6 +6,45 @@ import { initializeSupabaseClient, getGoogleAccessToken } from './services/clien
 import type { ConversionRequest, ConversionResponse, ErrorResponse } from './types/index.ts';
 
 console.log('Loading convert-to-audio function...');
+
+// Estado global para tracking de progreso
+const conversionStates = new Map<string, {
+  progress: number;
+  processedChunks: number;
+  totalChunks: number;
+  lastUpdate: number;
+}>();
+
+// Función para actualizar el estado y decidir si escribir en Supabase
+async function updateProgress(
+  supabaseClient: any,
+  conversionId: string,
+  updates: Partial<{
+    progress: number;
+    processed_chunks: number;
+    status: string;
+    error_message?: string;
+  }>
+) {
+  const currentState = conversionStates.get(conversionId);
+  if (!currentState) return;
+
+  const now = Date.now();
+  const shouldUpdate = 
+    !currentState.lastUpdate || // Primera actualización
+    (now - currentState.lastUpdate) > 2000 || // Han pasado 2 segundos
+    updates.status || // Cambio de estado
+    updates.error_message; // Error
+
+  if (shouldUpdate) {
+    console.log('📝 Updating Supabase:', { conversionId, updates });
+    await safeSupabaseUpdate(supabaseClient, conversionId, updates);
+    conversionStates.set(conversionId, {
+      ...currentState,
+      lastUpdate: now
+    });
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -48,35 +88,61 @@ serve(async (req) => {
     const accessToken = await getGoogleAccessToken();
     console.log('🔑 Successfully obtained access token');
 
-    // Actualizar estado inicial de forma segura
-    await safeSupabaseUpdate(supabaseClient, conversionId, {
+    // Configurar estado inicial
+    const totalChunks = Math.ceil(text.length / 4800);
+    conversionStates.set(conversionId, {
+      progress: 0,
+      processedChunks: 0,
+      totalChunks,
+      lastUpdate: 0
+    });
+
+    // Actualizar estado inicial
+    await updateProgress(supabaseClient, conversionId, {
       progress: 5,
-      total_chunks: Math.ceil(text.length / 4800),
       processed_chunks: 0,
+      total_chunks: totalChunks,
       status: 'processing'
     });
 
     try {
-      const { audioContents } = await processTextInChunks(
-        text,
-        voiceId,
-        accessToken,
-        conversionId,
-        supabaseClient,
-        async (processedChunks: number) => {
-          const totalChunks = Math.ceil(text.length / 4800);
-          const progress = Math.min(
-            Math.round((processedChunks / totalChunks) * 95) + 5,
-            99
-          );
-          console.log(`📊 Progress: ${progress}% (${processedChunks}/${totalChunks} chunks)`);
-          
-          await safeSupabaseUpdate(supabaseClient, conversionId, {
-            progress,
-            processed_chunks: processedChunks
-          });
-        }
-      );
+      // Procesar el texto en chunks con concurrencia limitada
+      const BATCH_SIZE = 3;
+      const chunks = [];
+      let processedChunks = 0;
+
+      for (let i = 0; i < text.length; i += 4800) {
+        const chunkText = text.slice(i, i + 4800);
+        chunks.push(chunkText);
+      }
+
+      const audioContents = [];
+      
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batchChunks = chunks.slice(i, i + BATCH_SIZE);
+        console.log(`🔄 Processing batch ${i / BATCH_SIZE + 1}/${Math.ceil(chunks.length / BATCH_SIZE)}`);
+        
+        const batchResults = await Promise.all(
+          batchChunks.map(async (chunk) => {
+            const result = await processTextInChunks(chunk, voiceId, accessToken);
+            processedChunks++;
+            
+            const progress = Math.min(
+              Math.round((processedChunks / totalChunks) * 90) + 5,
+              95
+            );
+
+            await updateProgress(supabaseClient, conversionId, {
+              progress,
+              processed_chunks: processedChunks
+            });
+
+            return result;
+          })
+        );
+
+        audioContents.push(...batchResults);
+      }
 
       if (!audioContents || audioContents.length === 0) {
         throw new Error('No audio content generated from chunks');
@@ -91,9 +157,9 @@ serve(async (req) => {
       }
       
       // Marcar como completado
-      await safeSupabaseUpdate(supabaseClient, conversionId, {
+      await updateProgress(supabaseClient, conversionId, {
         progress: 100,
-        processed_chunks: Math.ceil(text.length / 4800),
+        processed_chunks: totalChunks,
         status: 'completed'
       });
 
@@ -114,7 +180,7 @@ serve(async (req) => {
       console.error('❌ Error processing text:', error);
       
       // Actualizar estado de error
-      await safeSupabaseUpdate(supabaseClient, conversionId, {
+      await updateProgress(supabaseClient, conversionId, {
         status: 'failed',
         error_message: error.message
       });
