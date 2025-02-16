@@ -29,9 +29,10 @@ export const useProgressUpdates = (
 
     // Actualizar total_chunks solo si es necesario y manteniendo el valor más alto
     if (typeof total_chunks === 'number' && !isNaN(total_chunks) && total_chunks > 0) {
-      setTotalChunks(prev => Math.max(prev, total_chunks));
+      const currentTotalChunks = total_chunks;
+      setTotalChunks(Math.max(currentTotalChunks, calculatedTotalChunks));
     } else if (calculatedTotalChunks > 0) {
-      setTotalChunks(prev => Math.max(prev, calculatedTotalChunks));
+      setTotalChunks(calculatedTotalChunks);
     }
 
     // Actualizar processed_chunks solo si es válido y mayor que el valor actual
