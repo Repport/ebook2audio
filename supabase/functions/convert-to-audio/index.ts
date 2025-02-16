@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from './config/constants.ts';
 import { getGoogleAccessToken } from './services/clients.ts';
+import { synthesizeSpeech } from './speech-service.ts';
 
 console.log('Loading convert-to-audio function...');
 
@@ -48,57 +49,14 @@ serve(async (req) => {
       throw new Error('conversionId parameter is required');
     }
 
-    // Extract language code from voiceId (e.g., "en-US-Standard-C" -> "en-US")
-    const langCode = voiceId.split('-').slice(0, 2).join('-');
-    console.log(`Using language code: ${langCode}`);
-
-    // Get access token
     const googleAccessToken = await getGoogleAccessToken();
     console.log('🔑 Successfully obtained access token');
 
-    // Prepare request body for Google TTS API
-    const requestBody = {
-      input: { text },
-      voice: {
-        languageCode: langCode,
-        name: voiceId,
-      },
-      audioConfig: {
-        audioEncoding: 'MP3',
-        speakingRate: 1.0,
-        pitch: 0.0,
-        sampleRateHertz: 24000,
-      },
-    };
-
-    console.log('Sending request to Google TTS API');
-
-    const response = await fetch(
-      'https://texttospeech.googleapis.com/v1/text:synthesize',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${googleAccessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Google TTS API error:', errorText);
-      throw new Error(`Speech synthesis failed: ${response.status} ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    
-    if (!result.audioContent) {
-      throw new Error('No audio content received from Google TTS');
-    }
+    const audioContent = await synthesizeSpeech(text, voiceId, googleAccessToken);
+    console.log('🎵 Successfully generated audio content');
 
     return new Response(
-      JSON.stringify({ audioContent: result.audioContent }),
+      JSON.stringify({ audioContent }),
       { 
         headers: {
           ...corsHeaders,
