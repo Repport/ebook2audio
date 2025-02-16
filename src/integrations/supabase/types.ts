@@ -515,6 +515,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      increment_processed_characters: {
+        Args: {
+          p_conversion_id: string
+          p_increment: number
+          p_progress: number
+          p_total_characters: number
+          p_processed_chunks: number
+          p_total_chunks: number
+        }
+        Returns: undefined
+      }
       set_statement_timeout: {
         Args: Record<PropertyKey, never>
         Returns: undefined
