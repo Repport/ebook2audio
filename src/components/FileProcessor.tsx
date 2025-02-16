@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Chapter } from '@/utils/textExtraction';
 import VoiceSettingsStep from './VoiceSettingsStep';
@@ -33,14 +34,13 @@ const FileProcessor = ({
 }: FileProcessorProps) => {
   const [selectedVoice, setSelectedVoice] = useState<string>('');
   const [notifyOnComplete, setNotifyOnComplete] = useState(false);
+  const [isShowingTerms, setIsShowingTerms] = useState(false);
   const { toast } = useToast();
 
   const {
     detectChapters,
     setDetectChapters,
     detectingChapters,
-    showTerms,
-    setShowTerms,
     conversionStatus,
     progress,
     audioData,
@@ -87,7 +87,8 @@ const FileProcessor = ({
       return false;
     }
 
-    setShowTerms(true);
+    console.log('Showing terms dialog...');
+    setIsShowingTerms(true);
     return false;
   };
 
@@ -102,7 +103,7 @@ const FileProcessor = ({
       return;
     }
 
-    setShowTerms(false);
+    setIsShowingTerms(false);
     
     await handleAcceptTerms({ 
       selectedVoice,
@@ -160,8 +161,8 @@ const FileProcessor = ({
       )}
 
       <TermsDialog 
-        open={showTerms}
-        onClose={() => setShowTerms(false)}
+        open={isShowingTerms}
+        onClose={() => setIsShowingTerms(false)}
         onAccept={handleAcceptTermsAndConvert}
         fileName={selectedFile?.name || ''}
         fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
@@ -171,3 +172,4 @@ const FileProcessor = ({
 };
 
 export default FileProcessor;
+
