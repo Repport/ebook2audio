@@ -60,10 +60,27 @@ serve(async (req) => {
       const accessToken = await getGoogleAccessToken();
       console.log('🔑 Successfully obtained access token');
 
-      // Configurar estado inicial
+      // Obtener el estado actual de caracteres procesados
+      const { data: currentState, error: stateError } = await supabaseClient
+        .from('text_conversions')
+        .select('processed_characters')
+        .eq('id', conversionId)
+        .single();
+
+      if (stateError) {
+        console.error('❌ Error fetching current state:', stateError);
+        throw stateError;
+      }
+
+      // Inicializar con los caracteres ya procesados
       const totalCharacters = text.length;
-      let processedCharacters = 0;
+      let processedCharacters = currentState?.processed_characters || 0;
       
+      console.log('📊 Starting conversion with:', {
+        totalCharacters,
+        currentProcessedCharacters: processedCharacters
+      });
+
       // Dividir el texto en chunks más pequeños (máximo 4000 caracteres)
       const chunks = text.match(/[^.!?]+[.!?]+|\s+|[^\s]+/g) || [text];
       const MAX_CHUNK_SIZE = 4000;
@@ -98,32 +115,35 @@ serve(async (req) => {
         const batchResults = await Promise.all(
           batchChunks.map(async (chunk) => {
             const audioContent = await processTextInChunks(chunk, voiceId, accessToken);
-            processedCharacters += chunk.length;
+            
+            // Incrementar caracteres procesados
+            const newProcessedCharacters = processedCharacters + chunk.length;
             
             // Calcular progreso basado en caracteres procesados
             const progress = Math.min(
-              Math.round((processedCharacters / totalCharacters) * 90) + 5,
+              Math.round((newProcessedCharacters / totalCharacters) * 90) + 5,
               95
             );
 
-            console.log(`📊 Progress update: ${progress}% (${processedCharacters}/${totalCharacters} characters)`);
+            console.log(`📊 Progress update: ${progress}% (${newProcessedCharacters}/${totalCharacters} characters)`);
 
-            // Actualizar progreso en Supabase
+            // Actualizar progreso en Supabase usando un incremento
             const { error: updateError } = await supabaseClient
-              .from('text_conversions')
-              .update({
-                progress,
-                processed_characters: processedCharacters,
-                total_characters: totalCharacters,
-                status: 'processing',
-                processed_chunks: i + batchChunks.length,
-                total_chunks: processableChunks.length
-              })
-              .eq('id', conversionId);
+              .rpc('increment_processed_characters', {
+                p_conversion_id: conversionId,
+                p_increment: chunk.length,
+                p_progress: progress,
+                p_total_characters: totalCharacters,
+                p_processed_chunks: i + batchChunks.length,
+                p_total_chunks: processableChunks.length
+              });
 
             if (updateError) {
               console.error('❌ Error updating progress:', updateError);
             }
+
+            // Actualizar el contador local
+            processedCharacters = newProcessedCharacters;
 
             // Convert base64 to Uint8Array
             const binaryString = atob(audioContent);
