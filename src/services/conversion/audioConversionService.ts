@@ -6,12 +6,14 @@ import { ChapterWithTimestamp } from "./types";
 import { uploadToStorage } from "./storage/cacheStorage";
 import { processConversionChunks } from "./chunkProcessingService";
 import { createChunksForConversion } from "./chunkManager";
+import { TextChunkCallback } from "./types/chunks";
 
 export async function convertToAudio(
   text: string,
   voiceId: string,
   chapters?: ChapterWithTimestamp[],
   fileName?: string,
+  onProgress?: TextChunkCallback
 ): Promise<{ audio: ArrayBuffer, id: string }> {
   console.log('Starting conversion process with:', {
     textLength: text?.length,
@@ -59,7 +61,8 @@ export async function convertToAudio(
           text,
           voiceId,
           fileName,
-          conversionId
+          conversionId,
+          onProgress // Pasar el callback al edge function
         },
       });
 
@@ -108,6 +111,11 @@ export async function convertToAudio(
       }
 
       console.log('Conversion completed successfully');
+      
+      // Si hay un callback de progreso, notificar que hemos terminado
+      if (onProgress) {
+        onProgress(text, text.length, text.length);
+      }
       
       return { 
         audio: audioBuffer,
