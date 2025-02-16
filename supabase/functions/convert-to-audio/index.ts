@@ -23,8 +23,8 @@ serve(async (req) => {
     
     let body: ConversionRequest;
     try {
-      const rawBody = await req.text();
-      body = JSON.parse(rawBody);
+      const rawBody = await req.json();
+      body = rawBody;
       console.log('📝 Request parsed:', {
         textLength: body.text?.length,
         voiceId: body.voiceId,
@@ -147,26 +147,7 @@ serve(async (req) => {
         throw new Error('Failed to combine audio chunks');
       }
 
-      // Marcar como completado
-      const { error: finalUpdateError } = await supabaseClient
-        .from('text_conversions')
-        .update({
-          status: 'completed',
-          progress: 100,
-          processed_characters: totalCharacters,
-          total_characters: totalCharacters,
-          processed_chunks: processableChunks.length,
-          total_chunks: processableChunks.length
-        })
-        .eq('id', conversionId);
-
-      if (finalUpdateError) {
-        console.error('❌ Error updating final status:', finalUpdateError);
-      }
-
-      console.log('✅ Successfully generated and stored audio content');
-      
-      // Convert ArrayBuffer to base64 for response
+      // Convertir ArrayBuffer a base64 para response
       const uint8Array = new Uint8Array(combinedAudioContent);
       const base64Audio = btoa(String.fromCharCode(...uint8Array));
       
@@ -228,3 +209,4 @@ serve(async (req) => {
     );
   }
 });
+
