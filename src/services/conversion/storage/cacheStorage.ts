@@ -50,3 +50,6 @@ export async function uploadToStorage(
     return { error: error as Error };
   }
 }
+
+// Exportar fetchFromCache como alias de downloadFromStorage para mantener compatibilidad
+export const fetchFromCache = downloadFromStorage;
