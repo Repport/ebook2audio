@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
 import { corsHeaders, responseHeaders } from './config/constants.ts';
@@ -106,17 +105,35 @@ async function updateProgress(
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: corsHeaders
+    return new Response('ok', {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
+      }
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({
+      error: 'Method not allowed'
+    }), {
+      status: 405,
+      headers: responseHeaders
     });
   }
 
   try {
     console.log('🚀 Starting text-to-speech conversion request');
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
     
     let body: ConversionRequest;
     try {
-      body = await req.json();
+      const text = await req.text();
+      console.log('Raw request body:', text);
+      body = JSON.parse(text);
       console.log('📝 Request received:', {
         textLength: body.text?.length,
         voiceId: body.voiceId,
