@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FileUploadZone from '@/components/FileUploadZone';
 import Header from '@/components/Header';
 import FileProcessor from '@/components/FileProcessor';
@@ -36,6 +36,64 @@ const Index = () => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
+
+  // Restaurar el estado al cargar la página
+  useEffect(() => {
+    const savedStep = sessionStorage.getItem('currentStep');
+    const savedText = sessionStorage.getItem('extractedText');
+    const savedChapters = sessionStorage.getItem('chapters');
+    const savedLanguage = sessionStorage.getItem('detectedLanguage');
+    const savedFileName = sessionStorage.getItem('fileName');
+    const savedFileType = sessionStorage.getItem('fileType');
+    const savedFileLastModified = sessionStorage.getItem('fileLastModified');
+    const savedFileSize = sessionStorage.getItem('fileSize');
+
+    if (savedStep && savedText && savedFileName) {
+      setCurrentStep(parseInt(savedStep));
+      setExtractedText(savedText);
+      if (savedChapters) {
+        setChapters(JSON.parse(savedChapters));
+      }
+      setDetectedLanguage(savedLanguage || 'english');
+
+      // Reconstruir el objeto File
+      if (savedFileType && savedFileLastModified && savedFileSize) {
+        const file = new File(
+          [new Blob([])], // Contenido vacío ya que tenemos el texto extraído
+          savedFileName,
+          {
+            type: savedFileType,
+            lastModified: parseInt(savedFileLastModified),
+          }
+        );
+        setSelectedFile(file);
+      }
+    }
+  }, []);
+
+  // Guardar el estado cuando cambie
+  useEffect(() => {
+    if (currentStep > 1 && selectedFile) {
+      sessionStorage.setItem('currentStep', currentStep.toString());
+      sessionStorage.setItem('extractedText', extractedText);
+      sessionStorage.setItem('chapters', JSON.stringify(chapters));
+      sessionStorage.setItem('detectedLanguage', detectedLanguage);
+      sessionStorage.setItem('fileName', selectedFile.name);
+      sessionStorage.setItem('fileType', selectedFile.type);
+      sessionStorage.setItem('fileLastModified', selectedFile.lastModified.toString());
+      sessionStorage.setItem('fileSize', selectedFile.size.toString());
+    } else {
+      // Limpiar storage si volvemos al paso 1
+      sessionStorage.removeItem('currentStep');
+      sessionStorage.removeItem('extractedText');
+      sessionStorage.removeItem('chapters');
+      sessionStorage.removeItem('detectedLanguage');
+      sessionStorage.removeItem('fileName');
+      sessionStorage.removeItem('fileType');
+      sessionStorage.removeItem('fileLastModified');
+      sessionStorage.removeItem('fileSize');
+    }
+  }, [currentStep, selectedFile, extractedText, chapters, detectedLanguage]);
 
   const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
     if (!fileInfo) {
