@@ -8,30 +8,14 @@ export const calculateTimeRemaining = (
   totalChunks: number,
   elapsedTime: number
 ): string | null => {
-  if (progress >= 100 || processedChunks === 0) {
-    return null;
-  }
+  if (progress >= 100) return null;
+  if (processedChunks === 0) return 'Estimating...';
 
-  if (processedChunks > 0 && totalChunks > 0) {
-    const remainingChunks = totalChunks - processedChunks;
-    const avgTimePerChunk = elapsedTime / processedChunks;
-    const estimatedRemainingSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
-    const safeEstimatedTime = Math.max(estimatedRemainingSeconds, 5);
+  const remainingChunks = Math.max(totalChunks - processedChunks, 1);
+  const avgTimePerChunk = elapsedTime / Math.max(processedChunks, 1);
+  const estimatedRemainingSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
 
-    console.log('⏱️ Time estimation updated:', {
-      remainingChunks,
-      avgTimePerChunk: `${avgTimePerChunk.toFixed(1)}s`,
-      estimatedRemainingSeconds,
-      elapsedTime,
-      processedChunks,
-      totalChunks,
-      progress: `${progress.toFixed(1)}%`
-    });
-
-    return formatTimeRemaining(safeEstimatedTime);
-  }
-
-  return 'Calculating...';
+  return formatTimeRemaining(estimatedRemainingSeconds);
 };
 
 export const useTimeEstimation = (
@@ -40,12 +24,24 @@ export const useTimeEstimation = (
   processedChunks: number,
   elapsedTime: number,
   totalChunks: number
-): string | null => {
-  const [timeRemaining, setTimeRemaining] = useState<string | null>('Calculating...');
+): number | null => {
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
   useEffect(() => {
-    const estimated = calculateTimeRemaining(progress, processedChunks, totalChunks, elapsedTime);
-    setTimeRemaining(estimated);
+    if (progress >= 100) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    if (processedChunks === 0) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    const remainingChunks = Math.max(totalChunks - processedChunks, 1);
+    const avgTimePerChunk = elapsedTime / Math.max(processedChunks, 1);
+    const estimatedSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
+    setTimeRemaining(estimatedSeconds);
   }, [progress, status, processedChunks, elapsedTime, totalChunks]);
 
   return timeRemaining;

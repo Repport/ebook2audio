@@ -6,15 +6,10 @@ export const formatTimestamp = (minutes: number) => {
 };
 
 export const formatTimeRemaining = (seconds: number) => {
-  if (seconds < 60) {
-    return `${Math.ceil(seconds)} seconds`;
-  }
+  if (seconds < 60) return `${Math.ceil(seconds)}s`;
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.ceil(seconds % 60);
-  if (minutes < 60) {
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  }
+  if (minutes < 60) return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}m`;
   const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}:${remainingMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  return `${hours}h ${minutes % 60}m`;
 };

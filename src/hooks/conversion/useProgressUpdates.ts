@@ -16,45 +16,19 @@ export const useProgressUpdates = (
 ) => {
   return useCallback((data: ProgressUpdateData) => {
     const currentTime = Date.now();
-    const timeSinceLastUpdate = (currentTime - lastUpdateRef.current) / 1000;
-    
-    console.log('⚡ Progress update received:', {
-      ...data,
-      timeSinceLastUpdate: `${timeSinceLastUpdate.toFixed(1)}s`,
-      calculatedTotalChunks
-    });
-    
-    const { progress: newProgress, processed_chunks, total_chunks } = data;
+    if (currentTime - lastUpdateRef.current < 1000) return; // Evitar updates demasiado frecuentes
     lastUpdateRef.current = currentTime;
 
-    // Actualizar total_chunks solo si es necesario y manteniendo el valor más alto
-    if (typeof total_chunks === 'number' && !isNaN(total_chunks) && total_chunks > 0) {
-      const currentTotalChunks = total_chunks;
-      setTotalChunks(Math.max(currentTotalChunks, calculatedTotalChunks));
-    } else if (calculatedTotalChunks > 0) {
-      setTotalChunks(calculatedTotalChunks);
+    if (typeof data.total_chunks === 'number' && data.total_chunks > 0) {
+      setTotalChunks(data.total_chunks);
     }
 
-    // Actualizar processed_chunks solo si es válido y mayor que el valor actual
-    if (typeof processed_chunks === 'number' && !isNaN(processed_chunks) && processed_chunks > 0) {
-      setProcessedChunks(prev => {
-        const newValue = Math.max(prev, processed_chunks);
-        if (newValue !== prev) {
-          console.log(`📈 Processed chunks updated: ${prev} -> ${newValue}`);
-        }
-        return newValue;
-      });
+    if (typeof data.processed_chunks === 'number') {
+      setProcessedChunks((prev) => Math.max(prev, data.processed_chunks));
     }
 
-    // Actualizar progress solo si es válido y mayor que el valor actual
-    if (typeof newProgress === 'number' && !isNaN(newProgress) && newProgress >= 0) {
-      setProgress(prev => {
-        const newValue = Math.max(prev, newProgress);
-        if (newValue !== prev) {
-          console.log(`🎯 Progress updated: ${prev.toFixed(1)}% -> ${newValue.toFixed(1)}%`);
-        }
-        return newValue;
-      });
+    if (typeof data.progress === 'number') {
+      setProgress((prev) => Math.max(prev, data.progress));
     }
-  }, [setProgress, setProcessedChunks, setTotalChunks, lastUpdateRef, calculatedTotalChunks]);
+  }, [setProgress, setProcessedChunks, setTotalChunks, lastUpdateRef]);
 };
