@@ -409,6 +409,7 @@ export type Database = {
           text_hash: string
           total_characters: number | null
           total_chunks: number | null
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
@@ -428,6 +429,7 @@ export type Database = {
           text_hash: string
           total_characters?: number | null
           total_chunks?: number | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
@@ -447,6 +449,7 @@ export type Database = {
           text_hash?: string
           total_characters?: number | null
           total_chunks?: number | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: []
