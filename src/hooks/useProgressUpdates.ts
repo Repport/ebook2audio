@@ -1,5 +1,6 @@
 
 import { useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProgressUpdateData {
   progress: number;
@@ -14,7 +15,7 @@ export const useProgressUpdates = (
   lastUpdateRef: React.MutableRefObject<number>,
   calculatedTotalChunks: number
 ) => {
-  return useCallback((data: ProgressUpdateData) => {
+  return useCallback(async (data: ProgressUpdateData) => {
     const currentTime = Date.now();
     const timeSinceLastUpdate = (currentTime - lastUpdateRef.current) / 1000;
     
@@ -31,6 +32,22 @@ export const useProgressUpdates = (
     if (processed_characters && total_characters) {
       const calculatedProgress = Math.min((processed_characters / total_characters) * 100, 99);
       console.log(`📊 Progress from characters: ${processed_characters}/${total_characters} (${calculatedProgress.toFixed(1)}%)`);
+      
+      // Actualizar la base de datos con el progreso
+      const { error: updateError } = await supabase
+        .from('text_conversions')
+        .update({
+          progress: calculatedProgress,
+          processed_characters: processed_characters,
+          total_characters: total_characters,
+          updated_at: new Date().toISOString()
+        })
+        .eq('status', 'processing');
+
+      if (updateError) {
+        console.error('Error updating conversion progress:', updateError);
+      }
+
       setProgress(calculatedProgress);
     } else if (typeof newProgress === 'number' && newProgress >= 0) {
       setProgress((prev) => {
@@ -48,6 +65,20 @@ export const useProgressUpdates = (
       if (processed_characters) {
         const processedChunks = Math.ceil(processed_characters / 4800);
         console.log(`🔄 Chunks progress: ${processedChunks}/${estimatedChunks}`);
+        
+        // Actualizar chunks procesados en la base de datos
+        const { error: chunksUpdateError } = await supabase
+          .from('text_conversions')
+          .update({
+            processed_chunks: processedChunks,
+            total_chunks: estimatedChunks
+          })
+          .eq('status', 'processing');
+
+        if (chunksUpdateError) {
+          console.error('Error updating chunks progress:', chunksUpdateError);
+        }
+
         setProcessedChunks(processedChunks);
       }
     }
