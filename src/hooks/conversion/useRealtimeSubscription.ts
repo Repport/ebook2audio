@@ -47,8 +47,20 @@ export const useRealtimeSubscription = (
             filter: `id=eq.${conversionId}`,
           },
           (payload: any) => {
-            console.log('⚡ Realtime update received:', payload);
+            console.log('⚡ Realtime update received:', {
+              old: payload.old,
+              new: payload.new,
+              diff: {
+                progress: payload.new.progress - (payload.old?.progress || 0),
+                processed_chunks: payload.new.processed_chunks - (payload.old?.processed_chunks || 0)
+              }
+            });
             if (payload.new) {
+              console.log('✅ Applying progress update:', {
+                progress: payload.new.progress,
+                processed: payload.new.processed_chunks,
+                total: payload.new.total_chunks || calculatedTotalChunks
+              });
               handleProgressUpdate(payload.new);
             }
           }

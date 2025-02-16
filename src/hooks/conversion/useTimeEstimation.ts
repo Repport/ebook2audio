@@ -9,7 +9,16 @@ export const calculateTimeRemaining = (
   elapsedTime: number
 ): string | null => {
   if (progress >= 100) return null;
-  if (processedChunks === 0) return 'Estimating...';
+  
+  // Si no hay chunks procesados, usar el progreso general
+  if (processedChunks === 0) {
+    if (progress > 0) {
+      // Estimar basado en el progreso actual
+      const estimatedTotalTime = (elapsedTime * 100) / Math.max(progress, 1);
+      return formatTimeRemaining(Math.ceil(estimatedTotalTime - elapsedTime));
+    }
+    return 'Estimating...';
+  }
 
   const remainingChunks = Math.max(totalChunks - processedChunks, 1);
   const avgTimePerChunk = elapsedTime / Math.max(processedChunks, 1);
@@ -28,19 +37,34 @@ export const useTimeEstimation = (
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
   useEffect(() => {
-    if (progress >= 100) {
+    if (progress >= 100 || status === 'completed') {
       setTimeRemaining(null);
       return;
     }
 
     if (processedChunks === 0) {
-      setTimeRemaining(null);
+      // Usar una estimación inicial basada en el progreso
+      if (progress > 0) {
+        const estimatedTotalTime = (elapsedTime * 100) / Math.max(progress, 1);
+        setTimeRemaining(Math.ceil(estimatedTotalTime - elapsedTime));
+      } else {
+        setTimeRemaining(null);
+      }
       return;
     }
 
     const remainingChunks = Math.max(totalChunks - processedChunks, 1);
     const avgTimePerChunk = elapsedTime / Math.max(processedChunks, 1);
     const estimatedSeconds = Math.ceil(remainingChunks * avgTimePerChunk);
+    
+    console.log('⏱️ Time estimation update:', {
+      processedChunks,
+      totalChunks,
+      elapsedTime,
+      avgTimePerChunk,
+      estimatedSeconds
+    });
+    
     setTimeRemaining(estimatedSeconds);
   }, [progress, status, processedChunks, elapsedTime, totalChunks]);
 
