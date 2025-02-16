@@ -7,8 +7,6 @@ export const corsHeaders = {
 };
 
 export const responseHeaders = {
+  'Content-Type': 'application/json',
   ...corsHeaders,
-  'Cache-Control': 'no-store, no-cache, must-revalidate',
-  'Pragma': 'no-cache',
-  'Content-Type': 'application/json'
 };

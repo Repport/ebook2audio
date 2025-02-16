@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
 import { corsHeaders, responseHeaders } from './config/constants.ts';
@@ -77,8 +76,15 @@ async function updateProgress(
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Max-Age': '86400',
+      }
+    });
   }
 
   try {
@@ -216,7 +222,14 @@ serve(async (req) => {
             storagePath
           }
         }),
-        { headers: responseHeaders }
+        { 
+          headers: {
+            ...responseHeaders,
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+          }
+        }
       );
 
     } catch (error) {
@@ -242,7 +255,12 @@ serve(async (req) => {
       }),
       { 
         status: error.status || 500,
-        headers: responseHeaders
+        headers: {
+          ...responseHeaders,
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        }
       }
     );
   }
