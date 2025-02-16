@@ -120,19 +120,19 @@ export const useConversionLogic = (
     setConversionStatus('converting');
 
     try {
-      // Crear primero el registro de conversión
+      // Create conversion record with correct properties
       const { data: conversionRecord, error: conversionError } = await supabase
         .from('text_conversions')
         .insert({
           file_name: selectedFile.name,
           status: 'processing',
-          text_length: extractedText.length,
-          voice_id: options.selectedVoice,
+          file_size: extractedText.length,
           progress: 0,
           user_id: user?.id,
           processed_characters: 0,
           total_characters: extractedText.length,
-          total_chunks: Math.ceil(extractedText.length / 4800)
+          total_chunks: Math.ceil(extractedText.length / 4800),
+          text_hash: await generateHash(extractedText, options.selectedVoice)
         })
         .select()
         .single();
@@ -143,13 +143,13 @@ export const useConversionLogic = (
 
       console.log('Created conversion with ID:', conversionRecord.id);
 
+      // Pass only the required 5 arguments to handleConversion
       const result = await handleConversion(
         extractedText,
         options.selectedVoice,
         detectChapters,
         chapters,
-        selectedFile.name,
-        conversionRecord.id
+        selectedFile.name
       );
       
       if (options.notifyOnComplete && user && result.id) {
@@ -246,3 +246,12 @@ export const useConversionLogic = (
     resetConversion
   };
 };
+
+// Utility function to generate hash
+async function generateHash(text: string, voiceId: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text + voiceId);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
