@@ -91,7 +91,7 @@ const ConversionStatus = ({
             {elapsedTime > 0 && (
               <span>
                 {translations.timeElapsed.replace('{time}', formatTime(elapsedTime))}
-                {timeRemaining !== null && (
+                {typeof timeRemaining === 'number' && (
                   <span> • {translations.timeRemaining.replace('{time}', formatTime(timeRemaining))}</span>
                 )}
               </span>
