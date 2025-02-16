@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
 import { corsHeaders, responseHeaders } from './config/constants.ts';
@@ -56,28 +57,47 @@ async function updateProgress(
   }>
 ) {
   try {
-    console.log('📊 Progress update:', {
-      conversionId,
-      updates,
-      timestamp: new Date().toISOString()
-    });
+    const currentState = conversionStates.get(conversionId);
+    const now = Date.now();
 
-    const { data, error } = await supabaseClient
-      .from('text_conversions')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', conversionId)
-      .select()
-      .single();
+    // Solo actualizar si han pasado al menos 2 segundos o es una actualización importante
+    const shouldUpdate = !currentState?.lastUpdate || 
+                        (now - currentState.lastUpdate) > 2000 ||
+                        updates.status === 'completed' ||
+                        updates.status === 'failed' ||
+                        updates.storage_path;
 
-    if (error) {
-      console.error('❌ Error updating progress:', error);
-      return;
+    if (shouldUpdate) {
+      console.log('📊 Progress update:', {
+        conversionId,
+        updates,
+        timestamp: new Date().toISOString()
+      });
+
+      const { data, error } = await supabaseClient
+        .from('text_conversions')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', conversionId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating progress:', error);
+        return;
+      }
+
+      // Actualizar el estado global
+      conversionStates.set(conversionId, {
+        processedCharacters: updates.processed_characters || 0,
+        totalCharacters: updates.total_characters || currentState?.totalCharacters || 0,
+        lastUpdate: now
+      });
+
+      console.log('✅ Progress updated successfully:', data);
     }
-
-    console.log('✅ Progress updated successfully:', data);
   } catch (error) {
     console.error('❌ Error in updateProgress:', error);
   }
@@ -130,6 +150,13 @@ serve(async (req) => {
 
     // Configurar estado inicial
     const totalCharacters = text.length;
+    
+    // Inicializar estado global
+    conversionStates.set(conversionId, {
+      processedCharacters: 0,
+      totalCharacters,
+      lastUpdate: Date.now()
+    });
     
     // Actualizar estado inicial con el total de caracteres
     await updateProgress(supabaseClient, conversionId, {
