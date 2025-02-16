@@ -15,28 +15,19 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({
-        error: 'Method not allowed',
-        timestamp: new Date().toISOString()
-      }),
-      { 
-        status: 405,
-        headers: responseHeaders
-      }
-    );
-  }
-
   try {
+    if (req.method !== 'POST') {
+      throw new Error('Method not allowed');
+    }
+
     console.log('🚀 Starting text-to-speech conversion request');
     
     let body: ConversionRequest;
     try {
-      const text = await req.text();
-      console.log('Raw request body:', text);
-      body = JSON.parse(text);
-      console.log('📝 Request received:', {
+      const rawBody = await req.text();
+      console.log('Raw request body:', rawBody);
+      body = JSON.parse(rawBody);
+      console.log('📝 Request parsed:', {
         textLength: body.text?.length,
         voiceId: body.voiceId,
         fileName: body.fileName,
@@ -44,7 +35,7 @@ serve(async (req) => {
       });
     } catch (e) {
       console.error('❌ Failed to parse request body:', e);
-      throw new Error('Invalid request body');
+      throw new Error(`Invalid request body: ${e.message}`);
     }
 
     const { text, voiceId, conversionId } = body;
@@ -86,7 +77,7 @@ serve(async (req) => {
         
         const batchResults = await Promise.all(
           batchChunks.map(async (chunk) => {
-            const audioContent = await synthesizeSpeech(chunk, voiceId, accessToken);
+            const audioContent = await processTextInChunks(chunk, voiceId, accessToken);
             processedCharacters += chunk.length;
             
             // Calcular progreso basado en caracteres procesados
@@ -95,8 +86,10 @@ serve(async (req) => {
               95
             );
 
+            console.log(`📊 Progress update: ${progress}% (${processedCharacters}/${totalCharacters} characters)`);
+
             // Actualizar progreso en Supabase
-            await supabaseClient
+            const { error: updateError } = await supabaseClient
               .from('text_conversions')
               .update({
                 progress,
@@ -105,6 +98,10 @@ serve(async (req) => {
                 status: 'processing'
               })
               .eq('id', conversionId);
+
+            if (updateError) {
+              console.error('❌ Error updating progress:', updateError);
+            }
 
             // Convert base64 to Uint8Array
             const binaryString = atob(audioContent);
@@ -132,7 +129,7 @@ serve(async (req) => {
       }
 
       // Marcar como completado
-      await supabaseClient
+      const { error: finalUpdateError } = await supabaseClient
         .from('text_conversions')
         .update({
           status: 'completed',
@@ -142,10 +139,15 @@ serve(async (req) => {
         })
         .eq('id', conversionId);
 
+      if (finalUpdateError) {
+        console.error('❌ Error updating final status:', finalUpdateError);
+      }
+
       console.log('✅ Successfully generated and stored audio content');
       
-      // Convert Uint8Array back to base64 for response
-      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(combinedAudioContent)));
+      // Convert ArrayBuffer to base64 for response
+      const uint8Array = new Uint8Array(combinedAudioContent);
+      const base64Audio = btoa(String.fromCharCode(...uint8Array));
       
       const response: ConversionResponse = {
         data: {
@@ -157,20 +159,29 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify(response),
-        { headers: responseHeaders }
+        { 
+          headers: {
+            ...responseHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
     } catch (error) {
       console.error('❌ Error processing text:', error);
       
       // Actualizar estado de error
-      await supabaseClient
+      const { error: updateError } = await supabaseClient
         .from('text_conversions')
         .update({
           status: 'failed',
           error_message: error.message
         })
         .eq('id', conversionId);
+
+      if (updateError) {
+        console.error('❌ Error updating error status:', updateError);
+      }
         
       throw error;
     }
@@ -187,8 +198,11 @@ serve(async (req) => {
     return new Response(
       JSON.stringify(errorResponse),
       { 
-        status: error.status || 500,
-        headers: responseHeaders
+        status: 500,
+        headers: {
+          ...responseHeaders,
+          'Content-Type': 'application/json'
+        }
       }
     );
   }
