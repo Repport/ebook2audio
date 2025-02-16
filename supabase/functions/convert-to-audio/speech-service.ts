@@ -1,8 +1,4 @@
 
-interface SynthesisResponse {
-  audioContent: string;
-}
-
 export async function synthesizeSpeech(
   text: string,
   voiceId: string,
@@ -11,7 +7,7 @@ export async function synthesizeSpeech(
   console.log(`Starting speech synthesis for text of length ${text.length} with voice ${voiceId}`);
   
   try {
-    // Extract language code from voiceId (e.g., "es-US-Standard-A" -> "es-US")
+    // Extract language code from voiceId (e.g., "en-US-Standard-C" -> "en-US")
     const langCode = voiceId.split('-').slice(0, 2).join('-');
     console.log(`Using language code: ${langCode}`);
 
@@ -61,7 +57,7 @@ export async function synthesizeSpeech(
       throw new Error(`Speech synthesis failed: ${response.status} ${response.statusText}\nDetails: ${errorText}`);
     }
 
-    const result: SynthesisResponse = await response.json();
+    const result = await response.json();
     
     if (!result.audioContent) {
       console.error('No audio content in response:', JSON.stringify(result, null, 2));
