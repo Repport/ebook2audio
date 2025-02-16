@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
@@ -59,7 +58,7 @@ export const useConversionLogic = (
     }
   }, [conversionStatus, onStepComplete]);
 
-  const initiateConversion = useCallback(async () => {
+  const handleConversionStart = async () => {
     if (!selectedFile || !extractedText) {
       toast({
         title: "Error",
@@ -71,14 +70,13 @@ export const useConversionLogic = (
 
     // Verificar términos y condiciones
     const termsAccepted = await checkRecentTermsAcceptance();
-    
     if (!termsAccepted) {
       setShowTerms(true);
       return false;
     }
     
     return true;
-  }, [selectedFile, extractedText, toast, checkRecentTermsAcceptance, setShowTerms]);
+  };
 
   const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText || !options.selectedVoice) {
@@ -101,13 +99,6 @@ export const useConversionLogic = (
         description: "A conversion is already in progress.",
         variant: "default",
       });
-      return;
-    }
-
-    // Verificar nuevamente los términos antes de proceder
-    const termsAccepted = await checkRecentTermsAcceptance();
-    if (!termsAccepted) {
-      setShowTerms(true);
       return;
     }
 
@@ -192,7 +183,7 @@ export const useConversionLogic = (
     progress,
     audioData,
     audioDuration,
-    initiateConversion,
+    initiateConversion: handleConversionStart,
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,

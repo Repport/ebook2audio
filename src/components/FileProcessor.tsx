@@ -85,9 +85,16 @@ const FileProcessor = ({
         description: "Please select a voice before starting conversion",
         variant: "destructive",
       });
-      return;
+      return false;
     }
-    setShowTerms(true);
+    const canProceed = await initiateConversion();
+    if (canProceed) {
+      await handleAcceptTerms({ 
+        selectedVoice,
+        notifyOnComplete 
+      });
+    }
+    return canProceed;
   };
 
   const handleAcceptTermsAndConvert = async () => {
@@ -106,9 +113,6 @@ const FileProcessor = ({
     });
     setShowTerms(false);
   };
-
-  console.log('FileProcessor - Using detected language:', detectedLanguage);
-  console.log('FileProcessor - Chapters:', chapters);
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8 animate-fade-up">
