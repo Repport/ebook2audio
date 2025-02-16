@@ -8,6 +8,7 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
+import { generateHash } from '@/services/conversion/utils';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -37,7 +38,8 @@ export const useConversionLogic = (
     resetConversion,
     conversionId,
     setProgress,
-    setConversionStatus
+    setConversionStatus,
+    setConversionId
   } = useAudioConversion();
 
   useEffect(() => {
@@ -120,7 +122,10 @@ export const useConversionLogic = (
     setConversionStatus('converting');
 
     try {
-      // Create conversion record with correct properties
+      const textHash = await generateHash(extractedText, options.selectedVoice);
+      console.log('Generated text hash:', textHash);
+
+      // Create initial conversion record
       const { data: conversionRecord, error: conversionError } = await supabase
         .from('text_conversions')
         .insert({
@@ -132,7 +137,8 @@ export const useConversionLogic = (
           processed_characters: 0,
           total_characters: extractedText.length,
           total_chunks: Math.ceil(extractedText.length / 4800),
-          text_hash: await generateHash(extractedText, options.selectedVoice)
+          text_hash: textHash,
+          notify_on_complete: options.notifyOnComplete || false
         })
         .select()
         .single();
@@ -141,15 +147,16 @@ export const useConversionLogic = (
         throw new Error(conversionError?.message || 'Failed to create conversion record');
       }
 
-      console.log('Created conversion with ID:', conversionRecord.id);
+      console.log('Created conversion record:', conversionRecord.id);
+      setConversionId(conversionRecord.id);
 
-      // Pass only the required 5 arguments to handleConversion
       const result = await handleConversion(
         extractedText,
         options.selectedVoice,
         detectChapters,
         chapters,
-        selectedFile.name
+        selectedFile.name,
+        conversionRecord.id
       );
       
       if (options.notifyOnComplete && user && result.id) {
@@ -246,12 +253,3 @@ export const useConversionLogic = (
     resetConversion
   };
 };
-
-// Utility function to generate hash
-async function generateHash(text: string, voiceId: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text + voiceId);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
