@@ -16,14 +16,31 @@ export const saveConversionState = async (state: StoredConversionState) => {
   try {
     // Si hay un ID de conversión, actualizar en Supabase
     if (state.conversionId) {
-      const { data: existingConversion } = await supabase
+      const { data: existingConversion, error } = await supabase
         .from('text_conversions')
-        .select('text_hash')
+        .select('text_hash, status')
         .eq('id', state.conversionId)
         .single();
 
-      if (existingConversion?.text_hash) {
-        await supabase
+      if (error) {
+        console.error('Error al verificar la conversión:', error);
+        return;
+      }
+
+      // Solo actualizamos si:
+      // 1. La conversión existe
+      // 2. No estamos intentando cambiar una conversión completada a otro estado
+      if (existingConversion?.text_hash && 
+          !(existingConversion.status === 'completed' && state.status !== 'completed')) {
+        
+        console.log('Actualizando estado de conversión:', {
+          id: state.conversionId,
+          status: state.status,
+          progress: state.progress,
+          fileName: state.fileName
+        });
+
+        const { error: updateError } = await supabase
           .from('text_conversions')
           .update({
             status: state.status,
@@ -31,8 +48,15 @@ export const saveConversionState = async (state: StoredConversionState) => {
             file_name: state.fileName,
           })
           .eq('id', state.conversionId);
+
+        if (updateError) {
+          console.error('Error al actualizar la conversión:', updateError);
+        }
       } else {
-        console.warn('No se pudo actualizar la conversión: text_hash no encontrado');
+        console.warn('No se actualizó la conversión:', {
+          reason: existingConversion ? 'conversión ya completada' : 'text_hash no encontrado',
+          conversionId: state.conversionId
+        });
       }
     }
 
