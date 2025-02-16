@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
@@ -6,14 +5,6 @@ import type { ConversionRequest, ConversionResponse, ErrorResponse } from './typ
 
 console.log('Loading convert-to-audio function...');
 
-// Estado global para tracking de progreso
-const conversionStates = new Map<string, {
-  processedCharacters: number;
-  totalCharacters: number;
-  lastUpdate: number;
-}>();
-
-// Headers CORS completos
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
@@ -22,7 +13,6 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-// Función para dividir texto respetando palabras completas
 function splitTextIntoChunks(text: string, maxChunkSize: number = 4800): string[] {
   const chunks: string[] = [];
   const words = text.split(/\s+/);
@@ -51,41 +41,7 @@ function splitTextIntoChunks(text: string, maxChunkSize: number = 4800): string[
   return chunks;
 }
 
-// Función para actualizar el estado y decidir si escribir en Supabase
-async function updateProgress(
-  supabaseClient: any,
-  conversionId: string,
-  updates: Partial<{
-    progress: number;
-    processed_characters: number;
-    status: string;
-    error_message?: string;
-    storage_path?: string;
-  }>
-) {
-  const currentState = conversionStates.get(conversionId);
-  if (!currentState) return;
-
-  const now = Date.now();
-  const shouldUpdate = 
-    !currentState.lastUpdate || // Primera actualización
-    (now - currentState.lastUpdate) > 2000 || // Han pasado 2 segundos
-    updates.status || // Cambio de estado
-    updates.error_message || // Error
-    updates.storage_path; // Nueva ruta de almacenamiento
-
-  if (shouldUpdate) {
-    console.log('📝 Updating Supabase:', { conversionId, updates });
-    await safeSupabaseUpdate(supabaseClient, conversionId, updates);
-    conversionStates.set(conversionId, {
-      ...currentState,
-      lastUpdate: now
-    });
-  }
-}
-
 serve(async (req) => {
-  // Manejar preflight CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -130,29 +86,42 @@ serve(async (req) => {
     const accessToken = await getGoogleAccessToken();
     console.log('🔑 Successfully obtained access token');
 
-    // Configurar estado inicial
-    const totalCharacters = text.length;
-    conversionStates.set(conversionId, {
-      processedCharacters: 0,
-      totalCharacters,
-      lastUpdate: 0
-    });
+    // Dividir el texto y crear chunks en la base de datos
+    const chunks = splitTextIntoChunks(text);
+    console.log(`📝 Text split into ${chunks.length} chunks`);
 
-    // Actualizar estado inicial
-    await updateProgress(supabaseClient, conversionId, {
-      progress: 5,
-      processed_characters: 0,
-      status: 'processing'
-    });
+    // Crear registros de chunks
+    const chunkRecords = chunks.map((content, index) => ({
+      conversion_id: conversionId,
+      content,
+      character_count: content.length,
+      chunk_index: index,
+      status: 'pending'
+    }));
+
+    const { error: insertError } = await supabaseClient
+      .from('conversion_chunks')
+      .insert(chunkRecords);
+
+    if (insertError) {
+      console.error('❌ Error creating chunk records:', insertError);
+      throw new Error('Failed to initialize conversion chunks');
+    }
+
+    // Actualizar estado inicial de la conversión
+    await supabaseClient
+      .from('text_conversions')
+      .update({
+        status: 'processing',
+        progress: 5,
+        total_chunks: chunks.length,
+        total_characters: text.length
+      })
+      .eq('id', conversionId);
 
     try {
-      // Dividir el texto en chunks respetando palabras completas
-      const chunks = splitTextIntoChunks(text);
-      console.log(`📝 Text split into ${chunks.length} chunks`);
-      
-      // Procesar chunks en batches para controlar concurrencia
+      // Procesar chunks en batches
       const BATCH_SIZE = 3;
-      let processedCharacters = 0;
       const audioContents = [];
       
       for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
@@ -160,19 +129,19 @@ serve(async (req) => {
         console.log(`🔄 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(chunks.length / BATCH_SIZE)}`);
         
         const batchResults = await Promise.all(
-          batchChunks.map(async (chunk) => {
+          batchChunks.map(async (chunk, batchIndex) => {
+            const chunkIndex = i + batchIndex;
             const result = await processTextInChunks(chunk, voiceId, accessToken);
-            processedCharacters += chunk.length;
             
-            const progress = Math.min(
-              Math.round((processedCharacters / totalCharacters) * 90) + 5,
-              95
-            );
-
-            await updateProgress(supabaseClient, conversionId, {
-              progress,
-              processed_characters: processedCharacters
-            });
+            // Actualizar estado del chunk
+            await supabaseClient
+              .from('conversion_chunks')
+              .update({
+                status: 'completed',
+                processed_at: new Date().toISOString()
+              })
+              .eq('conversion_id', conversionId)
+              .eq('chunk_index', chunkIndex);
 
             return result;
           })
@@ -209,13 +178,15 @@ serve(async (req) => {
         throw new Error('Failed to store audio file');
       }
       
-      // Marcar como completado y guardar ruta de storage
-      await updateProgress(supabaseClient, conversionId, {
-        progress: 100,
-        processed_characters: totalCharacters,
-        status: 'completed',
-        storage_path: storagePath
-      });
+      // Marcar como completado
+      await supabaseClient
+        .from('text_conversions')
+        .update({
+          status: 'completed',
+          progress: 100,
+          storage_path: storagePath
+        })
+        .eq('id', conversionId);
 
       console.log('✅ Successfully generated and stored audio content');
       
@@ -235,10 +206,13 @@ serve(async (req) => {
       console.error('❌ Error processing text:', error);
       
       // Actualizar estado de error
-      await updateProgress(supabaseClient, conversionId, {
-        status: 'failed',
-        error_message: error.message
-      });
+      await supabaseClient
+        .from('text_conversions')
+        .update({
+          status: 'failed',
+          error_message: error.message
+        })
+        .eq('id', conversionId);
         
       throw error;
     }

@@ -47,36 +47,42 @@ export type Database = {
       conversion_chunks: {
         Row: {
           audio_path: string | null
+          character_count: number | null
           chunk_index: number
           content: string
           conversion_id: string
           created_at: string
           error_message: string | null
           id: string
+          processed_at: string | null
           retries: number | null
           status: string
           updated_at: string
         }
         Insert: {
           audio_path?: string | null
+          character_count?: number | null
           chunk_index: number
           content: string
           conversion_id: string
           created_at?: string
           error_message?: string | null
           id?: string
+          processed_at?: string | null
           retries?: number | null
           status?: string
           updated_at?: string
         }
         Update: {
           audio_path?: string | null
+          character_count?: number | null
           chunk_index?: number
           content?: string
           conversion_id?: string
           created_at?: string
           error_message?: string | null
           id?: string
+          processed_at?: string | null
           retries?: number | null
           status?: string
           updated_at?: string
@@ -492,6 +498,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_chunk_progress: {
+        Args: {
+          p_conversion_id: string
+        }
+        Returns: {
+          processed_characters: number
+          total_characters: number
+          progress: number
+        }[]
+      }
       check_conversion_rate_limit:
         | {
             Args: {
