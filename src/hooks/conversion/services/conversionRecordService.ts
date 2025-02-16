@@ -25,6 +25,16 @@ export async function createConversionRecord(fileName: string, textHash: string,
 }
 
 export async function updateConversionRecord(id: string, duration: number, totalCharacters: number) {
+  // Round the duration to the nearest integer since the database expects an integer
+  const roundedDuration = Math.round(duration);
+  
+  console.log('Updating conversion record:', {
+    id,
+    roundedDuration,
+    totalCharacters,
+    originalDuration: duration
+  });
+
   await safeSupabaseUpdate(
     supabase,
     'text_conversions',
@@ -32,7 +42,7 @@ export async function updateConversionRecord(id: string, duration: number, total
     {
       status: 'completed',
       progress: 100,
-      duration,
+      duration: roundedDuration,
       processed_characters: totalCharacters,
       total_characters: totalCharacters
     }
