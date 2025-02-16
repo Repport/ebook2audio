@@ -36,10 +36,12 @@ export const useConversionLogic = (
     resetConversion,
     conversionId,
     setProgress,
-    setConversionStatus
+    setConversionStatus,
+    setAudioData,
+    setAudioDuration,
+    setCurrentFileName
   } = useAudioConversion();
 
-  // Optimizado para evitar reejecution innecesaria
   useEffect(() => {
     const shouldReset = selectedFile && 
       (conversionStatus !== 'idle' || audioData !== null);
@@ -48,7 +50,7 @@ export const useConversionLogic = (
       resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile]); // Removido resetConversion de las dependencias
+  }, [selectedFile]);
 
   useEffect(() => {
     if (conversionStatus === 'completed' && onStepComplete) {
@@ -66,7 +68,6 @@ export const useConversionLogic = (
       return false;
     }
     
-    // Verificar si hay una aceptación reciente de términos
     const checkRecentTermsAcceptance = async () => {
       const { data, error } = await supabase
         .from('terms_acceptance_logs')
@@ -80,12 +81,10 @@ export const useConversionLogic = (
         return;
       }
 
-      // Si no hay registros o el último registro es de hace más de 24 horas
       if (!data || data.length === 0 || 
           new Date(data[0].accepted_at).getTime() < Date.now() - 24 * 60 * 60 * 1000) {
         setShowTerms(true);
       } else {
-        // Términos aceptados recientemente, proceder con la conversión
         resetConversion();
         clearConversionStorage();
       }
@@ -120,8 +119,8 @@ export const useConversionLogic = (
     }
 
     setDetectingChapters(true);
-    setConversionStatus('converting'); // Evitar conversiones duplicadas
-    
+    setConversionStatus('converting');
+
     try {
       const result = await handleConversion(
         extractedText,
@@ -131,7 +130,6 @@ export const useConversionLogic = (
         selectedFile.name
       );
       
-      // Create notification if notification is enabled and user is authenticated
       if (options.notifyOnComplete && user && result.id) {
         const notificationResult = await retryOperation(async () => {
           return supabase.from('conversion_notifications').insert({
@@ -200,8 +198,8 @@ export const useConversionLogic = (
 
     const wordsCount = extractedText.split(/\s+/).length;
     const averageWordsPerMinute = 150;
-    const baseProcessingTime = 5; // Tiempo mínimo en segundos
-    
+    const baseProcessingTime = 5;
+
     return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime);
   }, [extractedText]);
 
@@ -222,6 +220,7 @@ export const useConversionLogic = (
     calculateEstimatedSeconds: () => estimatedSeconds,
     conversionId,
     setProgress,
-    setConversionStatus
+    setConversionStatus,
+    resetConversion
   };
 };
