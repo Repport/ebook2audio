@@ -57,10 +57,13 @@ const ConversionStatus = ({
     processing: translations.converting.replace('{fileType}', fileType)
   };
 
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds: number | null) => {
+    if (!seconds || seconds <= 0) return "Calculating...";
+    
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    const remainingSeconds = Math.floor(seconds % 60);
+    if (minutes === 0) return `${remainingSeconds}s`;
+    return `${minutes}m ${remainingSeconds}s`;
   };
 
   const renderConvertingStatus = () => (
@@ -85,8 +88,14 @@ const ConversionStatus = ({
             </div>
           )}
           <div>
-            {elapsedTime > 0 && translations.timeElapsed.replace('{time}', formatTime(elapsedTime))}
-            {timeRemaining && ` • ${translations.timeRemaining.replace('{time}', timeRemaining)}`}
+            {elapsedTime > 0 && (
+              <span>
+                {translations.timeElapsed.replace('{time}', formatTime(elapsedTime))}
+                {timeRemaining !== null && (
+                  <span> • {translations.timeRemaining.replace('{time}', formatTime(timeRemaining))}</span>
+                )}
+              </span>
+            )}
           </div>
         </div>
       </div>
