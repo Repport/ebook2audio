@@ -11,7 +11,7 @@ export async function synthesizeSpeech(
   console.log(`Starting speech synthesis for text of length ${text.length} with voice ${voiceId}`);
   
   try {
-    // Extract language code from voiceId (e.g., "en-US-Standard-C" -> "en-US")
+    // Extract language code from voiceId (e.g., "es-US-Standard-A" -> "es-US")
     const langCode = voiceId.split('-').slice(0, 2).join('-');
     console.log(`Using language code: ${langCode}`);
 
