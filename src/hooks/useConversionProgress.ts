@@ -27,7 +27,6 @@ export const useConversionProgress = (
   } = useProgressState(initialProgress);
 
   const { startTimeRef, lastUpdateRef } = useTimeTracking();
-  const batchUpdateTimeoutRef = useRef<number | null>(null);
   const processedCharactersRef = useRef<number>(0);
 
   // Calcular el número total de caracteres
@@ -80,7 +79,7 @@ export const useConversionProgress = (
     }
   }, [status, updateProgressInBatches]);
 
-  // Actualizar el tiempo transcurrido
+  // Actualizar el tiempo transcurrido y progreso simulado
   useEffect(() => {
     let interval: number | undefined;
 
@@ -102,18 +101,21 @@ export const useConversionProgress = (
           );
           
           setProgress(prev => {
-            const newValue = Math.max(prev, simulatedProgress);
-            if (newValue !== prev) {
-              console.log('🤖 Simulated progress update:', {
+            const newProgress = Math.max(prev, simulatedProgress);
+            if (newProgress !== prev) {
+              console.log('🤖 Progress update:', {
                 previous: prev.toFixed(1),
-                new: newValue.toFixed(1),
+                new: newProgress.toFixed(1),
                 elapsed,
                 processed: processedCharactersRef.current,
                 total: totalCharacters
               });
             }
-            return newValue;
+            return newProgress;
           });
+
+          // Actualizar también processedCharactersRef
+          processedCharactersRef.current = Math.floor((simulatedProgress / 100) * totalCharacters);
         }
       }, 1000);
     }
@@ -129,7 +131,17 @@ export const useConversionProgress = (
   useRealtimeSubscription(
     conversionId,
     status,
-    handleProgressUpdate,
+    (data) => {
+      console.log('🔄 Realtime update received:', data);
+      if (data.progress !== undefined) {
+        setProgress(data.progress);
+      }
+      if (data.processed_characters !== undefined) {
+        processedCharactersRef.current = data.processed_characters;
+      }
+      handleProgressUpdate(data);
+      lastUpdateRef.current = Date.now();
+    },
     Math.ceil(totalCharacters / 4800),
     textLength
   );
