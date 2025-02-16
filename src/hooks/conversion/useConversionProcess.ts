@@ -4,7 +4,7 @@ import { convertToAudio } from '@/services/conversion';
 import { saveToSupabase } from '@/services/storage/supabaseStorageService';
 import { calculateAudioDuration } from '@/services/audio/audioUtils';
 import { User } from '@supabase/supabase-js';
-import { ExtractedChapter, ConversionResult } from '@/types/conversion';
+import { ExtractedChapter, ConversionResult, ChapterWithTimestamp } from '@/types/conversion';
 import { checkExistingConversion } from '@/services/conversion/cacheCheckService';
 import { generateHash } from '@/services/conversion/utils';
 import { retryOperation, safeSupabaseUpdate } from '@/services/conversion/utils/retryUtils';
@@ -21,6 +21,23 @@ interface UseConversionProcessProps {
   setCurrentFileName: (name: string | null) => void;
   setConversionId: (id: string | null) => void;
 }
+
+const convertToChaptersWithTimestamp = (chapters: ExtractedChapter[], totalCharacters: number): ChapterWithTimestamp[] => {
+  const WORDS_PER_MINUTE = 150; // Average reading speed
+  const CHARACTERS_PER_WORD = 5; // Average word length
+
+  return chapters.map(chapter => {
+    // Calculate timestamp based on character position
+    const charactersBeforeChapter = chapter.startIndex;
+    const wordsBeforeChapter = charactersBeforeChapter / CHARACTERS_PER_WORD;
+    const minutesMark = Math.floor(wordsBeforeChapter / WORDS_PER_MINUTE);
+
+    return {
+      ...chapter,
+      timestamp: chapter.timestamp || minutesMark * 60 // Convert minutes to seconds if no timestamp exists
+    };
+  });
+};
 
 export const useConversionProcess = ({
   user,
@@ -97,13 +114,16 @@ export const useConversionProcess = ({
         setProgress(progress);
       };
 
+      // Convert chapters to include timestamps
+      const chaptersWithTimestamp = detectChapters ? convertToChaptersWithTimestamp(chapters, totalCharacters) : undefined;
+
       // Start the actual conversion
       console.log('Starting audio conversion with voice:', selectedVoice);
       const { audio, id } = await retryOperation(
         () => convertToAudio(
           extractedText, 
           selectedVoice,
-          detectChapters ? chapters : undefined,
+          detectChapters ? chaptersWithTimestamp : undefined,
           fileName,
           onChunkProcessed
         ),
