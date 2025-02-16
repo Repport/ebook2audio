@@ -51,19 +51,22 @@ serve(async (req) => {
       throw new Error('conversionId parameter is required');
     }
 
-    // Inicializar clientes
-    const supabaseClient = await initializeSupabaseClient();
-    const accessToken = await getGoogleAccessToken();
-    console.log('🔑 Successfully obtained access token');
+    // Inicializar clientes con timeout más largo
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 540000); // 9 minutos de timeout
 
-    // Configurar estado inicial
-    const totalCharacters = text.length;
-    let processedCharacters = 0;
-    
     try {
-      // Dividir el texto en chunks respetando palabras completas y puntuación
+      const supabaseClient = await initializeSupabaseClient();
+      const accessToken = await getGoogleAccessToken();
+      console.log('🔑 Successfully obtained access token');
+
+      // Configurar estado inicial
+      const totalCharacters = text.length;
+      let processedCharacters = 0;
+      
+      // Dividir el texto en chunks más pequeños (máximo 4000 caracteres)
       const chunks = text.match(/[^.!?]+[.!?]+|\s+|[^\s]+/g) || [text];
-      const MAX_CHUNK_SIZE = 4800;
+      const MAX_CHUNK_SIZE = 4000;
       let currentChunk = '';
       const processableChunks: string[] = [];
       
@@ -84,8 +87,8 @@ serve(async (req) => {
 
       console.log(`📝 Text split into ${processableChunks.length} chunks`);
       
-      // Procesar chunks en batches para controlar concurrencia
-      const BATCH_SIZE = 3;
+      // Procesar chunks en batches más pequeños para controlar concurrencia
+      const BATCH_SIZE = 2;
       const audioContents: Uint8Array[] = [];
       
       for (let i = 0; i < processableChunks.length; i += BATCH_SIZE) {
@@ -135,6 +138,8 @@ serve(async (req) => {
         audioContents.push(...batchResults);
       }
 
+      clearTimeout(timeout);
+
       if (!audioContents || audioContents.length === 0) {
         throw new Error('No audio content generated from chunks');
       }
@@ -171,6 +176,7 @@ serve(async (req) => {
 
     } catch (error) {
       console.error('❌ Error processing text:', error);
+      clearTimeout(timeout);
       
       // Actualizar estado de error
       const { error: updateError } = await supabaseClient
@@ -209,4 +215,3 @@ serve(async (req) => {
     );
   }
 });
-
