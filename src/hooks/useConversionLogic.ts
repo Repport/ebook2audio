@@ -59,7 +59,7 @@ export const useConversionLogic = (
     }
   }, [conversionStatus, onStepComplete]);
 
-  const initiateConversion = useCallback(() => {
+  const initiateConversion = useCallback(async () => {
     if (!selectedFile || !extractedText) {
       toast({
         title: "Error",
@@ -68,10 +68,17 @@ export const useConversionLogic = (
       });
       return false;
     }
+
+    // Verificar términos y condiciones
+    const termsAccepted = await checkRecentTermsAcceptance();
     
-    checkRecentTermsAcceptance();
+    if (!termsAccepted) {
+      setShowTerms(true);
+      return false;
+    }
+    
     return true;
-  }, [selectedFile, extractedText, toast, checkRecentTermsAcceptance]);
+  }, [selectedFile, extractedText, toast, checkRecentTermsAcceptance, setShowTerms]);
 
   const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText || !options.selectedVoice) {
@@ -94,6 +101,13 @@ export const useConversionLogic = (
         description: "A conversion is already in progress.",
         variant: "default",
       });
+      return;
+    }
+
+    // Verificar nuevamente los términos antes de proceder
+    const termsAccepted = await checkRecentTermsAcceptance();
+    if (!termsAccepted) {
+      setShowTerms(true);
       return;
     }
 
