@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { convertToAudio } from '@/services/conversion';
 import { saveToSupabase } from '@/services/storage/supabaseStorageService';
@@ -39,13 +40,15 @@ export const useConversionProcess = ({
     fileName: string,
     existingConversionId?: string
   ): Promise<ConversionResult> => {
-    setConversionStatus('converting');
-    setProgress(0);
-    setCurrentFileName(fileName);
-    
     try {
       console.log('Starting conversion process for file:', fileName);
       
+      // Set initial state
+      setConversionStatus('converting');
+      setProgress(0);
+      setCurrentFileName(fileName);
+
+      // Check for existing conversion first
       const textHash = await generateHash(extractedText, selectedVoice);
       console.log('Generated text hash:', textHash);
       
@@ -76,34 +79,11 @@ export const useConversionProcess = ({
         };
       }
 
-      // Optimización en el cálculo de timestamps
-      let wordCount = 0;
-      const chaptersWithTimestamps = chapters.map((chapter, index) => {
-        let chapterText = "";
+      // Create or use existing conversion record
+      const conversionId = existingConversionId || (await createConversionRecord(fileName, textHash, user?.id));
+      setConversionId(conversionId);
 
-        if ('text' in chapter) {
-          chapterText = chapter.text as string;
-        } else if (typeof chapter.startIndex === 'number' && chapter.startIndex >= 0) {
-          const nextStartIndex = chapters[index + 1]?.startIndex;
-          if (typeof nextStartIndex === 'number' && nextStartIndex > chapter.startIndex) {
-            chapterText = extractedText.substring(chapter.startIndex, nextStartIndex);
-          } else {
-            chapterText = extractedText.substring(chapter.startIndex);
-          }
-        }
-
-        const wordsInChapter = chapterText ? chapterText.split(/\s+/).filter(Boolean).length : 0;
-        wordCount += wordsInChapter;
-
-        return {
-          ...chapter,
-          timestamp: Math.floor(wordCount / 150)
-        };
-      });
-
-      console.log('Starting audio conversion...');
-      
-      // Crear callback para tracking de progreso
+      // Set up progress tracking
       let processedCharacters = 0;
       const totalCharacters = extractedText.length;
       
@@ -117,112 +97,31 @@ export const useConversionProcess = ({
         setProgress(progress);
       };
 
+      // Start the actual conversion
+      console.log('Starting audio conversion with voice:', selectedVoice);
       const { audio, id } = await retryOperation(
         () => convertToAudio(
           extractedText, 
           selectedVoice,
-          detectChapters ? chaptersWithTimestamps : undefined,
+          detectChapters ? chapters : undefined,
           fileName,
           onChunkProcessed
         ),
         { maxRetries: 3 }
       );
-      
+
       if (!audio) {
         throw new Error('No audio data received from conversion');
       }
 
-      console.log('Audio conversion successful, creating database record...');
-      const { data: conversionRecord, error: createError } = await supabase
-        .from('text_conversions')
-        .insert({
-          user_id: user?.id,
-          status: 'completed',
-          file_name: fileName,
-          text_hash: textHash,
-          progress: 100,
-          notify_on_complete: false,
-          processed_characters: totalCharacters,
-          total_characters: totalCharacters
-        })
-        .select()
-        .single();
-
-      if (createError || !conversionRecord) {
-        throw new Error('Failed to create conversion record');
-      }
-
-      setConversionId(conversionRecord.id);
-
-      if (detectChapters && chapters.length > 0) {
-        const chapterInserts = chaptersWithTimestamps.map(chapter => ({
-          conversion_id: id,
-          title: chapter.title,
-          start_index: chapter.startIndex,
-          timestamp: chapter.timestamp
-        }));
-
-        const chaptersResponse = await retryOperation(
-          async () => supabase.from('chapters').insert(chapterInserts),
-          { maxRetries: 3 }
-        );
-
-        if (chaptersResponse.error) {
-          console.error('❌ Error storing chapters:', chaptersResponse.error);
-          toast({
-            title: "Warning",
-            description: "Audio conversion successful but chapter markers couldn't be saved. Try refreshing the page.",
-            variant: "destructive",
-            action: {
-              label: "Refresh",
-              onClick: () => window.location.reload()
-            }
-          });
-        }
-      }
-
-      setConversionId(id);
+      // Update state with the result
       setAudioData(audio);
-      
       const duration = await calculateAudioDuration(audio);
       setAudioDuration(duration);
-      
-      if (user) {
-        console.log('Saving to Supabase for user:', user.id);
-        await saveToSupabase(audio, extractedText, duration, fileName, user.id);
-      }
-      
-      try {
-        await retryOperation(
-          async () => {
-            await safeSupabaseUpdate(
-              supabase,
-              'text_conversions',
-              id,
-              { 
-                status: 'completed',
-                progress: 100,
-                duration,
-                processed_characters: totalCharacters,
-                total_characters: totalCharacters
-              }
-            );
-          },
-          { maxRetries: 3 }
-        );
-      } catch (error) {
-        console.error('Failed to update conversion status:', error);
-        toast({
-          title: "Warning",
-          description: "Conversion successful but status update failed. Try refreshing the page.",
-          variant: "destructive",
-          action: {
-            label: "Refresh",
-            onClick: () => window.location.reload()
-          }
-        });
-      }
-      
+
+      // Update conversion record
+      await updateConversionRecord(id, duration, totalCharacters);
+
       setConversionStatus('completed');
       setProgress(100);
 
@@ -238,3 +137,40 @@ export const useConversionProcess = ({
     }
   }, [user, setConversionStatus, setProgress, setCurrentFileName, setAudioData, setAudioDuration, setConversionId, toast]);
 };
+
+async function createConversionRecord(fileName: string, textHash: string, userId?: string) {
+  const { data: conversionRecord, error } = await supabase
+    .from('text_conversions')
+    .insert({
+      file_name: fileName,
+      status: 'processing',
+      text_hash: textHash,
+      user_id: userId,
+      progress: 0,
+      processed_characters: 0,
+      total_characters: 0
+    })
+    .select()
+    .single();
+
+  if (error || !conversionRecord) {
+    throw new Error('Failed to create conversion record');
+  }
+
+  return conversionRecord.id;
+}
+
+async function updateConversionRecord(id: string, duration: number, totalCharacters: number) {
+  await safeSupabaseUpdate(
+    supabase,
+    'text_conversions',
+    id,
+    {
+      status: 'completed',
+      progress: 100,
+      duration,
+      processed_characters: totalCharacters,
+      total_characters: totalCharacters
+    }
+  );
+}
