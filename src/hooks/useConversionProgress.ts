@@ -31,6 +31,7 @@ export const useConversionProgress = (
   const { startTimeRef, lastUpdateRef } = useTimeTracking();
   const processedCharactersRef = useRef<number>(0);
   const totalCharacters = textLength || 0;
+  const lastProgressRef = useRef<ReturnType<typeof updateCacheProgress> | null>(null);
 
   const handleProgressUpdate = (data: any) => {
     if (!conversionId) return;
@@ -43,6 +44,7 @@ export const useConversionProgress = (
       setProgress(updatedProgress.progress);
       setElapsedTime(updatedProgress.elapsedSeconds);
       processedCharactersRef.current = updatedProgress.processedCharacters;
+      lastProgressRef.current = updatedProgress;
     }
   };
 
@@ -57,7 +59,7 @@ export const useConversionProgress = (
   return {
     progress,
     elapsedTime,
-    timeRemaining: getProgress(conversionId || '')?.estimatedSeconds || null,
+    timeRemaining: lastProgressRef.current?.estimatedSeconds || null,
     hasStarted: processedCharactersRef.current > 0 || status === 'converting' || status === 'processing',
     processedChunks,
     totalChunks: Math.ceil(totalCharacters / 4800),
