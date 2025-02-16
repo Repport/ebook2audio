@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Chapter } from '@/utils/textExtraction';
 import VoiceSettingsStep from './VoiceSettingsStep';
@@ -87,14 +86,9 @@ const FileProcessor = ({
       });
       return false;
     }
-    const canProceed = await initiateConversion();
-    if (canProceed) {
-      await handleAcceptTerms({ 
-        selectedVoice,
-        notifyOnComplete 
-      });
-    }
-    return canProceed;
+
+    setShowTerms(true);
+    return false;
   };
 
   const handleAcceptTermsAndConvert = async () => {
@@ -107,11 +101,13 @@ const FileProcessor = ({
       });
       return;
     }
+
+    setShowTerms(false);
+    
     await handleAcceptTerms({ 
       selectedVoice,
       notifyOnComplete 
     });
-    setShowTerms(false);
   };
 
   return (
