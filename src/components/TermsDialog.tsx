@@ -56,7 +56,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-none">
           <DialogTitle>{translations.termsTitle}</DialogTitle>
           <DialogDescription className="text-sm">
@@ -64,32 +64,32 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 my-4 max-h-[50vh] pr-4">
-          <div className="space-y-4">
+        <ScrollArea className="flex-1 my-4 h-[60vh] pr-4">
+          <div className="space-y-6">
             <section>
-              <h3 className="text-base font-semibold mb-2">{translations.userResponsibility}</h3>
+              <h3 className="text-base font-semibold mb-3">{translations.userResponsibility}</h3>
               <p className="text-sm text-muted-foreground">
                 {translations.userResponsibilityDesc}
               </p>
             </section>
 
             <section>
-              <h3 className="text-base font-semibold mb-2">{translations.copyrightCompliance}</h3>
+              <h3 className="text-base font-semibold mb-3">{translations.copyrightCompliance}</h3>
               <p className="text-sm text-muted-foreground">
                 {translations.copyrightComplianceDesc}
               </p>
             </section>
 
             <section>
-              <h3 className="text-base font-semibold mb-2">{translations.fileRetention}</h3>
-              <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+              <h3 className="text-base font-semibold mb-3">{translations.fileRetention}</h3>
+              <ul className="list-disc pl-6 space-y-2 text-sm text-muted-foreground">
                 <li>{translations.fileRetentionDesc1}</li>
                 <li>{translations.fileRetentionDesc2}</li>
               </ul>
             </section>
 
             <section>
-              <h3 className="text-base font-semibold mb-2">{translations.privacySection}</h3>
+              <h3 className="text-base font-semibold mb-3">{translations.privacySection}</h3>
               <p className="text-sm text-muted-foreground">
                 {translations.privacyDesc}
               </p>
