@@ -1,5 +1,5 @@
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useProgressState } from './conversion/useProgressState';
 import { useTimeTracking } from './conversion/useTimeTracking';
 import { useProgressUpdates } from './conversion/useProgressUpdates';
@@ -8,7 +8,7 @@ import { useRealtimeSubscription } from './conversion/useRealtimeSubscription';
 import { useBatchProgress } from './conversion/useBatchProgress';
 import { useProgressSimulation } from './conversion/useProgressSimulation';
 import { useBatchUpdates } from './conversion/useBatchUpdates';
-import { getProgress, updateProgress as updateCacheProgress } from '../services/conversion/progressCache';
+import { getProgress, updateProgress as updateCacheProgress, initializeProgress } from '../services/conversion/progressCache';
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -33,14 +33,22 @@ export const useConversionProgress = (
   const totalCharacters = textLength || 0;
   const lastProgressRef = useRef<ReturnType<typeof updateCacheProgress> | null>(null);
 
+  // Inicializar el progreso cuando comienza la conversión
+  useEffect(() => {
+    if ((status === 'converting' || status === 'processing') && conversionId && totalCharacters > 0) {
+      console.log('🏁 Initializing progress tracking for:', conversionId);
+      initializeProgress(conversionId, totalCharacters);
+    }
+  }, [status, conversionId, totalCharacters]);
+
   const handleProgressUpdate = (data: any) => {
     if (!conversionId) return;
 
-    const cached = getProgress(conversionId);
-    if (!cached) return;
+    console.log('📊 Progress update received:', data);
 
     const updatedProgress = updateCacheProgress(conversionId, data.processed_characters || 0);
     if (updatedProgress) {
+      console.log('📈 Updated progress:', updatedProgress);
       setProgress(updatedProgress.progress);
       setElapsedTime(updatedProgress.elapsedSeconds);
       processedCharactersRef.current = updatedProgress.processedCharacters;

@@ -24,7 +24,10 @@ export const initializeProgress = (conversionId: string, totalCharacters: number
 
 export const updateProgress = (conversionId: string, newProcessedCharacters: number) => {
   const cache = progressCache.get(conversionId);
-  if (!cache) return null;
+  if (!cache) {
+    console.warn('⚠️ No cache found for conversion:', conversionId);
+    return null;
+  }
 
   const now = Date.now();
   const timeSinceLastUpdate = (now - cache.lastUpdate) / 1000; // en segundos
@@ -50,6 +53,7 @@ export const updateProgress = (conversionId: string, newProcessedCharacters: num
   const progress = Math.min(Math.round((newProcessedCharacters / cache.totalCharacters) * 100), 99);
   const remainingCharacters = cache.totalCharacters - newProcessedCharacters;
   const estimatedSeconds = cache.speed > 0 ? Math.ceil(remainingCharacters / cache.speed) : null;
+  const elapsedSeconds = Math.floor((now - cache.startTime) / 1000);
 
   console.log('📊 Progress update:', {
     conversionId,
@@ -57,7 +61,8 @@ export const updateProgress = (conversionId: string, newProcessedCharacters: num
     processedCharacters: newProcessedCharacters,
     totalCharacters: cache.totalCharacters,
     speed: `${cache.speed.toFixed(1)} chars/sec`,
-    estimatedSeconds
+    estimatedSeconds,
+    elapsedSeconds
   });
 
   return {
@@ -66,7 +71,7 @@ export const updateProgress = (conversionId: string, newProcessedCharacters: num
     totalCharacters: cache.totalCharacters,
     speed: cache.speed,
     estimatedSeconds,
-    elapsedSeconds: Math.floor((now - cache.startTime) / 1000)
+    elapsedSeconds
   };
 };
 
