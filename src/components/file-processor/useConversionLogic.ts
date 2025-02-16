@@ -1,12 +1,12 @@
-
-import { useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
-import { ExtractedChapter } from '@/types/conversion';
+import { Chapter } from '@/utils/textExtraction';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
-import { generateHash } from '@/services/conversion/utils';
-import { checkExistingConversion } from '@/services/conversion/cacheCheckService';
-import { calculateEstimatedTime, updatePerformanceMetrics } from '@/services/conversion/estimationService';
-import { useConversionState } from '@/hooks/useConversionState';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { retryOperation } from '@/services/conversion/utils/retryUtils';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -16,9 +16,16 @@ export interface ConversionOptions {
 export const useConversionLogic = (
   selectedFile: File | null,
   extractedText: string,
-  chapters: ExtractedChapter[],
+  chapters: Chapter[],
   onStepComplete?: () => void
 ) => {
+  const [detectChapters, setDetectChapters] = useState(true);
+  const [detectingChapters, setDetectingChapters] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   const {
     conversionStatus,
     progress,
@@ -29,30 +36,19 @@ export const useConversionLogic = (
     resetConversion,
     conversionId,
     setProgress,
-    setConversionStatus,
-    setAudioData,
-    setAudioDuration,
-    setCurrentFileName
+    setConversionStatus
   } = useAudioConversion();
 
-  const {
-    detectChapters,
-    setDetectChapters,
-    detectingChapters,
-    setDetectingChapters,
-    showTerms,
-    setShowTerms,
-    initiateConversion,
-    handleViewConversions,
-    toast
-  } = useConversionState();
-
+  // Optimizado para evitar reejecution innecesaria
   useEffect(() => {
-    if (selectedFile) {
+    const shouldReset = selectedFile && 
+      (conversionStatus !== 'idle' || audioData !== null);
+    
+    if (shouldReset) {
       resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile, resetConversion]);
+  }, [selectedFile]); // Removido resetConversion de las dependencias
 
   useEffect(() => {
     if (conversionStatus === 'completed' && onStepComplete) {
@@ -60,26 +56,73 @@ export const useConversionLogic = (
     }
   }, [conversionStatus, onStepComplete]);
 
-  const handleAcceptTerms = async (options: ConversionOptions) => {
-    if (!selectedFile || !extractedText) return;
+  const initiateConversion = useCallback(() => {
+    if (!selectedFile || !extractedText) {
+      toast({
+        title: "Error",
+        description: "Please select a file first",
+        variant: "destructive",
+      });
+      return false;
+    }
     
-    setDetectingChapters(true);
-    const startTime = performance.now();
-    
-    try {
-      const textHash = await generateHash(extractedText, options.selectedVoice);
-      const existingConversion = await checkExistingConversion(textHash);
+    // Verificar si hay una aceptación reciente de términos
+    const checkRecentTermsAcceptance = async () => {
+      const { data, error } = await supabase
+        .from('terms_acceptance_logs')
+        .select('*')
+        .order('accepted_at', { ascending: false })
+        .limit(1);
 
-      if (existingConversion) {
-        console.log('Using cached version');
-        setProgress(100);
-        setConversionStatus('completed');
-        setAudioData(existingConversion.audioBuffer);
-        setAudioDuration(existingConversion.conversion.duration || 0);
-        setCurrentFileName(selectedFile.name);
+      if (error) {
+        console.error('Error checking terms acceptance:', error);
+        setShowTerms(true);
         return;
       }
 
+      // Si no hay registros o el último registro es de hace más de 24 horas
+      if (!data || data.length === 0 || 
+          new Date(data[0].accepted_at).getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+        setShowTerms(true);
+      } else {
+        // Términos aceptados recientemente, proceder con la conversión
+        resetConversion();
+        clearConversionStorage();
+      }
+    };
+
+    checkRecentTermsAcceptance();
+    return true;
+  }, [selectedFile, extractedText, toast, resetConversion]);
+
+  const handleAcceptTerms = async (options: ConversionOptions) => {
+    if (!selectedFile || !extractedText || !options.selectedVoice) {
+      console.error('Missing required parameters:', {
+        hasFile: !!selectedFile,
+        hasText: !!extractedText,
+        hasVoice: !!options.selectedVoice
+      });
+      toast({
+        title: "Error",
+        description: "Missing required parameters. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (detectingChapters || conversionStatus === 'converting') {
+      toast({
+        title: "Please wait",
+        description: "A conversion is already in progress.",
+        variant: "default",
+      });
+      return;
+    }
+
+    setDetectingChapters(true);
+    setConversionStatus('converting'); // Evitar conversiones duplicadas
+    
+    try {
       const result = await handleConversion(
         extractedText,
         options.selectedVoice,
@@ -88,59 +131,79 @@ export const useConversionLogic = (
         selectedFile.name
       );
       
-      const endTime = performance.now();
-      const executionTime = endTime - startTime;
-      
-      if (result && extractedText) {
-        updatePerformanceMetrics(extractedText.length, executionTime);
+      // Create notification if notification is enabled and user is authenticated
+      if (options.notifyOnComplete && user && result.id) {
+        const notificationResult = await retryOperation(async () => {
+          return supabase.from('conversion_notifications').insert({
+            conversion_id: result.id,
+            user_id: user.id,
+            email: user.email,
+          });
+        }, { maxRetries: 3 });
+
+        if (notificationResult.error) {
+          console.error('Error creating notification:', notificationResult.error);
+          toast({
+            title: "Notification Error",
+            description: "Could not set up email notification. Please try again later.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Notification Set",
+            description: "You'll receive an email when your conversion is ready!",
+          });
+        }
       }
       
     } catch (error: any) {
       console.error('Conversion error:', error);
-      
-      if (error.message?.includes('Failed to fetch') || error.error_type === 'http_server_error') {
-        toast({
-          title: "Connection Error",
-          description: "Failed to connect to the conversion service. Please try again in a few moments.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Conversion failed",
-          description: error.message || "An error occurred during conversion",
-          variant: "destructive",
-        });
-      }
-      
+      toast({
+        title: "Conversion failed",
+        description: error.message || "An error occurred during conversion",
+        variant: "destructive",
+      });
       resetConversion();
       clearConversionStorage();
     } finally {
       setDetectingChapters(false);
-      setShowTerms(false);
     }
   };
 
-  const startConversion = () => {
-    if (initiateConversion(selectedFile, extractedText)) {
-      resetConversion();
-      clearConversionStorage();
-      setShowTerms(true);
+  const handleDownloadClick = useCallback(() => {
+    if (!audioData) {
+      toast({
+        title: "Download Unavailable",
+        description: "The audio file is not ready yet. Please try again later.",
+        variant: "destructive",
+      });
+      return;
     }
-  };
 
-  const handleDownloadClick = () => {
-    if (selectedFile) {
-      handleDownload(selectedFile.name);
+    if (!selectedFile) {
+      toast({
+        title: "Missing File Name",
+        description: "Could not determine the file name. Using default.",
+        variant: "default",
+      });
     }
-  };
 
-  const calculateEstimatedSeconds = () => {
+    handleDownload(selectedFile?.name || "converted_audio");
+  }, [audioData, selectedFile, toast, handleDownload]);
+
+  const handleViewConversions = useCallback(() => {
+    navigate('/conversions');
+  }, [navigate]);
+
+  const estimatedSeconds = useMemo(() => {
     if (!extractedText) return 0;
+
+    const wordsCount = extractedText.split(/\s+/).length;
+    const averageWordsPerMinute = 150;
+    const baseProcessingTime = 5; // Tiempo mínimo en segundos
     
-    // Check if we have a cached version by looking at conversionStatus
-    const isCached = conversionStatus === 'completed';
-    return calculateEstimatedTime(extractedText, isCached);
-  };
+    return Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime);
+  }, [extractedText]);
 
   return {
     detectChapters,
@@ -152,11 +215,11 @@ export const useConversionLogic = (
     progress,
     audioData,
     audioDuration,
-    initiateConversion: startConversion,
+    initiateConversion,
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
-    calculateEstimatedSeconds,
+    calculateEstimatedSeconds: () => estimatedSeconds,
     conversionId,
     setProgress,
     setConversionStatus

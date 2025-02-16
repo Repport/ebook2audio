@@ -327,6 +327,7 @@ export type Database = {
           recaptcha_score: number | null
           retention_period_accepted: boolean | null
           user_agent: string | null
+          user_id: string | null
         }
         Insert: {
           accepted_at?: string
@@ -341,6 +342,7 @@ export type Database = {
           recaptcha_score?: number | null
           retention_period_accepted?: boolean | null
           user_agent?: string | null
+          user_id?: string | null
         }
         Update: {
           accepted_at?: string
@@ -355,6 +357,7 @@ export type Database = {
           recaptcha_score?: number | null
           retention_period_accepted?: boolean | null
           user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

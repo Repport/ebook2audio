@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/hooks/useLanguage";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TermsDialogProps {
   open: boolean;
@@ -25,10 +26,30 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   const [accepted, setAccepted] = React.useState(false);
   const { translations } = useLanguage();
 
-  const handleAccept = () => {
-    if (accepted) {
+  const handleAccept = async () => {
+    if (!accepted) return;
+
+    try {
+      // Registrar la aceptación de términos
+      const { error } = await supabase
+        .from('terms_acceptance_logs')
+        .insert({
+          ip_address: 'anonymous', // Por privacidad, no registramos la IP real
+          file_name: fileName,
+          file_type: fileType,
+          retention_period_accepted: true,
+          user_agent: navigator.userAgent
+        });
+
+      if (error) {
+        console.error('Error al registrar aceptación de términos:', error);
+        return;
+      }
+
       onAccept();
       onClose();
+    } catch (error) {
+      console.error('Error al procesar aceptación de términos:', error);
     }
   };
 
