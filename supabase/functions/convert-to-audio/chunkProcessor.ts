@@ -1,13 +1,13 @@
 
 import { synthesizeSpeech } from './speech-service.ts';
-import { retry, validateText } from './utils.ts';
+import { retry, validateChunk } from './utils.ts';
 
 export async function processTextInChunks(text: string, voiceId: string, accessToken: string) {
   const maxRetries = 3;
   const baseDelay = 1000;
 
-  // Validar el texto antes de procesar
-  validateText(text);
+  // Validar el chunk individual
+  validateChunk(text);
 
   // Procesar el chunk con reintentos
   return await retry(

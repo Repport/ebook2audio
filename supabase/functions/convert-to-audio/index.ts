@@ -2,7 +2,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks } from './chunkProcessor.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
-import { validateText } from './utils.ts';
 import type { ConversionRequest, ConversionResponse, ErrorResponse } from './types/index.ts';
 
 console.log('Loading convert-to-audio function...');
@@ -43,7 +42,7 @@ serve(async (req) => {
 
     const { text, voiceId } = body;
 
-    // Validaciones
+    // Validaciones básicas
     if (!text || typeof text !== 'string') {
       throw new Error('Text parameter must be a non-empty string');
     }
@@ -52,14 +51,11 @@ serve(async (req) => {
       throw new Error('VoiceId parameter must be a non-empty string');
     }
 
-    // Validar el tamaño del texto
-    validateText(text);
-
     // Inicializar clientes
     const accessToken = await getGoogleAccessToken();
     console.log('🔑 Successfully obtained access token');
 
-    // Procesar el texto
+    // Procesar el texto como un chunk individual
     const result = await processTextInChunks(text, voiceId, accessToken);
     console.log('✅ Successfully processed text chunk');
 

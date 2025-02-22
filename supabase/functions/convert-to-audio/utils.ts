@@ -26,16 +26,16 @@ export async function retry<T>(
   throw lastError || new Error(`${operationName} failed after ${maxRetries} attempts`);
 }
 
-export function validateText(text: string): boolean {
+export function validateChunk(text: string): boolean {
   if (!text || text.trim().length === 0) {
-    throw new Error('Text cannot be empty');
+    throw new Error('Text chunk cannot be empty');
   }
 
   const encoder = new TextEncoder();
   const bytes = encoder.encode(text);
   
   if (bytes.length > 5000) {
-    throw new Error(`Text exceeds maximum length of 5000 bytes (current: ${bytes.length} bytes)`);
+    throw new Error(`Text chunk exceeds maximum length of 5000 bytes (current: ${bytes.length} bytes)`);
   }
 
   return true;
