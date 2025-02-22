@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
@@ -86,136 +87,20 @@ serve(async (req) => {
     const accessToken = await getGoogleAccessToken();
     console.log('🔑 Successfully obtained access token');
 
-    // Dividir el texto y crear chunks en la base de datos
-    const chunks = splitTextIntoChunks(text);
-    console.log(`📝 Text split into ${chunks.length} chunks`);
+    // Procesar el texto
+    const result = await processTextInChunks(text, voiceId, accessToken);
+    console.log('✅ Successfully processed text chunk');
 
-    // Crear registros de chunks
-    const chunkRecords = chunks.map((content, index) => ({
-      conversion_id: conversionId,
-      content,
-      character_count: content.length,
-      chunk_index: index,
-      status: 'pending'
-    }));
-
-    const { error: insertError } = await supabaseClient
-      .from('conversion_chunks')
-      .insert(chunkRecords);
-
-    if (insertError) {
-      console.error('❌ Error creating chunk records:', insertError);
-      throw new Error('Failed to initialize conversion chunks');
-    }
-
-    // Actualizar estado inicial de la conversión
-    await supabaseClient
-      .from('text_conversions')
-      .update({
-        status: 'processing',
-        progress: 5,
-        total_chunks: chunks.length,
-        total_characters: text.length
-      })
-      .eq('id', conversionId);
-
-    try {
-      // Procesar chunks en batches
-      const BATCH_SIZE = 3;
-      const audioContents = [];
-      
-      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-        const batchChunks = chunks.slice(i, i + BATCH_SIZE);
-        console.log(`🔄 Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(chunks.length / BATCH_SIZE)}`);
-        
-        const batchResults = await Promise.all(
-          batchChunks.map(async (chunk, batchIndex) => {
-            const chunkIndex = i + batchIndex;
-            const result = await processTextInChunks(chunk, voiceId, accessToken);
-            
-            // Actualizar estado del chunk
-            await supabaseClient
-              .from('conversion_chunks')
-              .update({
-                status: 'completed',
-                processed_at: new Date().toISOString()
-              })
-              .eq('conversion_id', conversionId)
-              .eq('chunk_index', chunkIndex);
-
-            return result;
-          })
-        );
-
-        audioContents.push(...batchResults);
-      }
-
-      if (!audioContents || audioContents.length === 0) {
-        throw new Error('No audio content generated from chunks');
-      }
-      
-      // Combinar chunks de audio
-      console.log('🔄 Combining audio chunks');
-      const combinedAudioContent = await combineAudioChunks(audioContents);
-      
-      if (!combinedAudioContent) {
-        throw new Error('Failed to combine audio chunks');
-      }
-
-      // Guardar el audio en storage
-      const storagePath = `${conversionId}.mp3`;
-      const audioBuffer = Uint8Array.from(atob(combinedAudioContent), c => c.charCodeAt(0));
-
-      const { error: uploadError } = await supabaseClient.storage
-        .from('audio_cache')
-        .upload(storagePath, audioBuffer, {
-          contentType: 'audio/mpeg',
-          upsert: true
-        });
-
-      if (uploadError) {
-        console.error('❌ Error uploading to storage:', uploadError);
-        throw new Error('Failed to store audio file');
-      }
-      
-      // Marcar como completado
-      await supabaseClient
-        .from('text_conversions')
-        .update({
-          status: 'completed',
-          progress: 100,
-          storage_path: storagePath
-        })
-        .eq('id', conversionId);
-
-      console.log('✅ Successfully generated and stored audio content');
-      
-      return new Response(
-        JSON.stringify({
-          data: {
-            audioContent: combinedAudioContent,
-            id: conversionId,
-            progress: 100,
-            storagePath
-          }
-        }),
-        { headers: corsHeaders }
-      );
-
-    } catch (error) {
-      console.error('❌ Error processing text:', error);
-      
-      // Actualizar estado de error
-      await supabaseClient
-        .from('text_conversions')
-        .update({
-          status: 'failed',
-          error_message: error.message
-        })
-        .eq('id', conversionId);
-        
-      throw error;
-    }
+    return new Response(
+      JSON.stringify({
+        data: {
+          audioContent: result.audioContent,
+          id: conversionId,
+          progress: 100
+        }
+      }),
+      { headers: corsHeaders }
+    );
 
   } catch (error) {
     console.error('❌ Error in convert-to-audio function:', error);

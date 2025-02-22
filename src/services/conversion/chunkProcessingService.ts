@@ -1,6 +1,5 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { splitTextIntoChunks } from "./utils";
 import { updateConversionStatus } from "./conversionManager";
 import { decodeBase64Audio, combineAudioChunks } from "./utils/audioUtils";
 
@@ -96,39 +95,7 @@ async function processChunkBatch(
           throw incrementError;
         }
 
-        // Actualizar el estado del chunk
-        const { error: chunkError } = await supabase
-          .from('conversion_chunks')
-          .upsert({
-            conversion_id: conversionId,
-            chunk_index: startIndex + index,
-            content: chunk,
-            status: 'completed',
-            audio_path: `chunk_${startIndex + index}.mp3`
-          });
-
-        if (chunkError) {
-          console.error(`Error updating chunk ${startIndex + index} status:`, chunkError);
-          throw chunkError;
-        }
-        
         return audioBuffer;
-      })
-      .catch(async (error) => {
-        console.error(`Error processing chunk ${startIndex + index}:`, error);
-        
-        // Actualizar el estado de error del chunk
-        await supabase
-          .from('conversion_chunks')
-          .upsert({
-            conversion_id: conversionId,
-            chunk_index: startIndex + index,
-            content: chunk,
-            status: 'failed',
-            error_message: error.message
-          });
-
-        throw error;
       })
   );
 
@@ -142,36 +109,18 @@ export async function processConversionChunks(
   conversionId: string
 ): Promise<ArrayBuffer> {
   console.log('Starting parallel chunk processing...');
-  const chunks = splitTextIntoChunks(text);
+  const chunks = text.split(/(.{4800})/g).filter(Boolean); // Dividir en chunks de 4800 caracteres
   const totalChunks = chunks.length;
   const totalCharacters = text.length;
   const audioBuffers: ArrayBuffer[] = [];
 
-  // Crear registros iniciales para todos los chunks
-  const initialChunks = chunks.map((content, index) => ({
-    conversion_id: conversionId,
-    chunk_index: index,
-    content,
-    status: 'pending'
-  }));
-
-  // Insertar todos los chunks en la tabla
-  const { error: insertError } = await supabase
-    .from('conversion_chunks')
-    .insert(initialChunks);
-
-  if (insertError) {
-    console.error('Error creating initial chunks:', insertError);
-    throw insertError;
-  }
-
-  // Actualizar el número total de chunks en la conversión
+  // Actualizar estado inicial
   await supabase
     .from('text_conversions')
     .update({
-      total_chunks: totalChunks,
       status: 'processing',
-      progress: 0,
+      progress: 5,
+      total_chunks: totalChunks,
       processed_chunks: 0,
       total_characters: totalCharacters,
       processed_characters: 0
@@ -195,16 +144,8 @@ export async function processConversionChunks(
     audioBuffers.push(...batchBuffers);
   }
 
-  // Actualizar el estado final de la conversión
-  await supabase
-    .from('text_conversions')
-    .update({
-      status: 'completed',
-      progress: 100,
-      processed_chunks: totalChunks,
-      processed_characters: totalCharacters
-    })
-    .eq('id', conversionId);
+  // Actualizar el estado final
+  await updateConversionStatus(conversionId, 'completed', undefined, 100);
 
   console.log('All chunks processed successfully');
   return combineAudioChunks(audioBuffers);
