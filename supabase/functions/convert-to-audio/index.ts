@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks } from './chunkProcessor.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
+import { validateText } from './utils.ts';
 import type { ConversionRequest, ConversionResponse, ErrorResponse } from './types/index.ts';
 
 console.log('Loading convert-to-audio function...');
@@ -40,7 +41,7 @@ serve(async (req) => {
       throw new Error('Invalid request body');
     }
 
-    const { text, voiceId, isChunk } = body;
+    const { text, voiceId } = body;
 
     // Validaciones
     if (!text || typeof text !== 'string') {
@@ -51,10 +52,8 @@ serve(async (req) => {
       throw new Error('VoiceId parameter must be a non-empty string');
     }
 
-    // Verificación de tamaño para chunks individuales
-    if (text.length > 4800) {
-      throw new Error(`Text exceeds maximum length of 4800 characters (current: ${text.length})`);
-    }
+    // Validar el tamaño del texto
+    validateText(text);
 
     // Inicializar clientes
     const accessToken = await getGoogleAccessToken();
@@ -67,7 +66,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         data: {
-          audioContent: result.audioContent,
+          audioContent: result,
           progress: 100
         }
       }),
