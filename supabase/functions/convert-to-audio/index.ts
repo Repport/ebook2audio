@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { processTextInChunks, combineAudioChunks } from './chunkProcessor.ts';
+import { processTextInChunks } from './chunkProcessor.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
 import type { ConversionRequest, ConversionResponse, ErrorResponse } from './types/index.ts';
 
@@ -13,34 +13,6 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
   'Content-Type': 'application/json'
 };
-
-function splitTextIntoChunks(text: string, maxChunkSize: number = 4800): string[] {
-  const chunks: string[] = [];
-  const words = text.split(/\s+/);
-  let currentChunk: string[] = [];
-  let currentLength = 0;
-
-  for (const word of words) {
-    const wordLength = word.length;
-    const spaceLength = currentChunk.length > 0 ? 1 : 0;
-    const potentialLength = currentLength + wordLength + spaceLength;
-
-    if (potentialLength > maxChunkSize && currentChunk.length > 0) {
-      chunks.push(currentChunk.join(' '));
-      currentChunk = [word];
-      currentLength = wordLength;
-    } else {
-      currentChunk.push(word);
-      currentLength = potentialLength;
-    }
-  }
-
-  if (currentChunk.length > 0) {
-    chunks.push(currentChunk.join(' '));
-  }
-
-  return chunks;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -60,14 +32,15 @@ serve(async (req) => {
         textLength: body.text?.length,
         voiceId: body.voiceId,
         fileName: body.fileName,
-        conversionId: body.conversionId
+        isChunk: body.isChunk,
+        chunkIndex: body.chunkIndex
       });
     } catch (e) {
       console.error('❌ Failed to parse request body:', e);
       throw new Error('Invalid request body');
     }
 
-    const { text, voiceId, conversionId } = body;
+    const { text, voiceId, isChunk } = body;
 
     // Validaciones
     if (!text || typeof text !== 'string') {
@@ -78,12 +51,12 @@ serve(async (req) => {
       throw new Error('VoiceId parameter must be a non-empty string');
     }
 
-    if (!conversionId) {
-      throw new Error('conversionId parameter is required');
+    // Verificación de tamaño para chunks individuales
+    if (text.length > 4800) {
+      throw new Error(`Text exceeds maximum length of 4800 characters (current: ${text.length})`);
     }
 
     // Inicializar clientes
-    const supabaseClient = await initializeSupabaseClient();
     const accessToken = await getGoogleAccessToken();
     console.log('🔑 Successfully obtained access token');
 
@@ -95,7 +68,6 @@ serve(async (req) => {
       JSON.stringify({
         data: {
           audioContent: result.audioContent,
-          id: conversionId,
           progress: 100
         }
       }),
@@ -112,20 +84,9 @@ serve(async (req) => {
         timestamp: new Date().toISOString()
       }),
       { 
-        status: error.status || 500,
+        status: 500,
         headers: corsHeaders
       }
     );
   }
 });
-
-async function safeSupabaseUpdate(supabaseClient: any, id: string, data: any) {
-  try {
-    await supabaseClient
-      .from('text_conversions')
-      .update(data)
-      .eq('id', id);
-  } catch (error) {
-    console.error('Error updating supabase:', error);
-  }
-}

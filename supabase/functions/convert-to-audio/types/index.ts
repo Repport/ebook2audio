@@ -3,13 +3,14 @@ export interface ConversionRequest {
   text: string;
   voiceId: string;
   fileName?: string;
-  conversionId: string;
+  conversionId?: string;
+  isChunk?: boolean;
+  chunkIndex?: number;
 }
 
 export interface ConversionResponse {
   data: {
     audioContent: string;
-    id: string;
     progress: number;
   };
 }
