@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for text conversion and hashing
  */
@@ -24,10 +23,10 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
  * Calculate optimal chunk size based on total text length
  */
 export function calculateOptimalChunkSize(totalLength: number): number {
-  // Google TTS has a 5000 character limit
-  const maxChunkSize = 4800; // Leave a safety margin
+  // Google TTS tiene un límite de 5000 caracteres
+  const maxChunkSize = 4800; // Dejar un margen de seguridad
   
-  // For very small texts, use the complete text
+  // Para textos muy pequeños, usar el texto completo
   if (totalLength <= maxChunkSize) {
     return totalLength;
   }
@@ -41,32 +40,46 @@ export function calculateOptimalChunkSize(totalLength: number): number {
 export function splitTextIntoChunks(text: string): string[] {
   const chunks: string[] = [];
   const optimalChunkSize = calculateOptimalChunkSize(text.length);
-  const words = text.split(/\s+/);
+  
+  // Primero dividimos por párrafos para mantener la coherencia
+  const paragraphs = text.split(/\n+/);
+  
   let currentChunk: string[] = [];
   let currentLength = 0;
 
   console.log(`Total text length: ${text.length}, Using chunk size: ${optimalChunkSize}`);
 
-  for (let word of words) {
-    const wordLength = word.length;
-    const spaceLength = currentChunk.length > 0 ? 1 : 0;
-    const potentialLength = currentLength + wordLength + spaceLength;
+  for (const paragraph of paragraphs) {
+    // Dividir párrafo en oraciones
+    const sentences = paragraph.split(/(?<=[.!?])\s+/);
+    
+    for (const sentence of sentences) {
+      const sentenceLength = sentence.trim().length;
+      const spaceLength = currentChunk.length > 0 ? 1 : 0;
+      const potentialLength = currentLength + sentenceLength + spaceLength;
 
-    if (potentialLength > optimalChunkSize && currentChunk.length > 0) {
-      const chunk = currentChunk.join(" ").trim();
-      if (chunk) {
-        chunks.push(chunk);
-        console.log(`Created chunk ${chunks.length}, size: ${chunk.length} characters`);
+      if (potentialLength > optimalChunkSize && currentChunk.length > 0) {
+        const chunk = currentChunk.join(" ").trim();
+        if (chunk) {
+          chunks.push(chunk);
+          console.log(`Created chunk ${chunks.length}, size: ${chunk.length} characters`);
+        }
+        currentChunk = [sentence.trim()];
+        currentLength = sentenceLength;
+      } else {
+        currentChunk.push(sentence.trim());
+        currentLength = potentialLength;
       }
-      currentChunk = [word];
-      currentLength = wordLength;
-    } else {
-      currentChunk.push(word);
-      currentLength = potentialLength;
+    }
+    
+    // Añadir salto de párrafo si no estamos en el límite del chunk
+    if (currentLength + 2 <= optimalChunkSize) {
+      currentChunk.push("\n\n");
+      currentLength += 2;
     }
   }
 
-  // Add the last chunk if there's remaining text
+  // Añadir el último chunk si hay texto restante
   if (currentChunk.length > 0) {
     const finalChunk = currentChunk.join(" ").trim();
     if (finalChunk) {
@@ -75,7 +88,7 @@ export function splitTextIntoChunks(text: string): string[] {
     }
   }
 
-  // Log chunk information for debugging
+  // Log información de chunks para debugging
   chunks.forEach((chunk, index) => {
     console.log(`Chunk ${index + 1}/${chunks.length}, size: ${chunk.length} characters`);
   });
@@ -109,4 +122,3 @@ export async function retryOperation<T>(
   
   throw lastError!;
 }
-

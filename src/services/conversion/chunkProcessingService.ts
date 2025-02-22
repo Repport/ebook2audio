@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { updateConversionStatus } from "./conversionManager";
 import { decodeBase64Audio, combineAudioChunks } from "./utils/audioUtils";
+import { splitTextIntoChunks } from "./utils";
 
 const MAX_CONCURRENT_CHUNKS = 5;
 const CHUNK_TIMEOUT = 60000; // 60 segundos
@@ -19,6 +20,11 @@ async function processChunkWithTimeout(
   fileName: string | undefined
 ): Promise<ArrayBuffer> {
   console.log(`Starting to process chunk ${chunkIndex} with length ${chunk.length}`);
+  
+  // Verificar tamaño del chunk
+  if (chunk.length > 4800) {
+    throw new Error(`Chunk ${chunkIndex} exceeds maximum size of 4800 characters (${chunk.length})`);
+  }
   
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error('Chunk processing timeout')), CHUNK_TIMEOUT);
@@ -80,7 +86,6 @@ async function processChunkBatch(
         
         console.log(`Chunk ${startIndex + index} completed. Progress: ${progress}%. Characters: ${chunkCharacters}`);
         
-        // Actualizar el estado usando la nueva función increment_processed_characters
         const { error: incrementError } = await supabase.rpc('increment_processed_characters', {
           p_conversion_id: conversionId,
           p_increment: chunkCharacters,
@@ -109,10 +114,17 @@ export async function processConversionChunks(
   conversionId: string
 ): Promise<ArrayBuffer> {
   console.log('Starting parallel chunk processing...');
-  const chunks = text.split(/(.{4800})/g).filter(Boolean); // Dividir en chunks de 4800 caracteres
+  
+  // Usar la nueva función de división inteligente
+  const chunks = splitTextIntoChunks(text);
   const totalChunks = chunks.length;
   const totalCharacters = text.length;
   const audioBuffers: ArrayBuffer[] = [];
+
+  console.log(`Split text into ${chunks.length} chunks`);
+  chunks.forEach((chunk, index) => {
+    console.log(`Chunk ${index + 1}: ${chunk.length} characters`);
+  });
 
   // Actualizar estado inicial
   await supabase
