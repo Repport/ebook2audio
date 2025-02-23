@@ -83,7 +83,7 @@ export async function processConversionChunks(
     return combineAudioChunks(audioBuffers);
   } catch (error) {
     console.error('Error durante el procesamiento de chunks:', error);
-    await updateConversionStatus(conversionId, 'error', error.message);
+    await updateConversionStatus(conversionId, 'failed', error.message);
     throw error;
   }
 }
