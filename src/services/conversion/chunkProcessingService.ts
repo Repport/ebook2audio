@@ -7,6 +7,7 @@ import { processChunkBatch } from "./batchProcessor";
 import type { ChunkProcessingOptions } from "./types/chunks";
 
 const MAX_CONCURRENT_CHUNKS = 5;
+const CHUNK_SIZE = 4800;
 
 export async function processConversionChunks(
   text: string,
@@ -16,7 +17,7 @@ export async function processConversionChunks(
 ): Promise<ArrayBuffer> {
   console.log('Starting parallel chunk processing...');
   
-  const chunks = splitTextIntoChunks(text);
+  const chunks = splitTextIntoChunks(text, CHUNK_SIZE);
   const totalChunks = chunks.length;
   const totalCharacters = text.length;
   const audioBuffers: ArrayBuffer[] = [];
@@ -24,6 +25,9 @@ export async function processConversionChunks(
   console.log(`Split text into ${chunks.length} chunks`);
   chunks.forEach((chunk, index) => {
     console.log(`Chunk ${index + 1}: ${chunk.length} characters`);
+    if (chunk.length > CHUNK_SIZE) {
+      throw new Error(`Chunk ${index + 1} exceeds maximum size of ${CHUNK_SIZE} characters (${chunk.length})`);
+    }
   });
 
   // Actualizar estado inicial
@@ -50,6 +54,7 @@ export async function processConversionChunks(
   for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
     const batchChunks = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS);
     console.log(`Processing batch ${i / MAX_CONCURRENT_CHUNKS + 1}, chunks ${i + 1}-${i + batchChunks.length} of ${totalChunks}`);
+    console.log('Batch chunks sizes:', batchChunks.map(chunk => chunk.length));
 
     const batchBuffers = await processChunkBatch(
       batchChunks,

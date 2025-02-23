@@ -1,10 +1,10 @@
+
 /**
  * Utility functions for text conversion and hashing
  */
 
 /**
  * Generates a hash for text content using Web Crypto API
- * Only uses the first 1000 characters to ensure consistent hashing
  */
 export async function generateHash(text: string, voiceId: string): Promise<string> {
   // Normalize text by trimming and converting to lowercase
@@ -20,80 +20,51 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
 }
 
 /**
- * Calculate optimal chunk size based on total text length
- */
-export function calculateOptimalChunkSize(totalLength: number): number {
-  // Google TTS tiene un límite de 5000 caracteres
-  const maxChunkSize = 4800; // Dejar un margen de seguridad
-  
-  // Para textos muy pequeños, usar el texto completo
-  if (totalLength <= maxChunkSize) {
-    return totalLength;
-  }
-  
-  return maxChunkSize;
-}
-
-/**
  * Split text into smaller chunks with better word boundary handling
  */
-export function splitTextIntoChunks(text: string): string[] {
+export function splitTextIntoChunks(text: string, maxSize: number = 4800): string[] {
   const chunks: string[] = [];
-  const optimalChunkSize = calculateOptimalChunkSize(text.length);
+  let currentChunk = '';
+  let chunkNumber = 1;
   
   // Primero dividimos por párrafos para mantener la coherencia
   const paragraphs = text.split(/\n+/);
   
-  let currentChunk: string[] = [];
-  let currentLength = 0;
-
-  console.log(`Total text length: ${text.length}, Using chunk size: ${optimalChunkSize}`);
-
   for (const paragraph of paragraphs) {
     // Dividir párrafo en oraciones
     const sentences = paragraph.split(/(?<=[.!?])\s+/);
     
     for (const sentence of sentences) {
-      const sentenceLength = sentence.trim().length;
-      const spaceLength = currentChunk.length > 0 ? 1 : 0;
-      const potentialLength = currentLength + sentenceLength + spaceLength;
-
-      if (potentialLength > optimalChunkSize && currentChunk.length > 0) {
-        const chunk = currentChunk.join(" ").trim();
-        if (chunk) {
-          chunks.push(chunk);
-          console.log(`Created chunk ${chunks.length}, size: ${chunk.length} characters`);
-        }
-        currentChunk = [sentence.trim()];
-        currentLength = sentenceLength;
+      const testChunk = currentChunk + (currentChunk ? ' ' : '') + sentence;
+      
+      if (testChunk.length > maxSize && currentChunk) {
+        console.log(`Creating chunk ${chunkNumber}, size: ${currentChunk.length} characters`);
+        chunks.push(currentChunk);
+        currentChunk = sentence;
+        chunkNumber++;
       } else {
-        currentChunk.push(sentence.trim());
-        currentLength = potentialLength;
+        currentChunk = testChunk;
       }
     }
     
     // Añadir salto de párrafo si no estamos en el límite del chunk
-    if (currentLength + 2 <= optimalChunkSize) {
-      currentChunk.push("\n\n");
-      currentLength += 2;
+    if (currentChunk.length + 2 <= maxSize) {
+      currentChunk += '\n\n';
     }
   }
-
-  // Añadir el último chunk si hay texto restante
-  if (currentChunk.length > 0) {
-    const finalChunk = currentChunk.join(" ").trim();
-    if (finalChunk) {
-      chunks.push(finalChunk);
-      console.log(`Created final chunk ${chunks.length}, size: ${finalChunk.length} characters`);
-    }
+  
+  // Añadir el último chunk si hay contenido
+  if (currentChunk.trim()) {
+    console.log(`Creating final chunk ${chunkNumber}, size: ${currentChunk.length} characters`);
+    chunks.push(currentChunk.trim());
   }
-
-  // Log información de chunks para debugging
+  
+  console.log(`Total chunks created: ${chunks.length}`);
   chunks.forEach((chunk, index) => {
-    console.log(`Chunk ${index + 1}/${chunks.length}, size: ${chunk.length} characters`);
+    console.log(`Chunk ${index + 1} size: ${chunk.length} characters`);
   });
-
-  return chunks.filter(chunk => chunk.trim().length > 0);
+  
+  return chunks;
 }
 
 /**
