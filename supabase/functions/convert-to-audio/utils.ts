@@ -33,10 +33,37 @@ export function validateChunk(text: string): boolean {
 
   const encoder = new TextEncoder();
   const bytes = encoder.encode(text);
+  const maxBytes = 4800;
   
-  if (bytes.length > 5000) {
-    throw new Error(`Text chunk exceeds maximum length of 5000 bytes (current: ${bytes.length} bytes)`);
+  if (bytes.length > maxBytes) {
+    console.error(`Text length: ${text.length}, Bytes: ${bytes.length}`);
+    throw new Error(`Text chunk exceeds maximum length of ${maxBytes} bytes (current: ${bytes.length} bytes)`);
   }
 
   return true;
+}
+
+export function splitTextIntoChunks(text: string, maxSize: number = 4800): string[] {
+  const chunks: string[] = [];
+  let currentChunk = '';
+  const words = text.split(/\s+/);
+
+  for (const word of words) {
+    const testChunk = currentChunk + (currentChunk ? ' ' : '') + word;
+    const encoder = new TextEncoder();
+    const testBytes = encoder.encode(testChunk);
+
+    if (testBytes.length > maxSize && currentChunk) {
+      chunks.push(currentChunk);
+      currentChunk = word;
+    } else {
+      currentChunk = testChunk;
+    }
+  }
+
+  if (currentChunk) {
+    chunks.push(currentChunk);
+  }
+
+  return chunks;
 }

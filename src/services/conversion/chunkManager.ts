@@ -14,7 +14,7 @@ export interface ConversionChunk {
 export async function createChunksForConversion(
   conversionId: string,
   text: string,
-  chunkSize: number = 5000
+  chunkSize: number = 4800
 ): Promise<ConversionChunk[]> {
   const chunks = splitTextIntoChunks(text);
   const chunkRecords = chunks.map((content, index) => ({
@@ -81,34 +81,22 @@ export async function getConversionChunks(conversionId: string): Promise<Convers
 
 function splitTextIntoChunks(text: string, chunkSize: number = 4800): string[] {
   const chunks: string[] = [];
+  let currentChunk = '';
   const words = text.split(/\s+/);
-  let currentChunk: string[] = [];
-  let currentLength = 0;
-
-  for (let word of words) {
-    const wordLength = word.length;
-    const spaceLength = currentChunk.length > 0 ? 1 : 0;
-    const potentialLength = currentLength + wordLength + spaceLength;
-
-    if (potentialLength > chunkSize && currentChunk.length > 0) {
-      const chunk = currentChunk.join(" ").trim();
-      if (chunk) {
-        chunks.push(chunk);
-      }
-      currentChunk = [word];
-      currentLength = wordLength;
+  
+  for (const word of words) {
+    const testChunk = currentChunk + (currentChunk ? ' ' : '') + word;
+    if (testChunk.length > chunkSize && currentChunk) {
+      chunks.push(currentChunk);
+      currentChunk = word;
     } else {
-      currentChunk.push(word);
-      currentLength = potentialLength;
+      currentChunk = testChunk;
     }
   }
-
-  if (currentChunk.length > 0) {
-    const finalChunk = currentChunk.join(" ").trim();
-    if (finalChunk) {
-      chunks.push(finalChunk);
-    }
+  
+  if (currentChunk) {
+    chunks.push(currentChunk);
   }
-
+  
   return chunks.filter(chunk => chunk.trim().length > 0);
 }

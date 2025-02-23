@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks } from './chunkProcessor.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
+import { validateChunk, splitTextIntoChunks } from './utils.ts';
 import type { ConversionRequest, ConversionResponse, ErrorResponse } from './types/index.ts';
 
 console.log('Loading convert-to-audio function...');
@@ -49,6 +50,14 @@ serve(async (req) => {
 
     if (!voiceId || typeof voiceId !== 'string') {
       throw new Error('VoiceId parameter must be a non-empty string');
+    }
+
+    // Validar y procesar el chunk
+    try {
+      validateChunk(text);
+    } catch (error) {
+      console.error('❌ Chunk validation failed:', error);
+      throw error;
     }
 
     // Inicializar clientes
