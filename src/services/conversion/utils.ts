@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for text conversion and hashing
  */
@@ -20,48 +19,110 @@ export async function generateHash(text: string, voiceId: string): Promise<strin
 }
 
 /**
- * Split text into smaller chunks with better word boundary handling
+ * Split text into smaller chunks while preserving sentence boundaries
  */
 export function splitTextIntoChunks(text: string, maxSize: number = 4800): string[] {
   const chunks: string[] = [];
   let currentChunk = '';
-  let chunkNumber = 1;
+  let currentSize = 0;
   
-  // Primero dividimos por párrafos para mantener la coherencia
+  // Dividir el texto en párrafos
   const paragraphs = text.split(/\n+/);
   
   for (const paragraph of paragraphs) {
-    // Dividir párrafo en oraciones
+    // Dividir párrafo en oraciones usando puntuación como delimitador
     const sentences = paragraph.split(/(?<=[.!?])\s+/);
     
     for (const sentence of sentences) {
-      const testChunk = currentChunk + (currentChunk ? ' ' : '') + sentence;
+      const encoder = new TextEncoder();
+      const sentenceBytes = encoder.encode(sentence + ' ').length;
       
-      if (testChunk.length > maxSize && currentChunk) {
-        console.log(`Creating chunk ${chunkNumber}, size: ${currentChunk.length} characters`);
-        chunks.push(currentChunk);
-        currentChunk = sentence;
-        chunkNumber++;
-      } else {
-        currentChunk = testChunk;
+      // Si la oración por sí sola excede el límite, dividirla por palabras
+      if (sentenceBytes > maxSize) {
+        if (currentChunk) {
+          chunks.push(currentChunk.trim());
+          currentChunk = '';
+          currentSize = 0;
+        }
+        
+        // Dividir la oración larga en palabras
+        const words = sentence.split(/\s+/);
+        let tempChunk = '';
+        let tempSize = 0;
+        
+        for (const word of words) {
+          const wordBytes = encoder.encode(word + ' ').length;
+          
+          if (tempSize + wordBytes > maxSize) {
+            if (tempChunk) {
+              chunks.push(tempChunk.trim());
+              tempChunk = word + ' ';
+              tempSize = wordBytes;
+            } else {
+              // Si una palabra es demasiado larga, dividirla en caracteres
+              const chars = word.split('');
+              let charChunk = '';
+              let charSize = 0;
+              
+              for (const char of chars) {
+                const charBytes = encoder.encode(char).length;
+                if (charSize + charBytes > maxSize) {
+                  chunks.push(charChunk);
+                  charChunk = char;
+                  charSize = charBytes;
+                } else {
+                  charChunk += char;
+                  charSize += charBytes;
+                }
+              }
+              
+              if (charChunk) {
+                chunks.push(charChunk);
+              }
+            }
+          } else {
+            tempChunk += word + ' ';
+            tempSize += wordBytes;
+          }
+        }
+        
+        if (tempChunk) {
+          chunks.push(tempChunk.trim());
+        }
+      }
+      // Si la oración cabe en el chunk actual
+      else if (currentSize + sentenceBytes <= maxSize) {
+        currentChunk += sentence + ' ';
+        currentSize += sentenceBytes;
+      }
+      // Si la oración no cabe, crear nuevo chunk
+      else {
+        chunks.push(currentChunk.trim());
+        currentChunk = sentence + ' ';
+        currentSize = sentenceBytes;
       }
     }
     
-    // Añadir salto de párrafo si no estamos en el límite del chunk
-    if (currentChunk.length + 2 <= maxSize) {
+    // Añadir salto de párrafo si hay espacio
+    if (currentSize + 2 <= maxSize) {
       currentChunk += '\n\n';
+      currentSize += 2;
     }
   }
   
-  // Añadir el último chunk si hay contenido
+  // Añadir el último chunk si existe
   if (currentChunk.trim()) {
-    console.log(`Creating final chunk ${chunkNumber}, size: ${currentChunk.length} characters`);
     chunks.push(currentChunk.trim());
   }
   
-  console.log(`Total chunks created: ${chunks.length}`);
+  // Validar y loguear todos los chunks
+  console.log(`Dividiendo texto en ${chunks.length} chunks:`);
   chunks.forEach((chunk, index) => {
-    console.log(`Chunk ${index + 1} size: ${chunk.length} characters`);
+    const bytes = new TextEncoder().encode(chunk).length;
+    console.log(`Chunk ${index + 1}: ${bytes} bytes, ${chunk.length} caracteres`);
+    if (bytes > maxSize) {
+      throw new Error(`Chunk ${index + 1} excede el límite de ${maxSize} bytes (${bytes} bytes)`);
+    }
   });
   
   return chunks;
