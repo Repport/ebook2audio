@@ -1,13 +1,15 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import JSZip from "jszip";
-import { generateHash } from "./utils";
+import { generateHash, splitTextIntoChunks } from "./utils";
 import { createConversion, updateConversionStatus } from "./conversionManager";
 import { ChapterWithTimestamp } from "./types";
 import { uploadToStorage } from "./storage/cacheStorage";
 import { processConversionChunks } from "./chunkProcessingService";
 import { createChunksForConversion } from "./chunkManager";
 import { TextChunkCallback } from "./types/chunks";
+
+const CHUNK_SIZE = 4800;
 
 export async function convertToAudio(
   text: string,
@@ -49,38 +51,70 @@ export async function convertToAudio(
 
     const conversionId = conversionRecord.id;
     console.log('Created conversion with ID:', conversionId);
+
+    // Dividir el texto en chunks aquí, antes de enviarlo
+    const chunks = splitTextIntoChunks(text, CHUNK_SIZE);
+    console.log(`Text split into ${chunks.length} chunks`);
+
+    const audioBuffers: ArrayBuffer[] = [];
     
     try {
-      // Llamar a la edge function para convertir
-      const { data, error } = await supabase.functions.invoke('convert-to-audio', {
-        body: {
-          text,
-          voiceId,
-          fileName,
-          conversionId
-        },
+      // Procesar cada chunk individualmente
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        console.log(`Processing chunk ${i + 1}/${chunks.length}, size: ${chunk.length} characters`);
+        
+        // Llamar a la edge function con cada chunk individual
+        const { data, error } = await supabase.functions.invoke('convert-to-audio', {
+          body: {
+            text: chunk,
+            voiceId,
+            fileName,
+            conversionId,
+            chunkIndex: i,
+            totalChunks: chunks.length
+          },
+        });
+
+        if (error) {
+          console.error(`Error in chunk ${i + 1}:`, error);
+          throw error;
+        }
+
+        if (!data?.audioContent) {
+          throw new Error(`No audio content received for chunk ${i + 1}`);
+        }
+
+        // Convertir base64 a ArrayBuffer
+        const binaryString = atob(data.audioContent);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let j = 0; j < binaryString.length; j++) {
+          bytes[j] = binaryString.charCodeAt(j);
+        }
+
+        audioBuffers.push(bytes.buffer);
+        
+        // Actualizar progreso
+        const progress = Math.round(((i + 1) / chunks.length) * 100);
+        await updateConversionStatus(conversionId, 'processing', undefined, progress);
+      }
+
+      // Combinar todos los chunks de audio
+      const finalAudioBuffer = new Uint8Array(
+        audioBuffers.reduce((acc, buffer) => acc + buffer.byteLength, 0)
+      );
+
+      let offset = 0;
+      audioBuffers.forEach(buffer => {
+        finalAudioBuffer.set(new Uint8Array(buffer), offset);
+        offset += buffer.byteLength;
       });
 
-      if (error) {
-        console.error('Error in text-to-speech conversion:', error);
-        throw error;
-      }
-
-      if (!data?.audioContent) {
-        throw new Error('No audio content received from conversion');
-      }
-
-      // Convertir base64 a ArrayBuffer
-      const binaryString = atob(data.audioContent);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
+      await updateConversionStatus(conversionId, 'completed', undefined, 100);
       console.log('Conversion completed successfully');
       
       return { 
-        audio: bytes.buffer,
+        audio: finalAudioBuffer.buffer,
         id: conversionId
       };
 
