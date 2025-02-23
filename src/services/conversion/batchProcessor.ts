@@ -12,8 +12,13 @@ export async function processChunkBatch(
   
   const { voiceId, fileName, conversionId, totalChunks, totalCharacters } = options;
   
-  const promises = chunks.map((chunk, index) =>
-    processChunkWithTimeout(chunk, startIndex + index, voiceId, fileName)
+  const promises = chunks.map((chunk, index) => {
+    // Verificar tamaño del chunk antes de procesar
+    if (chunk.length > 4800) {
+      throw new Error(`Chunk ${startIndex + index} exceeds maximum size of 4800 characters (${chunk.length})`);
+    }
+
+    return processChunkWithTimeout(chunk, startIndex + index, voiceId, fileName)
       .then(async (audioBuffer) => {
         const completedChunks = startIndex + index + 1;
         const progress = Math.round((completedChunks / totalChunks) * 90) + 5;
@@ -36,8 +41,8 @@ export async function processChunkBatch(
         }
 
         return audioBuffer;
-      })
-  );
+      });
+  });
 
   return Promise.all(promises);
 }

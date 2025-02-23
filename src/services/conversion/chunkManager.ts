@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { retryOperation } from "./utils/retryUtils";
 
@@ -80,7 +79,7 @@ export async function getConversionChunks(conversionId: string): Promise<Convers
   }));
 }
 
-function splitTextIntoChunks(text: string, chunkSize: number = 5000): string[] {
+function splitTextIntoChunks(text: string, chunkSize: number = 4800): string[] {
   const chunks: string[] = [];
   const words = text.split(/\s+/);
   let currentChunk: string[] = [];
@@ -113,4 +112,3 @@ function splitTextIntoChunks(text: string, chunkSize: number = 5000): string[] {
 
   return chunks.filter(chunk => chunk.trim().length > 0);
 }
-
