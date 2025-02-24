@@ -9,7 +9,7 @@ export async function convertToAudio(
   text: string,
   voiceId: string,
   onProgress?: TextChunkCallback
-): Promise<ArrayBuffer> {
+): Promise<{ audio: ArrayBuffer; id: string }> {
   console.log('Starting conversion process with:', {
     textLength: text?.length,
     voiceId
@@ -80,7 +80,13 @@ export async function convertToAudio(
 
       console.log('Conversion completed successfully');
       
-      return finalAudioBuffer.buffer;
+      // Generar un ID único para esta conversión
+      const conversionId = crypto.randomUUID();
+      
+      return {
+        audio: finalAudioBuffer.buffer,
+        id: conversionId
+      };
 
     } catch (error) {
       console.error('Error during conversion:', error);
