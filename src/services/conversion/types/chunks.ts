@@ -5,6 +5,14 @@ export interface AudioResponse {
   };
 }
 
+export interface ChunkProgressData {
+  processedChunks: number;
+  totalChunks: number;
+  processedCharacters: number;
+  totalCharacters: number;
+  currentChunk: string;
+}
+
 export interface ChunkProcessingOptions {
   voiceId: string;
   fileName?: string;
@@ -13,8 +21,4 @@ export interface ChunkProcessingOptions {
   totalCharacters: number;
 }
 
-export type TextChunkCallback = (
-  chunkText: string,
-  processedCharacters: number,
-  totalCharacters: number
-) => void;
+export type TextChunkCallback = (data: ChunkProgressData) => void;
