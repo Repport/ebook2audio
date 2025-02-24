@@ -23,7 +23,7 @@ interface ConversionStatusProps {
 
 const ConversionStatus = ({ 
   status, 
-  progress = 0, 
+  progress = 0,
   fileType = 'EPUB',
   chapters = [],
   estimatedSeconds = 0,
@@ -79,7 +79,11 @@ const ConversionStatus = ({
         {statusMessages[status]}
       </p>
       <div className="w-full space-y-3">
-        <Progress value={currentProgress} className="w-full" showPercentage={showPercentage} />
+        <Progress 
+          value={progress} 
+          className="w-full" 
+          showPercentage={showPercentage} 
+        />
         <div className="text-sm text-muted-foreground text-center space-y-1">
           <div>
             {elapsedTime > 0 && (
@@ -94,6 +98,11 @@ const ConversionStatus = ({
               </span>
             )}
           </div>
+          {processedChunks > 0 && totalChunks > 0 && (
+            <div>
+              Processing chunk {processedChunks} of {totalChunks}
+            </div>
+          )}
         </div>
       </div>
     </div>
