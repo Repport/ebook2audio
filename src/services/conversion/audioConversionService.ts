@@ -55,7 +55,8 @@ export async function convertToAudio(
     // Dividir el texto en chunks aquí, antes de enviarlo
     const chunks = splitTextIntoChunks(text, CHUNK_SIZE);
     console.log(`Text split into ${chunks.length} chunks`);
-
+    
+    const totalChunks = chunks.length;
     const audioBuffers: ArrayBuffer[] = [];
     
     try {
@@ -64,6 +65,17 @@ export async function convertToAudio(
         const chunk = chunks[i];
         console.log(`Processing chunk ${i + 1}/${chunks.length}, size: ${chunk.length} characters`);
         
+        // Notificar progreso al frontend
+        if (onProgress) {
+          onProgress({
+            processedChunks: i,
+            totalChunks,
+            processedCharacters: chunks.slice(0, i).reduce((acc, chunk) => acc + chunk.length, 0),
+            totalCharacters: text.length,
+            currentChunk: chunk
+          });
+        }
+
         // Llamar a la edge function con cada chunk individual
         const { data, error } = await supabase.functions.invoke('convert-to-audio', {
           body: {
@@ -93,10 +105,6 @@ export async function convertToAudio(
         }
 
         audioBuffers.push(bytes.buffer);
-        
-        // Actualizar progreso
-        const progress = Math.round(((i + 1) / chunks.length) * 100);
-        await updateConversionStatus(conversionId, 'processing', undefined, progress);
       }
 
       // Combinar todos los chunks de audio
@@ -110,7 +118,17 @@ export async function convertToAudio(
         offset += buffer.byteLength;
       });
 
-      await updateConversionStatus(conversionId, 'completed', undefined, 100);
+      // Notificar progreso final
+      if (onProgress) {
+        onProgress({
+          processedChunks: totalChunks,
+          totalChunks,
+          processedCharacters: text.length,
+          totalCharacters: text.length,
+          currentChunk: null
+        });
+      }
+
       console.log('Conversion completed successfully');
       
       return { 
@@ -120,7 +138,6 @@ export async function convertToAudio(
 
     } catch (error) {
       console.error('Error during conversion:', error);
-      await updateConversionStatus(conversionId, 'failed', error.message);
       throw error;
     }
 
