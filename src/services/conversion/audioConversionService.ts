@@ -41,30 +41,49 @@ export async function convertToAudio(
         }
 
         // Llamar a la edge function con cada chunk individual
+        console.log('Sending chunk to edge function:', {
+          chunkSize: chunk.length,
+          voiceId
+        });
+
         const { data, error } = await supabase.functions.invoke('convert-to-audio', {
           body: {
             text: chunk,
             voiceId
           },
+          headers: {
+            'Content-Type': 'application/json'
+          }
         });
 
         if (error) {
           console.error(`Error in chunk ${i + 1}:`, error);
-          throw error;
+          throw new Error(`Error converting chunk ${i + 1}: ${error.message}`);
         }
 
+        console.log('Received response from edge function:', {
+          hasData: !!data,
+          hasAudioContent: data?.audioContent ? 'yes' : 'no'
+        });
+
         if (!data?.audioContent) {
-          throw new Error(`No audio content received for chunk ${i + 1}`);
+          throw new Error(`No audio content received for chunk ${i + 1}. Response: ${JSON.stringify(data)}`);
         }
 
         // Convertir base64 a ArrayBuffer
-        const binaryString = atob(data.audioContent);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let j = 0; j < binaryString.length; j++) {
-          bytes[j] = binaryString.charCodeAt(j);
-        }
+        try {
+          const binaryString = atob(data.audioContent);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let j = 0; j < binaryString.length; j++) {
+            bytes[j] = binaryString.charCodeAt(j);
+          }
 
-        audioBuffers.push(bytes.buffer);
+          audioBuffers.push(bytes.buffer);
+          console.log(`Successfully processed chunk ${i + 1}`);
+        } catch (error) {
+          console.error('Error converting base64 to ArrayBuffer:', error);
+          throw new Error(`Error processing audio data for chunk ${i + 1}: ${error.message}`);
+        }
       }
 
       // Combinar todos los chunks de audio
