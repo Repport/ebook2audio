@@ -19,6 +19,7 @@ interface ConversionStatusProps {
   conversionId?: string | null;
   textLength?: number;
   showPercentage?: boolean;
+  onProgressUpdate?: (data: any) => void;
 }
 
 const ConversionStatus = ({ 
@@ -29,11 +30,13 @@ const ConversionStatus = ({
   estimatedSeconds = 0,
   conversionId,
   textLength = 0,
-  showPercentage = true
+  showPercentage = true,
+  onProgressUpdate
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
   const { 
     progress: currentProgress, 
+    updateProgress,
     timeRemaining, 
     elapsedTime, 
     hasStarted,
@@ -47,6 +50,19 @@ const ConversionStatus = ({
     conversionId,
     textLength
   );
+
+  // Actualizar el progreso cuando cambie
+  React.useEffect(() => {
+    if (onProgressUpdate) {
+      onProgressUpdate({
+        progress: currentProgress,
+        processedChunks,
+        totalChunks,
+        elapsedTime,
+        speed
+      });
+    }
+  }, [currentProgress, processedChunks, totalChunks, elapsedTime, speed, onProgressUpdate]);
 
   const displayStatus = status === 'processing' ? 'converting' : status;
   
@@ -80,7 +96,7 @@ const ConversionStatus = ({
       </p>
       <div className="w-full space-y-3">
         <Progress 
-          value={progress} 
+          value={currentProgress} 
           className="w-full" 
           showPercentage={showPercentage} 
         />

@@ -1,12 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import JSZip from "jszip";
 import { generateHash, splitTextIntoChunks } from "./utils";
-import { createConversion, updateConversionStatus } from "./conversionManager";
-import { ChapterWithTimestamp } from "./types";
-import { uploadToStorage } from "./storage/cacheStorage";
-import { processConversionChunks } from "./chunkProcessingService";
-import { createChunksForConversion } from "./chunkManager";
 import { TextChunkCallback } from "./types/chunks";
 
 const CHUNK_SIZE = 4800;
@@ -14,45 +8,15 @@ const CHUNK_SIZE = 4800;
 export async function convertToAudio(
   text: string,
   voiceId: string,
-  chapters?: ChapterWithTimestamp[],
-  fileName?: string,
   onProgress?: TextChunkCallback
-): Promise<{ audio: ArrayBuffer, id: string }> {
+): Promise<ArrayBuffer> {
   console.log('Starting conversion process with:', {
     textLength: text?.length,
-    voiceId,
-    hasChapters: !!chapters,
-    fileName
+    voiceId
   });
 
-  const textHash = await generateHash(text, voiceId);
-  const userId = (await supabase.auth.getUser()).data.user?.id;
-  
   try {
-    console.log('Creating conversion record...');
-    const { data: conversionRecord, error: insertError } = await supabase
-      .from('text_conversions')
-      .insert({
-        user_id: userId,
-        status: 'processing',
-        file_name: fileName,
-        text_hash: textHash,
-        progress: 0,
-        notify_on_complete: false,
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      })
-      .select()
-      .single();
-
-    if (insertError || !conversionRecord) {
-      console.error('Error creating conversion record:', insertError);
-      throw new Error('Failed to create conversion record');
-    }
-
-    const conversionId = conversionRecord.id;
-    console.log('Created conversion with ID:', conversionId);
-
-    // Dividir el texto en chunks aquí, antes de enviarlo
+    // Dividir el texto en chunks
     const chunks = splitTextIntoChunks(text, CHUNK_SIZE);
     console.log(`Text split into ${chunks.length} chunks`);
     
@@ -68,9 +32,9 @@ export async function convertToAudio(
         // Notificar progreso al frontend
         if (onProgress) {
           onProgress({
-            processedChunks: i,
+            processedChunks: i + 1,
             totalChunks,
-            processedCharacters: chunks.slice(0, i).reduce((acc, chunk) => acc + chunk.length, 0),
+            processedCharacters: chunks.slice(0, i + 1).reduce((acc, chunk) => acc + chunk.length, 0),
             totalCharacters: text.length,
             currentChunk: chunk
           });
@@ -80,11 +44,7 @@ export async function convertToAudio(
         const { data, error } = await supabase.functions.invoke('convert-to-audio', {
           body: {
             text: chunk,
-            voiceId,
-            fileName,
-            conversionId,
-            chunkIndex: i,
-            totalChunks: chunks.length
+            voiceId
           },
         });
 
@@ -118,23 +78,9 @@ export async function convertToAudio(
         offset += buffer.byteLength;
       });
 
-      // Notificar progreso final
-      if (onProgress) {
-        onProgress({
-          processedChunks: totalChunks,
-          totalChunks,
-          processedCharacters: text.length,
-          totalCharacters: text.length,
-          currentChunk: null
-        });
-      }
-
       console.log('Conversion completed successfully');
       
-      return { 
-        audio: finalAudioBuffer.buffer,
-        id: conversionId
-      };
+      return finalAudioBuffer.buffer;
 
     } catch (error) {
       console.error('Error during conversion:', error);

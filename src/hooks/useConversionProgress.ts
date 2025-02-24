@@ -1,14 +1,5 @@
 
-import { useRef, useEffect } from 'react';
-import { useProgressState } from './conversion/useProgressState';
-import { useTimeTracking } from './conversion/useTimeTracking';
-import { useProgressUpdates } from './conversion/useProgressUpdates';
-import { useTimeEstimation } from './conversion/useTimeEstimation';
-import { useRealtimeSubscription } from './conversion/useRealtimeSubscription';
-import { useBatchProgress } from './conversion/useBatchProgress';
-import { useProgressSimulation } from './conversion/useProgressSimulation';
-import { useBatchUpdates } from './conversion/useBatchUpdates';
-import { getProgress, updateProgress as updateCacheProgress, initializeProgress } from '../services/conversion/progressCache';
+import { useRef, useState, useEffect } from 'react';
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -17,60 +8,77 @@ export const useConversionProgress = (
   conversionId?: string | null,
   textLength?: number
 ) => {
-  const {
-    progress,
-    setProgress,
-    elapsedTime,
-    setElapsedTime,
-    processedChunks,
-    setProcessedChunks,
-    totalChunks,
-    setTotalChunks
-  } = useProgressState(initialProgress);
-
-  const { startTimeRef, lastUpdateRef } = useTimeTracking();
+  const [progress, setProgress] = useState<number>(initialProgress);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [processedChunks, setProcessedChunks] = useState<number>(0);
+  const [totalChunks, setTotalChunks] = useState<number>(0);
+  const [speed, setSpeed] = useState<number>(0);
+  
+  const startTimeRef = useRef<number>(Date.now());
+  const lastUpdateRef = useRef<number>(Date.now());
   const processedCharactersRef = useRef<number>(0);
-  const totalCharacters = textLength || 0;
-  const lastProgressRef = useRef<ReturnType<typeof updateCacheProgress> | null>(null);
 
-  // Inicializar el progreso cuando comienza la conversión
+  // Reset timers when conversion starts
   useEffect(() => {
-    if ((status === 'converting' || status === 'processing') && conversionId && totalCharacters > 0) {
-      console.log('🏁 Initializing progress tracking for:', conversionId);
-      initializeProgress(conversionId, totalCharacters);
+    if (status === 'converting' || status === 'processing') {
+      startTimeRef.current = Date.now();
+      lastUpdateRef.current = Date.now();
+      processedCharactersRef.current = 0;
+      setProgress(0);
+      setElapsedTime(0);
+      setProcessedChunks(0);
     }
-  }, [status, conversionId, totalCharacters]);
+  }, [status]);
 
-  const handleProgressUpdate = (data: any) => {
-    if (!conversionId) return;
+  // Update elapsed time
+  useEffect(() => {
+    let intervalId: number;
+    
+    if (status === 'converting' || status === 'processing') {
+      intervalId = window.setInterval(() => {
+        const now = Date.now();
+        const elapsed = Math.floor((now - startTimeRef.current) / 1000);
+        setElapsedTime(elapsed);
+        
+        if (processedCharactersRef.current > 0) {
+          const speed = processedCharactersRef.current / elapsed;
+          setSpeed(speed);
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [status]);
 
-    console.log('📊 Progress update received:', data);
+  const updateProgress = (data: any) => {
+    if (!data) return;
 
-    const updatedProgress = updateCacheProgress(conversionId, data.processed_characters || 0);
-    if (updatedProgress) {
-      console.log('📈 Updated progress:', updatedProgress);
-      setProgress(updatedProgress.progress);
-      setElapsedTime(updatedProgress.elapsedSeconds);
-      processedCharactersRef.current = updatedProgress.processedCharacters;
-      lastProgressRef.current = updatedProgress;
+    const { processedChunks, totalChunks, processedCharacters, totalCharacters } = data;
+    
+    if (typeof processedChunks === 'number' && typeof totalChunks === 'number') {
+      setProcessedChunks(processedChunks);
+      setTotalChunks(totalChunks);
+    }
+
+    if (typeof processedCharacters === 'number' && typeof totalCharacters === 'number') {
+      processedCharactersRef.current = processedCharacters;
+      const newProgress = Math.round((processedCharacters / totalCharacters) * 100);
+      setProgress(newProgress);
     }
   };
 
-  useRealtimeSubscription(
-    conversionId,
-    status,
-    handleProgressUpdate,
-    Math.ceil(totalCharacters / 4800),
-    textLength
-  );
-
   return {
     progress,
+    updateProgress,
     elapsedTime,
-    timeRemaining: lastProgressRef.current?.estimatedSeconds || null,
-    hasStarted: processedCharactersRef.current > 0 || status === 'converting' || status === 'processing',
+    timeRemaining: estimatedSeconds - elapsedTime,
+    hasStarted: processedCharactersRef.current > 0,
     processedChunks,
-    totalChunks: Math.ceil(totalCharacters / 4800),
-    speed: getProgress(conversionId || '')?.speed || 0
+    totalChunks,
+    speed
   };
 };
