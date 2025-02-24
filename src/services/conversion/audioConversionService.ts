@@ -40,34 +40,54 @@ export async function convertToAudio(
           });
         }
 
+        // Verificar que el chunk no esté vacío
+        if (!chunk.trim()) {
+          console.warn(`Empty chunk detected at index ${i}, skipping...`);
+          continue;
+        }
+
         // Llamar a la edge function con cada chunk individual
         console.log('Sending chunk to edge function:', {
           chunkSize: chunk.length,
-          voiceId
+          voiceId,
+          chunkPreview: chunk.substring(0, 50) + '...'
         });
 
-        const { data, error } = await supabase.functions.invoke('convert-to-audio', {
-          body: {
+        const response = await supabase.functions.invoke('convert-to-audio', {
+          body: JSON.stringify({
             text: chunk,
             voiceId
-          },
+          }),
           headers: {
             'Content-Type': 'application/json'
           }
         });
 
-        if (error) {
-          console.error(`Error in chunk ${i + 1}:`, error);
-          throw new Error(`Error converting chunk ${i + 1}: ${error.message}`);
+        if (response.error) {
+          console.error('Edge function error details:', {
+            error: response.error,
+            status: response.status,
+            statusText: response.statusText,
+            data: response.data
+          });
+          throw new Error(`Error converting chunk ${i + 1}: ${response.error.message}`);
         }
 
-        console.log('Received response from edge function:', {
-          hasData: !!data,
-          hasAudioContent: data?.audioContent ? 'yes' : 'no'
+        if (!response.data) {
+          console.error('Empty response from edge function:', response);
+          throw new Error(`No data received from edge function for chunk ${i + 1}`);
+        }
+
+        console.log('Edge function response:', {
+          hasData: !!response.data,
+          hasAudioContent: !!response.data.audioContent,
+          responseKeys: Object.keys(response.data)
         });
 
-        if (!data?.audioContent) {
-          throw new Error(`No audio content received for chunk ${i + 1}. Response: ${JSON.stringify(data)}`);
+        const { data } = response;
+
+        if (!data.audioContent) {
+          throw new Error(`No audio content in response for chunk ${i + 1}. Response: ${JSON.stringify(data)}`);
         }
 
         // Convertir base64 a ArrayBuffer
@@ -81,7 +101,7 @@ export async function convertToAudio(
           audioBuffers.push(bytes.buffer);
           console.log(`Successfully processed chunk ${i + 1}`);
         } catch (error) {
-          console.error('Error converting base64 to ArrayBuffer:', error);
+          console.error('Base64 conversion error:', error);
           throw new Error(`Error processing audio data for chunk ${i + 1}: ${error.message}`);
         }
       }
@@ -97,7 +117,7 @@ export async function convertToAudio(
         offset += buffer.byteLength;
       });
 
-      console.log('Conversion completed successfully');
+      console.log('Audio conversion completed successfully');
       
       // Generar un ID único para esta conversión
       const conversionId = crypto.randomUUID();
