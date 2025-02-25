@@ -22,6 +22,7 @@ export const useConversionProgress = (
   const processedCharactersRef = useRef<number>(0);
   const initialProgressRef = useRef<number>(initialProgress);
   const progressHistoryRef = useRef<number[]>([]);
+  const timeRemainingHistoryRef = useRef<number[]>([]);
 
   // Actualizar progress cuando el initialProgress cambia
   useEffect(() => {
@@ -42,6 +43,7 @@ export const useConversionProgress = (
       lastUpdateRef.current = Date.now();
       processedCharactersRef.current = 0;
       progressHistoryRef.current = [];
+      timeRemainingHistoryRef.current = [];
       
       // Siempre iniciamos desde 0 al comenzar una nueva conversión
       setProgress(0);
@@ -152,24 +154,64 @@ export const useConversionProgress = (
     }
   };
 
-  // Calcular el tiempo restante de manera más precisa
+  // Calcular el tiempo restante de manera más estable
   const calculateTimeRemaining = (): number | null => {
-    if (elapsedTime <= 0 || progress <= 0) {
-      return estimatedSeconds;
+    // Si no ha comenzado la conversión, usar la estimación inicial
+    if (elapsedTime < 2 || progress <= 0) {
+      // Usamos un tiempo inicial razonable
+      const initialEstimate = Math.min(estimatedSeconds, 60); // max 1 minuto inicial
+      return initialEstimate;
     }
     
-    // Si el progreso es muy bajo, mejor usar la estimación inicial
+    // Si el progreso es muy bajo, limitar el tiempo inicial para evitar valores exagerados
     if (progress < 5) {
-      return estimatedSeconds;
+      return Math.min(estimatedSeconds, 120); // max 2 minutos si hay poco progreso
     }
     
-    // Calcular basado en el progreso actual
+    // Calcular basado en el progreso actual y el tiempo transcurrido
     const percentageComplete = progress / 100;
     const estimatedTotalTime = elapsedTime / percentageComplete;
     const calculatedRemaining = estimatedTotalTime - elapsedTime;
     
-    // No permitir que el tiempo restante aumente
-    return Math.max(1, Math.min(calculatedRemaining, estimatedSeconds));
+    // Limitar el tiempo máximo basado en la cantidad de texto
+    const maxRemaining = textLength 
+      ? Math.min(600, Math.ceil(textLength / 100)) // max 10 minutos o 1 segundo por cada 100 caracteres
+      : 300; // max 5 minutos por defecto
+    
+    // Aplicar suavizado al tiempo restante
+    const smoothedRemaining = smoothTimeRemaining(
+      Math.max(1, Math.min(calculatedRemaining, maxRemaining))
+    );
+    
+    return smoothedRemaining;
+  };
+  
+  // Función para suavizar el tiempo restante
+  const smoothTimeRemaining = (newTimeRemaining: number): number => {
+    // Añadir al historial
+    timeRemainingHistoryRef.current.push(newTimeRemaining);
+    
+    // Mantener solo los últimos 3 valores
+    if (timeRemainingHistoryRef.current.length > 3) {
+      timeRemainingHistoryRef.current.shift();
+    }
+    
+    // Si tenemos suficientes valores para promediar
+    if (timeRemainingHistoryRef.current.length >= 2) {
+      // Calcular promedio ponderado (dando más peso a los valores más recientes)
+      const weights = [0.2, 0.3, 0.5]; // El último valor tiene más peso
+      const validWeights = weights.slice(-timeRemainingHistoryRef.current.length);
+      const totalWeight = validWeights.reduce((sum, w) => sum + w, 0);
+      
+      let weightedSum = 0;
+      for (let i = 0; i < timeRemainingHistoryRef.current.length; i++) {
+        weightedSum += timeRemainingHistoryRef.current[i] * validWeights[i];
+      }
+      
+      return Math.ceil(weightedSum / totalWeight);
+    }
+    
+    return newTimeRemaining;
   };
 
   return {
