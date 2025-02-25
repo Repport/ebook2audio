@@ -17,6 +17,7 @@ export const useConversionProgress = (
   const [speed, setSpeed] = useState<number>(0);
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(estimatedSeconds || 120);
   
   // Referencias para datos persistentes entre renders
   const startTimeRef = useRef<number>(Date.now());
@@ -25,6 +26,7 @@ export const useConversionProgress = (
   const processedCharsRef = useRef<number>(0);
   const totalCharsRef = useRef<number>(0);
   const autoIncrementRef = useRef<boolean>(false);
+  const timeRemainingHistoryRef = useRef<number[]>([]);
   
   // Cuando cambia el estado de conversión
   useEffect(() => {
@@ -36,6 +38,7 @@ export const useConversionProgress = (
       processedCharsRef.current = 0;
       totalCharsRef.current = 0;
       autoIncrementRef.current = false;
+      timeRemainingHistoryRef.current = [];
       
       setProgress(Math.max(1, initialProgress));
       setElapsedTime(0);
@@ -43,12 +46,14 @@ export const useConversionProgress = (
       setTotalChunks(0);
       setErrors([]);
       setWarnings([]);
+      setTimeRemaining(estimatedSeconds || 120);
     } 
     else if (status === 'completed') {
       // Asegurar que el progreso esté al 100% al completarse
       setProgress(100);
+      setTimeRemaining(0);
     }
-  }, [status, initialProgress]);
+  }, [status, initialProgress, estimatedSeconds]);
   
   // Actualizar progreso inicial cuando cambia
   useEffect(() => {
@@ -56,6 +61,57 @@ export const useConversionProgress = (
       setProgress(Math.max(1, initialProgress));
     }
   }, [initialProgress, progress]);
+
+  // Función para calcular tiempo restante de manera estable
+  const calculateTimeRemaining = (): number => {
+    // Etapa inicial de la conversión
+    if (elapsedTime < 3 || progress <= 1) {
+      return estimatedSeconds || 120; // Valor inicial razonable
+    }
+    
+    // Cálculo estándar basado en progreso y tiempo transcurrido
+    const percentComplete = Math.max(0.01, progress / 100);
+    const estimatedTotalTime = elapsedTime / percentComplete;
+    const remaining = Math.max(1, estimatedTotalTime - elapsedTime);
+    
+    // Valor máximo razonable según tamaño del texto
+    const maxValue = textLength 
+      ? Math.min(1800, Math.max(30, textLength / 100)) 
+      : 600;
+    
+    return Math.min(remaining, maxValue);
+  };
+
+  // Función para suavizar el tiempo restante y evitar fluctuaciones
+  const smoothTimeRemaining = (newTime: number): number => {
+    // Añadir el nuevo valor al historial
+    timeRemainingHistoryRef.current.push(newTime);
+    
+    // Mantener solo los últimos 5 valores
+    if (timeRemainingHistoryRef.current.length > 5) {
+      timeRemainingHistoryRef.current.shift();
+    }
+    
+    // Si tenemos suficientes valores, usar un promedio ponderado
+    // dando más peso a los valores más recientes
+    if (timeRemainingHistoryRef.current.length >= 3) {
+      const weights = [0.1, 0.15, 0.2, 0.25, 0.3]; // Mayor peso a los valores más recientes
+      const usedWeights = weights.slice(-timeRemainingHistoryRef.current.length);
+      
+      let weightedSum = 0;
+      let totalWeight = 0;
+      
+      for (let i = 0; i < timeRemainingHistoryRef.current.length; i++) {
+        weightedSum += timeRemainingHistoryRef.current[i] * usedWeights[i];
+        totalWeight += usedWeights[i];
+      }
+      
+      return Math.round(weightedSum / totalWeight);
+    }
+    
+    // Si no tenemos suficientes valores, devolver el valor más reciente
+    return newTime;
+  };
 
   // Timer para actualizar tiempo transcurrido y progreso automático
   useEffect(() => {
@@ -72,6 +128,11 @@ export const useConversionProgress = (
           const charsPerSecond = processedCharsRef.current / Math.max(1, elapsed);
           setSpeed(charsPerSecond);
         }
+        
+        // Actualizar tiempo restante de forma estable
+        const rawTimeRemaining = calculateTimeRemaining();
+        const smoothedTime = smoothTimeRemaining(rawTimeRemaining);
+        setTimeRemaining(smoothedTime);
         
         // Auto-incremento inteligente del progreso si no hay actualizaciones
         const secondsSinceLastUpdate = (now - lastUpdateTimeRef.current) / 1000;
@@ -104,7 +165,7 @@ export const useConversionProgress = (
         window.clearInterval(intervalId);
       }
     };
-  }, [status, progress]);
+  }, [status, progress, estimatedSeconds, textLength]);
 
   // Función para procesar actualizaciones de progreso
   const updateProgress = (data: ChunkProgressData) => {
@@ -117,6 +178,7 @@ export const useConversionProgress = (
     // Si recibimos señal de completado, ir al 100%
     if (data.isCompleted) {
       setProgress(100);
+      setTimeRemaining(0);
       return;
     }
     
@@ -172,6 +234,11 @@ export const useConversionProgress = (
         // Actualizar progreso y registrar
         setProgress(newProgress);
         progressHistoryRef.current.push({time: now, value: newProgress});
+        
+        // Calcular y actualizar tiempo restante cuando hay un cambio significativo
+        const rawTimeRemaining = calculateTimeRemaining();
+        const smoothedTime = smoothTimeRemaining(rawTimeRemaining);
+        setTimeRemaining(smoothedTime);
       }
     }
     
@@ -185,31 +252,11 @@ export const useConversionProgress = (
     }
   };
 
-  // Calcular tiempo restante de manera estable
-  const calculateTimeRemaining = (): number | null => {
-    // Etapa inicial de la conversión
-    if (elapsedTime < 3 || progress <= 1) {
-      return estimatedSeconds || 120; // Valor inicial razonable
-    }
-    
-    // Cálculo estándar basado en progreso y tiempo transcurrido
-    const percentComplete = Math.max(0.01, progress / 100);
-    const estimatedTotalTime = elapsedTime / percentComplete;
-    const remaining = Math.max(1, estimatedTotalTime - elapsedTime);
-    
-    // Valor máximo razonable según tamaño del texto
-    const maxValue = textLength 
-      ? Math.min(1800, Math.max(30, textLength / 100)) 
-      : 600;
-    
-    return Math.min(remaining, maxValue);
-  };
-
   return {
     progress,
     updateProgress,
     elapsedTime,
-    timeRemaining: calculateTimeRemaining(),
+    timeRemaining,
     hasStarted: elapsedTime > 2 || progress > 1,
     processedChunks,
     totalChunks,

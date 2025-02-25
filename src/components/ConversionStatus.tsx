@@ -8,6 +8,7 @@ import { useConversionProgress } from '@/hooks/useConversionProgress';
 import { Progress } from '@/components/ui/progress';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { formatTimeRemaining } from '@/utils/timeFormatting';
 
 interface ConversionStatusProps {
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
@@ -97,16 +98,6 @@ const ConversionStatus = ({
     processing: translations.converting.replace('{fileType}', '')
   };
 
-  // Formatear tiempo para visualización
-  const formatTime = (seconds: number | null) => {
-    if (!seconds || seconds <= 0) return "Calculando...";
-    
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    if (minutes === 0) return `${remainingSeconds}s`;
-    return `${minutes}m ${remainingSeconds}s`;
-  };
-
   // Renderizar avisos y errores
   const renderWarningsAndErrors = () => {
     if ((warnings.length === 0 && errors.length === 0) || status !== 'converting') {
@@ -164,19 +155,19 @@ const ConversionStatus = ({
           status="idle"
         />
         <div className="text-sm text-muted-foreground text-center space-y-1">
-          <div>
-            {elapsedTime > 0 && (
-              <span>
-                {translations.timeElapsed.replace('{time}', formatTime(elapsedTime))}
-                {typeof timeRemaining === 'number' && timeRemaining > 0 && (
-                  <span> • {translations.timeRemaining.replace('{time}', formatTime(timeRemaining))}</span>
-                )}
-                {speed > 0 && (
-                  <span> • {Math.round(speed)} chars/sec</span>
-                )}
-              </span>
-            )}
-          </div>
+          {(elapsedTime > 0 || timeRemaining) && (
+            <div className="min-h-[1.5rem]">
+              {elapsedTime > 0 && (
+                <span>
+                  {translations.timeElapsed.replace('{time}', formatTimeRemaining(elapsedTime))}
+                  {timeRemaining !== null && timeRemaining > 0 && (
+                    <span> • {translations.timeRemaining.replace('{time}', formatTimeRemaining(timeRemaining))}</span>
+                  )}
+                </span>
+              )}
+            </div>
+          )}
+          
           {processedChunks > 0 && totalChunks > 0 && (
             <div>
               Procesando chunk {processedChunks} de {totalChunks}
