@@ -112,13 +112,14 @@ const ConversionStatus = ({
           value={currentProgress} 
           className="w-full" 
           showPercentage={showPercentage} 
+          status="idle"
         />
         <div className="text-sm text-muted-foreground text-center space-y-1">
           <div>
             {elapsedTime > 0 && (
               <span>
                 {translations.timeElapsed.replace('{time}', formatTime(elapsedTime))}
-                {typeof timeRemaining === 'number' && (
+                {typeof timeRemaining === 'number' && timeRemaining > 0 && (
                   <span> • {translations.timeRemaining.replace('{time}', formatTime(timeRemaining))}</span>
                 )}
                 {speed > 0 && (

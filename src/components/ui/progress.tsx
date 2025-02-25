@@ -12,6 +12,20 @@ const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
   ProgressProps
 >(({ className, value, status = "idle", showPercentage = true, ...props }, ref) => {
+  // Usamos estado local para animar suavemente los cambios de valor
+  const [displayValue, setDisplayValue] = React.useState(value || 0);
+
+  React.useEffect(() => {
+    // Actualizamos el valor mostrado de forma suave
+    const timer = setTimeout(() => {
+      if (typeof value === 'number') {
+        setDisplayValue(value);
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [value]);
+
   const statusColors = {
     idle: "bg-primary",
     error: "bg-destructive",
@@ -37,7 +51,7 @@ const Progress = React.forwardRef<
           "h-full w-full flex-1 transition-transform ease-out duration-300 will-change-transform",
           statusColors[status]
         )}
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+        style={{ transform: `translateX(-${100 - (displayValue || 0)}%)` }}
       />
       {showPercentage && (
         <span 
@@ -47,7 +61,7 @@ const Progress = React.forwardRef<
             transform: "translateZ(0)" // Mejora el rendimiento del texto
           }}
         >
-          {Math.round(value || 0)}%
+          {Math.round(displayValue || 0)}%
         </span>
       )}
     </ProgressPrimitive.Root>

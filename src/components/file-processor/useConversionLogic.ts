@@ -117,7 +117,7 @@ export const useConversionLogic = (
       const newProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
       console.log(`Setting progress to ${newProgress}%`);
       setProgress(newProgress);
-    } else if (data.progress) {
+    } else if (typeof data.progress === 'number') {
       console.log(`Setting direct progress: ${data.progress}%`);
       setProgress(data.progress);
     }

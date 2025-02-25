@@ -13,6 +13,7 @@ export interface ChunkProgressData {
   currentChunk: string;
   error?: string;
   warning?: string;
+  progress?: number; // Añadimos esta propiedad que estaba faltando
 }
 
 export interface ChunkProcessingOptions {
