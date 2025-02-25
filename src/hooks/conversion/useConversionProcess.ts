@@ -42,24 +42,39 @@ export const useConversionProcess = ({
       console.log('Starting conversion process for file:', fileName);
       
       const onProgressUpdate = (progressData: any) => {
-        const { processedCharacters, totalCharacters } = progressData;
+        const { processedCharacters, totalCharacters, progress: directProgress } = progressData;
         
-        if (processedCharacters && totalCharacters) {
-          const calculatedProgress = Math.round((processedCharacters / totalCharacters) * 100);
-          console.log(`Setting conversion progress: ${calculatedProgress}% (${processedCharacters}/${totalCharacters} chars)`);
-          
-          // Aplicar directamente el progreso
-          setProgress(calculatedProgress);
-          
-          // Forward progress to external callback if provided
-          if (onProgressCallback) {
-            onProgressCallback({
-              ...progressData,
-              progress: calculatedProgress
-            });
-          }
-        } else {
-          console.warn('Progress update received with missing character counts:', progressData);
+        let progressValue: number;
+        
+        // Primero intentar usar el progreso directo si está disponible
+        if (typeof directProgress === 'number' && !isNaN(directProgress)) {
+          progressValue = Math.max(1, Math.min(100, directProgress));
+          console.log(`Using direct progress value: ${progressValue}%`);
+        }
+        // Si no, calcular basado en caracteres procesados
+        else if (processedCharacters && totalCharacters) {
+          progressValue = Math.round((processedCharacters / totalCharacters) * 100);
+          console.log(`Calculated progress value: ${progressValue}% (${processedCharacters}/${totalCharacters} chars)`);
+        }
+        // Fallback - usar al menos 1%
+        else {
+          progressValue = Math.max(1, progressData.progress || 1);
+          console.log(`Using fallback progress value: ${progressValue}%`);
+        }
+        
+        // Asegurar que el progreso esté dentro de límites razonables
+        progressValue = Math.max(1, Math.min(100, progressValue));
+        
+        // Actualizar el progreso en el estado global
+        console.log(`Setting conversion progress: ${progressValue}%`);
+        setProgress(progressValue);
+        
+        // Forward progress to external callback if provided
+        if (onProgressCallback) {
+          onProgressCallback({
+            ...progressData,
+            progress: progressValue
+          });
         }
       };
 

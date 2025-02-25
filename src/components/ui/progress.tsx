@@ -14,17 +14,21 @@ const Progress = React.forwardRef<
 >(({ className, value, status = "idle", showPercentage = true, ...props }, ref) => {
   // Usamos estado local para animar suavemente los cambios de valor
   const [displayValue, setDisplayValue] = React.useState(1); // Siempre comenzar desde 1% mínimo
+  const prevValueRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
-    // Actualizamos el valor mostrado de forma suave
-    const timer = setTimeout(() => {
-      if (typeof value === 'number') {
-        // Asegurar que siempre tenemos al menos 1% para visibilidad
-        setDisplayValue(Math.max(1, value));
-      }
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    // Solo actualizar cuando el valor cambia y es un número válido mayor que el valor previo
+    if (typeof value === 'number' && !isNaN(value) && (prevValueRef.current === null || value > prevValueRef.current)) {
+      // Log para depuración
+      console.log(`Progress component updating value: ${value}% (prev: ${prevValueRef.current})`);
+      
+      // Asegurar que siempre tenemos al menos 1% para visibilidad
+      const newValue = Math.max(1, Math.min(100, value));
+      
+      // Actualizar el valor de forma suave
+      setDisplayValue(newValue);
+      prevValueRef.current = newValue;
+    }
   }, [value]);
 
   const statusColors = {
@@ -36,6 +40,9 @@ const Progress = React.forwardRef<
   const shimmerEffect = 
     "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent " +
     "before:animate-[shimmer_2s_infinite] before:content-['']";
+
+  // Calcular el porcentaje real para la transformación
+  const transformPercentage = 100 - displayValue;
 
   return (
     <ProgressPrimitive.Root
@@ -52,7 +59,7 @@ const Progress = React.forwardRef<
           "h-full w-full flex-1 transition-transform ease-out duration-300 will-change-transform",
           statusColors[status]
         )}
-        style={{ transform: `translateX(-${100 - (displayValue || 1)}%)` }}
+        style={{ transform: `translateX(-${transformPercentage}%)` }}
       />
       {showPercentage && (
         <span 
@@ -62,7 +69,7 @@ const Progress = React.forwardRef<
             transform: "translateZ(0)" // Mejora el rendimiento del texto
           }}
         >
-          {Math.round(displayValue || 1)}%
+          {displayValue}%
         </span>
       )}
     </ProgressPrimitive.Root>

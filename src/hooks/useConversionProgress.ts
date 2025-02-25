@@ -9,7 +9,7 @@ export const useConversionProgress = (
   conversionId?: string | null,
   textLength?: number
 ) => {
-  const [progress, setProgress] = useState<number>(initialProgress);
+  const [progress, setProgress] = useState<number>(Math.max(1, initialProgress));
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [processedChunks, setProcessedChunks] = useState<number>(0);
   const [totalChunks, setTotalChunks] = useState<number>(0);
@@ -23,15 +23,21 @@ export const useConversionProgress = (
   const initialProgressRef = useRef<number>(initialProgress);
   const progressHistoryRef = useRef<number[]>([]);
   const timeRemainingHistoryRef = useRef<number[]>([]);
+  const hasProgressRef = useRef<boolean>(false);
 
   // Actualizar progress cuando el initialProgress cambia
   useEffect(() => {
     console.log(`initialProgress updated: ${initialProgress}%`);
     initialProgressRef.current = initialProgress;
     
-    // Evitamos retrocesos en el progreso
-    if (initialProgress > progress) {
+    // Solo actualizar el progreso si es mayor que el actual (evitar retrocesos)
+    // o si aún no hemos recibido ninguna actualización significativa
+    if (initialProgress > progress || (initialProgress > 1 && !hasProgressRef.current)) {
+      console.log(`Setting progress from initialProgress: ${initialProgress}%`);
       setProgress(initialProgress);
+      if (initialProgress > 5) {
+        hasProgressRef.current = true;
+      }
     }
   }, [initialProgress, progress]);
 
@@ -44,8 +50,9 @@ export const useConversionProgress = (
       processedCharactersRef.current = 0;
       progressHistoryRef.current = [];
       timeRemainingHistoryRef.current = [];
+      hasProgressRef.current = false;
       
-      // Asegurar que siempre empecemos con al menos 1% para que la barra sea visible
+      // Iniciar con progreso visible
       setProgress(Math.max(1, initialProgress));
       
       setElapsedTime(0);
@@ -76,12 +83,6 @@ export const useConversionProgress = (
           currentProgress: progress,
           speed: processedCharactersRef.current > 0 ? processedCharactersRef.current / Math.max(1, elapsed) : 0
         });
-        
-        // Si el progreso sigue en 0% después de 5 segundos, establecer al menos 1%
-        if (progress <= 0 && elapsed > 5) {
-          console.log('Progress still at 0% after 5 seconds, setting to 1%');
-          setProgress(1);
-        }
       }, 1000);
     }
     
@@ -94,6 +95,11 @@ export const useConversionProgress = (
 
   // Función para obtener un progreso suavizado
   const getSmoothedProgress = (newProgress: number): number => {
+    // Si el progreso es significativo, marcarlo
+    if (newProgress > 5) {
+      hasProgressRef.current = true;
+    }
+    
     // Añadir al historial
     progressHistoryRef.current.push(newProgress);
     
@@ -106,8 +112,8 @@ export const useConversionProgress = (
     const averageProgress = progressHistoryRef.current.reduce((sum, val) => sum + val, 0) / 
                            progressHistoryRef.current.length;
     
-    // No permitir que el progreso retroceda y asegurar que sea al menos 1%
-    return Math.max(progress, Math.max(1, Math.floor(averageProgress)));
+    // No permitir que el progreso retroceda
+    return Math.max(progress, Math.floor(averageProgress));
   };
 
   const updateProgress = (data: ChunkProgressData) => {
@@ -138,15 +144,21 @@ export const useConversionProgress = (
       console.log(`Calculating progress: ${newProgress}% (${processedCharacters}/${totalCharacters} chars)`);
     }
     
-    // Aplicar suavizado al progreso y asegurar que sea al menos 1%
-    if (typeof newProgress === 'number') {
-      const smoothedProgress = getSmoothedProgress(newProgress);
-      console.log(`Smoothed progress: ${smoothedProgress}% (raw: ${newProgress}%)`);
-      setProgress(smoothedProgress);
-    } else if (status === 'converting' && progress <= 0) {
-      // Si estamos convirtiendo pero no tenemos progreso, establecer al menos 1%
-      console.log('Setting minimum progress to 1% for visibility');
-      setProgress(1);
+    // Solo aplicar suavizado y actualización si tenemos un valor válido
+    if (typeof newProgress === 'number' && !isNaN(newProgress)) {
+      // Asegurarnos que el progreso sea al menos 1 y no más de 100
+      newProgress = Math.max(1, Math.min(100, newProgress));
+      
+      // Suavizar el progreso solo si está cambiando, para evitar estancamiento
+      if (newProgress !== progress) {
+        const smoothedProgress = getSmoothedProgress(newProgress);
+        console.log(`Smoothed progress: ${smoothedProgress}% (raw: ${newProgress}%)`);
+        setProgress(smoothedProgress);
+      } else if (newProgress > 1 && progress === 1) {
+        // Si estamos estancados en 1% pero recibimos un progreso mayor, actualizarlo
+        console.log(`Breaking out of 1% stuck state with new progress: ${newProgress}%`);
+        setProgress(newProgress);
+      }
     }
     
     if (typeof processedChunks === 'number' && typeof totalChunks === 'number') {
@@ -171,11 +183,6 @@ export const useConversionProgress = (
       // Usamos un tiempo inicial razonable, nunca cero
       const initialEstimate = Math.max(30, Math.min(estimatedSeconds, 300)); // entre 30s y 5 min inicial
       return initialEstimate;
-    }
-    
-    // Si el progreso es muy bajo, limitar el tiempo inicial para evitar valores exagerados
-    if (progress < 5) {
-      return Math.min(estimatedSeconds, 240); // max 4 minutos si hay poco progreso
     }
     
     // Calcular basado en el progreso actual y el tiempo transcurrido
@@ -229,7 +236,7 @@ export const useConversionProgress = (
     updateProgress,
     elapsedTime,
     timeRemaining: calculateTimeRemaining(),
-    hasStarted: processedCharactersRef.current > 0 || progress > 0,
+    hasStarted: processedCharactersRef.current > 0 || progress > 1,
     processedChunks,
     totalChunks,
     speed,
