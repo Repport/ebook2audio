@@ -49,17 +49,19 @@ export async function convertToAudio(
         // Llamar a la edge function con cada chunk individual
         console.log('Sending chunk to edge function:', {
           chunkSize: chunk.length,
-          voiceId,
+          voice: voiceId,
           chunkPreview: chunk.substring(0, 50) + '...'
         });
 
-        // Try with explicit param matching format used in edge function
+        // Para Google Cloud Text-to-Speech API, asegurarnos de que los parámetros sean correctos
         const response = await supabase.functions.invoke('convert-to-audio', {
           body: {
             text: chunk,
-            voice: voiceId  // Using 'voice' parameter name
+            voice: voiceId
           }
         });
+
+        console.log('Raw response from edge function:', response);
 
         if (response.error) {
           console.error('Edge function error details:', {
@@ -76,11 +78,7 @@ export async function convertToAudio(
           throw new Error(`No data received from edge function for chunk ${i + 1}`);
         }
 
-        console.log('Edge function response:', {
-          hasData: !!response.data,
-          hasAudioContent: !!response.data.audioContent,
-          responseKeys: Object.keys(response.data)
-        });
+        console.log('Edge function response data:', response.data);
 
         const { data } = response;
 
@@ -98,16 +96,17 @@ export async function convertToAudio(
 
           audioBuffers.push(bytes.buffer);
           console.log(`Successfully processed chunk ${i + 1}`);
-        } catch (error) {
+        } catch (error: any) {
           console.error('Base64 conversion error:', error);
           throw new Error(`Error processing audio data for chunk ${i + 1}: ${error.message}`);
         }
       }
 
       // Combinar todos los chunks de audio
-      const finalAudioBuffer = new Uint8Array(
-        audioBuffers.reduce((acc, buffer) => acc + buffer.byteLength, 0)
-      );
+      const totalLength = audioBuffers.reduce((acc, buffer) => acc + buffer.byteLength, 0);
+      console.log(`Combining ${audioBuffers.length} audio chunks with total size: ${totalLength} bytes`);
+      
+      const finalAudioBuffer = new Uint8Array(totalLength);
 
       let offset = 0;
       audioBuffers.forEach(buffer => {
@@ -125,12 +124,12 @@ export async function convertToAudio(
         id: conversionId
       };
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error during conversion:', error);
       throw error;
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fatal error in convertToAudio:', error);
     throw error;
   }
