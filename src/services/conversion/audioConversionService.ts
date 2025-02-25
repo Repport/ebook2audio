@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { generateHash, splitTextIntoChunks, retryOperation } from "./utils";
-import { TextChunkCallback } from "./types/chunks";
+import { TextChunkCallback, ChunkProgressData } from "./types/chunks";
 
 const CHUNK_SIZE = 4800;
 const MAX_CONCURRENT_REQUESTS = 3; // Limitamos a 3 peticiones concurrentes para evitar sobrecarga
@@ -86,14 +86,15 @@ export async function convertToAudio(
         // En lugar de lanzar un error, devolvemos un buffer vacío para que la conversión pueda continuar
         // con los demás chunks, y registramos el error
         if (onProgress) {
-          onProgress({
+          const progressData: ChunkProgressData = {
             processedChunks: index + 1,
             totalChunks,
             processedCharacters: processedCharacters + chunk.length,
             totalCharacters,
             currentChunk: chunk,
             error: `No audio content for chunk ${index + 1}`
-          });
+          };
+          onProgress(progressData);
         }
         return new ArrayBuffer(0);
       }
@@ -111,13 +112,14 @@ export async function convertToAudio(
         
         // Actualizar progreso
         if (onProgress) {
-          onProgress({
+          const progressData: ChunkProgressData = {
             processedChunks: index + 1,
             totalChunks,
             processedCharacters,
             totalCharacters,
             currentChunk: chunk
-          });
+          };
+          onProgress(progressData);
         }
 
         return bytes.buffer;
@@ -125,14 +127,15 @@ export async function convertToAudio(
         console.error(`Base64 conversion error for chunk ${index + 1}:`, error);
         // Registramos el error pero no interrumpimos el proceso
         if (onProgress) {
-          onProgress({
+          const progressData: ChunkProgressData = {
             processedChunks: index + 1,
             totalChunks,
             processedCharacters: processedCharacters + chunk.length,
             totalCharacters,
             currentChunk: chunk,
             error: `Error processing audio data for chunk ${index + 1}: ${error.message}`
-          });
+          };
+          onProgress(progressData);
         }
         return new ArrayBuffer(0);
       }
@@ -156,14 +159,15 @@ export async function convertToAudio(
             
             // Notificar del error pero continuar con la conversión
             if (onProgress) {
-              onProgress({
+              const progressData: ChunkProgressData = {
                 processedChunks: index + 1,
                 totalChunks,
                 processedCharacters,
                 totalCharacters,
                 currentChunk: chunk,
                 error: error instanceof Error ? error.message : String(error)
-              });
+              };
+              onProgress(progressData);
             }
           }
         };
@@ -222,13 +226,15 @@ export async function convertToAudio(
       console.warn(`⚠️ ${errorCount} de ${totalChunks} chunks fallaron durante la conversión`);
       // Notificar al usuario mediante el callback de progreso
       if (onProgress) {
-        onProgress({
+        const progressData: ChunkProgressData = {
           processedChunks: totalChunks,
           totalChunks,
           processedCharacters,
           totalCharacters,
+          currentChunk: "",
           warning: `${errorCount} chunks no pudieron ser convertidos. El audio puede estar incompleto.`
-        });
+        };
+        onProgress(progressData);
       }
     }
     

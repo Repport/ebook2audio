@@ -11,6 +11,8 @@ export interface ChunkProgressData {
   processedCharacters: number;
   totalCharacters: number;
   currentChunk: string;
+  error?: string;
+  warning?: string;
 }
 
 export interface ChunkProcessingOptions {

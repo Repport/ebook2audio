@@ -1,5 +1,6 @@
 
 import { useRef, useState, useEffect } from 'react';
+import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -13,6 +14,8 @@ export const useConversionProgress = (
   const [processedChunks, setProcessedChunks] = useState<number>(0);
   const [totalChunks, setTotalChunks] = useState<number>(0);
   const [speed, setSpeed] = useState<number>(0);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   
   const startTimeRef = useRef<number>(Date.now());
   const lastUpdateRef = useRef<number>(Date.now());
@@ -27,6 +30,8 @@ export const useConversionProgress = (
       setProgress(0);
       setElapsedTime(0);
       setProcessedChunks(0);
+      setErrors([]);
+      setWarnings([]);
     }
   }, [status]);
 
@@ -54,10 +59,10 @@ export const useConversionProgress = (
     };
   }, [status]);
 
-  const updateProgress = (data: any) => {
+  const updateProgress = (data: ChunkProgressData) => {
     if (!data) return;
 
-    const { processedChunks, totalChunks, processedCharacters, totalCharacters } = data;
+    const { processedChunks, totalChunks, processedCharacters, totalCharacters, error, warning } = data;
     
     if (typeof processedChunks === 'number' && typeof totalChunks === 'number') {
       setProcessedChunks(processedChunks);
@@ -69,6 +74,15 @@ export const useConversionProgress = (
       const newProgress = Math.round((processedCharacters / totalCharacters) * 100);
       setProgress(newProgress);
     }
+
+    // Manejar errores y advertencias
+    if (error && !errors.includes(error)) {
+      setErrors(prevErrors => [...prevErrors, error]);
+    }
+
+    if (warning && !warnings.includes(warning)) {
+      setWarnings(prevWarnings => [...prevWarnings, warning]);
+    }
   };
 
   return {
@@ -79,6 +93,8 @@ export const useConversionProgress = (
     hasStarted: processedCharactersRef.current > 0,
     processedChunks,
     totalChunks,
-    speed
+    speed,
+    errors,
+    warnings
   };
 };
