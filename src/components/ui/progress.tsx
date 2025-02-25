@@ -18,18 +18,15 @@ const Progress = React.forwardRef<
   // Referencia al valor anterior para comparación
   const prevValueRef = React.useRef<number>(1);
   
-  // Log de actualizaciones para debugging
+  // Actualizar valor de forma suave cuando cambia
   React.useEffect(() => {
-    console.log(`Progress component received value: ${value}%, current display: ${displayValue}%`);
-    
-    // Solo actualizar si value es un número válido
-    if (typeof value === 'number' && !isNaN(value)) {
+    if (typeof value === 'number' && !isNaN(value) && value >= 0) {
       // Garantizar un valor mínimo de 1% para visibilidad
       const newValue = Math.max(1, Math.min(100, value));
       
-      // Solo actualizar si el nuevo valor es diferente del actual
-      if (newValue !== prevValueRef.current) {
-        console.log(`Progress bar updating from ${prevValueRef.current}% to ${newValue}%`);
+      // Solo actualizar si es un cambio significativo (al menos 1%)
+      // o es el valor final (100%)
+      if (Math.abs(newValue - prevValueRef.current) >= 1 || newValue === 100) {
         setDisplayValue(newValue);
         prevValueRef.current = newValue;
       }
@@ -62,15 +59,14 @@ const Progress = React.forwardRef<
           statusColors[status]
         )}
         style={{ 
-          transform: `translateX(-${100 - displayValue}%)`,
-          transitionProperty: "transform",
+          transform: `translateX(-${100 - displayValue}%)` 
         }}
       />
       {showPercentage && (
         <span 
           className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white mix-blend-difference"
           style={{ 
-            textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+            textShadow: "0 1px 2px rgba(0,0,0,0.3)"
           }}
         >
           {Math.round(displayValue)}%
