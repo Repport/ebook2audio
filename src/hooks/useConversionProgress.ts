@@ -33,8 +33,8 @@ export const useConversionProgress = (
   // Cuando cambia el estado de conversión
   useEffect(() => {
     if (status === 'converting' || status === 'processing') {
-      // Solo inicializar el tiempo de inicio si es la primera vez o si cambiamos de completed/error a converting
-      if (!hasInitializedRef.current || status === 'completed' || status === 'error') {
+      // Solo inicializar el tiempo de inicio si es la primera vez o si cambiamos desde completed o error
+      if (!hasInitializedRef.current || ['completed', 'error'].includes(status as string)) {
         console.log('Inicializando tiempo de inicio para la conversión');
         startTimeRef.current = Date.now() - (elapsedTimeRef.current * 1000); // Mantener tiempo transcurrido
         hasInitializedRef.current = true;
@@ -43,7 +43,7 @@ export const useConversionProgress = (
       lastUpdateTimeRef.current = Date.now();
       
       // Solo reiniciar estos valores si venimos de un estado completado o error
-      if (status === 'completed' || status === 'error') {
+      if (['completed', 'error'].includes(status as string)) {
         progressHistoryRef.current = [];
         processedCharsRef.current = 0;
         totalCharsRef.current = 0;
