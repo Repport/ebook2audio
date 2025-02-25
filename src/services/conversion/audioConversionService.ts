@@ -143,72 +143,58 @@ export async function convertToAudio(
 
     // Procesar chunks en paralelo con límite de concurrencia
     const processChunksWithConcurrencyLimit = async (): Promise<{buffers: ArrayBuffer[], errors: number}> => {
-      const results: ArrayBuffer[] = [];
+      const results: ArrayBuffer[] = new Array(chunks.length);
       let errorCount = 0;
+      let currentIndex = 0;
       
-      // Crear un array de promesas para cada chunk
-      const chunkPromises = chunks.map((chunk, index) => {
-        return async (): Promise<void> => {
+      // Función para obtener el siguiente índice a procesar
+      const getNextChunkIndex = (): number | null => {
+        if (currentIndex >= chunks.length) {
+          return null;
+        }
+        return currentIndex++;
+      };
+
+      // Crear un trabajador que procese chunks hasta que no queden más
+      const worker = async (): Promise<void> => {
+        let nextIndex: number | null;
+        
+        while ((nextIndex = getNextChunkIndex()) !== null) {
           try {
-            const buffer = await processChunk(chunk, index);
-            results[index] = buffer; // Asegura que los resultados estén en el orden correcto
+            console.log(`Worker starting chunk ${nextIndex + 1}/${chunks.length}`);
+            const buffer = await processChunk(chunks[nextIndex], nextIndex);
+            results[nextIndex] = buffer;
+            console.log(`Worker completed chunk ${nextIndex + 1}/${chunks.length}`);
           } catch (error) {
-            console.error(`Error processing chunk ${index}:`, error);
-            results[index] = new ArrayBuffer(0); // Usamos un buffer vacío para chunks fallidos
+            console.error(`Error processing chunk ${nextIndex}:`, error);
+            results[nextIndex] = new ArrayBuffer(0);
             errorCount++;
             
             // Notificar del error pero continuar con la conversión
             if (onProgress) {
               const progressData: ChunkProgressData = {
-                processedChunks: index + 1,
+                processedChunks: nextIndex + 1,
                 totalChunks,
                 processedCharacters,
                 totalCharacters,
-                currentChunk: chunk,
+                currentChunk: chunks[nextIndex],
                 error: error instanceof Error ? error.message : String(error)
               };
               onProgress(progressData);
             }
           }
-        };
-      });
-
-      // Procesar chunks con límite de concurrencia
-      const runWithConcurrencyLimit = async (tasks: (() => Promise<void>)[]) => {
-        let index = 0;
-        const runningTasks: Promise<void>[] = [];
-
-        // Función recursiva para iniciar una nueva tarea cuando sea posible
-        const runTask = async (): Promise<void> => {
-          if (index >= tasks.length) return;
-          
-          const currentTask = tasks[index++];
-          const taskPromise = currentTask().finally(() => {
-            // Eliminar la tarea de las tareas en ejecución
-            const taskIndex = runningTasks.indexOf(taskPromise);
-            if (taskIndex > -1) {
-              runningTasks.splice(taskIndex, 1);
-            }
-            
-            // Iniciar una nueva tarea si hay más
-            return runTask();
-          });
-          
-          runningTasks.push(taskPromise);
-        };
-
-        // Iniciar tareas hasta el límite de concurrencia
-        for (let i = 0; i < Math.min(MAX_CONCURRENT_REQUESTS, tasks.length); i++) {
-          await runTask();
-        }
-
-        // Esperar a que todas las tareas terminen
-        while (runningTasks.length > 0) {
-          await Promise.race(runningTasks);
         }
       };
 
-      await runWithConcurrencyLimit(chunkPromises);
+      // Crear un array de trabajadores según el límite de concurrencia
+      const workers = Array(Math.min(MAX_CONCURRENT_REQUESTS, chunks.length))
+        .fill(null)
+        .map(() => worker());
+      
+      // Esperar a que todos los trabajadores terminen
+      await Promise.all(workers);
+      
+      console.log(`All workers completed. Processed ${currentIndex} chunks with ${errorCount} errors.`);
       return { buffers: results, errors: errorCount };
     };
 
@@ -239,7 +225,7 @@ export async function convertToAudio(
     }
     
     // Combinar todos los chunks de audio (ignorando los vacíos)
-    const nonEmptyBuffers = audioBuffers.filter(buffer => buffer.byteLength > 0);
+    const nonEmptyBuffers = audioBuffers.filter(buffer => buffer?.byteLength > 0);
     const totalLength = nonEmptyBuffers.reduce((acc, buffer) => acc + buffer.byteLength, 0);
     console.log(`Combining ${nonEmptyBuffers.length} audio chunks with total size: ${totalLength} bytes`);
     
