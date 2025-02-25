@@ -75,4 +75,19 @@ export const useConversionProcess = ({
       console.error('Conversion error:', error);
       toast({
         title: "Conversion failed",
-        description: error.message || "An error occurre
+        description: error.message || "An error occurred during conversion",
+        variant: "destructive",
+      });
+      setConversionStatus('error');
+      return null;
+    }
+  }, [
+    toast, 
+    setConversionStatus, 
+    setProgress, 
+    setAudioData, 
+    setAudioDuration, 
+    setCurrentFileName, 
+    setConversionId
+  ]);
+};
