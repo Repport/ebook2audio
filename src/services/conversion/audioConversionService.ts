@@ -59,15 +59,19 @@ export async function convertToAudio(
       // Preparar cuerpo de la solicitud - usando 'voiceId' como nombre del parámetro
       const requestBody = {
         text: chunk,
-        voiceId: voiceId // IMPORTANTE: Este es el nombre esperado por la función edge
+        voiceId: voiceId
       };
       
       console.log(`Request for chunk ${i + 1}:`, JSON.stringify(requestBody));
       
-      // Intentar la conversión con retry
+      // Intentar la conversión con retry - usando baseDelay en lugar de initialDelay
       const response = await retryOperation(
         () => supabase.functions.invoke('convert-to-audio', { body: requestBody }),
-        { maxRetries: 3, initialDelay: 1000 }
+        { 
+          maxRetries: 3, 
+          baseDelay: 1000,  // Cambiado de initialDelay a baseDelay
+          operation: `Convert chunk ${i + 1}`
+        }
       );
 
       console.log(`Response for chunk ${i + 1}:`, JSON.stringify(response));

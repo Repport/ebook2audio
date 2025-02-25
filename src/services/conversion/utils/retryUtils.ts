@@ -1,4 +1,3 @@
-
 import { PostgrestError, PostgrestResponse } from '@supabase/supabase-js';
 
 const MAX_RETRIES = 3;
@@ -7,7 +6,7 @@ const INITIAL_RETRY_DELAY = 1000;
 interface RetryOptions {
   retryCount?: number;
   maxRetries?: number;
-  initialDelay?: number;
+  baseDelay?: number;
   maxDelay?: number;
   operation?: string;
 }
@@ -19,7 +18,7 @@ export async function retryOperation<T>(
   const {
     retryCount = 0,
     maxRetries = MAX_RETRIES,
-    initialDelay = INITIAL_RETRY_DELAY,
+    baseDelay = INITIAL_RETRY_DELAY,
     maxDelay = 10000,
     operation: opName = 'Operation'
   } = options;
@@ -49,7 +48,7 @@ export async function retryOperation<T>(
       });
     }
 
-    const exponentialDelay = initialDelay * Math.pow(2, retryCount);
+    const exponentialDelay = baseDelay * Math.pow(2, retryCount);
     const jitter = Math.random() * 1000;
     const delay = Math.min(exponentialDelay + jitter, maxDelay);
     
@@ -99,7 +98,6 @@ export async function safeSupabaseQuery<T>(
   );
 }
 
-// Mantener la función original por compatibilidad
 export async function safeSupabaseUpdate<T>(
   supabaseClient: any,
   table: string,
