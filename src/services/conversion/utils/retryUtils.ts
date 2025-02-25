@@ -1,3 +1,4 @@
+
 import { PostgrestError, PostgrestResponse } from '@supabase/supabase-js';
 
 const MAX_RETRIES = 3;
@@ -9,6 +10,8 @@ interface RetryOptions {
   baseDelay?: number;
   maxDelay?: number;
   operation?: string;
+  exponentialBackoff?: boolean;
+  logProgress?: boolean;
 }
 
 export async function retryOperation<T>(
@@ -19,11 +22,17 @@ export async function retryOperation<T>(
     retryCount = 0,
     maxRetries = MAX_RETRIES,
     baseDelay = INITIAL_RETRY_DELAY,
-    maxDelay = 10000,
-    operation: opName = 'Operation'
+    maxDelay = 30000,
+    operation: opName = 'Operation',
+    exponentialBackoff = true,
+    logProgress = true
   } = options;
 
   try {
+    if (logProgress && retryCount > 0) {
+      console.log(`${opName} - Intento ${retryCount + 1} de ${maxRetries + 1}`);
+    }
+    
     const result = await operation();
 
     if (result && typeof result === 'object' && 'error' in result) {
@@ -37,7 +46,7 @@ export async function retryOperation<T>(
     return result;
   } catch (error) {
     if (retryCount >= maxRetries) {
-      console.error(`${opName} failed after ${maxRetries} retries:`, error);
+      console.error(`${opName} failed after ${maxRetries + 1} attempts:`, error);
       throw error;
     }
 
@@ -48,9 +57,15 @@ export async function retryOperation<T>(
       });
     }
 
-    const exponentialDelay = baseDelay * Math.pow(2, retryCount);
-    const jitter = Math.random() * 1000;
-    const delay = Math.min(exponentialDelay + jitter, maxDelay);
+    // Cálculo de retraso con backoff exponencial o lineal
+    let delay: number;
+    if (exponentialBackoff) {
+      const exponentialDelay = baseDelay * Math.pow(2, retryCount);
+      const jitter = Math.random() * 1000;
+      delay = Math.min(exponentialDelay + jitter, maxDelay);
+    } else {
+      delay = Math.min(baseDelay * (retryCount + 1), maxDelay);
+    }
     
     console.log(`🔄 ${opName}: Retry attempt ${retryCount + 1} after ${delay}ms`);
     await new Promise(resolve => setTimeout(resolve, delay));
