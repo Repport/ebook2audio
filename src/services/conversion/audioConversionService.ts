@@ -46,70 +46,64 @@ export async function convertToAudio(
           continue;
         }
 
-        // Llamar a la edge function con cada chunk individual con retry
+        // Llamar a la edge function con cada chunk individual
         console.log('Sending chunk to edge function:', {
           chunkSize: chunk.length,
-          voice: voiceId,
+          voiceId,
           chunkPreview: chunk.substring(0, 50) + '...'
         });
 
-        // Intenta con diferentes formatos de parámetros para identificar el correcto
-        try {
-          // Intentamos con la forma más probable primero
-          const requestBody = {
-            text: chunk,
-            voice: voiceId
-          };
-          
-          console.log('Request body:', JSON.stringify(requestBody));
-          
-          const response = await supabase.functions.invoke('convert-to-audio', {
-            body: requestBody
+        // Usar el nombre correcto del parámetro 'voiceId'
+        const requestBody = {
+          text: chunk,
+          voiceId: voiceId  // Cambiado de 'voice' a 'voiceId'
+        };
+        
+        console.log('Request body:', JSON.stringify(requestBody));
+        
+        const response = await supabase.functions.invoke('convert-to-audio', {
+          body: requestBody
+        });
+
+        console.log('Raw response from edge function:', JSON.stringify(response));
+
+        if (response.error) {
+          console.error('Edge function error details:', {
+            error: response.error,
+            message: response.error.message,
+            name: response.error.name,
+            data: response.data
           });
+          throw new Error(`Error converting chunk ${i + 1}: ${response.error.message}`);
+        }
 
-          console.log('Raw response from edge function:', JSON.stringify(response));
+        if (!response.data) {
+          console.error('Empty response from edge function:', response);
+          throw new Error(`No data received from edge function for chunk ${i + 1}`);
+        }
 
-          if (response.error) {
-            console.error('Edge function error details:', {
-              error: response.error,
-              message: response.error.message,
-              name: response.error.name,
-              data: response.data
-            });
-            throw new Error(`Error converting chunk ${i + 1}: ${response.error.message}`);
+        console.log('Edge function response data keys:', Object.keys(response.data));
+
+        const { data } = response;
+
+        if (!data.audioContent) {
+          console.error('Missing audioContent in response:', data);
+          throw new Error(`No audio content in response for chunk ${i + 1}. Response keys: ${Object.keys(data).join(', ')}`);
+        }
+
+        // Convertir base64 a ArrayBuffer
+        try {
+          const binaryString = atob(data.audioContent);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let j = 0; j < binaryString.length; j++) {
+            bytes[j] = binaryString.charCodeAt(j);
           }
 
-          if (!response.data) {
-            console.error('Empty response from edge function:', response);
-            throw new Error(`No data received from edge function for chunk ${i + 1}`);
-          }
-
-          console.log('Edge function response data keys:', Object.keys(response.data));
-
-          const { data } = response;
-
-          if (!data.audioContent) {
-            console.error('Missing audioContent in response:', data);
-            throw new Error(`No audio content in response for chunk ${i + 1}. Response keys: ${Object.keys(data).join(', ')}`);
-          }
-
-          // Convertir base64 a ArrayBuffer
-          try {
-            const binaryString = atob(data.audioContent);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let j = 0; j < binaryString.length; j++) {
-              bytes[j] = binaryString.charCodeAt(j);
-            }
-
-            audioBuffers.push(bytes.buffer);
-            console.log(`Successfully processed chunk ${i + 1}`);
-          } catch (error: any) {
-            console.error('Base64 conversion error:', error);
-            throw new Error(`Error processing audio data for chunk ${i + 1}: ${error.message}`);
-          }
+          audioBuffers.push(bytes.buffer);
+          console.log(`Successfully processed chunk ${i + 1}`);
         } catch (error: any) {
-          console.error(`Failed attempt for chunk ${i + 1}:`, error);
-          throw error;
+          console.error('Base64 conversion error:', error);
+          throw new Error(`Error processing audio data for chunk ${i + 1}: ${error.message}`);
         }
       }
 
