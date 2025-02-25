@@ -66,8 +66,8 @@ export async function convertToAudio(
         if (response.error) {
           console.error('Edge function error details:', {
             error: response.error,
-            status: response.status,
-            statusText: response.statusText,
+            message: response.error.message,
+            name: response.error.name,
             data: response.data
           });
           throw new Error(`Error converting chunk ${i + 1}: ${response.error.message}`);
