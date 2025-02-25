@@ -33,17 +33,13 @@ export async function convertToAudio(
     let processedCharacters = 0;
     
     // Crear un mapa para verificar que todos los chunks fueron procesados
-    const processedChunksMap = new Map<number, boolean>();
-    for (let i = 0; i < totalChunks; i++) {
-      processedChunksMap.set(i, false);
-    }
+    const processedChunksMap = new Map<number, ArrayBuffer>();
     
     const processChunk = async (chunk: string, index: number): Promise<ArrayBuffer> => {
       console.log(`Processing chunk ${index + 1}/${totalChunks}, size: ${chunk.length} characters`);
       
       if (!chunk.trim()) {
         console.warn(`Empty chunk detected at index ${index}, skipping...`);
-        processedChunksMap.set(index, true); // Marcar como procesado aunque esté vacío
         return new ArrayBuffer(0);
       }
 
@@ -99,8 +95,6 @@ export async function convertToAudio(
           bytes[j] = binaryString.charCodeAt(j);
         }
 
-        // Marcar el chunk como procesado correctamente
-        processedChunksMap.set(index, true);
         return bytes.buffer;
       } catch (error: any) {
         console.error(`Base64 conversion error for chunk ${index + 1}:`, error);
@@ -139,6 +133,12 @@ export async function convertToAudio(
           try {
             console.log(`Worker starting chunk ${nextIndex + 1}/${chunks.length}`);
             const buffer = await processChunk(chunks[nextIndex], nextIndex);
+            
+            // Almacenar el buffer en el mapa con el índice como clave
+            if (buffer.byteLength > 0) {
+              processedChunksMap.set(nextIndex, buffer);
+            }
+            
             results[nextIndex] = buffer;
             
             // Actualizar el contador de caracteres procesados
@@ -195,10 +195,24 @@ export async function convertToAudio(
       throw new Error('Todos los chunks fallaron durante la conversión');
     }
     
-    // Verificar integridad - asegurarnos de que todos los chunks fueron procesados
-    const unprocessedChunks = [...processedChunksMap.entries()]
-      .filter(([_, processed]) => !processed)
-      .map(([index]) => index + 1);
+    // Extraer los buffers del mapa de procesamiento, asegurando orden correcto
+    const orderedBuffers: ArrayBuffer[] = [];
+    for (let i = 0; i < totalChunks; i++) {
+      const buffer = processedChunksMap.get(i);
+      if (buffer && buffer.byteLength > 0) {
+        orderedBuffers.push(buffer);
+      }
+    }
+    
+    console.log(`Extracted ${orderedBuffers.length} valid buffers from processed chunks map`);
+    
+    // Verificar integridad y crear una lista de chunks no procesados para logs
+    const unprocessedChunks: number[] = [];
+    for (let i = 0; i < totalChunks; i++) {
+      if (!processedChunksMap.has(i) || processedChunksMap.get(i)?.byteLength === 0) {
+        unprocessedChunks.push(i + 1);  // Añadir 1 para que sea 1-indexed en los mensajes
+      }
+    }
     
     if (unprocessedChunks.length > 0) {
       const warningMessage = `Advertencia: Los siguientes chunks no fueron procesados correctamente: ${unprocessedChunks.join(', ')}`;
@@ -234,8 +248,20 @@ export async function convertToAudio(
       }
     }
     
-    if (errorCount > 0) {
-      console.warn(`⚠️ ${errorCount} de ${totalChunks} chunks fallaron durante la conversión`);
+    // Crear un bloque artificial de audio si no hay datos para evitar error
+    if (orderedBuffers.length === 0) {
+      console.warn("No valid audio chunks found. Creating placeholder audio.");
+      
+      // Crear un archivo MP3 vacío mínimo para evitar errores
+      // Este es un encabezado MP3 básico que representa silencio
+      const placeholderMP3Header = new Uint8Array([
+        0xFF, 0xFB, 0x90, 0x44, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+      ]);
+      
+      orderedBuffers.push(placeholderMP3Header.buffer);
+      
+      // Notificar esta situación
       if (onProgress) {
         const progressData: ChunkProgressData = {
           processedChunks: totalChunks,
@@ -243,25 +269,31 @@ export async function convertToAudio(
           processedCharacters,
           totalCharacters,
           currentChunk: "",
-          warning: `${errorCount} chunks no pudieron ser convertidos. El audio puede estar incompleto.`
+          warning: "No se pudo generar audio válido. Se ha creado un archivo vacío."
         };
         onProgress(progressData);
       }
     }
     
-    const nonEmptyBuffers = audioBuffers.filter(buffer => buffer?.byteLength > 0);
-    const totalLength = nonEmptyBuffers.reduce((acc, buffer) => acc + buffer.byteLength, 0);
-    console.log(`Combining ${nonEmptyBuffers.length} audio chunks with total size: ${totalLength} bytes`);
+    // Calcular el tamaño total con los buffers válidos ordenados
+    const totalLength = orderedBuffers.reduce((acc, buffer) => acc + buffer.byteLength, 0);
+    console.log(`Combining ${orderedBuffers.length} audio chunks with total size: ${totalLength} bytes`);
     
+    // Crear el buffer final
     const finalAudioBuffer = new Uint8Array(totalLength);
-
+    
     let offset = 0;
-    nonEmptyBuffers.forEach(buffer => {
+    orderedBuffers.forEach(buffer => {
       finalAudioBuffer.set(new Uint8Array(buffer), offset);
       offset += buffer.byteLength;
     });
+    
+    if (totalLength === 0) {
+      console.error('Critical error: Final audio buffer is empty');
+      throw new Error('El archivo de audio final está vacío');
+    }
 
-    console.log('Audio conversion completed successfully');
+    console.log(`Audio conversion completed successfully with final size: ${finalAudioBuffer.buffer.byteLength} bytes`);
     
     const conversionId = crypto.randomUUID();
     
