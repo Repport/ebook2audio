@@ -45,15 +45,15 @@ export const useConversionProgress = (
       progressHistoryRef.current = [];
       timeRemainingHistoryRef.current = [];
       
-      // Siempre iniciamos desde 0 al comenzar una nueva conversión
-      setProgress(0);
+      // Asegurar que siempre empecemos con al menos 1% para que la barra sea visible
+      setProgress(Math.max(1, initialProgress));
       
       setElapsedTime(0);
       setProcessedChunks(0);
       setErrors([]);
       setWarnings([]);
     }
-  }, [status]);
+  }, [status, initialProgress]);
 
   // Update elapsed time
   useEffect(() => {
@@ -76,6 +76,12 @@ export const useConversionProgress = (
           currentProgress: progress,
           speed: processedCharactersRef.current > 0 ? processedCharactersRef.current / Math.max(1, elapsed) : 0
         });
+        
+        // Si el progreso sigue en 0% después de 5 segundos, establecer al menos 1%
+        if (progress <= 0 && elapsed > 5) {
+          console.log('Progress still at 0% after 5 seconds, setting to 1%');
+          setProgress(1);
+        }
       }, 1000);
     }
     
@@ -100,8 +106,8 @@ export const useConversionProgress = (
     const averageProgress = progressHistoryRef.current.reduce((sum, val) => sum + val, 0) / 
                            progressHistoryRef.current.length;
     
-    // No permitir que el progreso retroceda
-    return Math.max(progress, Math.floor(averageProgress));
+    // No permitir que el progreso retroceda y asegurar que sea al menos 1%
+    return Math.max(progress, Math.max(1, Math.floor(averageProgress)));
   };
 
   const updateProgress = (data: ChunkProgressData) => {
@@ -132,11 +138,15 @@ export const useConversionProgress = (
       console.log(`Calculating progress: ${newProgress}% (${processedCharacters}/${totalCharacters} chars)`);
     }
     
-    // Aplicar suavizado al progreso
+    // Aplicar suavizado al progreso y asegurar que sea al menos 1%
     if (typeof newProgress === 'number') {
       const smoothedProgress = getSmoothedProgress(newProgress);
       console.log(`Smoothed progress: ${smoothedProgress}% (raw: ${newProgress}%)`);
       setProgress(smoothedProgress);
+    } else if (status === 'converting' && progress <= 0) {
+      // Si estamos convirtiendo pero no tenemos progreso, establecer al menos 1%
+      console.log('Setting minimum progress to 1% for visibility');
+      setProgress(1);
     }
     
     if (typeof processedChunks === 'number' && typeof totalChunks === 'number') {
@@ -156,27 +166,27 @@ export const useConversionProgress = (
 
   // Calcular el tiempo restante de manera más estable
   const calculateTimeRemaining = (): number | null => {
-    // Si no ha comenzado la conversión, usar la estimación inicial
-    if (elapsedTime < 2 || progress <= 0) {
-      // Usamos un tiempo inicial razonable
-      const initialEstimate = Math.min(estimatedSeconds, 60); // max 1 minuto inicial
+    // Si no ha comenzado la conversión o estamos en progreso muy bajo, usar la estimación inicial
+    if (elapsedTime < 2 || progress <= 1) {
+      // Usamos un tiempo inicial razonable, nunca cero
+      const initialEstimate = Math.max(30, Math.min(estimatedSeconds, 300)); // entre 30s y 5 min inicial
       return initialEstimate;
     }
     
     // Si el progreso es muy bajo, limitar el tiempo inicial para evitar valores exagerados
     if (progress < 5) {
-      return Math.min(estimatedSeconds, 120); // max 2 minutos si hay poco progreso
+      return Math.min(estimatedSeconds, 240); // max 4 minutos si hay poco progreso
     }
     
     // Calcular basado en el progreso actual y el tiempo transcurrido
-    const percentageComplete = progress / 100;
+    const percentageComplete = Math.max(0.01, progress / 100); // Evitar división por cero
     const estimatedTotalTime = elapsedTime / percentageComplete;
-    const calculatedRemaining = estimatedTotalTime - elapsedTime;
+    const calculatedRemaining = Math.max(1, estimatedTotalTime - elapsedTime);
     
     // Limitar el tiempo máximo basado en la cantidad de texto
     const maxRemaining = textLength 
-      ? Math.min(600, Math.ceil(textLength / 100)) // max 10 minutos o 1 segundo por cada 100 caracteres
-      : 300; // max 5 minutos por defecto
+      ? Math.min(1800, Math.ceil(textLength / 100)) // max 30 minutos o 1 segundo por cada 100 caracteres
+      : 900; // max 15 minutos por defecto
     
     // Aplicar suavizado al tiempo restante
     const smoothedRemaining = smoothTimeRemaining(

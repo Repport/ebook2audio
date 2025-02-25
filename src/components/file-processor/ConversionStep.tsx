@@ -39,12 +39,12 @@ const ConversionStep = ({
   textLength
 }: ConversionStepProps) => {
   const [isConverting, setIsConverting] = useState(false);
-  const [currentProgress, setCurrentProgress] = useState(progress);
+  const [currentProgress, setCurrentProgress] = useState(Math.max(1, progress));
 
-  // Actualizar el progreso cuando cambie externamente
+  // Actualizar el progreso cuando cambie externamente, asegurando que sea al menos 1%
   useEffect(() => {
     console.log(`ConversionStep - progress prop changed: ${progress}%`);
-    setCurrentProgress(progress);
+    setCurrentProgress(Math.max(1, progress));
   }, [progress]);
 
   // Actualizar isConverting cuando cambie el estado de conversión
@@ -52,10 +52,14 @@ const ConversionStep = ({
     console.log(`ConversionStep - status changed: ${conversionStatus}`);
     if (conversionStatus === 'converting') {
       setIsConverting(true);
+      // Asegurar que tenemos al menos 1% al iniciar
+      if (currentProgress <= 0) {
+        setCurrentProgress(1);
+      }
     } else if (conversionStatus === 'completed' || conversionStatus === 'error') {
       setIsConverting(false);
     }
-  }, [conversionStatus]);
+  }, [conversionStatus, currentProgress]);
 
   const handleConvertClick = async () => {
     setIsConverting(true);
@@ -83,7 +87,8 @@ const ConversionStep = ({
   const handleProgressUpdate = (progressData: any) => {
     console.log('Progress update in ConversionStep:', progressData);
     if (typeof progressData.progress === 'number') {
-      setCurrentProgress(progressData.progress);
+      // Asegurar que el progreso sea siempre al menos 1%
+      setCurrentProgress(Math.max(1, progressData.progress));
     }
   };
 
