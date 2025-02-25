@@ -20,6 +20,14 @@ export const useConversionProgress = (
   const startTimeRef = useRef<number>(Date.now());
   const lastUpdateRef = useRef<number>(Date.now());
   const processedCharactersRef = useRef<number>(0);
+  const initialProgressRef = useRef<number>(initialProgress);
+
+  // Actualizar progress cuando el initialProgress cambia
+  useEffect(() => {
+    console.log(`initialProgress updated: ${initialProgress}%`);
+    initialProgressRef.current = initialProgress;
+    setProgress(initialProgress);
+  }, [initialProgress]);
 
   // Reset timers when conversion starts
   useEffect(() => {
@@ -28,7 +36,14 @@ export const useConversionProgress = (
       startTimeRef.current = Date.now();
       lastUpdateRef.current = Date.now();
       processedCharactersRef.current = 0;
-      setProgress(0);
+      
+      // Mantener el progreso si hay uno
+      if (initialProgressRef.current > 0) {
+        setProgress(initialProgressRef.current);
+      } else {
+        setProgress(0);
+      }
+      
       setElapsedTime(0);
       setProcessedChunks(0);
       setErrors([]);
@@ -47,15 +62,15 @@ export const useConversionProgress = (
         setElapsedTime(elapsed);
         
         if (processedCharactersRef.current > 0) {
-          const speed = processedCharactersRef.current / elapsed;
-          setSpeed(speed);
+          const charsPerSecond = processedCharactersRef.current / elapsed;
+          setSpeed(charsPerSecond);
         }
 
         console.log('Progress update (timer):', {
           elapsed,
           processedChars: processedCharactersRef.current,
           currentProgress: progress,
-          speed: processedCharactersRef.current / elapsed
+          speed: processedCharactersRef.current > 0 ? processedCharactersRef.current / elapsed : 0
         });
       }, 1000);
     }
@@ -73,24 +88,30 @@ export const useConversionProgress = (
       return;
     }
 
-    console.log('Progress update received:', {
+    console.log('Progress update received in hook:', {
       ...data,
       currentProgress: progress,
       elapsed: elapsedTime
     });
 
-    const { processedChunks, totalChunks, processedCharacters, totalCharacters, error, warning } = data;
+    const { processedChunks, totalChunks, processedCharacters, totalCharacters, error, warning, progress: directProgress } = data;
+    
+    // Si recibimos un valor directo de progreso, usarlo
+    if (typeof directProgress === 'number') {
+      console.log(`Setting direct progress value: ${directProgress}%`);
+      setProgress(directProgress);
+    }
+    // De lo contrario calcular basado en caracteres
+    else if (typeof processedCharacters === 'number' && typeof totalCharacters === 'number' && totalCharacters > 0) {
+      processedCharactersRef.current = processedCharacters;
+      const newProgress = Math.round((processedCharacters / totalCharacters) * 100);
+      console.log(`Calculating progress: ${newProgress}% (${processedCharacters}/${totalCharacters} chars)`);
+      setProgress(newProgress);
+    }
     
     if (typeof processedChunks === 'number' && typeof totalChunks === 'number') {
       setProcessedChunks(processedChunks);
       setTotalChunks(totalChunks);
-    }
-
-    if (typeof processedCharacters === 'number' && typeof totalCharacters === 'number') {
-      processedCharactersRef.current = processedCharacters;
-      const newProgress = Math.round((processedCharacters / totalCharacters) * 100);
-      console.log(`Updating progress: ${newProgress}% (${processedCharacters}/${totalCharacters} chars)`);
-      setProgress(newProgress);
     }
 
     // Manejar errores y advertencias
@@ -108,7 +129,7 @@ export const useConversionProgress = (
     updateProgress,
     elapsedTime,
     timeRemaining: estimatedSeconds - elapsedTime,
-    hasStarted: processedCharactersRef.current > 0,
+    hasStarted: processedCharactersRef.current > 0 || progress > 0,
     processedChunks,
     totalChunks,
     speed,

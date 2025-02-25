@@ -71,6 +71,9 @@ const ConversionStep = ({
 
   const handleProgressUpdate = (progressData: any) => {
     console.log('Progress update in ConversionStep:', progressData);
+    if (typeof progressData.progress === 'number') {
+      setCurrentProgress(progressData.progress);
+    }
   };
 
   return (

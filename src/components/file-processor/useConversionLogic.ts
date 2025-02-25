@@ -78,26 +78,31 @@ export const useConversionLogic = (
     
     // Verificar si hay una aceptación reciente de términos
     const checkRecentTermsAcceptance = async () => {
-      const { data, error } = await supabase
-        .from('terms_acceptance_logs')
-        .select('*')
-        .order('accepted_at', { ascending: false })
-        .limit(1);
+      try {
+        const { data, error } = await supabase
+          .from('terms_acceptance_logs')
+          .select('*')
+          .order('accepted_at', { ascending: false })
+          .limit(1);
 
-      if (error) {
-        console.error('Error checking terms acceptance:', error);
-        setShowTerms(true);
-        return;
-      }
+        if (error) {
+          console.error('Error checking terms acceptance:', error);
+          setShowTerms(true);
+          return;
+        }
 
-      // Si no hay registros o el último registro es de hace más de 24 horas
-      if (!data || data.length === 0 || 
-          new Date(data[0].accepted_at).getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+        // Si no hay registros o el último registro es de hace más de 24 horas
+        if (!data || data.length === 0 || 
+            new Date(data[0].accepted_at).getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+          setShowTerms(true);
+        } else {
+          // Términos aceptados recientemente, proceder con la conversión
+          resetConversion();
+          clearConversionStorage();
+        }
+      } catch (err) {
+        console.error('Error in terms acceptance check:', err);
         setShowTerms(true);
-      } else {
-        // Términos aceptados recientemente, proceder con la conversión
-        resetConversion();
-        clearConversionStorage();
       }
     };
 
@@ -112,6 +117,9 @@ export const useConversionLogic = (
       const newProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
       console.log(`Setting progress to ${newProgress}%`);
       setProgress(newProgress);
+    } else if (data.progress) {
+      console.log(`Setting direct progress: ${data.progress}%`);
+      setProgress(data.progress);
     }
   }, [setProgress]);
 
@@ -141,8 +149,10 @@ export const useConversionLogic = (
 
     setDetectingChapters(true);
     setConversionStatus('converting'); // Evitar conversiones duplicadas
+    setProgress(0); // Asegurarnos de empezar desde 0
     
     try {
+      console.log('Starting conversion with text length:', extractedText.length);
       const result = await handleConversion(
         extractedText,
         options.selectedVoice,
@@ -151,6 +161,10 @@ export const useConversionLogic = (
         selectedFile.name,
         handleProgressUpdate  // Pasar el callback de progreso
       );
+      
+      if (!result) {
+        throw new Error('La conversión falló o fue cancelada');
+      }
       
       // Create notification if notification is enabled and user is authenticated
       if (options.notifyOnComplete && user && result.id) {
@@ -176,6 +190,8 @@ export const useConversionLogic = (
           });
         }
       }
+      
+      console.log('Conversion completed successfully');
       
     } catch (error: any) {
       console.error('Conversion error:', error);

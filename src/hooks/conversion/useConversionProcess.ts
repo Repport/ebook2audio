@@ -43,13 +43,23 @@ export const useConversionProcess = ({
       
       const onProgressUpdate = (progressData: any) => {
         const { processedCharacters, totalCharacters } = progressData;
-        const progress = Math.round((processedCharacters / totalCharacters) * 100);
-        console.log(`Setting conversion progress: ${progress}%`);
-        setProgress(progress);
         
-        // Forward progress to external callback if provided
-        if (onProgressCallback) {
-          onProgressCallback(progressData);
+        if (processedCharacters && totalCharacters) {
+          const calculatedProgress = Math.round((processedCharacters / totalCharacters) * 100);
+          console.log(`Setting conversion progress: ${calculatedProgress}% (${processedCharacters}/${totalCharacters} chars)`);
+          
+          // Aplicar directamente el progreso
+          setProgress(calculatedProgress);
+          
+          // Forward progress to external callback if provided
+          if (onProgressCallback) {
+            onProgressCallback({
+              ...progressData,
+              progress: calculatedProgress
+            });
+          }
+        } else {
+          console.warn('Progress update received with missing character counts:', progressData);
         }
       };
 
@@ -59,6 +69,7 @@ export const useConversionProcess = ({
         onProgressUpdate
       );
       
+      console.log('Conversion completed successfully, setting final state');
       setConversionId(result.id);
       setAudioData(result.audio);
       
