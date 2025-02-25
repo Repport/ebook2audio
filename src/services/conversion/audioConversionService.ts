@@ -53,11 +53,11 @@ export async function convertToAudio(
           chunkPreview: chunk.substring(0, 50) + '...'
         });
 
-        // Important: Send as an object, not a JSON string
+        // Try with explicit param matching format used in edge function
         const response = await supabase.functions.invoke('convert-to-audio', {
           body: {
             text: chunk,
-            voice: voiceId  // Changed from voiceId to voice to match edge function parameter
+            voice: voiceId  // Using 'voice' parameter name
           }
         });
 
