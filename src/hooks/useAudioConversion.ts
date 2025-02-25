@@ -76,7 +76,12 @@ export const useAudioConversion = () => {
         if (onProgress) {
           onProgress({
             progress: 100,
-            isCompleted: true
+            isCompleted: true,
+            processedChunks: 0,
+            totalChunks: 0,
+            processedCharacters: 0,
+            totalCharacters: 0,
+            currentChunk: ""
           });
         }
       }
