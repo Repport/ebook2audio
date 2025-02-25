@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for text conversion and hashing
  */
