@@ -83,7 +83,19 @@ export async function convertToAudio(
 
       if (!data.audioContent) {
         console.error(`Missing audioContent for chunk ${index + 1}:`, data);
-        throw new Error(`No audio content in response for chunk ${index + 1}`);
+        // En lugar de lanzar un error, devolvemos un buffer vacío para que la conversión pueda continuar
+        // con los demás chunks, y registramos el error
+        if (onProgress) {
+          onProgress({
+            processedChunks: index + 1,
+            totalChunks,
+            processedCharacters: processedCharacters + chunk.length,
+            totalCharacters,
+            currentChunk: chunk,
+            error: `No audio content for chunk ${index + 1}`
+          });
+        }
+        return new ArrayBuffer(0);
       }
 
       // Convertir base64 a ArrayBuffer
@@ -111,19 +123,49 @@ export async function convertToAudio(
         return bytes.buffer;
       } catch (error: any) {
         console.error(`Base64 conversion error for chunk ${index + 1}:`, error);
-        throw new Error(`Error processing audio data for chunk ${index + 1}: ${error.message}`);
+        // Registramos el error pero no interrumpimos el proceso
+        if (onProgress) {
+          onProgress({
+            processedChunks: index + 1,
+            totalChunks,
+            processedCharacters: processedCharacters + chunk.length,
+            totalCharacters,
+            currentChunk: chunk,
+            error: `Error processing audio data for chunk ${index + 1}: ${error.message}`
+          });
+        }
+        return new ArrayBuffer(0);
       }
     };
 
     // Procesar chunks en paralelo con límite de concurrencia
-    const processChunksWithConcurrencyLimit = async (): Promise<ArrayBuffer[]> => {
+    const processChunksWithConcurrencyLimit = async (): Promise<{buffers: ArrayBuffer[], errors: number}> => {
       const results: ArrayBuffer[] = [];
+      let errorCount = 0;
       
       // Crear un array de promesas para cada chunk
       const chunkPromises = chunks.map((chunk, index) => {
         return async (): Promise<void> => {
-          const buffer = await processChunk(chunk, index);
-          results[index] = buffer; // Asegura que los resultados estén en el orden correcto
+          try {
+            const buffer = await processChunk(chunk, index);
+            results[index] = buffer; // Asegura que los resultados estén en el orden correcto
+          } catch (error) {
+            console.error(`Error processing chunk ${index}:`, error);
+            results[index] = new ArrayBuffer(0); // Usamos un buffer vacío para chunks fallidos
+            errorCount++;
+            
+            // Notificar del error pero continuar con la conversión
+            if (onProgress) {
+              onProgress({
+                processedChunks: index + 1,
+                totalChunks,
+                processedCharacters,
+                totalCharacters,
+                currentChunk: chunk,
+                error: error instanceof Error ? error.message : String(error)
+              });
+            }
+          }
         };
       });
 
@@ -163,21 +205,42 @@ export async function convertToAudio(
       };
 
       await runWithConcurrencyLimit(chunkPromises);
-      return results;
+      return { buffers: results, errors: errorCount };
     };
 
     // Procesar todos los chunks en paralelo con límite de concurrencia
     console.log(`Starting parallel processing with max ${MAX_CONCURRENT_REQUESTS} concurrent requests`);
-    const audioBuffers = await processChunksWithConcurrencyLimit();
+    const { buffers: audioBuffers, errors: errorCount } = await processChunksWithConcurrencyLimit();
     
-    // Combinar todos los chunks de audio
-    const totalLength = audioBuffers.reduce((acc, buffer) => acc + buffer.byteLength, 0);
-    console.log(`Combining ${audioBuffers.length} audio chunks with total size: ${totalLength} bytes`);
+    // Verificar si hubo demasiados errores para continuar
+    if (errorCount === totalChunks) {
+      throw new Error('Todos los chunks fallaron durante la conversión');
+    }
+    
+    // Mostrar advertencia si hay algunos chunks fallidos
+    if (errorCount > 0) {
+      console.warn(`⚠️ ${errorCount} de ${totalChunks} chunks fallaron durante la conversión`);
+      // Notificar al usuario mediante el callback de progreso
+      if (onProgress) {
+        onProgress({
+          processedChunks: totalChunks,
+          totalChunks,
+          processedCharacters,
+          totalCharacters,
+          warning: `${errorCount} chunks no pudieron ser convertidos. El audio puede estar incompleto.`
+        });
+      }
+    }
+    
+    // Combinar todos los chunks de audio (ignorando los vacíos)
+    const nonEmptyBuffers = audioBuffers.filter(buffer => buffer.byteLength > 0);
+    const totalLength = nonEmptyBuffers.reduce((acc, buffer) => acc + buffer.byteLength, 0);
+    console.log(`Combining ${nonEmptyBuffers.length} audio chunks with total size: ${totalLength} bytes`);
     
     const finalAudioBuffer = new Uint8Array(totalLength);
 
     let offset = 0;
-    audioBuffers.forEach(buffer => {
+    nonEmptyBuffers.forEach(buffer => {
       finalAudioBuffer.set(new Uint8Array(buffer), offset);
       offset += buffer.byteLength;
     });
