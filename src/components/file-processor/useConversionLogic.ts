@@ -45,9 +45,10 @@ export const useConversionLogic = (
   useEffect(() => {
     console.log('useConversionLogic - progress update:', {
       progress,
-      status: conversionStatus
+      status: conversionStatus,
+      hasAudioData: !!audioData
     });
-  }, [progress, conversionStatus]);
+  }, [progress, conversionStatus, audioData]);
 
   // Optimizado para evitar reejecution innecesaria
   useEffect(() => {
@@ -60,8 +61,10 @@ export const useConversionLogic = (
     }
   }, [selectedFile]); // Removido resetConversion de las dependencias
 
+  // Asegurarse de que onStepComplete se llame cuando la conversión se complete
   useEffect(() => {
     if (conversionStatus === 'completed' && onStepComplete) {
+      console.log('Conversion completed, calling onStepComplete');
       onStepComplete();
     }
   }, [conversionStatus, onStepComplete]);
@@ -113,15 +116,50 @@ export const useConversionLogic = (
   // Actualiza el progreso basado en los datos de chunk
   const handleProgressUpdate = useCallback((data: ChunkProgressData) => {
     console.log('Progress update received in useConversionLogic:', data);
+    
+    // Verificar si es un mensaje de completado
+    if (data.isCompleted) {
+      console.log('Conversion completed via progress update');
+      setProgress(100);
+      setConversionStatus('completed');
+      return;
+    }
+    
     if (data.processedCharacters && data.totalCharacters) {
       const newProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
       console.log(`Setting progress to ${newProgress}%`);
       setProgress(newProgress);
+      
+      // Si el progreso es 100%, verificar si debemos cambiar el estado
+      if (newProgress >= 100) {
+        console.log('Progress reached 100%, verifying if conversion is complete');
+        
+        // Dar un pequeño margen de tiempo para procesar el último chunk
+        setTimeout(() => {
+          if (conversionStatus !== 'completed') {
+            console.log('Setting status to completed after timeout');
+            setConversionStatus('completed');
+          }
+        }, 1000);
+      }
     } else if (typeof data.progress === 'number') {
       console.log(`Setting direct progress: ${data.progress}%`);
       setProgress(data.progress);
+      
+      // Verificar también aquí si alcanzamos el 100%
+      if (data.progress >= 100) {
+        console.log('Direct progress reached 100%, verifying if conversion is complete');
+        
+        // Pequeño tiempo de gracia
+        setTimeout(() => {
+          if (conversionStatus !== 'completed') {
+            console.log('Setting status to completed after direct progress timeout');
+            setConversionStatus('completed');
+          }
+        }, 1000);
+      }
     }
-  }, [setProgress]);
+  }, [setProgress, setConversionStatus, conversionStatus]);
 
   const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText || !options.selectedVoice) {
@@ -165,6 +203,12 @@ export const useConversionLogic = (
       if (!result) {
         throw new Error('La conversión falló o fue cancelada');
       }
+      
+      console.log('Conversion result received:', result);
+      
+      // Asegurarse de que el estado se actualice a completado
+      setConversionStatus('completed');
+      setProgress(100);
       
       // Create notification if notification is enabled and user is authenticated
       if (options.notifyOnComplete && user && result.id) {

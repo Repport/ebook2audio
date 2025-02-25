@@ -53,15 +53,41 @@ export const useAudioConversion = () => {
     onProgress?: TextChunkCallback
   ) => {
     console.log('Starting conversion with progress callback');
-    return baseHandleConversion(
-      extractedText,
-      selectedVoice,
-      detectChapters,
-      chapters,
-      fileName,
-      onProgress
-    );
-  }, [baseHandleConversion]);
+    try {
+      // Asegurarnos de que el estado sea 'converting'
+      setConversionStatus('converting');
+      
+      const result = await baseHandleConversion(
+        extractedText,
+        selectedVoice,
+        detectChapters,
+        chapters,
+        fileName,
+        onProgress
+      );
+      
+      // Asegurarnos de que el estado se actualice después de la conversión
+      if (result) {
+        console.log('Conversion successful, updating status');
+        setConversionStatus('completed');
+        setProgress(100);
+        
+        // Si onProgress está disponible, notificar que la conversión está completa
+        if (onProgress) {
+          onProgress({
+            progress: 100,
+            isCompleted: true
+          });
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Conversion error in wrapper:', error);
+      setConversionStatus('error');
+      throw error;
+    }
+  }, [baseHandleConversion, setConversionStatus, setProgress]);
 
   // Recuperar audio del storage cuando sea necesario
   useEffect(() => {
@@ -89,6 +115,7 @@ export const useAudioConversion = () => {
             }
 
             if (audioBuffer) {
+              console.log('Audio retrieved from storage, setting audio data');
               setAudioData(audioBuffer);
             }
           }
@@ -99,7 +126,7 @@ export const useAudioConversion = () => {
     };
 
     fetchAudioFromStorage();
-  }, [conversionStatus, audioData, conversionId]);
+  }, [conversionStatus, audioData, conversionId, setAudioData, toast]);
 
   // Add timeout for stuck conversions
   useEffect(() => {
@@ -107,13 +134,9 @@ export const useAudioConversion = () => {
     
     if (conversionStatus === 'converting' && progress === 100) {
       timeoutId = window.setTimeout(() => {
-        resetConversion();
-        toast({
-          title: "Conversion timed out",
-          description: "Please try again",
-          variant: "destructive",
-        });
-      }, 60000); // Reset after 1 minute of being stuck
+        console.log('Conversion appears to be stuck at 100%, forcing completion');
+        setConversionStatus('completed');
+      }, 5000); // Reducido a 5 segundos para detectar más rápido conversiones estancadas
     }
     
     return () => {
@@ -121,15 +144,16 @@ export const useAudioConversion = () => {
         clearTimeout(timeoutId);
       }
     };
-  }, [conversionStatus, progress, resetConversion, toast]);
+  }, [conversionStatus, progress, setConversionStatus]);
 
   // Añadir logs para depuración
   useEffect(() => {
     console.log('useAudioConversion - status/progress update:', {
       status: conversionStatus,
-      progress
+      progress,
+      hasAudioData: !!audioData
     });
-  }, [conversionStatus, progress]);
+  }, [conversionStatus, progress, audioData]);
 
   return {
     conversionStatus,

@@ -47,6 +47,16 @@ const ConversionStep = ({
     setCurrentProgress(progress);
   }, [progress]);
 
+  // Actualizar isConverting cuando cambie el estado de conversión
+  useEffect(() => {
+    console.log(`ConversionStep - status changed: ${conversionStatus}`);
+    if (conversionStatus === 'converting') {
+      setIsConverting(true);
+    } else if (conversionStatus === 'completed' || conversionStatus === 'error') {
+      setIsConverting(false);
+    }
+  }, [conversionStatus]);
+
   const handleConvertClick = async () => {
     setIsConverting(true);
     try {
@@ -65,9 +75,10 @@ const ConversionStep = ({
     console.log('ConversionStep render:', { 
       conversionStatus, 
       isConverting, 
-      progress: currentProgress 
+      progress: currentProgress,
+      hasAudioData: !!audioData 
     });
-  }, [conversionStatus, isConverting, currentProgress]);
+  }, [conversionStatus, isConverting, currentProgress, audioData]);
 
   const handleProgressUpdate = (progressData: any) => {
     console.log('Progress update in ConversionStep:', progressData);
