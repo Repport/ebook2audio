@@ -1,12 +1,13 @@
 
-import React from 'react';
-import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Loader2, CheckCircle2, AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Chapter } from '@/utils/textExtraction';
 import { ChaptersList } from './ChaptersList';
 import { useConversionProgress } from '@/hooks/useConversionProgress';
 import { Progress } from '@/components/ui/progress';
 import { useLanguage } from '@/hooks/useLanguage';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface ConversionStatusProps {
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
@@ -34,6 +35,8 @@ const ConversionStatus = ({
   onProgressUpdate
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
+  const [showWarnings, setShowWarnings] = useState(false);
+  
   const { 
     progress: currentProgress, 
     updateProgress,
@@ -42,7 +45,9 @@ const ConversionStatus = ({
     hasStarted,
     processedChunks,
     totalChunks,
-    speed
+    speed,
+    errors,
+    warnings
   } = useConversionProgress(
     status,
     progress,
@@ -60,9 +65,11 @@ const ConversionStatus = ({
       timeRemaining,
       elapsedTime,
       processedChunks,
-      totalChunks
+      totalChunks,
+      errors,
+      warnings
     });
-  }, [progress, currentProgress, timeRemaining, elapsedTime, processedChunks, totalChunks, status]);
+  }, [progress, currentProgress, timeRemaining, elapsedTime, processedChunks, totalChunks, status, errors, warnings]);
 
   // Actualizar el progreso cuando cambie
   React.useEffect(() => {
@@ -94,6 +101,42 @@ const ConversionStatus = ({
     const remainingSeconds = Math.floor(seconds % 60);
     if (minutes === 0) return `${remainingSeconds}s`;
     return `${minutes}m ${remainingSeconds}s`;
+  };
+
+  const renderWarningsAndErrors = () => {
+    if ((warnings.length === 0 && errors.length === 0) || status !== 'converting') {
+      return null;
+    }
+
+    return (
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="integrity-warnings">
+          <AccordionTrigger className="flex items-center text-amber-500">
+            <AlertTriangle className="w-4 h-4 mr-2" />
+            <span>
+              {warnings.length > 0 ? `${warnings.length} advertencias` : `${errors.length} errores`}
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-2 text-sm">
+              {warnings.map((warning, index) => (
+                <div key={`warning-${index}`} className="flex items-start p-2 bg-amber-50 dark:bg-amber-950 rounded-md">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <span>{warning}</span>
+                </div>
+              ))}
+              
+              {errors.map((error, index) => (
+                <div key={`error-${index}`} className="flex items-start p-2 bg-red-50 dark:bg-red-950 rounded-md">
+                  <X className="w-4 h-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    );
   };
 
   const renderConvertingStatus = () => (
@@ -130,10 +173,12 @@ const ConversionStatus = ({
           </div>
           {processedChunks > 0 && totalChunks > 0 && (
             <div>
-              Processing chunk {processedChunks} of {totalChunks}
+              Procesando chunk {processedChunks} de {totalChunks}
             </div>
           )}
         </div>
+        
+        {renderWarningsAndErrors()}
       </div>
     </div>
   );
@@ -144,6 +189,39 @@ const ConversionStatus = ({
       <p className="text-lg font-medium text-green-600 text-center">
         {statusMessages[status]}
       </p>
+      
+      {(warnings.length > 0 || errors.length > 0) && (
+        <Alert variant={errors.length > 0 ? "destructive" : "warning"} className="mt-4">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertDescription className="ml-2">
+            La conversión se completó con {warnings.length} advertencias y {errors.length} errores.
+            <button 
+              className="block underline mt-1 text-sm"
+              onClick={() => setShowWarnings(!showWarnings)}
+            >
+              {showWarnings ? 'Ocultar detalles' : 'Mostrar detalles'}
+            </button>
+          </AlertDescription>
+          
+          {showWarnings && (
+            <div className="mt-2 space-y-2 text-sm">
+              {warnings.map((warning, index) => (
+                <div key={`warning-${index}`} className="flex items-start p-2 bg-amber-50 dark:bg-amber-950 rounded-md">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <span>{warning}</span>
+                </div>
+              ))}
+              
+              {errors.map((error, index) => (
+                <div key={`error-${index}`} className="flex items-start p-2 bg-red-50 dark:bg-red-950 rounded-md">
+                  <X className="w-4 h-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Alert>
+      )}
     </div>
   );
 

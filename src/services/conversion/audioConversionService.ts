@@ -32,11 +32,18 @@ export async function convertToAudio(
     const totalCharacters = text.length;
     let processedCharacters = 0;
     
+    // Crear un mapa para verificar que todos los chunks fueron procesados
+    const processedChunksMap = new Map<number, boolean>();
+    for (let i = 0; i < totalChunks; i++) {
+      processedChunksMap.set(i, false);
+    }
+    
     const processChunk = async (chunk: string, index: number): Promise<ArrayBuffer> => {
       console.log(`Processing chunk ${index + 1}/${totalChunks}, size: ${chunk.length} characters`);
       
       if (!chunk.trim()) {
         console.warn(`Empty chunk detected at index ${index}, skipping...`);
+        processedChunksMap.set(index, true); // Marcar como procesado aunque esté vacío
         return new ArrayBuffer(0);
       }
 
@@ -92,6 +99,8 @@ export async function convertToAudio(
           bytes[j] = binaryString.charCodeAt(j);
         }
 
+        // Marcar el chunk como procesado correctamente
+        processedChunksMap.set(index, true);
         return bytes.buffer;
       } catch (error: any) {
         console.error(`Base64 conversion error for chunk ${index + 1}:`, error);
@@ -184,6 +193,45 @@ export async function convertToAudio(
     
     if (errorCount === totalChunks) {
       throw new Error('Todos los chunks fallaron durante la conversión');
+    }
+    
+    // Verificar integridad - asegurarnos de que todos los chunks fueron procesados
+    const unprocessedChunks = [...processedChunksMap.entries()]
+      .filter(([_, processed]) => !processed)
+      .map(([index]) => index + 1);
+    
+    if (unprocessedChunks.length > 0) {
+      const warningMessage = `Advertencia: Los siguientes chunks no fueron procesados correctamente: ${unprocessedChunks.join(', ')}`;
+      console.warn(warningMessage);
+      if (onProgress) {
+        const progressData: ChunkProgressData = {
+          processedChunks: totalChunks - unprocessedChunks.length,
+          totalChunks,
+          processedCharacters,
+          totalCharacters,
+          currentChunk: "",
+          warning: warningMessage
+        };
+        onProgress(progressData);
+      }
+    }
+    
+    // Verificar si el total de caracteres procesados coincide con el total esperado
+    const expectedCharactersTotal = chunks.reduce((total, chunk) => total + chunk.length, 0);
+    if (processedCharacters !== expectedCharactersTotal) {
+      const integrityWarning = `Advertencia de integridad: Se procesaron ${processedCharacters} caracteres de ${expectedCharactersTotal} esperados`;
+      console.warn(integrityWarning);
+      if (onProgress) {
+        const progressData: ChunkProgressData = {
+          processedChunks: totalChunks,
+          totalChunks,
+          processedCharacters,
+          totalCharacters,
+          currentChunk: "",
+          warning: integrityWarning
+        };
+        onProgress(progressData);
+      }
     }
     
     if (errorCount > 0) {
