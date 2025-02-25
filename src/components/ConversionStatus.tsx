@@ -88,10 +88,10 @@ const ConversionStatus = ({
   
   const statusMessages = {
     idle: translations.readyToConvert,
-    converting: translations.converting.replace('{fileType}', fileType),
+    converting: translations.converting.replace('{fileType}', ''), // Eliminar referencia al tipo de archivo
     completed: translations.conversionCompleted,
     error: translations.conversionError,
-    processing: translations.converting.replace('{fileType}', fileType)
+    processing: translations.converting.replace('{fileType}', '') // Eliminar referencia al tipo de archivo
   };
 
   const formatTime = (seconds: number | null) => {
