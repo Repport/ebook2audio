@@ -51,6 +51,19 @@ const ConversionStatus = ({
     textLength
   );
 
+  // Añadimos este log para depuración
+  React.useEffect(() => {
+    console.log('ConversionStatus - Progress Update:', {
+      status,
+      externalProgress: progress,
+      calculatedProgress: currentProgress,
+      timeRemaining,
+      elapsedTime,
+      processedChunks,
+      totalChunks
+    });
+  }, [progress, currentProgress, timeRemaining, elapsedTime, processedChunks, totalChunks, status]);
+
   // Actualizar el progreso cuando cambie
   React.useEffect(() => {
     if (onProgressUpdate) {
@@ -75,7 +88,7 @@ const ConversionStatus = ({
   };
 
   const formatTime = (seconds: number | null) => {
-    if (!seconds || seconds <= 0) return "Calculating...";
+    if (!seconds || seconds <= 0) return "Calculando...";
     
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);

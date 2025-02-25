@@ -8,6 +8,7 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
+import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -39,6 +40,14 @@ export const useConversionLogic = (
     setProgress,
     setConversionStatus
   } = useAudioConversion();
+
+  // Log para depuración
+  useEffect(() => {
+    console.log('useConversionLogic - progress update:', {
+      progress,
+      status: conversionStatus
+    });
+  }, [progress, conversionStatus]);
 
   // Optimizado para evitar reejecution innecesaria
   useEffect(() => {
@@ -96,6 +105,16 @@ export const useConversionLogic = (
     return true;
   }, [selectedFile, extractedText, toast, resetConversion]);
 
+  // Actualiza el progreso basado en los datos de chunk
+  const handleProgressUpdate = useCallback((data: ChunkProgressData) => {
+    console.log('Progress update received in useConversionLogic:', data);
+    if (data.processedCharacters && data.totalCharacters) {
+      const newProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
+      console.log(`Setting progress to ${newProgress}%`);
+      setProgress(newProgress);
+    }
+  }, [setProgress]);
+
   const handleAcceptTerms = async (options: ConversionOptions) => {
     if (!selectedFile || !extractedText || !options.selectedVoice) {
       console.error('Missing required parameters:', {
@@ -129,7 +148,8 @@ export const useConversionLogic = (
         options.selectedVoice,
         detectChapters,
         chapters,
-        selectedFile.name
+        selectedFile.name,
+        handleProgressUpdate  // Pasar el callback de progreso
       );
       
       // Create notification if notification is enabled and user is authenticated

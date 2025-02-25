@@ -24,6 +24,7 @@ export const useConversionProgress = (
   // Reset timers when conversion starts
   useEffect(() => {
     if (status === 'converting' || status === 'processing') {
+      console.log('Conversion started, resetting progress tracking');
       startTimeRef.current = Date.now();
       lastUpdateRef.current = Date.now();
       processedCharactersRef.current = 0;
@@ -49,6 +50,13 @@ export const useConversionProgress = (
           const speed = processedCharactersRef.current / elapsed;
           setSpeed(speed);
         }
+
+        console.log('Progress update (timer):', {
+          elapsed,
+          processedChars: processedCharactersRef.current,
+          currentProgress: progress,
+          speed: processedCharactersRef.current / elapsed
+        });
       }, 1000);
     }
     
@@ -57,10 +65,19 @@ export const useConversionProgress = (
         window.clearInterval(intervalId);
       }
     };
-  }, [status]);
+  }, [status, progress]);
 
   const updateProgress = (data: ChunkProgressData) => {
-    if (!data) return;
+    if (!data) {
+      console.log('Progress update called with empty data');
+      return;
+    }
+
+    console.log('Progress update received:', {
+      ...data,
+      currentProgress: progress,
+      elapsed: elapsedTime
+    });
 
     const { processedChunks, totalChunks, processedCharacters, totalCharacters, error, warning } = data;
     
@@ -72,6 +89,7 @@ export const useConversionProgress = (
     if (typeof processedCharacters === 'number' && typeof totalCharacters === 'number') {
       processedCharactersRef.current = processedCharacters;
       const newProgress = Math.round((processedCharacters / totalCharacters) * 100);
+      console.log(`Updating progress: ${newProgress}% (${processedCharacters}/${totalCharacters} chars)`);
       setProgress(newProgress);
     }
 

@@ -5,6 +5,7 @@ import { useConversionState } from './useConversionState';
 import { useConversionActions } from './useConversionActions';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchFromCache } from '@/services/conversion/storage/cacheStorage';
+import { TextChunkCallback } from '@/services/conversion/types/chunks';
 
 export const useAudioConversion = () => {
   const { user } = useAuth();
@@ -25,7 +26,7 @@ export const useAudioConversion = () => {
   } = useConversionState();
 
   const {
-    handleConversion,
+    handleConversion: baseHandleConversion,
     handleDownload,
     resetConversion
   } = useConversionActions({
@@ -41,6 +42,26 @@ export const useAudioConversion = () => {
     setCurrentFileName,
     setConversionId
   });
+
+  // Wrap handleConversion to allow progress callback
+  const handleConversion = useCallback(async (
+    extractedText: string,
+    selectedVoice: string,
+    detectChapters: boolean,
+    chapters: any[],
+    fileName: string,
+    onProgress?: TextChunkCallback
+  ) => {
+    console.log('Starting conversion with progress callback');
+    return baseHandleConversion(
+      extractedText,
+      selectedVoice,
+      detectChapters,
+      chapters,
+      fileName,
+      onProgress
+    );
+  }, [baseHandleConversion]);
 
   // Recuperar audio del storage cuando sea necesario
   useEffect(() => {
@@ -101,6 +122,14 @@ export const useAudioConversion = () => {
       }
     };
   }, [conversionStatus, progress, resetConversion, toast]);
+
+  // Añadir logs para depuración
+  useEffect(() => {
+    console.log('useAudioConversion - status/progress update:', {
+      status: conversionStatus,
+      progress
+    });
+  }, [conversionStatus, progress]);
 
   return {
     conversionStatus,

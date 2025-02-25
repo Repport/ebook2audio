@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Play, Download, List } from "lucide-react";
@@ -39,6 +39,13 @@ const ConversionStep = ({
   textLength
 }: ConversionStepProps) => {
   const [isConverting, setIsConverting] = useState(false);
+  const [currentProgress, setCurrentProgress] = useState(progress);
+
+  // Actualizar el progreso cuando cambie externamente
+  useEffect(() => {
+    console.log(`ConversionStep - progress prop changed: ${progress}%`);
+    setCurrentProgress(progress);
+  }, [progress]);
 
   const handleConvertClick = async () => {
     setIsConverting(true);
@@ -53,7 +60,18 @@ const ConversionStep = ({
     }
   };
 
-  console.log('ConversionStep render:', { conversionStatus, isConverting }); // Debugging log
+  // Log para depuración
+  useEffect(() => {
+    console.log('ConversionStep render:', { 
+      conversionStatus, 
+      isConverting, 
+      progress: currentProgress 
+    });
+  }, [conversionStatus, isConverting, currentProgress]);
+
+  const handleProgressUpdate = (progressData: any) => {
+    console.log('Progress update in ConversionStep:', progressData);
+  };
 
   return (
     <Card className="p-6">
@@ -95,10 +113,12 @@ const ConversionStep = ({
 
           <ConversionStatus
             status={conversionStatus}
-            progress={progress}
+            progress={currentProgress}
             estimatedSeconds={estimatedSeconds}
             detectingChapters={detectingChapters}
             textLength={textLength}
+            conversionId={conversionId}
+            onProgressUpdate={handleProgressUpdate}
           />
 
           {chapters.length > 0 && (

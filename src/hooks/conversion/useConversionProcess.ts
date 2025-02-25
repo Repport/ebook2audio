@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { convertToAudio } from '@/services/conversion';
 import { ExtractedChapter } from '@/types/conversion';
 import { User } from '@supabase/supabase-js';
+import { TextChunkCallback } from '@/services/conversion/types/chunks';
 
 interface UseConversionProcessProps {
   user: User | null;
@@ -30,7 +31,8 @@ export const useConversionProcess = ({
     selectedVoice: string,
     detectChapters: boolean,
     chapters: ExtractedChapter[],
-    fileName: string
+    fileName: string,
+    onProgressCallback?: TextChunkCallback
   ) => {
     setConversionStatus('converting');
     setProgress(0);
@@ -42,7 +44,13 @@ export const useConversionProcess = ({
       const onProgressUpdate = (progressData: any) => {
         const { processedCharacters, totalCharacters } = progressData;
         const progress = Math.round((processedCharacters / totalCharacters) * 100);
+        console.log(`Setting conversion progress: ${progress}%`);
         setProgress(progress);
+        
+        // Forward progress to external callback if provided
+        if (onProgressCallback) {
+          onProgressCallback(progressData);
+        }
       };
 
       const result = await convertToAudio(
@@ -67,14 +75,4 @@ export const useConversionProcess = ({
       console.error('Conversion error:', error);
       toast({
         title: "Conversion failed",
-        description: error.message || "An error occurred during conversion",
-        variant: "destructive",
-      });
-      setConversionStatus('error');
-      setProgress(0);
-      setCurrentFileName(null);
-      setAudioData(null);
-      throw error;
-    }
-  }, [user, setConversionStatus, setProgress, setCurrentFileName, setAudioData, setAudioDuration, setConversionId, toast]);
-};
+        description: error.message || "An error occurre
