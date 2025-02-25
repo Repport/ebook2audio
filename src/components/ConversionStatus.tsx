@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Loader2, CheckCircle2, AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Chapter } from '@/utils/textExtraction';
@@ -37,6 +37,7 @@ const ConversionStatus = ({
   const { translations } = useLanguage();
   const [showWarnings, setShowWarnings] = useState(false);
   
+  // Usar hook de progreso mejorado
   const { 
     progress: currentProgress, 
     updateProgress,
@@ -56,8 +57,8 @@ const ConversionStatus = ({
     textLength
   );
 
-  // Añadimos este log para depuración
-  React.useEffect(() => {
+  // Debug logging
+  useEffect(() => {
     console.log('ConversionStatus - Progress Update:', {
       status,
       externalProgress: progress,
@@ -66,13 +67,13 @@ const ConversionStatus = ({
       elapsedTime,
       processedChunks,
       totalChunks,
-      errors,
-      warnings
+      hasErrors: errors.length > 0,
+      hasWarnings: warnings.length > 0
     });
-  }, [progress, currentProgress, timeRemaining, elapsedTime, processedChunks, totalChunks, status, errors, warnings]);
+  }, [progress, currentProgress, timeRemaining, elapsedTime, processedChunks, totalChunks, status, errors.length, warnings.length]);
 
-  // Actualizar el progreso cuando cambie
-  React.useEffect(() => {
+  // Notificar actualizaciones hacia arriba
+  useEffect(() => {
     if (onProgressUpdate) {
       onProgressUpdate({
         progress: currentProgress,
@@ -84,16 +85,19 @@ const ConversionStatus = ({
     }
   }, [currentProgress, processedChunks, totalChunks, elapsedTime, speed, onProgressUpdate]);
 
+  // Para consistencia si el estado está en proceso pero el componente de UI muestra "converting"
   const displayStatus = status === 'processing' ? 'converting' : status;
   
+  // Mensajes de estado (sin referencia al tipo de archivo)
   const statusMessages = {
     idle: translations.readyToConvert,
-    converting: translations.converting.replace('{fileType}', ''), // Eliminar referencia al tipo de archivo
+    converting: translations.converting.replace('{fileType}', ''),
     completed: translations.conversionCompleted,
     error: translations.conversionError,
-    processing: translations.converting.replace('{fileType}', '') // Eliminar referencia al tipo de archivo
+    processing: translations.converting.replace('{fileType}', '')
   };
 
+  // Formatear tiempo para visualización
   const formatTime = (seconds: number | null) => {
     if (!seconds || seconds <= 0) return "Calculando...";
     
@@ -103,6 +107,7 @@ const ConversionStatus = ({
     return `${minutes}m ${remainingSeconds}s`;
   };
 
+  // Renderizar avisos y errores
   const renderWarningsAndErrors = () => {
     if ((warnings.length === 0 && errors.length === 0) || status !== 'converting') {
       return null;
@@ -139,6 +144,7 @@ const ConversionStatus = ({
     );
   };
 
+  // Renderizar estado de conversión en progreso
   const renderConvertingStatus = () => (
     <div className="flex flex-col items-center gap-4">
       <div className="relative inline-flex items-center justify-center">
@@ -183,6 +189,7 @@ const ConversionStatus = ({
     </div>
   );
 
+  // Renderizar estado completado
   const renderCompletedStatus = () => (
     <div className="w-full flex flex-col items-center justify-center gap-3">
       <CheckCircle2 className="w-12 h-12 text-green-500" />
@@ -225,6 +232,7 @@ const ConversionStatus = ({
     </div>
   );
 
+  // Renderizar estado de error
   const renderErrorStatus = () => (
     <Alert variant="destructive">
       <AlertCircle className="h-5 w-5" />
@@ -234,6 +242,7 @@ const ConversionStatus = ({
     </Alert>
   );
 
+  // Renderizar estado inicial
   const renderIdleStatus = () => (
     <p className="text-lg font-medium text-center">
       {statusMessages[status]}
