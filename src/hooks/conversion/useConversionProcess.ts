@@ -84,9 +84,25 @@ export const useConversionProcess = ({
         onProgressUpdate
       );
       
+      if (!result) {
+        throw new Error('La conversión falló o fue cancelada');
+      }
+      
       console.log('Conversion completed successfully, setting final state');
-      setConversionId(result.id);
-      setAudioData(result.audio);
+      
+      // Asegurar que el ID de conversión se establezca correctamente
+      if (result.id) {
+        setConversionId(result.id);
+        console.log('Set conversion ID:', result.id);
+      }
+      
+      // Asegurar que los datos de audio se establezcan correctamente
+      if (result.audio) {
+        setAudioData(result.audio);
+        console.log('Audio data set successfully, length:', result.audio.byteLength);
+      } else {
+        console.warn('No audio data received in result');
+      }
       
       // Calcular la duración aproximada basada en el tamaño del texto
       const approximateDuration = Math.ceil(extractedText.length / 15); // ~15 caracteres por segundo
@@ -94,6 +110,19 @@ export const useConversionProcess = ({
       
       setConversionStatus('completed');
       setProgress(100);
+      
+      // Notificar la finalización a través del callback de progreso
+      if (onProgressCallback) {
+        onProgressCallback({
+          progress: 100,
+          isCompleted: true,
+          processedChunks: 0,
+          totalChunks: 0,
+          processedCharacters: extractedText.length,
+          totalCharacters: extractedText.length,
+          currentChunk: ''
+        });
+      }
       
       return result;
 
