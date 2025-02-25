@@ -27,31 +27,42 @@ export const useConversionProgress = (
   const totalCharsRef = useRef<number>(0);
   const autoIncrementRef = useRef<boolean>(false);
   const timeRemainingHistoryRef = useRef<number[]>([]);
+  const elapsedTimeRef = useRef<number>(0);
+  const hasInitializedRef = useRef<boolean>(false);
   
   // Cuando cambia el estado de conversión
   useEffect(() => {
     if (status === 'converting' || status === 'processing') {
-      // Reiniciar estado al iniciar conversión
-      startTimeRef.current = Date.now();
-      lastUpdateTimeRef.current = Date.now();
-      progressHistoryRef.current = [];
-      processedCharsRef.current = 0;
-      totalCharsRef.current = 0;
-      autoIncrementRef.current = false;
-      timeRemainingHistoryRef.current = [];
+      // Solo inicializar el tiempo de inicio si es la primera vez o si cambiamos de completed/error a converting
+      if (!hasInitializedRef.current || status === 'completed' || status === 'error') {
+        console.log('Inicializando tiempo de inicio para la conversión');
+        startTimeRef.current = Date.now() - (elapsedTimeRef.current * 1000); // Mantener tiempo transcurrido
+        hasInitializedRef.current = true;
+      }
       
-      setProgress(Math.max(1, initialProgress));
-      setElapsedTime(0);
-      setProcessedChunks(0);
-      setTotalChunks(0);
-      setErrors([]);
-      setWarnings([]);
-      setTimeRemaining(estimatedSeconds || 120);
+      lastUpdateTimeRef.current = Date.now();
+      
+      // Solo reiniciar estos valores si venimos de un estado completado o error
+      if (status === 'completed' || status === 'error') {
+        progressHistoryRef.current = [];
+        processedCharsRef.current = 0;
+        totalCharsRef.current = 0;
+        autoIncrementRef.current = false;
+        timeRemainingHistoryRef.current = [];
+        
+        setProgress(Math.max(1, initialProgress));
+        setProcessedChunks(0);
+        setTotalChunks(0);
+        setErrors([]);
+        setWarnings([]);
+        setTimeRemaining(estimatedSeconds || 120);
+      }
     } 
     else if (status === 'completed') {
       // Asegurar que el progreso esté al 100% al completarse
       setProgress(100);
       setTimeRemaining(0);
+      // No reiniciar elapsedTime
     }
   }, [status, initialProgress, estimatedSeconds]);
   
@@ -120,8 +131,13 @@ export const useConversionProgress = (
     if (status === 'converting' || status === 'processing') {
       intervalId = window.setInterval(() => {
         const now = Date.now();
+        
+        // Calcular tiempo transcurrido desde el inicio (preservando lo anterior)
         const elapsed = Math.floor((now - startTimeRef.current) / 1000);
+        
+        // Actualizar ambas referencias
         setElapsedTime(elapsed);
+        elapsedTimeRef.current = elapsed;
         
         // Actualizar velocidad si tenemos datos de caracteres
         if (processedCharsRef.current > 0) {
@@ -165,7 +181,7 @@ export const useConversionProgress = (
         window.clearInterval(intervalId);
       }
     };
-  }, [status, progress, estimatedSeconds, textLength]);
+  }, [status, progress, estimatedSeconds, textLength, elapsedTime]);
 
   // Función para procesar actualizaciones de progreso
   const updateProgress = (data: ChunkProgressData) => {
