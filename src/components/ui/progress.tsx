@@ -13,7 +13,7 @@ const Progress = React.forwardRef<
   ProgressProps
 >(({ className, value, status = "idle", showPercentage = true, ...props }, ref) => {
   // Usamos estado local para animar suavemente los cambios de valor
-  const [displayValue, setDisplayValue] = React.useState(value || 0);
+  const [displayValue, setDisplayValue] = React.useState(0); // Siempre comenzar desde 0
 
   React.useEffect(() => {
     // Actualizamos el valor mostrado de forma suave

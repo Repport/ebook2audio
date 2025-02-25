@@ -1,7 +1,6 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
-import { formatTimeRemaining } from '@/utils/timeFormatting';
 
 export const useConversionProgress = (
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing',
@@ -44,12 +43,8 @@ export const useConversionProgress = (
       processedCharactersRef.current = 0;
       progressHistoryRef.current = [];
       
-      // Mantener el progreso si hay uno
-      if (initialProgressRef.current > 0) {
-        setProgress(initialProgressRef.current);
-      } else {
-        setProgress(0);
-      }
+      // Siempre iniciamos desde 0 al comenzar una nueva conversión
+      setProgress(0);
       
       setElapsedTime(0);
       setProcessedChunks(0);
@@ -158,30 +153,23 @@ export const useConversionProgress = (
   };
 
   // Calcular el tiempo restante de manera más precisa
-  const calculateTimeRemaining = (): number => {
+  const calculateTimeRemaining = (): number | null => {
     if (elapsedTime <= 0 || progress <= 0) {
       return estimatedSeconds;
     }
     
-    // Si tenemos velocidad medida y caracteres procesados
-    if (speed > 0 && processedCharactersRef.current > 0 && textLength && textLength > 0) {
-      const charactersRemaining = textLength - processedCharactersRef.current;
-      const estimatedRemainingTime = charactersRemaining / speed;
-      console.log(`Estimated remaining time based on speed: ${estimatedRemainingTime.toFixed(1)}s`);
-      return Math.ceil(estimatedRemainingTime);
+    // Si el progreso es muy bajo, mejor usar la estimación inicial
+    if (progress < 5) {
+      return estimatedSeconds;
     }
     
-    // Fallback al cálculo basado en progreso
-    if (progress > 0) {
-      const percentageComplete = progress / 100;
-      const estimatedTotalTime = elapsedTime / percentageComplete;
-      const calculatedRemaining = estimatedTotalTime - elapsedTime;
-      
-      // Retornar el mayor entre el calculado y 1 segundo
-      return Math.max(1, Math.ceil(calculatedRemaining));
-    }
+    // Calcular basado en el progreso actual
+    const percentageComplete = progress / 100;
+    const estimatedTotalTime = elapsedTime / percentageComplete;
+    const calculatedRemaining = estimatedTotalTime - elapsedTime;
     
-    return estimatedSeconds;
+    // No permitir que el tiempo restante aumente
+    return Math.max(1, Math.min(calculatedRemaining, estimatedSeconds));
   };
 
   return {
