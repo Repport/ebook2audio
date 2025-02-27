@@ -401,6 +401,7 @@ export type Database = {
         Row: {
           created_at: string
           duration: number | null
+          elapsed_time: number | null
           error_message: string | null
           expires_at: string
           file_name: string | null
@@ -410,6 +411,7 @@ export type Database = {
           processed_characters: number | null
           processed_chunks: number | null
           progress: number | null
+          started_at: string | null
           status: string
           storage_path: string | null
           text_hash: string
@@ -421,6 +423,7 @@ export type Database = {
         Insert: {
           created_at?: string
           duration?: number | null
+          elapsed_time?: number | null
           error_message?: string | null
           expires_at?: string
           file_name?: string | null
@@ -430,6 +433,7 @@ export type Database = {
           processed_characters?: number | null
           processed_chunks?: number | null
           progress?: number | null
+          started_at?: string | null
           status?: string
           storage_path?: string | null
           text_hash: string
@@ -441,6 +445,7 @@ export type Database = {
         Update: {
           created_at?: string
           duration?: number | null
+          elapsed_time?: number | null
           error_message?: string | null
           expires_at?: string
           file_name?: string | null
@@ -450,6 +455,7 @@ export type Database = {
           processed_characters?: number | null
           processed_chunks?: number | null
           progress?: number | null
+          started_at?: string | null
           status?: string
           storage_path?: string | null
           text_hash?: string

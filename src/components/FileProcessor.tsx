@@ -133,8 +133,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           <Card className="p-4">
             <FileInfo
               file={selectedFile}
-              // Evitamos pasar extractedText ya que no existe en el tipo FileInfoProps
-              chapters={chapters}
               onBack={() => onFileSelect(null)}
               onNext={onNextStep}
             />
@@ -150,7 +148,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
             setDetectChapters={setDetectChapters}
             notifyOnComplete={notifyOnComplete}
             setNotifyOnComplete={setNotifyOnComplete}
-            // No incluimos onBack ya que no existe en VoiceSettingsStepProps
             onNextStep={handleStartConversion}
           />
         </TabsContent>

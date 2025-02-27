@@ -153,19 +153,20 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
         
         // Ahora intentamos obtener los datos de tiempo
         try {
-          const { data: timeData } = await supabase
+          const { data, error } = await supabase
             .from('text_conversions')
             .select('elapsed_time, started_at')
             .eq('id', state.conversionId)
             .maybeSingle();
             
-          if (timeData) {
-            if (timeData.elapsed_time) {
-              state.elapsedTime = timeData.elapsed_time;
+          if (!error && data) {
+            // Datos de tiempo disponibles
+            if (data.elapsed_time) {
+              state.elapsedTime = data.elapsed_time;
             }
             
-            if (timeData.started_at && state.status === 'converting') {
-              const startTime = new Date(timeData.started_at).getTime();
+            if (data.started_at && state.status === 'converting') {
+              const startTime = new Date(data.started_at).getTime();
               state.conversionStartTime = startTime;
               
               // Si no hay elapsed_time, calcularlo
