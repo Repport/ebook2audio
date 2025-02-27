@@ -133,7 +133,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           <Card className="p-4">
             <FileInfo
               file={selectedFile}
-              onBack={() => onFileSelect(null)}
+              onRemove={() => onFileSelect(null)}
               onNext={onNextStep}
             />
           </Card>

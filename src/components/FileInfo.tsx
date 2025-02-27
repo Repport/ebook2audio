@@ -8,9 +8,10 @@ import { processFile } from '@/utils/textExtraction';
 interface FileInfoProps {
   file: File;
   onRemove: () => void;
+  onNext?: () => void; // Hacemos onNext opcional para mantener compatibilidad
 }
 
-const FileInfo = ({ file, onRemove }: FileInfoProps) => {
+const FileInfo = ({ file, onRemove, onNext }: FileInfoProps) => {
   const [characterCount, setCharacterCount] = React.useState<number | null>(null);
   const [language, setLanguage] = React.useState<string | null>(null);
 
@@ -40,7 +41,7 @@ const FileInfo = ({ file, onRemove }: FileInfoProps) => {
   };
 
   return (
-    <div className="flex justify-center w-full">
+    <div className="flex flex-col items-center w-full gap-6">
       <div className="w-full max-w-xl p-6 border-2 rounded-lg border-primary/20 bg-primary/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -74,6 +75,14 @@ const FileInfo = ({ file, onRemove }: FileInfoProps) => {
           </Button>
         </div>
       </div>
+      
+      {onNext && (
+        <div className="flex justify-end w-full">
+          <Button onClick={onNext}>
+            Continuar
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
