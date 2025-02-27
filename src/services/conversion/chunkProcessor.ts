@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { AudioResponse } from "./types/chunks";
-import { decodeBase64Audio } from "./utils/audioUtils";
+import { decodeBase64Audio } from "./audio/audioUtils";
 
 const CHUNK_TIMEOUT = 60000; // 60 segundos
 

@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { updateConversionStatus } from "./conversionManager";
-import { combineAudioChunks } from "./utils/audioUtils";
+import { combineAudioBuffers } from "./audio/audioUtils";
 import { splitTextIntoChunks } from "./utils";
 import { processChunkBatch } from "./batchProcessor";
 import type { ChunkProcessingOptions } from "./types/chunks";
@@ -80,7 +80,7 @@ export async function processConversionChunks(
     await updateConversionStatus(conversionId, 'completed', undefined, 100);
 
     console.log('Procesamiento de chunks completado exitosamente');
-    return combineAudioChunks(audioBuffers);
+    return combineAudioBuffers(audioBuffers);
   } catch (error) {
     console.error('Error durante el procesamiento de chunks:', error);
     await updateConversionStatus(conversionId, 'failed', error.message);
