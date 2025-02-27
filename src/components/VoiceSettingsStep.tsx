@@ -14,9 +14,9 @@ interface VoiceSettingsStepProps {
   detectedLanguage: string;
   detectChapters: boolean;
   setDetectChapters: (detect: boolean) => void;
-  onNextStep: () => void;
   notifyOnComplete: boolean;
   setNotifyOnComplete: (notify: boolean) => void;
+  onNextStep: () => Promise<boolean>; // Cambiado para aceptar una promesa de booleano
 }
 
 const VoiceSettingsStep = ({

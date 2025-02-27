@@ -8,8 +8,8 @@ interface StoredConversionState {
   audioDuration: number;
   fileName?: string;
   conversionId?: string;
-  conversionStartTime?: number; // Nuevo: timestamp cuando empezó la conversión
-  elapsedTime?: number; // Nuevo: tiempo transcurrido en segundos
+  conversionStartTime?: number; // Timestamp cuando empezó la conversión
+  elapsedTime?: number; // Tiempo transcurrido en segundos
 }
 
 const CHUNK_SIZE = 500000; // 500KB chunks
@@ -51,12 +51,28 @@ export const saveConversionState = async (state: StoredConversionState) => {
 
         // Solo actualizamos el tiempo si está definido
         if (state.elapsedTime !== undefined) {
-          updateData.elapsed_time = state.elapsedTime;
+          // Primero verificamos si la columna existe para evitar errores
+          const { data: columns, error: columnError } = await supabase
+            .from('text_conversions')
+            .select('elapsed_time')
+            .limit(1);
+
+          if (!columnError && columns) {
+            updateData.elapsed_time = state.elapsedTime;
+          }
         }
 
         // Si estamos iniciando la conversión, guardamos el tiempo de inicio
         if (state.status === 'converting' && state.conversionStartTime) {
-          updateData.started_at = new Date(state.conversionStartTime).toISOString();
+          // Verificamos si la columna started_at existe
+          const { data: columns, error: columnError } = await supabase
+            .from('text_conversions')
+            .select('started_at')
+            .limit(1);
+
+          if (!columnError && columns) {
+            updateData.started_at = new Date(state.conversionStartTime).toISOString();
+          }
         }
 
         const { error: updateError } = await supabase
@@ -116,40 +132,51 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
     if (state.conversionId) {
       console.log('🔍 Buscando conversión en Supabase:', state.conversionId);
       
-      const { data: conversionData, error } = await supabase
+      // Primero hacemos una consulta básica que siempre debería funcionar
+      const { data: basicData, error: basicError } = await supabase
         .from('text_conversions')
-        .select('status, progress, storage_path, started_at, elapsed_time')
+        .select('status, progress, storage_path')
         .eq('id', state.conversionId)
         .maybeSingle();
 
-      if (error) {
-        console.error('❌ Error al cargar estado de conversión:', error);
+      if (basicError) {
+        console.error('❌ Error al cargar estado básico de conversión:', basicError);
         return state;
       }
 
-      if (conversionData) {
-        console.log('✅ Estado de conversión encontrado:', conversionData);
+      if (basicData) {
+        console.log('✅ Estado básico de conversión encontrado:', basicData);
         
-        // Solo actualizar el estado si la conversión está realmente completada
-        // y tiene una ruta de almacenamiento válida
-        if (conversionData.status === 'completed' && !conversionData.storage_path) {
-          console.warn('⚠️ Conversión marcada como completada pero sin audio, reseteando estado');
-          state.status = 'converting';
-          state.progress = 0;
-        } else {
-          state.status = conversionData.status;
-          state.progress = conversionData.progress;
-          
-          // Calcular el tiempo transcurrido
-          if (conversionData.elapsed_time) {
-            // Si hay tiempo guardado, usarlo directamente
-            state.elapsedTime = conversionData.elapsed_time;
-          } else if (conversionData.started_at && conversionData.status === 'converting') {
-            // Si está en progreso y tenemos tiempo de inicio, calcular
-            const startTime = new Date(conversionData.started_at).getTime();
-            state.conversionStartTime = startTime;
-            state.elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+        // Actualizar estado con datos básicos
+        state.status = basicData.status;
+        state.progress = basicData.progress;
+        
+        // Ahora intentamos obtener los datos de tiempo
+        try {
+          const { data: timeData } = await supabase
+            .from('text_conversions')
+            .select('elapsed_time, started_at')
+            .eq('id', state.conversionId)
+            .maybeSingle();
+            
+          if (timeData) {
+            if (timeData.elapsed_time) {
+              state.elapsedTime = timeData.elapsed_time;
+            }
+            
+            if (timeData.started_at && state.status === 'converting') {
+              const startTime = new Date(timeData.started_at).getTime();
+              state.conversionStartTime = startTime;
+              
+              // Si no hay elapsed_time, calcularlo
+              if (!state.elapsedTime) {
+                state.elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+              }
+            }
           }
+        } catch (timeError) {
+          // Es posible que las columnas de tiempo no existan todavía, así que manejamos silenciosamente
+          console.log('Columnas de tiempo posiblemente no disponibles:', timeError);
         }
       } else {
         console.warn('⚠️ No se encontró la conversión:', state.conversionId);
