@@ -8,6 +8,8 @@ interface StoredConversionState {
   audioDuration: number;
   fileName?: string;
   conversionId?: string;
+  conversionStartTime?: number; // Nuevo: timestamp cuando empezó la conversión
+  elapsedTime?: number; // Nuevo: tiempo transcurrido en segundos
 }
 
 const CHUNK_SIZE = 500000; // 500KB chunks
@@ -37,16 +39,29 @@ export const saveConversionState = async (state: StoredConversionState) => {
           id: state.conversionId,
           status: state.status,
           progress: state.progress,
-          fileName: state.fileName
+          fileName: state.fileName,
+          elapsedTime: state.elapsedTime
         });
+
+        const updateData: any = {
+          status: state.status,
+          progress: state.progress,
+          file_name: state.fileName,
+        };
+
+        // Solo actualizamos el tiempo si está definido
+        if (state.elapsedTime !== undefined) {
+          updateData.elapsed_time = state.elapsedTime;
+        }
+
+        // Si estamos iniciando la conversión, guardamos el tiempo de inicio
+        if (state.status === 'converting' && state.conversionStartTime) {
+          updateData.started_at = new Date(state.conversionStartTime).toISOString();
+        }
 
         const { error: updateError } = await supabase
           .from('text_conversions')
-          .update({
-            status: state.status,
-            progress: state.progress,
-            file_name: state.fileName,
-          })
+          .update(updateData)
           .eq('id', state.conversionId);
 
         if (updateError) {
@@ -103,7 +118,7 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
       
       const { data: conversionData, error } = await supabase
         .from('text_conversions')
-        .select('status, progress, storage_path')
+        .select('status, progress, storage_path, started_at, elapsed_time')
         .eq('id', state.conversionId)
         .maybeSingle();
 
@@ -124,6 +139,17 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
         } else {
           state.status = conversionData.status;
           state.progress = conversionData.progress;
+          
+          // Calcular el tiempo transcurrido
+          if (conversionData.elapsed_time) {
+            // Si hay tiempo guardado, usarlo directamente
+            state.elapsedTime = conversionData.elapsed_time;
+          } else if (conversionData.started_at && conversionData.status === 'converting') {
+            // Si está en progreso y tenemos tiempo de inicio, calcular
+            const startTime = new Date(conversionData.started_at).getTime();
+            state.conversionStartTime = startTime;
+            state.elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+          }
         }
       } else {
         console.warn('⚠️ No se encontró la conversión:', state.conversionId);
@@ -151,7 +177,8 @@ export const loadConversionState = async (): Promise<StoredConversionState | nul
       status: state.status,
       progress: state.progress,
       hasAudio: !!state.audioData,
-      conversionId: state.conversionId
+      conversionId: state.conversionId,
+      elapsedTime: state.elapsedTime
     });
     
     return state;

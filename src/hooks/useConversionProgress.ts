@@ -7,11 +7,12 @@ export const useConversionProgress = (
   initialProgress: number,
   estimatedSeconds: number,
   conversionId?: string | null,
-  textLength?: number
+  textLength?: number,
+  initialElapsedTime?: number
 ) => {
   // Estado principal
   const [progress, setProgress] = useState<number>(Math.max(1, initialProgress));
-  const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [elapsedTime, setElapsedTime] = useState<number>(initialElapsedTime || 0);
   const [processedChunks, setProcessedChunks] = useState<number>(0);
   const [totalChunks, setTotalChunks] = useState<number>(0);
   const [speed, setSpeed] = useState<number>(0);
@@ -20,15 +21,25 @@ export const useConversionProgress = (
   const [timeRemaining, setTimeRemaining] = useState<number | null>(estimatedSeconds || 120);
   
   // Referencias para datos persistentes entre renders
-  const startTimeRef = useRef<number>(Date.now());
+  const startTimeRef = useRef<number>(initialElapsedTime ? (Date.now() - initialElapsedTime * 1000) : Date.now());
   const lastUpdateTimeRef = useRef<number>(Date.now());
   const progressHistoryRef = useRef<{time: number, value: number}[]>([]);
   const processedCharsRef = useRef<number>(0);
   const totalCharsRef = useRef<number>(0);
   const autoIncrementRef = useRef<boolean>(false);
   const timeRemainingHistoryRef = useRef<number[]>([]);
-  const elapsedTimeRef = useRef<number>(0);
-  const hasInitializedRef = useRef<boolean>(false);
+  const elapsedTimeRef = useRef<number>(initialElapsedTime || 0);
+  const hasInitializedRef = useRef<boolean>(initialElapsedTime ? true : false);
+  
+  // Log de inicialización
+  useEffect(() => {
+    console.log('Inicializando useConversionProgress con:', {
+      status,
+      initialProgress,
+      initialElapsedTime,
+      startTime: new Date(startTimeRef.current).toISOString()
+    });
+  }, []);
   
   // Cuando cambia el estado de conversión
   useEffect(() => {
@@ -64,7 +75,7 @@ export const useConversionProgress = (
       setTimeRemaining(0);
       // No reiniciar elapsedTime
     }
-  }, [status, initialProgress, estimatedSeconds]);
+  }, [status, initialProgress, estimatedSeconds, initialElapsedTime]);
   
   // Actualizar progreso inicial cuando cambia
   useEffect(() => {

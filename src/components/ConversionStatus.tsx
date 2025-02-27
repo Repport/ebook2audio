@@ -22,6 +22,7 @@ interface ConversionStatusProps {
   textLength?: number;
   showPercentage?: boolean;
   onProgressUpdate?: (data: any) => void;
+  initialElapsedTime?: number;
 }
 
 const ConversionStatus = ({ 
@@ -33,6 +34,7 @@ const ConversionStatus = ({
   conversionId,
   textLength = 0,
   showPercentage = true,
+  initialElapsedTime = 0,
   onProgressUpdate
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
@@ -55,7 +57,8 @@ const ConversionStatus = ({
     progress,
     estimatedSeconds,
     conversionId,
-    textLength
+    textLength,
+    initialElapsedTime
   );
 
   // Debug logging
@@ -66,12 +69,13 @@ const ConversionStatus = ({
       calculatedProgress: currentProgress,
       timeRemaining,
       elapsedTime,
+      initialElapsedTime,
       processedChunks,
       totalChunks,
       hasErrors: errors.length > 0,
       hasWarnings: warnings.length > 0
     });
-  }, [progress, currentProgress, timeRemaining, elapsedTime, processedChunks, totalChunks, status, errors.length, warnings.length]);
+  }, [progress, currentProgress, timeRemaining, elapsedTime, initialElapsedTime, processedChunks, totalChunks, status, errors.length, warnings.length]);
 
   // Notificar actualizaciones hacia arriba
   useEffect(() => {

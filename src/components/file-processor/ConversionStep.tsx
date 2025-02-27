@@ -21,6 +21,7 @@ interface ConversionStepProps {
   chapters: Chapter[];
   detectingChapters: boolean;
   textLength: number;
+  elapsedTime?: number;
 }
 
 const ConversionStep = ({
@@ -36,7 +37,8 @@ const ConversionStep = ({
   conversionId,
   chapters,
   detectingChapters,
-  textLength
+  textLength,
+  elapsedTime = 0
 }: ConversionStepProps) => {
   const [isConverting, setIsConverting] = useState(false);
   const [currentProgress, setCurrentProgress] = useState(Math.max(1, progress));
@@ -80,9 +82,10 @@ const ConversionStep = ({
       conversionStatus, 
       isConverting, 
       progress: currentProgress,
+      elapsedTime,
       hasAudioData: !!audioData 
     });
-  }, [conversionStatus, isConverting, currentProgress, audioData]);
+  }, [conversionStatus, isConverting, currentProgress, audioData, elapsedTime]);
 
   const handleProgressUpdate = (progressData: any) => {
     console.log('Progress update in ConversionStep:', progressData);
@@ -137,6 +140,7 @@ const ConversionStep = ({
             detectingChapters={detectingChapters}
             textLength={textLength}
             conversionId={conversionId}
+            initialElapsedTime={elapsedTime}
             onProgressUpdate={handleProgressUpdate}
           />
 

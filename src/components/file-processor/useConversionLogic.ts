@@ -33,6 +33,7 @@ export const useConversionLogic = (
     progress,
     audioData,
     audioDuration,
+    elapsedTime,
     handleConversion,
     handleDownload,
     resetConversion,
@@ -46,9 +47,10 @@ export const useConversionLogic = (
     console.log('useConversionLogic - progress update:', {
       progress,
       status: conversionStatus,
-      hasAudioData: !!audioData
+      hasAudioData: !!audioData,
+      elapsedTime
     });
-  }, [progress, conversionStatus, audioData]);
+  }, [progress, conversionStatus, audioData, elapsedTime]);
 
   // Optimizado para evitar reejecution innecesaria
   useEffect(() => {
@@ -296,6 +298,7 @@ export const useConversionLogic = (
     progress,
     audioData,
     audioDuration,
+    elapsedTime,
     initiateConversion,
     handleAcceptTerms,
     handleDownloadClick,

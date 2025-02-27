@@ -1,176 +1,180 @@
 
-import React, { useState } from 'react';
-import { Chapter } from '@/utils/textExtraction';
+import React, { useState, useEffect } from 'react';
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import FileInfo from './FileInfo';
 import VoiceSettingsStep from './VoiceSettingsStep';
 import ConversionStep from './file-processor/ConversionStep';
-import TermsDialog from './TermsDialog';
+import { Chapter } from '@/utils/textExtraction';
 import { useConversionLogic } from './file-processor/useConversionLogic';
-import { Button } from './ui/button';
-import { ArrowLeft } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import TermsDialog from './TermsDialog';
+import { LoadingSpinner } from './ui/spinner';
 
 interface FileProcessorProps {
-  onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
-  selectedFile: File | null;
+  selectedFile: File;
   extractedText: string;
   chapters: Chapter[];
   detectedLanguage: string;
+  onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
   onStepComplete?: () => void;
   currentStep: number;
   onNextStep: () => void;
   onPreviousStep: () => void;
 }
 
-const FileProcessor = ({ 
-  onFileSelect, 
-  selectedFile, 
+const FileProcessor: React.FC<FileProcessorProps> = ({
+  selectedFile,
   extractedText,
   chapters,
   detectedLanguage,
+  onFileSelect,
   onStepComplete,
   currentStep,
   onNextStep,
   onPreviousStep
-}: FileProcessorProps) => {
-  const [selectedVoice, setSelectedVoice] = useState<string>('');
-  const [notifyOnComplete, setNotifyOnComplete] = useState(false);
-  const [isShowingTerms, setIsShowingTerms] = useState(false);
-  const { toast } = useToast();
+}) => {
+  const [selectedVoice, setSelectedVoice] = useState<string>("");
+  const [notifyOnComplete, setNotifyOnComplete] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>("file-info");
 
   const {
     detectChapters,
     setDetectChapters,
     detectingChapters,
+    showTerms,
+    setShowTerms,
     conversionStatus,
     progress,
     audioData,
     audioDuration,
+    elapsedTime,
     initiateConversion,
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
     calculateEstimatedSeconds,
-    conversionId,
-    setProgress,
-    setConversionStatus
+    conversionId
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
-  const estimatedSeconds = calculateEstimatedSeconds();
-
-  if (!selectedFile) return null;
-
-  const handleGoBack = () => {
-    onFileSelect(null);
-  };
-
-  const handleVoiceSettingsComplete = () => {
-    if (!selectedVoice) {
-      console.error('No voice selected');
-      toast({
-        title: "Voice Required",
-        description: "Please select a voice before continuing",
-        variant: "destructive",
-      });
-      return;
+  // Cambiar la pestaña activa cuando cambia el paso
+  useEffect(() => {
+    if (currentStep === 2) {
+      setActiveTab("voice-settings");
+    } else if (currentStep === 3) {
+      setActiveTab("conversion");
     }
-    setConversionStatus('idle');
-    onNextStep();
-  };
+  }, [currentStep]);
 
-  const handleConversionStart = async () => {
-    if (!selectedVoice) {
-      console.error('No voice selected', { selectedVoice });
-      toast({
-        title: "Voice Required",
-        description: "Please select a voice before starting conversion",
-        variant: "destructive",
-      });
+  // Efecto para manejar cambios en el estado de conversión
+  useEffect(() => {
+    if (conversionStatus === 'completed' && currentStep === 2) {
+      onNextStep();
+    }
+  }, [conversionStatus, currentStep, onNextStep]);
+
+  const handleStartConversion = async () => {
+    // Verificar que todos los datos necesarios estén presentes
+    if (!selectedFile || !extractedText || !selectedVoice) {
       return false;
     }
 
-    console.log('Showing terms dialog...');
-    setIsShowingTerms(true);
-    return false;
-  };
+    const canConvert = await initiateConversion();
+    if (!canConvert) return false;
 
-  const handleAcceptTermsAndConvert = async () => {
-    if (!selectedVoice) {
-      console.error('No voice selected during terms acceptance', { selectedVoice });
-      toast({
-        title: "Voice Required",
-        description: "Please select a voice before starting conversion",
-        variant: "destructive",
-      });
-      return;
+    if (showTerms) {
+      // Los términos se mostrarán, esperamos a la aceptación
+      return true;
     }
 
-    setIsShowingTerms(false);
-    
-    await handleAcceptTerms({ 
+    // Si no necesitamos mostrar términos, iniciar conversión directamente
+    await handleAcceptTerms({
       selectedVoice,
-      notifyOnComplete 
+      notifyOnComplete
+    });
+
+    return true;
+  };
+
+  const handleTermsAccept = async () => {
+    setShowTerms(false);
+    await handleAcceptTerms({
+      selectedVoice,
+      notifyOnComplete
     });
   };
 
+  const estimatedSeconds = calculateEstimatedSeconds();
+
+  if (detectingChapters) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8">
+        <LoadingSpinner size="lg" />
+        <p className="text-lg mt-4">Detectando capítulos...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center justify-start w-full max-w-2xl mx-auto">
-      <div className="w-full mb-8">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-          onClick={handleGoBack}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Change File
-        </Button>
-      </div>
+    <>
+      <TermsDialog
+        open={showTerms}
+        onClose={() => setShowTerms(false)}
+        onAccept={handleTermsAccept}
+      />
 
-      <div className="w-full space-y-8">
-        {currentStep === 2 && (
-          <div className="animate-fade-up w-full">
-            <VoiceSettingsStep
-              selectedVoice={selectedVoice}
-              setSelectedVoice={setSelectedVoice}
-              detectedLanguage={detectedLanguage}
-              detectChapters={detectChapters}
-              setDetectChapters={setDetectChapters}
-              onNextStep={handleVoiceSettingsComplete}
-              notifyOnComplete={notifyOnComplete}
-              setNotifyOnComplete={setNotifyOnComplete}
-            />
-          </div>
-        )}
-        
-        {currentStep === 3 && (
-          <div className="animate-fade-up w-full">
-            <ConversionStep
-              selectedFile={selectedFile}
-              conversionStatus={conversionStatus}
-              progress={progress}
-              audioData={audioData}
-              audioDuration={audioDuration}
-              estimatedSeconds={estimatedSeconds}
-              onConvert={handleConversionStart}
-              onDownloadClick={handleDownloadClick}
-              onViewConversions={handleViewConversions}
-              conversionId={conversionId}
+      <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="file-info" disabled={currentStep > 2}>Información del Archivo</TabsTrigger>
+          <TabsTrigger value="voice-settings" disabled={currentStep < 2}>Configuración de Voz</TabsTrigger>
+          <TabsTrigger value="conversion" disabled={currentStep < 3}>Conversión y Descarga</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="file-info">
+          <Card className="p-4">
+            <FileInfo
+              file={selectedFile}
+              extractedText={extractedText}
               chapters={chapters}
-              detectingChapters={detectingChapters}
-              textLength={extractedText.length}
+              onBack={() => onFileSelect(null)}
+              onNext={onNextStep}
             />
-          </div>
-        )}
+          </Card>
+        </TabsContent>
 
-        <TermsDialog 
-          open={isShowingTerms}
-          onClose={() => setIsShowingTerms(false)}
-          onAccept={handleAcceptTermsAndConvert}
-          fileName={selectedFile?.name || ''}
-          fileType={selectedFile?.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'EPUB'}
-        />
-      </div>
-    </div>
+        <TabsContent value="voice-settings">
+          <VoiceSettingsStep
+            detectedLanguage={detectedLanguage}
+            selectedVoice={selectedVoice}
+            setSelectedVoice={setSelectedVoice}
+            detectChapters={detectChapters}
+            setDetectChapters={setDetectChapters}
+            notifyOnComplete={notifyOnComplete}
+            setNotifyOnComplete={setNotifyOnComplete}
+            onBack={onPreviousStep}
+            onNext={handleStartConversion}
+          />
+        </TabsContent>
+
+        <TabsContent value="conversion">
+          <ConversionStep
+            selectedFile={selectedFile}
+            conversionStatus={conversionStatus}
+            progress={progress}
+            audioData={audioData}
+            audioDuration={audioDuration}
+            estimatedSeconds={estimatedSeconds}
+            onConvert={handleStartConversion}
+            onDownloadClick={handleDownloadClick}
+            onViewConversions={handleViewConversions}
+            conversionId={conversionId}
+            chapters={chapters}
+            detectingChapters={detectingChapters}
+            textLength={extractedText.length}
+            elapsedTime={elapsedTime}
+          />
+        </TabsContent>
+      </Tabs>
+    </>
   );
 };
 

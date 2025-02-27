@@ -1,179 +1,204 @@
 
-import { useState, useCallback, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useConversionState } from './useConversionState';
-import { useConversionActions } from './useConversionActions';
-import { supabase } from '@/integrations/supabase/client';
-import { fetchFromCache } from '@/services/conversion/storage/cacheStorage';
+import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { convertToAudio } from '@/services/conversion';
+import { Chapter } from '@/utils/textExtraction';
+import { 
+  saveConversionState, 
+  loadConversionState, 
+  clearConversionStorage,
+  convertArrayBufferToBase64 
+} from '@/services/storage/conversionStorageService';
 import { TextChunkCallback } from '@/services/conversion/types/chunks';
 
 export const useAudioConversion = () => {
-  const { user } = useAuth();
-  const {
-    conversionStatus,
-    progress,
-    audioData,
-    audioDuration,
-    currentFileName,
-    conversionId,
-    setProgress,
-    setConversionStatus,
-    setAudioData,
-    setAudioDuration,
-    setCurrentFileName,
-    setConversionId,
-    toast
-  } = useConversionState();
+  const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
+  const [progress, setProgress] = useState(0);
+  const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [conversionId, setConversionId] = useState<string | null>(null);
+  const [currentFileName, setCurrentFileName] = useState<string | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [conversionStartTime, setConversionStartTime] = useState<number | undefined>(undefined);
+  const { toast } = useToast();
 
-  const {
-    handleConversion: baseHandleConversion,
-    handleDownload,
-    resetConversion
-  } = useConversionActions({
-    user,
-    toast,
-    conversionStatus,
-    audioData,
-    currentFileName,
-    setConversionStatus,
-    setProgress,
-    setAudioData,
-    setAudioDuration,
-    setCurrentFileName,
-    setConversionId
-  });
+  // Cargar estado guardado al inicio
+  useEffect(() => {
+    const loadState = async () => {
+      const savedState = await loadConversionState();
+      if (savedState) {
+        setConversionStatus(savedState.status);
+        setProgress(savedState.progress);
+        setCurrentFileName(savedState.fileName || null);
+        setConversionId(savedState.conversionId || null);
+        
+        // Restaurar el tiempo transcurrido si existe
+        if (savedState.elapsedTime) {
+          setElapsedTime(savedState.elapsedTime);
+        }
+        
+        // Restaurar el tiempo de inicio si existe
+        if (savedState.conversionStartTime) {
+          setConversionStartTime(savedState.conversionStartTime);
+        }
+        
+        if (savedState.audioData) {
+          try {
+            const audioArrayBuffer = new TextEncoder().encode(savedState.audioData).buffer;
+            setAudioData(audioArrayBuffer);
+          } catch (error) {
+            console.error('Error converting saved audio data:', error);
+          }
+        }
+        setAudioDuration(savedState.audioDuration);
+      }
+    };
 
-  // Wrap handleConversion to allow progress callback
+    loadState();
+  }, []);
+
+  // Guardar estado cuando cambia
+  useEffect(() => {
+    const saveState = async () => {
+      if (conversionStatus !== 'idle') {
+        try {
+          const currentTime = Date.now();
+          const currentElapsedTime = Math.floor((currentTime - (conversionStartTime || currentTime)) / 1000);
+          
+          // Solo actualizar el tiempo transcurrido si es mayor que el actual
+          // o si no tenemos un tiempo actual
+          if (currentElapsedTime > elapsedTime || elapsedTime === 0) {
+            setElapsedTime(currentElapsedTime);
+          }
+          
+          const state = {
+            status: conversionStatus,
+            progress,
+            audioData: audioData ? convertArrayBufferToBase64(audioData) : undefined,
+            audioDuration,
+            fileName: currentFileName || undefined,
+            conversionId: conversionId || undefined,
+            elapsedTime: currentElapsedTime,
+            conversionStartTime
+          };
+          
+          await saveConversionState(state);
+        } catch (error) {
+          console.error('Error saving conversion state:', error);
+        }
+      }
+    };
+
+    saveState();
+  }, [conversionStatus, progress, audioData, audioDuration, currentFileName, conversionId, conversionStartTime, elapsedTime]);
+
+  const resetConversion = useCallback(() => {
+    console.log('🧹 Resetting conversion state');
+    setConversionStatus('idle');
+    setProgress(0);
+    setAudioData(null);
+    setAudioDuration(0);
+    setConversionId(null);
+    setCurrentFileName(null);
+    setElapsedTime(0);
+    setConversionStartTime(undefined);
+    clearConversionStorage();
+  }, []);
+
   const handleConversion = useCallback(async (
-    extractedText: string,
-    selectedVoice: string,
+    text: string,
+    voiceId: string,
     detectChapters: boolean,
-    chapters: any[],
-    fileName: string,
+    chapters: Chapter[],
+    fileName?: string,
     onProgress?: TextChunkCallback
   ) => {
-    console.log('Starting conversion with progress callback');
     try {
-      // Asegurarnos de que el estado sea 'converting'
       setConversionStatus('converting');
+      setProgress(0);
+      setCurrentFileName(fileName || null);
       
-      const result = await baseHandleConversion(
-        extractedText,
-        selectedVoice,
-        detectChapters,
-        chapters,
-        fileName,
-        onProgress
-      );
+      // Establecer el tiempo de inicio de la conversión
+      const startTime = Date.now();
+      setConversionStartTime(startTime);
+      setElapsedTime(0);
       
-      // Asegurarnos de que el estado se actualice después de la conversión
-      if (result) {
-        console.log('Conversion successful, updating status');
-        setConversionStatus('completed');
-        setProgress(100);
+      console.log(`🎯 Starting conversion for: ${fileName || 'unknown file'}`);
+      console.log(`📊 Text length: ${text.length} characters, Detecting chapters: ${detectChapters}`);
+      
+      const result = await convertToAudio(text, voiceId, onProgress);
+      
+      console.log('✅ Conversion completed:', {
+        hasAudio: !!result.audio,
+        audioSize: result.audio?.byteLength,
+        id: result.id
+      });
+      
+      if (result.audio) {
+        setAudioData(result.audio);
         
-        // Si onProgress está disponible, notificar que la conversión está completa
-        if (onProgress) {
-          onProgress({
-            progress: 100,
-            isCompleted: true,
-            processedChunks: 0,
-            totalChunks: 0,
-            processedCharacters: 0,
-            totalCharacters: 0,
-            currentChunk: ""
-          });
-        }
+        // Calcular duración aproximada (15 caracteres por segundo)
+        const approximateDuration = Math.ceil(text.length / 15);
+        setAudioDuration(approximateDuration);
       }
       
+      if (result.id) {
+        setConversionId(result.id);
+      }
+      
+      setConversionStatus('completed');
+      setProgress(100);
       return result;
-    } catch (error) {
-      console.error('Conversion error in wrapper:', error);
+      
+    } catch (error: any) {
+      console.error('❌ Conversion error:', error);
       setConversionStatus('error');
-      throw error;
+      
+      toast({
+        title: "Error en la conversión",
+        description: error.message || "Ocurrió un error durante la conversión",
+        variant: "destructive",
+      });
+      
+      return null;
     }
-  }, [baseHandleConversion, setConversionStatus, setProgress]);
+  }, [toast]);
 
-  // Recuperar audio del storage cuando sea necesario
-  useEffect(() => {
-    const fetchAudioFromStorage = async () => {
-      if (conversionStatus === 'completed' && !audioData && conversionId) {
-        try {
-          // Obtener la ruta de storage
-          const { data: conversion } = await supabase
-            .from('text_conversions')
-            .select('storage_path')
-            .eq('id', conversionId)
-            .single();
-
-          if (conversion?.storage_path) {
-            const { data: audioBuffer, error } = await fetchFromCache(conversion.storage_path);
-            
-            if (error) {
-              console.error('Error fetching audio from storage:', error);
-              toast({
-                title: "Error",
-                description: "No se pudo recuperar el audio almacenado",
-                variant: "destructive",
-              });
-              return;
-            }
-
-            if (audioBuffer) {
-              console.log('Audio retrieved from storage, setting audio data');
-              setAudioData(audioBuffer);
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching conversion data:', error);
-        }
-      }
-    };
-
-    fetchAudioFromStorage();
-  }, [conversionStatus, audioData, conversionId, setAudioData, toast]);
-
-  // Add timeout for stuck conversions
-  useEffect(() => {
-    let timeoutId: number;
-    
-    if (conversionStatus === 'converting' && progress === 100) {
-      timeoutId = window.setTimeout(() => {
-        console.log('Conversion appears to be stuck at 100%, forcing completion');
-        setConversionStatus('completed');
-      }, 5000); // Reducido a 5 segundos para detectar más rápido conversiones estancadas
+  const handleDownload = useCallback((fileName: string) => {
+    if (!audioData) {
+      console.error('No audio data to download');
+      return;
     }
-    
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [conversionStatus, progress, setConversionStatus]);
 
-  // Añadir logs para depuración
-  useEffect(() => {
-    console.log('useAudioConversion - status/progress update:', {
-      status: conversionStatus,
-      progress,
-      hasAudioData: !!audioData
-    });
-  }, [conversionStatus, progress, audioData]);
+    try {
+      const blob = new Blob([audioData], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName.replace(/\.[^/.]+$/, '')}.mp3`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading audio:', error);
+      toast({
+        title: "Error al descargar",
+        description: "No se pudo descargar el archivo de audio",
+        variant: "destructive",
+      });
+    }
+  }, [audioData, toast]);
 
   return {
     conversionStatus,
     progress,
     audioData,
     audioDuration,
-    currentFileName,
-    conversionId,
     handleConversion,
     handleDownload,
     resetConversion,
+    conversionId,
+    elapsedTime,
     setProgress,
-    setConversionStatus,
-    setAudioData,
-    setAudioDuration,
-    setCurrentFileName
+    setConversionStatus
   };
 };
