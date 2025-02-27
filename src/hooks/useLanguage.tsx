@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode } from 'react';
 
 type Language = 'english' | 'spanish' | 'french' | 'german';
@@ -19,6 +20,11 @@ const translations = {
     "featureChapterDetection": "✓ Chapter Detection",
     "featureMultipleVoices": "✓ Multiple Voices",
     "featureSupport": "✓ EPUB & PDF Support",
+    // File processor tabs
+    "fileInfo": "File Information",
+    "voiceSettings": "Voice Settings",
+    "conversionAndDownload": "Conversion & Download",
+    "detectingChapters": "Detecting chapters...",
     // Conversion status
     "readyToConvert": "Ready to convert",
     "converting": "Converting {fileType} to MP3...",
@@ -93,6 +99,11 @@ const translations = {
     "featureChapterDetection": "✓ Detección de Capítulos",
     "featureMultipleVoices": "✓ Múltiples Voces",
     "featureSupport": "✓ Soporte EPUB y PDF",
+    // File processor tabs
+    "fileInfo": "Información del Archivo",
+    "voiceSettings": "Configuración de Voz",
+    "conversionAndDownload": "Conversión y Descarga",
+    "detectingChapters": "Detectando capítulos...",
     // Conversion status
     "readyToConvert": "Listo para convertir",
     "converting": "Convirtiendo {fileType} a MP3...",
@@ -127,6 +138,11 @@ const translations = {
     "featureChapterDetection": "✓ Détection des Chapitres",
     "featureMultipleVoices": "✓ Voix Multiples",
     "featureSupport": "✓ Support EPUB et PDF",
+    // File processor tabs
+    "fileInfo": "Informations sur le Fichier",
+    "voiceSettings": "Paramètres de Voix",
+    "conversionAndDownload": "Conversion et Téléchargement",
+    "detectingChapters": "Détection des chapitres...",
     // Conversion status
     "readyToConvert": "Prêt à convertir",
     "converting": "Conversion de {fileType} vers MP3...",
@@ -143,7 +159,7 @@ const translations = {
     "cookieNecessary": "Cookies nécessaires : Essentiels pour la fonctionnalité et la sécurité du site",
     "cookieAnalytics": "Cookies analytiques : Nous aident à comprendre comment vous utilisez notre site",
     "cookieAdvertising": "Cookies publicitaires : Nous permettent de vous montrer des publicités pertinentes",
-    "cookieMessage": "Durch Klicken auf \"Accepter tous les cookies\", stimmen Sie der Verwendung aller Cookies zu. Klicken Sie auf \"Accepter uniquement les nécessaires\" für die Ablehnung von Analyse- und Werbe-Cookies. Lesen Sie mehr in unserer",
+    "cookieMessage": "En cliquant sur \"Accepter tous les cookies\", vous acceptez notre utilisation de tous les cookies. Cliquez sur \"Accepter uniquement les nécessaires\" pour rejeter les cookies d'analyse et de publicité. En savoir plus dans notre",
     "cookiePolicy": "Politique de Cookies",
     "privacyPolicy": "Politique de Confidentialité",
     "or": "ou",
@@ -161,6 +177,11 @@ const translations = {
     "featureChapterDetection": "✓ Kapitelerkennung",
     "featureMultipleVoices": "✓ Mehrere Stimmen",
     "featureSupport": "✓ EPUB & PDF Unterstützung",
+    // File processor tabs
+    "fileInfo": "Dateiinformationen",
+    "voiceSettings": "Spracheinstellungen",
+    "conversionAndDownload": "Konvertierung & Download",
+    "detectingChapters": "Kapitel werden erkannt...",
     // Conversion status
     "readyToConvert": "Bereit zur Konvertierung",
     "converting": "Konvertiere {fileType} zu MP3...",

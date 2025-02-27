@@ -9,6 +9,7 @@ import { Chapter } from '@/utils/textExtraction';
 import { useConversionLogic } from './file-processor/useConversionLogic';
 import TermsDialog from './TermsDialog';
 import { LoadingSpinner } from './ui/spinner';
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface FileProcessorProps {
   selectedFile: File;
@@ -33,6 +34,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   onNextStep,
   onPreviousStep
 }) => {
+  const { translations } = useLanguage();
   const [selectedVoice, setSelectedVoice] = useState<string>("");
   const [notifyOnComplete, setNotifyOnComplete] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("file-info");
@@ -109,7 +111,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     return (
       <div className="flex flex-col items-center justify-center p-8">
         <LoadingSpinner size="lg" />
-        <p className="text-lg mt-4">Detectando capítulos...</p>
+        <p className="text-lg mt-4">{translations.detectingChapters || "Detecting chapters..."}</p>
       </div>
     );
   }
@@ -124,9 +126,9 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
 
       <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="file-info" disabled={currentStep > 2}>Información del Archivo</TabsTrigger>
-          <TabsTrigger value="voice-settings" disabled={currentStep < 2}>Configuración de Voz</TabsTrigger>
-          <TabsTrigger value="conversion" disabled={currentStep < 3}>Conversión y Descarga</TabsTrigger>
+          <TabsTrigger value="file-info" disabled={currentStep > 2}>{translations.fileInfo || "File Information"}</TabsTrigger>
+          <TabsTrigger value="voice-settings" disabled={currentStep < 2}>{translations.voiceSettings || "Voice Settings"}</TabsTrigger>
+          <TabsTrigger value="conversion" disabled={currentStep < 3}>{translations.conversionAndDownload || "Conversion & Download"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="file-info">
