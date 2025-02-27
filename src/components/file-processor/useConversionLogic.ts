@@ -61,7 +61,7 @@ export const useConversionLogic = (
       resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile]); // Removido resetConversion de las dependencias
+  }, [selectedFile, conversionStatus, audioData, resetConversion]); 
 
   // Asegurarse de que onStepComplete se llame cuando la conversión se complete
   useEffect(() => {
@@ -306,6 +306,7 @@ export const useConversionLogic = (
     calculateEstimatedSeconds: () => estimatedSeconds,
     conversionId,
     setProgress,
-    setConversionStatus
+    setConversionStatus,
+    resetConversion
   };
 };

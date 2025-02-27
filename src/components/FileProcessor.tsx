@@ -10,6 +10,8 @@ import { useConversionLogic } from './file-processor/useConversionLogic';
 import TermsDialog from './TermsDialog';
 import { LoadingSpinner } from './ui/spinner';
 import { useLanguage } from "@/hooks/useLanguage";
+import { Button } from './ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 interface FileProcessorProps {
   selectedFile: File;
@@ -55,8 +57,14 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     handleDownloadClick,
     handleViewConversions,
     calculateEstimatedSeconds,
-    conversionId
+    conversionId,
+    resetConversion
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
+
+  // Resetear el estado de conversión cuando se cambia de archivo
+  useEffect(() => {
+    resetConversion();
+  }, [selectedFile, resetConversion]);
 
   // Cambiar la pestaña activa cuando cambia el paso
   useEffect(() => {
@@ -64,6 +72,8 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       setActiveTab("voice-settings");
     } else if (currentStep === 3) {
       setActiveTab("conversion");
+    } else {
+      setActiveTab("file-info");
     }
   }, [currentStep]);
 
@@ -105,6 +115,17 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     });
   };
 
+  const handleGoBack = () => {
+    // Solo permitir volver si no estamos en medio de una conversión
+    if (conversionStatus !== 'converting') {
+      if (currentStep > 1) {
+        onPreviousStep();
+      } else {
+        onFileSelect(null);
+      }
+    }
+  };
+
   const estimatedSeconds = calculateEstimatedSeconds();
 
   if (detectingChapters) {
@@ -123,6 +144,18 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         onClose={() => setShowTerms(false)}
         onAccept={handleTermsAccept}
       />
+      
+      <div className="mb-4">
+        <Button 
+          variant="ghost" 
+          onClick={handleGoBack}
+          disabled={conversionStatus === 'converting'}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {translations.back || "Back"}
+        </Button>
+      </div>
 
       <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">

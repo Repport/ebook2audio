@@ -20,6 +20,8 @@ const translations = {
     "featureChapterDetection": "✓ Chapter Detection",
     "featureMultipleVoices": "✓ Multiple Voices",
     "featureSupport": "✓ EPUB & PDF Support",
+    // Navigation
+    "back": "Back",
     // File processor tabs
     "fileInfo": "File Information",
     "voiceSettings": "Voice Settings",
@@ -99,6 +101,8 @@ const translations = {
     "featureChapterDetection": "✓ Detección de Capítulos",
     "featureMultipleVoices": "✓ Múltiples Voces",
     "featureSupport": "✓ Soporte EPUB y PDF",
+    // Navigation
+    "back": "Atrás",
     // File processor tabs
     "fileInfo": "Información del Archivo",
     "voiceSettings": "Configuración de Voz",
@@ -138,6 +142,8 @@ const translations = {
     "featureChapterDetection": "✓ Détection des Chapitres",
     "featureMultipleVoices": "✓ Voix Multiples",
     "featureSupport": "✓ Support EPUB et PDF",
+    // Navigation
+    "back": "Retour",
     // File processor tabs
     "fileInfo": "Informations sur le Fichier",
     "voiceSettings": "Paramètres de Voix",
@@ -177,6 +183,8 @@ const translations = {
     "featureChapterDetection": "✓ Kapitelerkennung",
     "featureMultipleVoices": "✓ Mehrere Stimmen",
     "featureSupport": "✓ EPUB & PDF Unterstützung",
+    // Navigation
+    "back": "Zurück",
     // File processor tabs
     "fileInfo": "Dateiinformationen",
     "voiceSettings": "Spracheinstellungen",
