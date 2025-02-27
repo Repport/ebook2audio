@@ -53,22 +53,22 @@ const AppRoutes = () => (
 );
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-    <AuthProvider>
-      <LanguageProvider>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+  <AuthProvider>
+    <LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <TooltipProvider>
               <AppRoutes />
-            </BrowserRouter>
-            <CookieConsentBanner />
-          </TooltipProvider>
-        </QueryClientProvider>
-      </LanguageProvider>
-    </AuthProvider>
-  </ThemeProvider>
+              <Toaster />
+              <Sonner />
+              <CookieConsentBanner />
+            </TooltipProvider>
+          </ThemeProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </LanguageProvider>
+  </AuthProvider>
 );
 
 export default App;
