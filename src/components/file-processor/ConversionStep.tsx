@@ -6,6 +6,7 @@ import ConversionStatus from '@/components/ConversionStatus';
 import { ChaptersList } from '@/components/ChaptersList';
 import { Chapter } from '@/utils/textExtraction';
 import { useLanguage } from "@/hooks/useLanguage";
+import { toast } from "@/hooks/use-toast";
 
 interface ConversionStepProps {
   selectedFile: File;
@@ -77,10 +78,20 @@ const ConversionStep = ({
       if (!canProceed) {
         setIsConverting(false);
         console.log("ConversionStep - Could not proceed with conversion");
+        toast({
+          title: "Error",
+          description: "Could not start conversion process",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       setIsConverting(false);
       console.error('ConversionStep - Error during conversion:', error);
+      toast({
+        title: "Error",
+        description: "An error occurred during conversion",
+        variant: "destructive"
+      });
     }
   };
 
@@ -119,7 +130,8 @@ const ConversionStep = ({
           <Button
             onClick={handleConvertClick}
             disabled={isConverting}
-            className="w-full py-6 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300"
+            variant="default"
+            className="w-full py-6 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700"
           >
             <Play className="w-5 h-5" />
             {isConverting ? translations.starting || "Starting..." : translations.startConversion || "Start Conversion"}
@@ -129,7 +141,7 @@ const ConversionStep = ({
         {conversionStatus === 'completed' && audioData && (
           <Button
             onClick={onDownloadClick}
-            className="w-full py-6 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300"
+            className="w-full py-6 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
           >
             <Download className="w-5 h-5" />
             {translations.downloadAudio || "Download Audio"}
