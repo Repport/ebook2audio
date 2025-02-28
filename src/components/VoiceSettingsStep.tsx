@@ -50,8 +50,8 @@ const VoiceSettingsStep = ({
         detectedLanguage={detectedLanguage}
       />
       
-      <div className="space-y-6 mt-8 divide-y divide-gray-100 dark:divide-gray-800">
-        <div className="pt-4">
+      <div className="space-y-6 mt-8 pt-4 border-t border-gray-100 dark:border-gray-800">
+        <div>
           <ChapterDetectionToggle 
             detectChapters={detectChapters}
             onToggle={setDetectChapters}
@@ -60,7 +60,7 @@ const VoiceSettingsStep = ({
         </div>
 
         {user && (
-          <div className="flex items-center justify-between space-x-2 pt-4">
+          <div className="flex items-center justify-between space-x-2 pt-4 border-t border-gray-100 dark:border-gray-800">
             <Label htmlFor="notify-complete" className="text-gray-700 dark:text-gray-300 cursor-pointer">
               {translations.notifyWhenComplete || "Notify me when complete"}
             </Label>
@@ -76,7 +76,7 @@ const VoiceSettingsStep = ({
       <div className="flex justify-end mt-8">
         <Button
           onClick={onNextStep}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white rounded-full px-6"
+          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white dark:text-primary-foreground rounded-full px-6"
         >
           {translations.continue || "Continue"}
           <ArrowRight className="w-4 h-4" />

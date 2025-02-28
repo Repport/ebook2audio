@@ -75,6 +75,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   // Efecto para manejar cambios en el estado de conversión
   useEffect(() => {
     if (conversionStatus === 'completed' && currentStep === 2) {
+      console.log('FileProcessor - Conversion completed, moving to next step');
       onNextStep();
     }
   }, [conversionStatus, currentStep, onNextStep]);
@@ -84,7 +85,9 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     let timeoutId: NodeJS.Timeout | null = null;
     
     if (detectingChapters) {
+      console.log('FileProcessor - Chapter detection started, setting safety timeout');
       timeoutId = setTimeout(() => {
+        console.log('FileProcessor - Chapter detection safety timeout triggered');
         setDetectChapters(false);
       }, 10000);
     }
@@ -95,29 +98,40 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   }, [detectingChapters, setDetectChapters]);
 
   const handleStartConversion = async () => {
+    console.log('FileProcessor - handleStartConversion called');
+    // Verificar que todos los datos necesarios estén presentes
     if (!selectedFile || !extractedText || !selectedVoice) {
+      console.log('FileProcessor - Missing required data for conversion');
       return false;
     }
 
+    // Detener cualquier detección de capítulos activa antes de iniciar la conversión
     if (detectingChapters) {
       setDetectChapters(false);
     }
 
     const canConvert = await initiateConversion();
     if (!canConvert) {
+      console.log('FileProcessor - initiateConversion returned false');
       return false;
     }
 
     if (showTerms) {
+      // Los términos se mostrarán, esperamos a la aceptación
+      console.log('FileProcessor - Terms will be shown');
       return true;
     }
 
+    // Si no necesitamos mostrar términos, iniciar conversión directamente
+    console.log('FileProcessor - Starting conversion directly');
     await handleAcceptTerms({
       selectedVoice,
       notifyOnComplete
     });
 
+    // Avanzar al siguiente paso después de iniciar la conversión
     if (currentStep === 2) {
+      console.log('FileProcessor - Moving to next step after conversion start');
       onNextStep();
     }
 
@@ -125,31 +139,41 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   };
 
   const handleTermsAccept = async () => {
+    console.log('FileProcessor - Terms accepted');
     setShowTerms(false);
     await handleAcceptTerms({
       selectedVoice,
       notifyOnComplete
     });
     
+    // Avanzar al siguiente paso después de aceptar los términos
     if (currentStep === 2) {
+      console.log('FileProcessor - Moving to next step after terms acceptance');
       onNextStep();
     }
   };
 
   const handleGoBack = () => {
+    console.log('FileProcessor - handleGoBack called, conversionStatus:', conversionStatus);
+    // Solo permitir volver si no estamos en medio de una conversión
     if (conversionStatus !== 'converting' && !detectingChapters) {
       if (currentStep > 1) {
+        console.log('FileProcessor - Going to previous step');
         onPreviousStep();
       } else {
+        console.log('FileProcessor - Returning to file selection');
         resetConversion();
         onFileSelect(null);
       }
+    } else {
+      console.log('FileProcessor - Cannot go back during conversion or chapter detection');
     }
   };
 
   const estimatedSeconds = calculateEstimatedSeconds();
 
   if (detectingChapters) {
+    console.log('FileProcessor - Rendering chapter detection state');
     return (
       <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
         <LoadingSpinner size="lg" />
@@ -157,7 +181,10 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         <Button 
           variant="outline" 
           className="mt-4 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" 
-          onClick={() => setDetectChapters(false)}
+          onClick={() => {
+            console.log('FileProcessor - Manual skip of chapter detection');
+            setDetectChapters(false);
+          }}
         >
           Skip chapter detection
         </Button>
