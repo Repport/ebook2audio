@@ -125,6 +125,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           variant: "destructive",
         });
         
+        setIsProcessingNextStep(false);
         return false;
       }
 
@@ -143,27 +144,26 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           variant: "destructive",
         });
         
+        setIsProcessingNextStep(false);
         return false;
       }
 
       if (showTerms) {
         // Los términos se mostrarán, esperamos a la aceptación
         console.log('FileProcessor - Terms will be shown');
+        // No desactivamos isProcessingNextStep aquí, lo haremos después de la aceptación
         return true;
       }
 
-      // Si no necesitamos mostrar términos, iniciar conversión directamente
+      // Si no necesitamos mostrar términos, iniciar conversión directamente e ir al siguiente paso
       console.log('FileProcessor - Starting conversion directly');
+      onNextStep(); // Avanzar inmediatamente al siguiente paso
+      
+      // Iniciar la conversión después de avanzar
       await handleAcceptTerms({
         selectedVoice,
         notifyOnComplete
       });
-
-      // Avanzar al siguiente paso después de iniciar la conversión
-      if (currentStep === 2) {
-        console.log('FileProcessor - Moving to next step after conversion start');
-        onNextStep();
-      }
 
       return true;
     } catch (error) {
@@ -182,7 +182,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   }, [
     isProcessingNextStep, selectedFile, extractedText, selectedVoice, 
     detectingChapters, setDetectChapters, initiateConversion, showTerms, 
-    handleAcceptTerms, notifyOnComplete, currentStep, onNextStep
+    handleAcceptTerms, notifyOnComplete, onNextStep
   ]);
 
   const handleTermsAccept = async () => {
@@ -190,16 +190,17 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     setShowTerms(false);
     
     try {
-      await handleAcceptTerms({
-        selectedVoice,
-        notifyOnComplete
-      });
-      
-      // Avanzar al siguiente paso después de aceptar los términos
+      // Avanzar al siguiente paso inmediatamente después de aceptar los términos
       if (currentStep === 2) {
         console.log('FileProcessor - Moving to next step after terms acceptance');
         onNextStep();
       }
+      
+      // Iniciar la conversión después de avanzar
+      await handleAcceptTerms({
+        selectedVoice,
+        notifyOnComplete
+      });
     } catch (error) {
       console.error('FileProcessor - Error in handleTermsAccept:', error);
       
@@ -208,6 +209,8 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         description: "An error occurred while accepting terms",
         variant: "destructive",
       });
+    } finally {
+      setIsProcessingNextStep(false);
     }
   };
 
