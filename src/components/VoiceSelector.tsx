@@ -39,9 +39,24 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: Voice
   useEffect(() => {
     if (availableVoices && availableVoices.length > 0) {
       const newVoice = availableVoices[0].id;
+      console.log('VoiceSelector - Setting initial voice:', newVoice);
       onVoiceChange(newVoice);
     }
   }, [mappedLanguage, availableVoices, onVoiceChange]);
+
+  // Asegurar que siempre tengamos una voz seleccionada si hay voces disponibles
+  useEffect(() => {
+    if (!selectedVoice && availableVoices && availableVoices.length > 0) {
+      const newVoice = availableVoices[0].id;
+      console.log('VoiceSelector - No voice selected, setting default:', newVoice);
+      onVoiceChange(newVoice);
+    }
+  }, [selectedVoice, availableVoices, onVoiceChange]);
+
+  const handleVoiceChange = (value: string) => {
+    console.log('VoiceSelector - Voice selected manually:', value);
+    onVoiceChange(value);
+  };
 
   if (!availableVoices) {
     return null;
@@ -51,7 +66,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: Voice
     <div className="w-full max-w-md mx-auto">
       <RadioGroup
         value={selectedVoice}
-        onValueChange={onVoiceChange}
+        onValueChange={handleVoiceChange}
         className="grid grid-cols-1 md:grid-cols-2 gap-4"
       >
         {availableVoices.map((voice) => (

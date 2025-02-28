@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FileInfo from './FileInfo';
@@ -12,6 +12,7 @@ import { LoadingSpinner } from './ui/spinner';
 import { useLanguage } from "@/hooks/useLanguage";
 import { Button } from './ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from "@/hooks/use-toast";
 
 interface FileProcessorProps {
   selectedFile: File;
@@ -40,6 +41,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   const [selectedVoice, setSelectedVoice] = useState<string>("");
   const [notifyOnComplete, setNotifyOnComplete] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("file-info");
+  const [isProcessingNextStep, setIsProcessingNextStep] = useState(false);
 
   const {
     detectChapters,
@@ -97,27 +99,50 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     };
   }, [detectingChapters, setDetectChapters]);
 
-  const handleStartConversion = async () => {
+  const handleStartConversion = useCallback(async () => {
     console.log('FileProcessor - handleStartConversion called');
-    // Verificar que todos los datos necesarios estén presentes
-    if (!selectedFile || !extractedText || !selectedVoice) {
-      console.log('FileProcessor - Missing required data for conversion', {
-        hasFile: !!selectedFile,
-        hasText: !!extractedText,
-        selectedVoice
-      });
+    
+    // Evitar múltiples envíos
+    if (isProcessingNextStep) {
+      console.log('FileProcessor - Already processing, ignoring request');
       return false;
     }
-
-    // Detener cualquier detección de capítulos activa antes de iniciar la conversión
-    if (detectingChapters) {
-      setDetectChapters(false);
-    }
-
+    
+    setIsProcessingNextStep(true);
+    
     try {
+      // Verificar que todos los datos necesarios estén presentes
+      if (!selectedFile || !extractedText || !selectedVoice) {
+        console.log('FileProcessor - Missing required data for conversion', {
+          hasFile: !!selectedFile,
+          hasText: !!extractedText,
+          selectedVoice
+        });
+        
+        toast({
+          title: "Error",
+          description: "Missing required data for conversion",
+          variant: "destructive",
+        });
+        
+        return false;
+      }
+
+      // Detener cualquier detección de capítulos activa antes de iniciar la conversión
+      if (detectingChapters) {
+        setDetectChapters(false);
+      }
+
       const canConvert = await initiateConversion();
       if (!canConvert) {
         console.log('FileProcessor - initiateConversion returned false');
+        
+        toast({
+          title: "Error",
+          description: "Unable to initiate conversion",
+          variant: "destructive",
+        });
+        
         return false;
       }
 
@@ -143,9 +168,22 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       return true;
     } catch (error) {
       console.error('FileProcessor - Error in handleStartConversion:', error);
+      
+      toast({
+        title: "Error",
+        description: "An error occurred during conversion",
+        variant: "destructive",
+      });
+      
       return false;
+    } finally {
+      setIsProcessingNextStep(false);
     }
-  };
+  }, [
+    isProcessingNextStep, selectedFile, extractedText, selectedVoice, 
+    detectingChapters, setDetectChapters, initiateConversion, showTerms, 
+    handleAcceptTerms, notifyOnComplete, currentStep, onNextStep
+  ]);
 
   const handleTermsAccept = async () => {
     console.log('FileProcessor - Terms accepted');
@@ -164,13 +202,19 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       }
     } catch (error) {
       console.error('FileProcessor - Error in handleTermsAccept:', error);
+      
+      toast({
+        title: "Error",
+        description: "An error occurred while accepting terms",
+        variant: "destructive",
+      });
     }
   };
 
   const handleGoBack = () => {
     console.log('FileProcessor - handleGoBack called, conversionStatus:', conversionStatus);
     // Solo permitir volver si no estamos en medio de una conversión
-    if (conversionStatus !== 'converting' && !detectingChapters) {
+    if (conversionStatus !== 'converting' && !detectingChapters && !isProcessingNextStep) {
       if (currentStep > 1) {
         console.log('FileProcessor - Going to previous step');
         onPreviousStep();
@@ -181,6 +225,12 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       }
     } else {
       console.log('FileProcessor - Cannot go back during conversion or chapter detection');
+      
+      toast({
+        title: "In Progress",
+        description: "Please wait until the current process completes",
+        variant: "default",
+      });
     }
   };
 
@@ -218,7 +268,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         <Button 
           variant="ghost" 
           onClick={handleGoBack}
-          disabled={conversionStatus === 'converting' || detectingChapters}
+          disabled={conversionStatus === 'converting' || detectingChapters || isProcessingNextStep}
           className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
         >
           <ArrowLeft className="w-4 h-4" />

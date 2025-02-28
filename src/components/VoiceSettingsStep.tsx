@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import VoiceSelector from '@/components/VoiceSelector';
 import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
+import { toast } from '@/hooks/use-toast';
 
 interface VoiceSettingsStepProps {
   selectedVoice: string;
@@ -32,16 +33,48 @@ const VoiceSettingsStep = ({
 }: VoiceSettingsStepProps) => {
   const { user } = useAuth();
   const { translations } = useLanguage();
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const handleContinue = async () => {
+    // Evitar múltiples clics
+    if (isProcessing) return;
+    
     console.log('VoiceSettingsStep - handleContinue clicked with voice:', selectedVoice);
+    
+    if (!selectedVoice) {
+      toast({
+        title: "Error",
+        description: "Please select a voice before continuing",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsProcessing(true);
+    
     try {
       const result = await onNextStep();
       console.log('VoiceSettingsStep - onNextStep result:', result);
+      
+      if (!result) {
+        toast({
+          title: "Error",
+          description: "Could not proceed to the next step",
+          variant: "destructive"
+        });
+      }
+      
       return result;
     } catch (error) {
       console.error('VoiceSettingsStep - Error in handleContinue:', error);
+      toast({
+        title: "Error",
+        description: "An error occurred while trying to continue",
+        variant: "destructive"
+      });
       return false;
+    } finally {
+      setIsProcessing(false);
     }
   };
   
@@ -88,10 +121,17 @@ const VoiceSettingsStep = ({
       <div className="flex justify-end mt-8">
         <Button
           onClick={handleContinue}
+          disabled={isProcessing || !selectedVoice}
           className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white dark:text-primary-foreground rounded-full px-6"
         >
-          {translations.continue || "Continue"}
-          <ArrowRight className="w-4 h-4" />
+          {isProcessing ? (
+            <span>Processing...</span>
+          ) : (
+            <>
+              {translations.continue || "Continue"}
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
         </Button>
       </div>
     </div>
