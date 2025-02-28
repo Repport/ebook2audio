@@ -169,7 +169,7 @@ export const useConversionLogic = (
       toast({
         title: "Warning",
         description: `Error processing chunk: ${data.error}. Conversion will continue.`,
-        variant: "warning",
+        variant: "default",
       });
     }
     
@@ -361,7 +361,7 @@ export const useConversionLogic = (
     detectChapters,
     setDetectChapters,
     detectingChapters,
-    setDetectingChapters,  // Exportar esta función para permitir cancelación manual
+    setDetectingChapters,
     showTerms,
     setShowTerms,
     conversionStatus,

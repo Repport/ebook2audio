@@ -106,10 +106,10 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       timeoutId = setTimeout(() => {
         console.log('FileProcessor - Chapter detection safety timeout triggered');
         setDetectChapters(false);
-        // Forzar salida del estado de detección de capítulos después de 10 segundos
+        // Forzar salida del estado de detección de capítulos
         if (detectingChapters) {
           console.log('FileProcessor - Forcing exit from detecting chapters state');
-          setDetectingChapters(false);
+          setDetectChapters(false);
         }
       }, 10000); // 10 segundos máximo para detectar capítulos
     }
@@ -117,7 +117,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [detectingChapters, setDetectChapters, setDetectingChapters]);
+  }, [detectingChapters, setDetectChapters]);
 
   const handleStartConversion = async () => {
     console.log('FileProcessor - handleStartConversion called');
@@ -188,7 +188,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           className="mt-4" 
           onClick={() => {
             console.log('FileProcessor - Manual skip of chapter detection');
-            setDetectingChapters(false);
+            setDetectChapters(false);
           }}
         >
           Skip chapter detection
