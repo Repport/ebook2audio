@@ -61,8 +61,20 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     resetConversion
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
+  // Logs para depuración
+  useEffect(() => {
+    console.log('FileProcessor - Current state:', {
+      currentStep,
+      activeTab,
+      detectingChapters,
+      conversionStatus,
+      progress
+    });
+  }, [currentStep, activeTab, detectingChapters, conversionStatus, progress]);
+
   // Resetear el estado de conversión cuando se cambia de archivo
   useEffect(() => {
+    console.log('FileProcessor - File changed, resetting conversion');
     resetConversion();
   }, [selectedFile, resetConversion]);
 
@@ -80,25 +92,55 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   // Efecto para manejar cambios en el estado de conversión
   useEffect(() => {
     if (conversionStatus === 'completed' && currentStep === 2) {
+      console.log('FileProcessor - Conversion completed, moving to next step');
       onNextStep();
     }
   }, [conversionStatus, currentStep, onNextStep]);
 
+  // Añadir un timeout para salir del estado "detectingChapters" si se queda atascado
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    if (detectingChapters) {
+      console.log('FileProcessor - Chapter detection started, setting safety timeout');
+      timeoutId = setTimeout(() => {
+        console.log('FileProcessor - Chapter detection safety timeout triggered');
+        setDetectChapters(false);
+        // Forzar salida del estado de detección de capítulos después de 10 segundos
+        if (detectingChapters) {
+          console.log('FileProcessor - Forcing exit from detecting chapters state');
+          setDetectingChapters(false);
+        }
+      }, 10000); // 10 segundos máximo para detectar capítulos
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [detectingChapters, setDetectChapters, setDetectingChapters]);
+
   const handleStartConversion = async () => {
+    console.log('FileProcessor - handleStartConversion called');
     // Verificar que todos los datos necesarios estén presentes
     if (!selectedFile || !extractedText || !selectedVoice) {
+      console.log('FileProcessor - Missing required data for conversion');
       return false;
     }
 
     const canConvert = await initiateConversion();
-    if (!canConvert) return false;
+    if (!canConvert) {
+      console.log('FileProcessor - initiateConversion returned false');
+      return false;
+    }
 
     if (showTerms) {
       // Los términos se mostrarán, esperamos a la aceptación
+      console.log('FileProcessor - Terms will be shown');
       return true;
     }
 
     // Si no necesitamos mostrar términos, iniciar conversión directamente
+    console.log('FileProcessor - Starting conversion directly');
     await handleAcceptTerms({
       selectedVoice,
       notifyOnComplete
@@ -108,6 +150,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   };
 
   const handleTermsAccept = async () => {
+    console.log('FileProcessor - Terms accepted');
     setShowTerms(false);
     await handleAcceptTerms({
       selectedVoice,
@@ -116,23 +159,40 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   };
 
   const handleGoBack = () => {
+    console.log('FileProcessor - handleGoBack called, conversionStatus:', conversionStatus);
     // Solo permitir volver si no estamos en medio de una conversión
-    if (conversionStatus !== 'converting') {
+    if (conversionStatus !== 'converting' && !detectingChapters) {
       if (currentStep > 1) {
+        console.log('FileProcessor - Going to previous step');
         onPreviousStep();
       } else {
+        console.log('FileProcessor - Returning to file selection');
+        resetConversion();
         onFileSelect(null);
       }
+    } else {
+      console.log('FileProcessor - Cannot go back during conversion or chapter detection');
     }
   };
 
   const estimatedSeconds = calculateEstimatedSeconds();
 
   if (detectingChapters) {
+    console.log('FileProcessor - Rendering chapter detection state');
     return (
       <div className="flex flex-col items-center justify-center p-8">
         <LoadingSpinner size="lg" />
         <p className="text-lg mt-4">{translations.detectingChapters || "Detecting chapters..."}</p>
+        <Button 
+          variant="outline" 
+          className="mt-4" 
+          onClick={() => {
+            console.log('FileProcessor - Manual skip of chapter detection');
+            setDetectingChapters(false);
+          }}
+        >
+          Skip chapter detection
+        </Button>
       </div>
     );
   }
@@ -149,7 +209,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         <Button 
           variant="ghost" 
           onClick={handleGoBack}
-          disabled={conversionStatus === 'converting'}
+          disabled={conversionStatus === 'converting' || detectingChapters}
           className="flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -168,7 +228,10 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           <Card className="p-4">
             <FileInfo
               file={selectedFile}
-              onRemove={() => onFileSelect(null)}
+              onRemove={() => {
+                resetConversion();
+                onFileSelect(null);
+              }}
               onNext={onNextStep}
             />
           </Card>
