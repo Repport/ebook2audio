@@ -61,23 +61,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     resetConversion
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
-  // Logs para depuración
-  useEffect(() => {
-    console.log('FileProcessor - Current state:', {
-      currentStep,
-      activeTab,
-      detectingChapters,
-      conversionStatus,
-      progress
-    });
-  }, [currentStep, activeTab, detectingChapters, conversionStatus, progress]);
-
-  // Resetear el estado de conversión cuando se cambia de archivo
-  useEffect(() => {
-    console.log('FileProcessor - File changed, resetting conversion');
-    resetConversion();
-  }, [selectedFile, resetConversion]);
-
   // Cambiar la pestaña activa cuando cambia el paso
   useEffect(() => {
     if (currentStep === 2) {
@@ -92,22 +75,18 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   // Efecto para manejar cambios en el estado de conversión
   useEffect(() => {
     if (conversionStatus === 'completed' && currentStep === 2) {
-      console.log('FileProcessor - Conversion completed, moving to next step');
       onNextStep();
     }
   }, [conversionStatus, currentStep, onNextStep]);
 
-  // Añadir un timeout para salir del estado "detectingChapters" si se queda atascado
+  // Añadir un timeout para salir del estado "detectingChapters"
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null;
     
     if (detectingChapters) {
-      console.log('FileProcessor - Chapter detection started, setting safety timeout');
       timeoutId = setTimeout(() => {
-        console.log('FileProcessor - Chapter detection safety timeout triggered');
-        // Forzar salida del estado de detección de capítulos
         setDetectChapters(false);
-      }, 10000); // 10 segundos máximo para detectar capítulos
+      }, 10000);
     }
     
     return () => {
@@ -116,38 +95,28 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   }, [detectingChapters, setDetectChapters]);
 
   const handleStartConversion = async () => {
-    console.log('FileProcessor - handleStartConversion called');
-    // Verificar que todos los datos necesarios estén presentes
     if (!selectedFile || !extractedText || !selectedVoice) {
-      console.log('FileProcessor - Missing required data for conversion');
       return false;
     }
 
-    // Detener cualquier detección de capítulos activa antes de iniciar la conversión
     if (detectingChapters) {
       setDetectChapters(false);
     }
 
     const canConvert = await initiateConversion();
     if (!canConvert) {
-      console.log('FileProcessor - initiateConversion returned false');
       return false;
     }
 
     if (showTerms) {
-      // Los términos se mostrarán, esperamos a la aceptación
-      console.log('FileProcessor - Terms will be shown');
       return true;
     }
 
-    // Si no necesitamos mostrar términos, iniciar conversión directamente
-    console.log('FileProcessor - Starting conversion directly');
     await handleAcceptTerms({
       selectedVoice,
       notifyOnComplete
     });
 
-    // Avanzar al siguiente paso después de iniciar la conversión
     if (currentStep === 2) {
       onNextStep();
     }
@@ -156,51 +125,39 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   };
 
   const handleTermsAccept = async () => {
-    console.log('FileProcessor - Terms accepted');
     setShowTerms(false);
     await handleAcceptTerms({
       selectedVoice,
       notifyOnComplete
     });
     
-    // Avanzar al siguiente paso después de aceptar los términos
     if (currentStep === 2) {
       onNextStep();
     }
   };
 
   const handleGoBack = () => {
-    console.log('FileProcessor - handleGoBack called, conversionStatus:', conversionStatus);
-    // Solo permitir volver si no estamos en medio de una conversión
     if (conversionStatus !== 'converting' && !detectingChapters) {
       if (currentStep > 1) {
-        console.log('FileProcessor - Going to previous step');
         onPreviousStep();
       } else {
-        console.log('FileProcessor - Returning to file selection');
         resetConversion();
         onFileSelect(null);
       }
-    } else {
-      console.log('FileProcessor - Cannot go back during conversion or chapter detection');
     }
   };
 
   const estimatedSeconds = calculateEstimatedSeconds();
 
   if (detectingChapters) {
-    console.log('FileProcessor - Rendering chapter detection state');
     return (
-      <div className="flex flex-col items-center justify-center p-8">
+      <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
         <LoadingSpinner size="lg" />
-        <p className="text-lg mt-4">{translations.detectingChapters || "Detecting chapters..."}</p>
+        <p className="text-lg mt-4 text-gray-700 dark:text-gray-300">{translations.detectingChapters || "Detecting chapters..."}</p>
         <Button 
           variant="outline" 
-          className="mt-4" 
-          onClick={() => {
-            console.log('FileProcessor - Manual skip of chapter detection');
-            setDetectChapters(false);
-          }}
+          className="mt-4 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800" 
+          onClick={() => setDetectChapters(false)}
         >
           Skip chapter detection
         </Button>
@@ -221,7 +178,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           variant="ghost" 
           onClick={handleGoBack}
           disabled={conversionStatus === 'converting' || detectingChapters}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
         >
           <ArrowLeft className="w-4 h-4" />
           {translations.back || "Back"}
@@ -229,14 +186,32 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       </div>
 
       <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="file-info" disabled={currentStep > 2}>{translations.fileInfo || "File Information"}</TabsTrigger>
-          <TabsTrigger value="voice-settings" disabled={currentStep < 2}>{translations.voiceSettings || "Voice Settings"}</TabsTrigger>
-          <TabsTrigger value="conversion" disabled={currentStep < 3}>{translations.conversionAndDownload || "Conversion & Download"}</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 mb-6 bg-gray-100 dark:bg-gray-800 rounded-full p-1">
+          <TabsTrigger 
+            value="file-info" 
+            disabled={currentStep > 2}
+            className="rounded-full py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+          >
+            {translations.fileInfo || "File Information"}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="voice-settings" 
+            disabled={currentStep < 2}
+            className="rounded-full py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+          >
+            {translations.voiceSettings || "Voice Settings"}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="conversion" 
+            disabled={currentStep < 3}
+            className="rounded-full py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+          >
+            {translations.conversionAndDownload || "Conversion & Download"}
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="file-info">
-          <Card className="p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 transition-all">
+          <TabsContent value="file-info" className="mt-0">
             <FileInfo
               file={selectedFile}
               onRemove={() => {
@@ -245,40 +220,40 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
               }}
               onNext={onNextStep}
             />
-          </Card>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="voice-settings">
-          <VoiceSettingsStep
-            detectedLanguage={detectedLanguage}
-            selectedVoice={selectedVoice}
-            setSelectedVoice={setSelectedVoice}
-            detectChapters={detectChapters}
-            setDetectChapters={setDetectChapters}
-            notifyOnComplete={notifyOnComplete}
-            setNotifyOnComplete={setNotifyOnComplete}
-            onNextStep={handleStartConversion}
-          />
-        </TabsContent>
+          <TabsContent value="voice-settings" className="mt-0">
+            <VoiceSettingsStep
+              detectedLanguage={detectedLanguage}
+              selectedVoice={selectedVoice}
+              setSelectedVoice={setSelectedVoice}
+              detectChapters={detectChapters}
+              setDetectChapters={setDetectChapters}
+              notifyOnComplete={notifyOnComplete}
+              setNotifyOnComplete={setNotifyOnComplete}
+              onNextStep={handleStartConversion}
+            />
+          </TabsContent>
 
-        <TabsContent value="conversion">
-          <ConversionStep
-            selectedFile={selectedFile}
-            conversionStatus={conversionStatus}
-            progress={progress}
-            audioData={audioData}
-            audioDuration={audioDuration}
-            estimatedSeconds={estimatedSeconds}
-            onConvert={handleStartConversion}
-            onDownloadClick={handleDownloadClick}
-            onViewConversions={handleViewConversions}
-            conversionId={conversionId}
-            chapters={chapters}
-            detectingChapters={detectingChapters}
-            textLength={extractedText.length}
-            elapsedTime={elapsedTime}
-          />
-        </TabsContent>
+          <TabsContent value="conversion" className="mt-0">
+            <ConversionStep
+              selectedFile={selectedFile}
+              conversionStatus={conversionStatus}
+              progress={progress}
+              audioData={audioData}
+              audioDuration={audioDuration}
+              estimatedSeconds={estimatedSeconds}
+              onConvert={handleStartConversion}
+              onDownloadClick={handleDownloadClick}
+              onViewConversions={handleViewConversions}
+              conversionId={conversionId}
+              chapters={chapters}
+              detectingChapters={detectingChapters}
+              textLength={extractedText.length}
+              elapsedTime={elapsedTime}
+            />
+          </TabsContent>
+        </div>
       </Tabs>
     </>
   );

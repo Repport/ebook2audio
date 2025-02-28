@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Play, Download, List } from "lucide-react";
 import ConversionStatus from '@/components/ConversionStatus';
 import { ChaptersList } from '@/components/ChaptersList';
 import { Chapter } from '@/utils/textExtraction';
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface ConversionStepProps {
   selectedFile: File;
@@ -42,19 +42,17 @@ const ConversionStep = ({
 }: ConversionStepProps) => {
   const [isConverting, setIsConverting] = useState(false);
   const [currentProgress, setCurrentProgress] = useState(Math.max(1, progress));
+  const { translations } = useLanguage();
 
-  // Actualizar el progreso cuando cambie externamente, asegurando que sea al menos 1%
+  // Actualizar el progreso cuando cambie externamente
   useEffect(() => {
-    console.log(`ConversionStep - progress prop changed: ${progress}%`);
     setCurrentProgress(Math.max(1, progress));
   }, [progress]);
 
   // Actualizar isConverting cuando cambie el estado de conversión
   useEffect(() => {
-    console.log(`ConversionStep - status changed: ${conversionStatus}`);
     if (conversionStatus === 'converting') {
       setIsConverting(true);
-      // Asegurar que tenemos al menos 1% al iniciar
       if (currentProgress <= 0) {
         setCurrentProgress(1);
       }
@@ -76,80 +74,78 @@ const ConversionStep = ({
     }
   };
 
-  // Log para depuración
-  useEffect(() => {
-    console.log('ConversionStep render:', { 
-      conversionStatus, 
-      isConverting, 
-      progress: currentProgress,
-      elapsedTime,
-      hasAudioData: !!audioData 
-    });
-  }, [conversionStatus, isConverting, currentProgress, audioData, elapsedTime]);
-
   const handleProgressUpdate = (progressData: any) => {
-    console.log('Progress update in ConversionStep:', progressData);
     if (typeof progressData.progress === 'number') {
-      // Asegurar que el progreso sea siempre al menos 1%
       setCurrentProgress(Math.max(1, progressData.progress));
     }
   };
 
   return (
-    <Card className="p-6">
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Convert to Audio</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onViewConversions}
-              className="flex items-center gap-2"
-            >
-              <List className="w-4 h-4" />
-              View Conversions
-            </Button>
-          </div>
-
-          {conversionStatus === 'idle' && (
-            <Button
-              onClick={handleConvertClick}
-              className="flex items-center gap-2"
-              disabled={isConverting}
-            >
-              <Play className="w-4 h-4" />
-              {isConverting ? "Starting..." : "Start Conversion"}
-            </Button>
-          )}
-
-          {conversionStatus === 'completed' && audioData && (
-            <Button
-              onClick={onDownloadClick}
-              className="flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Download Audio
-            </Button>
-          )}
-
-          <ConversionStatus
-            status={conversionStatus}
-            progress={currentProgress}
-            estimatedSeconds={estimatedSeconds}
-            detectingChapters={detectingChapters}
-            textLength={textLength}
-            conversionId={conversionId}
-            initialElapsedTime={elapsedTime}
-            onProgressUpdate={handleProgressUpdate}
-          />
-
-          {chapters.length > 0 && (
-            <ChaptersList chapters={chapters} />
-          )}
-        </div>
+    <div className="space-y-8 animate-fade-up">
+      <div className="flex flex-col items-center text-center mb-6">
+        <h2 className="text-xl font-medium text-gray-800 dark:text-gray-200">
+          {translations.convertToAudio || "Convert to Audio"}
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {translations.convertDesc || "Start the conversion process and download your audio"}
+        </p>
       </div>
-    </Card>
+
+      <div className="space-y-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-medium text-gray-700 dark:text-gray-300">{selectedFile.name}</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onViewConversions}
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+          >
+            <List className="w-4 h-4" />
+            {translations.viewConversions || "View Conversions"}
+          </Button>
+        </div>
+
+        {conversionStatus === 'idle' && (
+          <Button
+            onClick={handleConvertClick}
+            className="w-full py-6 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white"
+          >
+            <Play className="w-5 h-5" />
+            {isConverting ? translations.starting || "Starting..." : translations.startConversion || "Start Conversion"}
+          </Button>
+        )}
+
+        {conversionStatus === 'completed' && audioData && (
+          <Button
+            onClick={onDownloadClick}
+            className="w-full py-6 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white"
+          >
+            <Download className="w-5 h-5" />
+            {translations.downloadAudio || "Download Audio"}
+          </Button>
+        )}
+
+        <ConversionStatus
+          status={conversionStatus}
+          progress={currentProgress}
+          estimatedSeconds={estimatedSeconds}
+          detectingChapters={detectingChapters}
+          textLength={textLength}
+          conversionId={conversionId}
+          initialElapsedTime={elapsedTime}
+          onProgressUpdate={handleProgressUpdate}
+        />
+
+        {chapters.length > 0 && (
+          <div className="mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+            <h4 className="text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">
+              {translations.detectedChapters || "Detected Chapters"}
+            </h4>
+            <ChaptersList chapters={chapters} />
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

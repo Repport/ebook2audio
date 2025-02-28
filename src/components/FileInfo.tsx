@@ -1,88 +1,94 @@
 
 import React from 'react';
-import { FileText, X } from 'lucide-react';
-import { Button } from './ui/button';
-import { formatFileSize } from '@/utils/fileUtils';
-import { processFile } from '@/utils/textExtraction';
+import { X, FileText, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface FileInfoProps {
   file: File;
   onRemove: () => void;
-  onNext?: () => void; // Hacemos onNext opcional para mantener compatibilidad
+  onNext?: () => void;
 }
 
 const FileInfo = ({ file, onRemove, onNext }: FileInfoProps) => {
-  const [characterCount, setCharacterCount] = React.useState<number | null>(null);
-  const [language, setLanguage] = React.useState<string | null>(null);
+  const { translations } = useLanguage();
+  
+  if (!file) return null;
 
-  React.useEffect(() => {
-    const processFileInfo = async () => {
-      try {
-        const result = await processFile(file);
-        setCharacterCount(result.metadata?.totalCharacters || null);
-        setLanguage(result.metadata?.language || null);
-      } catch (error) {
-        console.error('Error processing file:', error);
-      }
-    };
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+  const isEpub = fileExtension === 'epub';
 
-    processFileInfo();
-  }, [file]);
-
-  const formatLanguage = (lang: string): string => {
-    const languages: Record<string, string> = {
-      english: 'English',
-      spanish: 'Spanish',
-      french: 'French',
-      german: 'German',
-      unknown: 'Unknown'
-    };
-    return languages[lang] || 'Unknown';
+  const fileIconClass = "w-12 h-12 text-primary";
+  
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
-    <div className="flex flex-col items-center w-full gap-6">
-      <div className="w-full max-w-xl p-6 border-2 rounded-lg border-primary/20 bg-primary/5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <FileText className="w-8 h-8 text-primary" />
-            <div>
-              <p className="font-medium text-gray-900">{file.name}</p>
-              <div className="space-y-1">
-                <p className="text-sm text-gray-500">
-                  {formatFileSize(file.size)}
-                </p>
-                {characterCount !== null && (
-                  <p className="text-sm text-gray-500">
-                    {characterCount.toLocaleString()} characters
-                  </p>
-                )}
-                {language && (
-                  <p className="text-sm text-gray-500">
-                    Language: {formatLanguage(language)}
-                  </p>
-                )}
-              </div>
-            </div>
+    <div className="animate-fade-up">
+      <div className="flex flex-col items-center text-center mb-6">
+        <FileText className={fileIconClass} />
+        <h2 className="text-xl font-medium mt-4 text-gray-800 dark:text-gray-200">
+          {translations.fileInformation || "File Information"}
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {translations.fileInformationDesc || "Details about your selected file"}
+        </p>
+      </div>
+      
+      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 mb-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {translations.fileName || "File name"}
+            </span>
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 max-w-[250px] truncate">
+              {file.name}
+            </span>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRemove}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X className="w-5 h-5" />
-          </Button>
+          
+          <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {translations.fileType || "File type"}
+            </span>
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {isEpub ? "EPUB" : "PDF"}
+            </span>
+          </div>
+          
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {translations.fileSize || "File size"}
+            </span>
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {formatFileSize(file.size)}
+            </span>
+          </div>
         </div>
       </div>
       
-      {onNext && (
-        <div className="flex justify-end w-full">
-          <Button onClick={onNext}>
-            Continuar
+      <div className="flex justify-between mt-6">
+        <Button
+          variant="outline" 
+          onClick={onRemove}
+          className="flex items-center gap-2 text-gray-500 hover:text-red-500 border-gray-200 dark:border-gray-700"
+        >
+          <X className="w-4 h-4" />
+          {translations.removeFile || "Remove file"}
+        </Button>
+        
+        {onNext && (
+          <Button
+            onClick={onNext}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white rounded-full px-6"
+          >
+            {translations.continue || "Continue"}
+            <ArrowRight className="w-4 h-4" />
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

@@ -7,6 +7,7 @@ import { ArrowRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface VoiceSettingsStepProps {
   selectedVoice: string;
@@ -16,7 +17,7 @@ interface VoiceSettingsStepProps {
   setDetectChapters: (detect: boolean) => void;
   notifyOnComplete: boolean;
   setNotifyOnComplete: (notify: boolean) => void;
-  onNextStep: () => Promise<boolean>; // Cambiado para aceptar una promesa de booleano
+  onNextStep: () => Promise<boolean>;
 }
 
 const VoiceSettingsStep = ({
@@ -30,34 +31,44 @@ const VoiceSettingsStep = ({
   setNotifyOnComplete
 }: VoiceSettingsStepProps) => {
   const { user } = useAuth();
+  const { translations } = useLanguage();
   
-  console.log('VoiceSettingsStep - Received language:', detectedLanguage);
-
   return (
-    <>
+    <div className="space-y-8 animate-fade-up">
+      <div className="mb-6">
+        <h2 className="text-xl font-medium text-center mb-1 text-gray-800 dark:text-gray-200">
+          {translations.selectVoiceType || "Select Voice Type"}
+        </h2>
+        <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+          {translations.voiceDescription || "Choose the voice that will read your text"}
+        </p>
+      </div>
+      
       <VoiceSelector 
         selectedVoice={selectedVoice}
         onVoiceChange={setSelectedVoice}
         detectedLanguage={detectedLanguage}
       />
       
-      <div className="space-y-6 mt-8">
-        <ChapterDetectionToggle 
-          detectChapters={detectChapters}
-          onToggle={setDetectChapters}
-          chaptersFound={0}
-        />
+      <div className="space-y-6 mt-8 divide-y divide-gray-100 dark:divide-gray-800">
+        <div className="pt-4">
+          <ChapterDetectionToggle 
+            detectChapters={detectChapters}
+            onToggle={setDetectChapters}
+            chaptersFound={0}
+          />
+        </div>
 
         {user && (
-          <div className="flex items-center justify-center space-x-2">
+          <div className="flex items-center justify-between space-x-2 pt-4">
+            <Label htmlFor="notify-complete" className="text-gray-700 dark:text-gray-300 cursor-pointer">
+              {translations.notifyWhenComplete || "Notify me when complete"}
+            </Label>
             <Switch
               id="notify-complete"
               checked={notifyOnComplete}
               onCheckedChange={setNotifyOnComplete}
             />
-            <Label htmlFor="notify-complete">
-              Notify me by email when conversion is complete
-            </Label>
           </div>
         )}
       </div>
@@ -65,13 +76,13 @@ const VoiceSettingsStep = ({
       <div className="flex justify-end mt-8">
         <Button
           onClick={onNextStep}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white rounded-full px-6"
         >
-          Continue
+          {translations.continue || "Continue"}
           <ArrowRight className="w-4 h-4" />
         </Button>
       </div>
-    </>
+    </div>
   );
 };
 
