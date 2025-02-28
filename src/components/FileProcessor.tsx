@@ -105,12 +105,8 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       console.log('FileProcessor - Chapter detection started, setting safety timeout');
       timeoutId = setTimeout(() => {
         console.log('FileProcessor - Chapter detection safety timeout triggered');
-        setDetectChapters(false);
         // Forzar salida del estado de detección de capítulos
-        if (detectingChapters) {
-          console.log('FileProcessor - Forcing exit from detecting chapters state');
-          setDetectChapters(false);
-        }
+        setDetectChapters(false);
       }, 10000); // 10 segundos máximo para detectar capítulos
     }
     
@@ -125,6 +121,11 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     if (!selectedFile || !extractedText || !selectedVoice) {
       console.log('FileProcessor - Missing required data for conversion');
       return false;
+    }
+
+    // Detener cualquier detección de capítulos activa antes de iniciar la conversión
+    if (detectingChapters) {
+      setDetectChapters(false);
     }
 
     const canConvert = await initiateConversion();
@@ -146,6 +147,11 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       notifyOnComplete
     });
 
+    // Avanzar al siguiente paso después de iniciar la conversión
+    if (currentStep === 2) {
+      onNextStep();
+    }
+
     return true;
   };
 
@@ -156,6 +162,11 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       selectedVoice,
       notifyOnComplete
     });
+    
+    // Avanzar al siguiente paso después de aceptar los términos
+    if (currentStep === 2) {
+      onNextStep();
+    }
   };
 
   const handleGoBack = () => {

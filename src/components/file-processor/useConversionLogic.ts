@@ -53,33 +53,13 @@ export const useConversionLogic = (
     });
   }, [progress, conversionStatus, audioData, elapsedTime, detectingChapters]);
 
-  // Efecto para manejar errores de detección de capítulos
+  // Efecto para salir automáticamente del estado de detección de capítulos
   useEffect(() => {
-    const maxDetectionTime = 10000; // 10 segundos
-    let timeout: NodeJS.Timeout | null = null;
-    
     if (detectingChapters) {
-      console.log('useConversionLogic - Starting chapter detection timeout check');
-      timeout = setTimeout(() => {
-        console.log('useConversionLogic - Chapter detection timeout reached');
-        if (detectingChapters) {
-          console.log('useConversionLogic - Forcing chapter detection to complete');
-          setDetectingChapters(false);
-          toast({
-            title: "Chapter detection timed out",
-            description: "We couldn't complete chapter detection, but you can continue with the conversion.",
-            variant: "default",
-          });
-        }
-      }, maxDetectionTime);
+      // Si estamos detectando capítulos, consideramos que ya están cargados
+      setDetectingChapters(false);
     }
-    
-    return () => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-    };
-  }, [detectingChapters, toast]);
+  }, [chapters, detectingChapters]);
 
   // Optimizado para evitar reejecution innecesaria
   useEffect(() => {
@@ -103,22 +83,17 @@ export const useConversionLogic = (
 
   // Resetear detectingChapters si hay un error
   useEffect(() => {
-    if (conversionStatus === 'error' && detectingChapters) {
+    if (conversionStatus === 'error') {
       console.log('useConversionLogic - Error detected, resetting chapter detection');
       setDetectingChapters(false);
     }
-  }, [conversionStatus, detectingChapters]);
+  }, [conversionStatus]);
 
   const initiateConversion = useCallback(() => {
     console.log('useConversionLogic - initiateConversion called');
     
     if (!selectedFile || !extractedText) {
       console.log('useConversionLogic - Missing file or text');
-      toast({
-        title: "Error",
-        description: "Please select a file first",
-        variant: "destructive",
-      });
       return false;
     }
     
@@ -157,20 +132,15 @@ export const useConversionLogic = (
 
     checkRecentTermsAcceptance();
     return true;
-  }, [selectedFile, extractedText, toast, resetConversion]);
+  }, [selectedFile, extractedText, resetConversion]);
 
   // Actualiza el progreso basado en los datos de chunk
   const handleProgressUpdate = useCallback((data: ChunkProgressData) => {
     console.log('useConversionLogic - Progress update received:', data);
     
-    // Si hay un error, mostrarlo pero continuar
+    // No mostrar toasts para errores de chunk, solo registrar en consola
     if (data.error) {
       console.warn('useConversionLogic - Error processing chunk:', data.error);
-      toast({
-        title: "Warning",
-        description: `Error processing chunk: ${data.error}. Conversion will continue.`,
-        variant: "default",
-      });
     }
     
     // Verificar si es un mensaje de completado
@@ -189,14 +159,7 @@ export const useConversionLogic = (
       // Si el progreso es 100%, verificar si debemos cambiar el estado
       if (newProgress >= 100) {
         console.log('useConversionLogic - Progress reached 100%, setting to completed');
-        
-        // Dar un pequeño margen de tiempo para procesar el último chunk
-        setTimeout(() => {
-          if (conversionStatus !== 'completed') {
-            console.log('useConversionLogic - Setting status to completed after timeout');
-            setConversionStatus('completed');
-          }
-        }, 1000);
+        setConversionStatus('completed');
       }
     } else if (typeof data.progress === 'number') {
       console.log(`useConversionLogic - Setting direct progress: ${data.progress}%`);
@@ -205,17 +168,10 @@ export const useConversionLogic = (
       // Verificar también aquí si alcanzamos el 100%
       if (data.progress >= 100) {
         console.log('useConversionLogic - Direct progress reached 100%');
-        
-        // Pequeño tiempo de gracia
-        setTimeout(() => {
-          if (conversionStatus !== 'completed') {
-            console.log('useConversionLogic - Setting status to completed after direct progress timeout');
-            setConversionStatus('completed');
-          }
-        }, 1000);
+        setConversionStatus('completed');
       }
     }
-  }, [setProgress, setConversionStatus, conversionStatus, toast]);
+  }, [setProgress, setConversionStatus]);
 
   const handleAcceptTerms = async (options: ConversionOptions) => {
     console.log('useConversionLogic - handleAcceptTerms called with options:', options);
@@ -226,21 +182,11 @@ export const useConversionLogic = (
         hasText: !!extractedText,
         hasVoice: !!options.selectedVoice
       });
-      toast({
-        title: "Error",
-        description: "Missing required parameters. Please try again.",
-        variant: "destructive",
-      });
       return;
     }
 
-    if (detectingChapters || conversionStatus === 'converting') {
+    if (conversionStatus === 'converting') {
       console.log('useConversionLogic - Already in progress, cannot start again');
-      toast({
-        title: "Please wait",
-        description: "A conversion is already in progress.",
-        variant: "default",
-      });
       return;
     }
 
@@ -274,39 +220,19 @@ export const useConversionLogic = (
       // Create notification if notification is enabled and user is authenticated
       if (options.notifyOnComplete && user && result.id) {
         console.log('useConversionLogic - Setting up notification for conversion completion');
-        const notificationResult = await retryOperation(async () => {
+        await retryOperation(async () => {
           return supabase.from('conversion_notifications').insert({
             conversion_id: result.id,
             user_id: user.id,
             email: user.email,
           });
         }, { maxRetries: 3 });
-
-        if (notificationResult.error) {
-          console.error('useConversionLogic - Error creating notification:', notificationResult.error);
-          toast({
-            title: "Notification Error",
-            description: "Could not set up email notification. Please try again later.",
-            variant: "destructive",
-          });
-        } else {
-          console.log('useConversionLogic - Notification set successfully');
-          toast({
-            title: "Notification Set",
-            description: "You'll receive an email when your conversion is ready!",
-          });
-        }
       }
       
       console.log('useConversionLogic - Conversion completed successfully');
       
     } catch (error: any) {
       console.error('useConversionLogic - Conversion error:', error);
-      toast({
-        title: "Conversion failed",
-        description: error.message || "An error occurred during conversion",
-        variant: "destructive",
-      });
       resetConversion();
       clearConversionStorage();
     } finally {
@@ -319,26 +245,12 @@ export const useConversionLogic = (
     
     if (!audioData) {
       console.log('useConversionLogic - No audio data available for download');
-      toast({
-        title: "Download Unavailable",
-        description: "The audio file is not ready yet. Please try again later.",
-        variant: "destructive",
-      });
       return;
-    }
-
-    if (!selectedFile) {
-      console.log('useConversionLogic - Missing file name for download');
-      toast({
-        title: "Missing File Name",
-        description: "Could not determine the file name. Using default.",
-        variant: "default",
-      });
     }
 
     console.log('useConversionLogic - Starting download');
     handleDownload(selectedFile?.name || "converted_audio");
-  }, [audioData, selectedFile, toast, handleDownload]);
+  }, [audioData, selectedFile, handleDownload]);
 
   const handleViewConversions = useCallback(() => {
     console.log('useConversionLogic - Navigating to conversions page');
