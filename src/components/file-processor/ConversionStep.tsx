@@ -62,15 +62,25 @@ const ConversionStep = ({
   }, [conversionStatus, currentProgress]);
 
   const handleConvertClick = async () => {
+    console.log("ConversionStep - handleConvertClick called");
+    if (isConverting) {
+      console.log("ConversionStep - Already converting, ignoring click");
+      return;
+    }
+    
     setIsConverting(true);
     try {
+      console.log("ConversionStep - Calling onConvert");
       const canProceed = await onConvert();
+      console.log("ConversionStep - onConvert result:", canProceed);
+      
       if (!canProceed) {
         setIsConverting(false);
+        console.log("ConversionStep - Could not proceed with conversion");
       }
     } catch (error) {
       setIsConverting(false);
-      console.error('Error during conversion:', error);
+      console.error('ConversionStep - Error during conversion:', error);
     }
   };
 
@@ -108,7 +118,8 @@ const ConversionStep = ({
         {conversionStatus === 'idle' && (
           <Button
             onClick={handleConvertClick}
-            className="w-full py-6 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white"
+            disabled={isConverting}
+            className="w-full py-6 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300"
           >
             <Play className="w-5 h-5" />
             {isConverting ? translations.starting || "Starting..." : translations.startConversion || "Start Conversion"}
@@ -118,7 +129,7 @@ const ConversionStep = ({
         {conversionStatus === 'completed' && audioData && (
           <Button
             onClick={onDownloadClick}
-            className="w-full py-6 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white"
+            className="w-full py-6 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300"
           >
             <Download className="w-5 h-5" />
             {translations.downloadAudio || "Download Audio"}
