@@ -101,7 +101,11 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     console.log('FileProcessor - handleStartConversion called');
     // Verificar que todos los datos necesarios estén presentes
     if (!selectedFile || !extractedText || !selectedVoice) {
-      console.log('FileProcessor - Missing required data for conversion');
+      console.log('FileProcessor - Missing required data for conversion', {
+        hasFile: !!selectedFile,
+        hasText: !!extractedText,
+        selectedVoice
+      });
       return false;
     }
 
@@ -110,46 +114,56 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       setDetectChapters(false);
     }
 
-    const canConvert = await initiateConversion();
-    if (!canConvert) {
-      console.log('FileProcessor - initiateConversion returned false');
+    try {
+      const canConvert = await initiateConversion();
+      if (!canConvert) {
+        console.log('FileProcessor - initiateConversion returned false');
+        return false;
+      }
+
+      if (showTerms) {
+        // Los términos se mostrarán, esperamos a la aceptación
+        console.log('FileProcessor - Terms will be shown');
+        return true;
+      }
+
+      // Si no necesitamos mostrar términos, iniciar conversión directamente
+      console.log('FileProcessor - Starting conversion directly');
+      await handleAcceptTerms({
+        selectedVoice,
+        notifyOnComplete
+      });
+
+      // Avanzar al siguiente paso después de iniciar la conversión
+      if (currentStep === 2) {
+        console.log('FileProcessor - Moving to next step after conversion start');
+        onNextStep();
+      }
+
+      return true;
+    } catch (error) {
+      console.error('FileProcessor - Error in handleStartConversion:', error);
       return false;
     }
-
-    if (showTerms) {
-      // Los términos se mostrarán, esperamos a la aceptación
-      console.log('FileProcessor - Terms will be shown');
-      return true;
-    }
-
-    // Si no necesitamos mostrar términos, iniciar conversión directamente
-    console.log('FileProcessor - Starting conversion directly');
-    await handleAcceptTerms({
-      selectedVoice,
-      notifyOnComplete
-    });
-
-    // Avanzar al siguiente paso después de iniciar la conversión
-    if (currentStep === 2) {
-      console.log('FileProcessor - Moving to next step after conversion start');
-      onNextStep();
-    }
-
-    return true;
   };
 
   const handleTermsAccept = async () => {
     console.log('FileProcessor - Terms accepted');
     setShowTerms(false);
-    await handleAcceptTerms({
-      selectedVoice,
-      notifyOnComplete
-    });
     
-    // Avanzar al siguiente paso después de aceptar los términos
-    if (currentStep === 2) {
-      console.log('FileProcessor - Moving to next step after terms acceptance');
-      onNextStep();
+    try {
+      await handleAcceptTerms({
+        selectedVoice,
+        notifyOnComplete
+      });
+      
+      // Avanzar al siguiente paso después de aceptar los términos
+      if (currentStep === 2) {
+        console.log('FileProcessor - Moving to next step after terms acceptance');
+        onNextStep();
+      }
+    } catch (error) {
+      console.error('FileProcessor - Error in handleTermsAccept:', error);
     }
   };
 

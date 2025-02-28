@@ -33,6 +33,18 @@ const VoiceSettingsStep = ({
   const { user } = useAuth();
   const { translations } = useLanguage();
   
+  const handleContinue = async () => {
+    console.log('VoiceSettingsStep - handleContinue clicked with voice:', selectedVoice);
+    try {
+      const result = await onNextStep();
+      console.log('VoiceSettingsStep - onNextStep result:', result);
+      return result;
+    } catch (error) {
+      console.error('VoiceSettingsStep - Error in handleContinue:', error);
+      return false;
+    }
+  };
+  
   return (
     <div className="space-y-8 animate-fade-up">
       <div className="mb-6">
@@ -75,7 +87,7 @@ const VoiceSettingsStep = ({
 
       <div className="flex justify-end mt-8">
         <Button
-          onClick={onNextStep}
+          onClick={handleContinue}
           className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white dark:text-primary-foreground rounded-full px-6"
         >
           {translations.continue || "Continue"}
