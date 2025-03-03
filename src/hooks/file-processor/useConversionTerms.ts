@@ -14,8 +14,9 @@ export const useConversionTerms = () => {
     }
     
     try {
+      // Use user_consents table instead of user_preferences
       const { data, error } = await supabase
-        .from('user_preferences')
+        .from('user_consents')
         .select('terms_accepted')
         .eq('user_id', user.id)
         .single();
