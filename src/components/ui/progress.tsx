@@ -4,7 +4,7 @@ import * as ProgressPrimitive from "@radix-ui/react-progress"
 import { cn } from "@/lib/utils"
 
 interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
-  status?: "idle" | "error" | "success";
+  status?: "idle" | "converting" | "error" | "success";
   showPercentage?: boolean;
 }
 
@@ -24,17 +24,20 @@ const Progress = React.forwardRef<
       // Garantizar un valor mínimo de 1% para visibilidad
       const newValue = Math.max(1, Math.min(100, value));
       
-      // Solo actualizar si es un cambio significativo (al menos 1%)
-      // o es el valor final (100%)
-      if (Math.abs(newValue - prevValueRef.current) >= 1 || newValue === 100) {
+      // Actualizar siempre cuando estamos convirtiendo, esto es clave
+      if (status === 'converting' || Math.abs(newValue - prevValueRef.current) >= 0.5 || newValue === 100) {
         setDisplayValue(newValue);
         prevValueRef.current = newValue;
+        
+        // Log para depuración
+        console.log(`Progress updated: ${newValue}% (status: ${status})`);
       }
     }
-  }, [value]);
+  }, [value, status]);
 
   const statusColors = {
     idle: "bg-primary",
+    converting: "bg-blue-500",
     error: "bg-destructive",
     success: "bg-green-500",
   };
@@ -48,7 +51,7 @@ const Progress = React.forwardRef<
       ref={ref}
       className={cn(
         "relative h-4 w-full overflow-hidden rounded-full bg-secondary",
-        shimmerEffect,
+        status === 'converting' && shimmerEffect,
         className
       )}
       {...props}

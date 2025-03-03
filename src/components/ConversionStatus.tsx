@@ -44,17 +44,24 @@ const ConversionStatus = ({
   const progressUpdateTimeoutRef = useRef<number | null>(null);
   const [stableStatus, setStableStatus] = useState(status);
   
+  // Para mejor depuración
+  useEffect(() => {
+    console.log(`ConversionStatus - Status changed from ${stableStatus} to ${status}`);
+  }, [status, stableStatus]);
+  
   // For consistency if the state is processing but the UI component shows "converting"
   const displayStatus = status === 'processing' ? 'converting' : status;
 
   // Make status changes slightly delayed to avoid flashing UI during quick status changes
   useEffect(() => {
     if (status !== stableStatus) {
+      // Reducimos el retraso a 150ms para una respuesta más rápida
       const timer = setTimeout(() => {
         if (isMountedRef.current) {
           setStableStatus(status);
+          console.log(`ConversionStatus - stableStatus updated to ${status}`);
         }
-      }, 300);
+      }, 150);
       
       return () => clearTimeout(timer);
     }
@@ -84,9 +91,11 @@ const ConversionStatus = ({
   // Handle component lifecycle
   useEffect(() => {
     isMountedRef.current = true;
+    console.log('ConversionStatus - Component mounted');
     
     return () => {
       isMountedRef.current = false;
+      console.log('ConversionStatus - Component unmounted');
       
       // Clear any pending timeouts
       if (progressUpdateTimeoutRef.current) {
@@ -124,6 +133,7 @@ const ConversionStatus = ({
           window.clearTimeout(progressUpdateTimeoutRef.current);
         }
         
+        // Reducimos el debounce a 100ms para una actualización más frecuente
         // Using window.setTimeout to ensure it's globally available
         progressUpdateTimeoutRef.current = window.setTimeout(() => {
           if (isMountedRef.current) {
@@ -140,7 +150,7 @@ const ConversionStatus = ({
             }
             progressUpdateTimeoutRef.current = null;
           }
-        }, 250); // Debounce for 250ms
+        }, 100); // Debounce for 100ms (reduced from 250ms)
       } catch (e) {
         console.error('Error setting up progress update:', e);
       }

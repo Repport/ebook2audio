@@ -8,7 +8,7 @@ export const useProgressManagement = (initialProgress: number = 0) => {
   const [totalChunks, setTotalChunks] = useState<number>(0);
   const [speed, setSpeed] = useState<number>(0);
   
-  // References for persistent data
+  // Referencias para persistent data
   const progressHistoryRef = useRef<{time: number, value: number}[]>([]);
   const processedCharsRef = useRef<number>(0);
   const totalCharsRef = useRef<number>(0);
@@ -25,6 +25,16 @@ export const useProgressManagement = (initialProgress: number = 0) => {
     // Mark time of this update
     const now = Date.now();
     lastUpdateTimeRef.current = now;
+    
+    // Log for debugging
+    console.log('Progress update received:', {
+      progress: data.progress,
+      processedChunks: data.processedChunks,
+      totalChunks: data.totalChunks,
+      processedChars: data.processedCharacters,
+      totalChars: data.totalCharacters,
+      isCompleted: data.isCompleted
+    });
     
     // If we receive completed signal, go to 100%
     if (data.isCompleted) {
@@ -74,13 +84,16 @@ export const useProgressManagement = (initialProgress: number = 0) => {
       // Limit between 1% and 100%
       newProgress = Math.max(1, Math.min(100, newProgress));
       
-      // If we were in auto-increment, we need a significant jump
-      // to accept an external value and exit auto mode
+      // Modificamos esta lógica para ser más sensible a cambios pequeños
+      // Ahora requerimos un cambio más pequeño para aceptar valores externos
       const significantChange = autoIncrementRef.current 
-        ? newProgress > progress + 5  // Requires a jump of at least 5%
-        : newProgress > progress;     // Any increment is valid
+        ? newProgress > progress + 2  // Solo requiere un salto de 2% en lugar de 5%
+        : newProgress >= progress;    // Cualquier incremento o valor igual es válido
       
       if (significantChange) {
+        // Log for debugging
+        console.log(`Updating progress from ${progress}% to ${newProgress}%`);
+        
         // Exit auto-increment mode if we were in it
         if (autoIncrementRef.current) {
           console.log(`Exiting auto-increment mode with real progress: ${newProgress}%`);
@@ -99,11 +112,10 @@ export const useProgressManagement = (initialProgress: number = 0) => {
     const now = Date.now();
     const secondsSinceLastUpdate = (now - lastUpdateTimeRef.current) / 1000;
     
-    // If more than 10 seconds without updates and we're below 95%
-    if (secondsSinceLastUpdate > 10 && progress < 95) {
-      // Increment based on elapsed time and current progress
-      // Slower as current progress gets higher
-      const increment = Math.max(0.5, (100 - progress) / 100);
+    // If more than 5 seconds without updates (reduced from 10) and we're below 95%
+    if (secondsSinceLastUpdate > 5 && progress < 95) {
+      // Incrementar más rápido
+      const increment = Math.max(0.8, (100 - progress) / 80);
       const newProgress = Math.min(95, progress + increment);
       
       // Record that we're in auto-increment mode
