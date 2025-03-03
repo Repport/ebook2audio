@@ -20,7 +20,7 @@ const NavigationProtection = ({ isActive, message = "You have an active operatio
     toast({
       title: "Navigation Protection",
       description: "Please don't refresh the page during conversion",
-      variant: "warning",
+      variant: "warning", // Changed back to "warning" now that we've added it to the toast variants
       duration: 3000,
     });
     

@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ArrowRight } from 'lucide-react';
-import VoiceSelect from '@/components/voice-selector/VoiceSelect';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
+import { VoiceSelector } from '@/components/VoiceSelector'; // Changed from voice-selector/VoiceSelect to VoiceSelector
 
 interface VoiceSettingsStepProps {
   detectedLanguage: string;
@@ -54,9 +54,9 @@ const VoiceSettingsStep = ({
 
       <div className="space-y-6">
         <div className="space-y-4">
-          <VoiceSelect
+          <VoiceSelector
             selectedVoice={selectedVoice}
-            setSelectedVoice={setSelectedVoice}
+            onVoiceChange={setSelectedVoice}
             detectedLanguage={detectedLanguage}
           />
 

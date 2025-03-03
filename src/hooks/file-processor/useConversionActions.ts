@@ -188,7 +188,7 @@ export const useConversionActions = (
       toast({
         title: "Conversion complete",
         description: "Your audio file is ready to download",
-        variant: "success",
+        variant: "success", // Changed back to "success" now that it's supported
       });
       
     } catch (error: any) {
@@ -241,7 +241,7 @@ export const useConversionActions = (
       toast({
         title: "Download started",
         description: "Your audio file is being downloaded",
-        variant: "success",
+        variant: "success", // Changed back to "success" now that it's supported
       });
     } catch (error) {
       console.error('useConversionLogic - Download error:', error);
