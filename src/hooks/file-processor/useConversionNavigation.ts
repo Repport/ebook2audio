@@ -8,5 +8,14 @@ export const useConversionNavigation = (navigate: NavigateFunction) => {
     navigate('/conversions');
   }, [navigate]);
   
-  return { handleViewConversions };
+  const handleTabChange = useCallback((tab: string) => {
+    console.log(`useConversionNavigation - Changing tab to: ${tab}`);
+    // Use a state update instead of navigation to prevent page refresh
+    return tab;
+  }, []);
+  
+  return { 
+    handleViewConversions,
+    handleTabChange
+  };
 };

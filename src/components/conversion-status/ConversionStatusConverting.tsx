@@ -37,7 +37,12 @@ const ConversionStatusConverting = ({
         {message}
       </p>
       <div className="w-full space-y-3">
-        <Progress value={progress} className="w-full" showPercentage={showPercentage} status="converting" />
+        <Progress 
+          value={progress} 
+          className="w-full" 
+          showPercentage={showPercentage} 
+          status="converting" 
+        />
         <div className="text-sm text-muted-foreground text-center space-y-1">
           {(elapsedTime > 0 || timeRemaining) && (
             <div className="min-h-[1.5rem]">

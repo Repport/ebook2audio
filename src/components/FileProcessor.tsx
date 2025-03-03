@@ -84,6 +84,18 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     }
   };
 
+  // Handle tab change without page navigation
+  const handleTabChange = (tab: string) => {
+    console.log('FileProcessor - Tab changed to:', tab);
+    
+    // Only allow navigation to tabs that are enabled based on currentStep
+    if (tab === "file-info" || 
+        (tab === "voice-settings" && currentStep >= 2) || 
+        (tab === "conversion" && currentStep >= 3)) {
+      setActiveTab(tab);
+    }
+  };
+
   const contextValue = {
     selectedFile,
     extractedText,
@@ -124,8 +136,11 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           onGoBack={handleGoBack}
         />
 
-        <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
-          <ProcessorTabs />
+        <div className="w-full">
+          <ProcessorTabs 
+            activeTab={activeTab} 
+            onTabChange={handleTabChange} 
+          />
 
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 transition-all">
             <ErrorBoundary onReset={handleErrorReset}>
@@ -144,7 +159,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
               />
             </ErrorBoundary>
           </div>
-        </Tabs>
+        </div>
       </FileProcessorProvider>
     </ErrorBoundary>
   );
