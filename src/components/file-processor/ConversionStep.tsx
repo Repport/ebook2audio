@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Play, Download, List } from "lucide-react";
 import ConversionStatus from '@/components/ConversionStatus';
@@ -46,19 +46,39 @@ const ConversionStep = ({
   const [isConverting, setIsConverting] = useState(false);
   const { translations } = useLanguage();
   
-  // Usar el store global para el progreso
-  const storeProgress = useConversionStore(state => state.progress);
-  const storeStatus = useConversionStore(state => state.status);
+  // Get store values only once during render to prevent infinite loops
+  const storeState = useConversionStore(useCallback(state => ({
+    progress: state.progress,
+    status: state.status
+  }), []));
+  
+  // Use local refs to track previous values to avoid unnecessary re-renders
+  const prevStatus = React.useRef(conversionStatus);
+  const prevStoreStatus = React.useRef(storeState.status);
 
-  // Actualizar isConverting cuando cambia el estado de conversión
+  // Only update isConverting when status actually changes
   useEffect(() => {
-    if (conversionStatus === 'converting' || storeStatus === 'converting') {
-      setIsConverting(true);
-    } else if (conversionStatus === 'completed' || conversionStatus === 'error' || 
-               storeStatus === 'completed' || storeStatus === 'error') {
-      setIsConverting(false);
+    const localConversionStatus = conversionStatus;
+    const localStoreStatus = storeState.status;
+    
+    // Only update if there's an actual change to avoid render loops
+    if (localConversionStatus !== prevStatus.current || 
+        localStoreStatus !== prevStoreStatus.current) {
+      
+      if (localConversionStatus === 'converting' || localStoreStatus === 'converting') {
+        setIsConverting(true);
+      } else if (
+        (localConversionStatus === 'completed' || localConversionStatus === 'error') || 
+        (localStoreStatus === 'completed' || localStoreStatus === 'error')
+      ) {
+        setIsConverting(false);
+      }
+      
+      // Update refs with new values
+      prevStatus.current = localConversionStatus;
+      prevStoreStatus.current = localStoreStatus;
     }
-  }, [conversionStatus, storeStatus]);
+  }, [conversionStatus, storeState.status]);
 
   const handleConvertClick = async (e: React.MouseEvent) => {
     // Prevenir comportamiento por defecto para evitar envíos de formulario potenciales
@@ -97,10 +117,18 @@ const ConversionStep = ({
     }
   };
 
+  // Memoize this value to prevent unnecessary re-renders
+  const isConversionActive = 
+    conversionStatus === 'converting' || storeState.status === 'converting';
+
+  // Use the local or store progress/status based on what's available
+  const displayProgress = storeState.progress || progress;
+  const displayStatus = storeState.status || conversionStatus;
+  
   return (
     <div className="space-y-8 animate-fade-up">
       {/* Add NavigationProtection when conversion is in progress */}
-      <NavigationProtection isActive={conversionStatus === 'converting' || storeStatus === 'converting'} />
+      <NavigationProtection isActive={isConversionActive} />
       
       <div className="flex flex-col items-center text-center mb-6">
         <h2 className="text-xl font-medium text-gray-800 dark:text-gray-200">
@@ -126,7 +154,7 @@ const ConversionStep = ({
           </Button>
         </div>
 
-        {conversionStatus === 'idle' && storeStatus === 'idle' && (
+        {displayStatus === 'idle' && (
           <Button
             onClick={handleConvertClick}
             disabled={isConverting}
@@ -139,7 +167,7 @@ const ConversionStep = ({
           </Button>
         )}
 
-        {(conversionStatus === 'completed' || storeStatus === 'completed') && audioData && (
+        {displayStatus === 'completed' && audioData && (
           <Button
             onClick={onDownloadClick}
             type="button"
@@ -151,8 +179,8 @@ const ConversionStep = ({
         )}
 
         <ConversionStatus
-          status={storeStatus || conversionStatus}
-          progress={storeProgress || progress}
+          status={displayStatus}
+          progress={displayProgress}
           estimatedSeconds={estimatedSeconds}
           detectingChapters={detectingChapters}
           textLength={textLength}

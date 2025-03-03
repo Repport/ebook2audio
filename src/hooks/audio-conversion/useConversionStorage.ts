@@ -100,6 +100,8 @@ export const useConversionStorage = () => {
           if (savedState.status === 'completed' && savedState.audioData) {
             try {
               const audioArrayBuffer = convertBase64ToArrayBuffer(savedState.audioData);
+              
+              // Use a single action to update the store to prevent multiple renders
               store.completeConversion(
                 audioArrayBuffer,
                 savedState.conversionId || null,
@@ -109,10 +111,13 @@ export const useConversionStorage = () => {
               console.error('Error converting saved audio data:', error);
             }
           } else if (savedState.status === 'converting') {
-            // Restore conversion in progress
+            // Instead of multiple updates, batch these operations
+            const startTime = savedState.conversionStartTime || Date.now() - (savedState.elapsedTime || 0) * 1000;
+            
+            // Start with a complete state object to avoid partial updates
             store.startConversion(savedState.fileName || null);
             
-            // If we have progress, update it
+            // Only after the initial state is set, update progress in one operation
             if (savedState.progress) {
               store.updateProgress({
                 progress: savedState.progress,
@@ -124,12 +129,9 @@ export const useConversionStorage = () => {
               });
             }
             
-            // Restore elapsed time if it exists
-            if (savedState.elapsedTime && savedState.conversionStartTime) {
-              const elapsedTimeMs = savedState.elapsedTime * 1000;
-              const newStartTime = Date.now() - elapsedTimeMs;
-              // Use the proper action instead of direct property modification
-              store.updateElapsedTime(savedState.elapsedTime, newStartTime);
+            // Update time in a single operation if needed
+            if (savedState.elapsedTime) {
+              store.updateElapsedTime(savedState.elapsedTime, startTime);
             }
           } else if (savedState.status === 'error') {
             // Restore error state
@@ -148,10 +150,12 @@ export const useConversionStorage = () => {
 
     loadState();
     // This effect runs only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Listen for store changes to save state
   useEffect(() => {
+    // Create a stable reference to the state handling function
     const handleStateChange = () => {
       // Get the full state
       const state = useConversionStore.getState();

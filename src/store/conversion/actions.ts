@@ -9,30 +9,49 @@ export const createConversionActions = (
   get: () => ConversionStore
 ): Pick<ConversionStore, keyof Omit<ConversionStore, keyof ConversionState>> => ({
   // Acción para iniciar la conversión
-  startConversion: (fileName) => set({
-    status: 'converting',
-    progress: 1, // Comenzar con 1% visible
-    chunks: {
-      processed: 0,
-      total: 0,
-      processedCharacters: 0,
-      totalCharacters: 0
-    },
-    time: {
-      elapsed: 0,
-      remaining: null,
-      startTime: Date.now()
-    },
-    errors: [],
-    warnings: [],
-    audioData: null,
-    fileName
-  }),
+  startConversion: (fileName) => {
+    // Before starting a new conversion, check if we need to reset
+    const currentState = get();
+    const needsReset = currentState.status !== 'idle' && currentState.status !== 'converting';
+    
+    if (needsReset) {
+      // Reset first to avoid state conflicts
+      set(initialState);
+    }
+    
+    // Set to converting state
+    set({
+      status: 'converting',
+      progress: 1, // Comenzar con 1% visible
+      chunks: {
+        processed: 0,
+        total: 0,
+        processedCharacters: 0,
+        totalCharacters: 0
+      },
+      time: {
+        elapsed: 0,
+        remaining: null,
+        startTime: Date.now()
+      },
+      errors: [],
+      warnings: [],
+      audioData: null,
+      fileName
+    });
+  },
   
   // Actualizar progreso basado en datos del chunk
   updateProgress: (data: ChunkProgressData) => {
     // Obtener estado actual
     const state = get();
+    
+    // If status is completed or error, don't update progress to avoid loops
+    if (state.status === 'completed' || state.status === 'error') {
+      return;
+    }
+    
+    // Create new sets to avoid modifying existing state arrays
     const uniqueErrors = new Set(state.errors);
     const uniqueWarnings = new Set(state.warnings);
     
@@ -77,7 +96,7 @@ export const createConversionActions = (
       timeRemaining = calculateTimeRemaining(
         state.time.elapsed,
         newProgress,
-        data.totalCharacters ||.0
+        data.totalCharacters || 0
       );
     }
     
@@ -90,8 +109,8 @@ export const createConversionActions = (
       uniqueWarnings.add(missingChunksWarning);
     }
     
-    // Actualizar estado
-    set({
+    // Create a single update object to batch all changes
+    const updateObject: Partial<ConversionState> = {
       status: isComplete ? 'completed' : 'converting',
       progress: Math.min(99, newProgress), // Mantener en 99% hasta que explícitamente completemos
       chunks: {
@@ -106,7 +125,10 @@ export const createConversionActions = (
       },
       errors: Array.from(uniqueErrors),
       warnings: Array.from(uniqueWarnings)
-    });
+    };
+    
+    // Apply updates in a single operation
+    set(updateObject);
   },
   
   // Actualizar tiempo
@@ -118,18 +140,21 @@ export const createConversionActions = (
     if (state.time.startTime) {
       const elapsed = Math.floor((Date.now() - state.time.startTime) / 1000);
       
-      set({
-        time: {
-          ...state.time,
-          elapsed
+      // Only update if elapsed time has actually changed
+      if (elapsed !== state.time.elapsed) {
+        const updates: Partial<ConversionState> = {
+          time: {
+            ...state.time,
+            elapsed
+          }
+        };
+        
+        // Auto-incrementar el progreso ligeramente para mantener sensación de actividad
+        if (elapsed % 3 === 0 && state.progress < 95) {
+          updates.progress = state.progress + 0.1;
         }
-      });
-      
-      // Auto-incrementar el progreso ligeramente para mantener sensación de actividad
-      if (elapsed % 3 === 0 && state.progress < 95) {
-        set({
-          progress: state.progress + 0.1
-        });
+        
+        set(updates);
       }
     }
   },
@@ -144,14 +169,33 @@ export const createConversionActions = (
   }),
   
   // Establecer error
-  setError: (error) => set({
-    errors: [...get().errors, error]
-  }),
+  setError: (error) => {
+    const state = get();
+    
+    // Avoid duplicate errors
+    if (state.errors.includes(error)) {
+      return;
+    }
+    
+    set({
+      status: 'error',
+      errors: [...state.errors, error]
+    });
+  },
   
   // Establecer advertencia
-  setWarning: (warning) => set({
-    warnings: [...get().warnings, warning]
-  }),
+  setWarning: (warning) => {
+    const state = get();
+    
+    // Avoid duplicate warnings
+    if (state.warnings.includes(warning)) {
+      return;
+    }
+    
+    set({
+      warnings: [...state.warnings, warning]
+    });
+  },
   
   // Completar conversión
   completeConversion: (audio, id, duration) => set({
