@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -40,7 +39,8 @@ const ConversionStatus = ({
   // Obtener estado del store global
   const { 
     updateProgress, 
-    resetConversion 
+    resetConversion,
+    setError 
   } = useConversionStore();
   
   // Para mejor depuración
@@ -69,11 +69,11 @@ const ConversionStatus = ({
         isCompleted: true
       });
     } else if (status === 'error') {
-      useConversionStore.getState().setError("Error en la conversión");
+      setError("Error en la conversión");
     } else if (status === 'idle') {
       resetConversion();
     }
-  }, [status, progress, textLength, updateProgress, resetConversion]);
+  }, [status, progress, textLength, updateProgress, resetConversion, setError]);
   
   // Reenviar actualizaciones de progreso al componente padre
   useEffect(() => {
