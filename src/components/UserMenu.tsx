@@ -1,3 +1,4 @@
+
 import React from "react"
 import {
   DropdownMenu,
@@ -9,7 +10,7 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { UserAvatar } from "@/components/UserAvatar"
+import UserAvatar from "@/components/UserAvatar"
 import { useAuth } from "@/hooks/useAuth"
 import { LogOut, Settings, List, LogIn, Activity } from "lucide-react"
 import { useNavigate } from "react-router-dom"
@@ -27,7 +28,7 @@ const UserMenu = () => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <UserAvatar />
+          <UserAvatar user={user} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>

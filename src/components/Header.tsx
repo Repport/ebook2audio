@@ -36,7 +36,7 @@ const Header = () => {
             </>
           )}
           <ThemeToggle />
-          {user && <UserMenu user={user} />}
+          {user && <UserMenu />}
         </div>
       </div>
       <div className="text-center">

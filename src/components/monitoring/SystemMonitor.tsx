@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +6,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
-import { LogEntry } from '@/utils/loggingService';
+import { LogEntry, DatabaseLogEntry } from '@/utils/loggingService';
+
+declare module "@/components/ui/badge" {
+  interface BadgeVariants {
+    variant: "default" | "destructive" | "outline" | "secondary" | "warning" | "success";
+  }
+}
+
+interface PerformanceMetric {
+  operation: string;
+  avg_duration_ms: number;
+  max_duration_ms: number;
+  min_duration_ms: number;
+  count: number;
+}
 
 /**
  * System statistics component displaying global metrics
@@ -74,7 +87,7 @@ const RecentLogs = ({
   onRefresh,
   onClearLogs
 }: {
-  logs: LogEntry[];
+  logs: DatabaseLogEntry[];
   isLoading: boolean;
   onRefresh: () => void;
   onClearLogs: () => void;
@@ -130,8 +143,8 @@ const RecentLogs = ({
                     <div className="flex items-center gap-2">
                       <Badge variant={
                         log.status === 'error' ? 'destructive' : 
-                        log.status === 'warning' ? 'warning' : 
-                        log.status === 'success' ? 'success' : 'default'
+                        log.status === 'warning' ? 'secondary' : 
+                        log.status === 'success' ? 'default' : 'outline'
                       }>
                         {log.event_type}
                       </Badge>
@@ -142,7 +155,7 @@ const RecentLogs = ({
                       )}
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(log.created_at).toLocaleString()}
+                      {log.created_at ? new Date(log.created_at).toLocaleString() : ''}
                     </span>
                   </div>
                   <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[100px]">
@@ -166,7 +179,7 @@ const ErrorLogs = ({
   isLoading,
   onRefresh
 }: {
-  logs: LogEntry[];
+  logs: DatabaseLogEntry[];
   isLoading: boolean;
   onRefresh: () => void;
 }) => {
@@ -219,7 +232,7 @@ const ErrorLogs = ({
                       )}
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(log.created_at).toLocaleString()}
+                      {log.created_at ? new Date(log.created_at).toLocaleString() : ''}
                     </span>
                   </div>
                   <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[150px]">
@@ -243,7 +256,7 @@ const PerformanceMetrics = ({
   isLoading,
   onRefresh
 }: {
-  metrics: any[];
+  metrics: PerformanceMetric[];
   isLoading: boolean;
   onRefresh: () => void;
 }) => {
@@ -284,6 +297,7 @@ const PerformanceMetrics = ({
                   <th className="text-left py-2 font-medium">Operation</th>
                   <th className="text-right py-2 font-medium">Avg Duration</th>
                   <th className="text-right py-2 font-medium">Max</th>
+                  <th className="text-right py-2 font-medium">Min</th>
                   <th className="text-right py-2 font-medium">Count</th>
                 </tr>
               </thead>
@@ -296,6 +310,9 @@ const PerformanceMetrics = ({
                     </td>
                     <td className="py-2 text-right">
                       {metric.max_duration_ms}ms
+                    </td>
+                    <td className="py-2 text-right">
+                      {metric.min_duration_ms}ms
                     </td>
                     <td className="py-2 text-right">{metric.count}</td>
                   </tr>
@@ -321,22 +338,19 @@ const SystemMonitor = () => {
     cachedItems: 0,
     avgProcessingTime: 0,
   });
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [errorLogs, setErrorLogs] = useState<LogEntry[]>([]);
-  const [performanceMetrics, setPerformanceMetrics] = useState<any[]>([]);
+  const [logs, setLogs] = useState<DatabaseLogEntry[]>([]);
+  const [errorLogs, setErrorLogs] = useState<DatabaseLogEntry[]>([]);
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetric[]>([]);
 
-  // Load system stats
   const loadStats = async () => {
     setIsLoading(true);
     try {
-      // Get total conversions
       const { data: conversionsData, error: conversionsError } = await supabase
         .from('text_conversions')
         .select('status', { count: 'exact' });
       
       if (conversionsError) throw conversionsError;
       
-      // Get completed conversions
       const { count: completedCount, error: completedError } = await supabase
         .from('text_conversions')
         .select('id', { count: 'exact' })
@@ -344,7 +358,6 @@ const SystemMonitor = () => {
       
       if (completedError) throw completedError;
       
-      // Get cached items
       const { count: cachedCount, error: cachedError } = await supabase
         .from('text_conversions')
         .select('id', { count: 'exact' })
@@ -352,7 +365,6 @@ const SystemMonitor = () => {
       
       if (cachedError) throw cachedError;
       
-      // Get average processing time
       const { data: avgTimeData, error: avgTimeError } = await supabase
         .from('system_logs')
         .select('details')
@@ -362,14 +374,16 @@ const SystemMonitor = () => {
       
       if (avgTimeError) throw avgTimeError;
       
-      // Calculate average processing time
       let totalDuration = 0;
       let count = 0;
       
       avgTimeData?.forEach(log => {
-        if (log.details && log.details.duration_ms) {
-          totalDuration += log.details.duration_ms;
-          count++;
+        if (log.details && typeof log.details === 'object' && 'duration_ms' in log.details) {
+          const durationMs = Number(log.details.duration_ms);
+          if (!isNaN(durationMs)) {
+            totalDuration += durationMs;
+            count++;
+          }
         }
       });
       
@@ -379,7 +393,7 @@ const SystemMonitor = () => {
         totalConversions: conversionsData?.length || 0,
         completedConversions: completedCount || 0,
         cachedItems: cachedCount || 0,
-        avgProcessingTime: avgProcessingTime,
+        avgProcessingTime: Number(avgProcessingTime),
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -388,7 +402,6 @@ const SystemMonitor = () => {
     }
   };
 
-  // Load system logs
   const loadLogs = async () => {
     setIsLoading(true);
     try {
@@ -408,7 +421,6 @@ const SystemMonitor = () => {
     }
   };
 
-  // Load error logs
   const loadErrorLogs = async () => {
     setIsLoading(true);
     try {
@@ -429,68 +441,68 @@ const SystemMonitor = () => {
     }
   };
 
-  // Load performance metrics
   const loadPerformanceMetrics = async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .rpc('get_performance_metrics')
-        .limit(20);
+        .from('system_logs')
+        .select('*')
+        .eq('event_type', 'performance')
+        .order('created_at', { ascending: false })
+        .limit(100);
       
-      if (error) {
-        console.error('Error calling get_performance_metrics RPC:', error);
-        // Fallback to basic query
-        const { data: logsData, error: logsError } = await supabase
-          .from('system_logs')
-          .select('*')
-          .eq('event_type', 'performance')
-          .order('created_at', { ascending: false })
-          .limit(100);
-        
-        if (logsError) throw logsError;
-        
-        // Process the logs to get metrics
-        const metricsMap = new Map();
-        
-        logsData?.forEach(log => {
-          if (log.details && log.details.operation && log.details.duration_ms) {
-            const operation = log.details.operation;
+      if (error) throw error;
+      
+      const metricsMap = new Map<string, {
+        operation: string;
+        total_duration_ms: number;
+        max_duration_ms: number;
+        min_duration_ms: number;
+        count: number;
+      }>();
+      
+      data?.forEach(log => {
+        if (log.details && typeof log.details === 'object' && 'operation' in log.details && 'duration_ms' in log.details) {
+          const operation = String(log.details.operation);
+          const durationMs = Number(log.details.duration_ms);
+          
+          if (!isNaN(durationMs)) {
             if (!metricsMap.has(operation)) {
               metricsMap.set(operation, {
                 operation,
                 total_duration_ms: 0,
                 max_duration_ms: 0,
+                min_duration_ms: Number.MAX_VALUE,
                 count: 0
               });
             }
             
-            const metric = metricsMap.get(operation);
-            metric.total_duration_ms += log.details.duration_ms;
-            metric.max_duration_ms = Math.max(metric.max_duration_ms, log.details.duration_ms);
+            const metric = metricsMap.get(operation)!;
+            metric.total_duration_ms += durationMs;
+            metric.max_duration_ms = Math.max(metric.max_duration_ms, durationMs);
+            metric.min_duration_ms = Math.min(metric.min_duration_ms, durationMs);
             metric.count += 1;
           }
-        });
-        
-        // Calculate averages
-        const metrics = Array.from(metricsMap.values()).map(metric => ({
-          operation: metric.operation,
-          avg_duration_ms: Math.round(metric.total_duration_ms / metric.count),
-          max_duration_ms: metric.max_duration_ms,
-          count: metric.count
-        }));
-        
-        setPerformanceMetrics(metrics);
-      } else {
-        setPerformanceMetrics(data || []);
-      }
+        }
+      });
+      
+      const metrics = Array.from(metricsMap.values()).map(metric => ({
+        operation: metric.operation,
+        avg_duration_ms: Math.round(metric.total_duration_ms / metric.count),
+        max_duration_ms: metric.max_duration_ms,
+        min_duration_ms: metric.min_duration_ms === Number.MAX_VALUE ? 0 : metric.min_duration_ms,
+        count: metric.count
+      }));
+      
+      setPerformanceMetrics(metrics);
     } catch (error) {
       console.error('Error loading performance metrics:', error);
+      setPerformanceMetrics([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Load data based on active tab
   const loadTabData = () => {
     switch (activeTab) {
       case "overview":
@@ -509,7 +521,6 @@ const SystemMonitor = () => {
     }
   };
 
-  // Clear logs (for development purposes)
   const clearLogs = async () => {
     if (!window.confirm('Are you sure you want to clear all logs?')) return;
     
@@ -521,14 +532,12 @@ const SystemMonitor = () => {
       
       if (error) throw error;
       
-      // Reload logs
       loadLogs();
     } catch (error) {
       console.error('Error clearing logs:', error);
     }
   };
 
-  // Initial data load
   useEffect(() => {
     loadTabData();
   }, [activeTab]);
