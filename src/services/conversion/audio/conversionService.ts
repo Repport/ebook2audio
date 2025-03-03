@@ -27,13 +27,26 @@ export async function convertTextToAudio(
       throw new Error('El parámetro text debe ser una cadena no vacía');
     }
 
-    // Inicializar el gestor de chunks
+    // Initialize the store with proper values at the start
+    const store = useConversionStore.getState();
+    store.startConversion(null);
+    
+    // Update total character count
+    store.updateProgress({
+      processedChunks: 0,
+      totalChunks: 0,
+      processedCharacters: 0,
+      totalCharacters: text.length,
+      currentChunk: '',
+      progress: 1 // Start with 1% visible
+    });
+
+    // Inicializar el gestor de chunks con callback centralizado
     const chunkManager = new ChunkManager(text, (progressData) => {
-      // Actualizar el store global al mismo tiempo que llamamos al callback original
-      const store = useConversionStore.getState();
+      // Actualizar el store global de forma centralizada
       store.updateProgress(progressData);
       
-      // Llamar al callback original si existe
+      // Llamar al callback original si existe (para compatibilidad)
       if (onProgress) {
         onProgress(progressData);
       }
@@ -46,6 +59,7 @@ export async function convertTextToAudio(
     const missingChunks = chunkManager.getMissingChunks();
     if (missingChunks.length > 0) {
       console.error(`CRITICAL INTEGRITY ERROR: Missing chunks after all processing attempts: ${missingChunks.join(', ')}`);
+      store.setError(`Error crítico de integridad: No se pudieron procesar todos los chunks después de múltiples intentos`);
       throw new Error(`Error crítico de integridad: No se pudieron procesar todos los chunks después de múltiples intentos`);
     }
     
@@ -56,6 +70,7 @@ export async function convertTextToAudio(
     // Verificación final de integridad
     if (!finalAudioBuffer || finalAudioBuffer.byteLength === 0) {
       console.error('CRITICAL: Final audio buffer is empty after all processing');
+      store.setError('Error crítico: El archivo de audio final está vacío después de todos los intentos');
       throw new Error('Error crítico: El archivo de audio final está vacío después de todos los intentos');
     }
 
@@ -66,6 +81,9 @@ export async function convertTextToAudio(
     
     // Notificar la finalización del proceso
     chunkManager.notifyCompletion();
+    
+    // Complete the conversion in the store
+    store.completeConversion(finalAudioBuffer, conversionId, text.length / 15); // Approx 15 chars/second
     
     return {
       audio: finalAudioBuffer,

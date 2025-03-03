@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { 
   saveConversionState, 
@@ -5,94 +6,103 @@ import {
   clearConversionStorage,
   convertArrayBufferToBase64 
 } from '@/services/storage/conversionStorageService';
+import { useConversionStore } from '@/store/conversionStore';
 
-export const useConversionStorage = (
-  conversionStatus: 'idle' | 'converting' | 'completed' | 'error',
-  progress: number,
-  audioData: ArrayBuffer | null,
-  audioDuration: number,
-  currentFileName: string | null,
-  conversionId: string | null,
-  conversionStartTime: number | undefined,
-  elapsedTime: number,
-  setConversionStatus: (status: 'idle' | 'converting' | 'completed' | 'error') => void,
-  setProgress: (progress: number) => void,
-  setAudioData: (data: ArrayBuffer | null) => void,
-  setAudioDuration: (duration: number) => void,
-  setCurrentFileName: (fileName: string | null) => void,
-  setConversionId: (id: string | null) => void,
-  setElapsedTime: (time: number) => void,
-  setConversionStartTime: (time: number | undefined) => void
-) => {
-  // Load saved state on initialization
+// This hook now only syncs the store with storage, not with component state
+export const useConversionStorage = () => {
+  // Load saved state on initialization and sync with the store
   useEffect(() => {
     const loadState = async () => {
       const savedState = await loadConversionState();
       if (savedState) {
-        setConversionStatus(savedState.status);
-        setProgress(savedState.progress);
-        setCurrentFileName(savedState.fileName || null);
-        setConversionId(savedState.conversionId || null);
+        // Get the current store state
+        const store = useConversionStore.getState();
         
-        // Restore elapsed time if it exists
-        if (savedState.elapsedTime) {
-          setElapsedTime(savedState.elapsedTime);
-        }
-        
-        // Restore start time if it exists
-        if (savedState.conversionStartTime) {
-          setConversionStartTime(savedState.conversionStartTime);
-        }
-        
-        if (savedState.audioData) {
-          try {
-            const audioArrayBuffer = new TextEncoder().encode(savedState.audioData).buffer;
-            setAudioData(audioArrayBuffer);
-          } catch (error) {
-            console.error('Error converting saved audio data:', error);
+        // Restore the state to the store
+        if (savedState.status !== 'idle') {
+          // Only restore non-idle states
+          if (savedState.status === 'completed' && savedState.audioData) {
+            try {
+              const audioArrayBuffer = new TextEncoder().encode(savedState.audioData).buffer;
+              store.completeConversion(
+                audioArrayBuffer,
+                savedState.conversionId || null,
+                savedState.audioDuration || 0
+              );
+            } catch (error) {
+              console.error('Error converting saved audio data:', error);
+            }
+          } else if (savedState.status === 'converting') {
+            // Restore conversion in progress
+            store.startConversion(savedState.fileName || null);
+            
+            // If we have more detailed state, restore it
+            if (savedState.progress) {
+              store.updateProgress({
+                progress: savedState.progress,
+                processedChunks: 0,
+                totalChunks: 0,
+                processedCharacters: 0,
+                totalCharacters: 0,
+                currentChunk: ''
+              });
+            }
+            
+            // Restore elapsed time if it exists
+            if (savedState.elapsedTime && savedState.conversionStartTime) {
+              const elapsedTimeMs = savedState.elapsedTime * 1000;
+              const newStartTime = Date.now() - elapsedTimeMs;
+              // This will trigger the time update in the store
+              store.time = {
+                elapsed: savedState.elapsedTime,
+                remaining: null,
+                startTime: newStartTime
+              };
+            }
+          } else if (savedState.status === 'error') {
+            // Restore error state
+            store.setError('Error recuperado del almacenamiento');
           }
         }
-        setAudioDuration(savedState.audioDuration);
       }
     };
 
     loadState();
   }, []);
 
-  // Save state when it changes
+  // Save store state when it changes
   useEffect(() => {
-    const saveState = async () => {
-      if (conversionStatus !== 'idle') {
-        try {
-          const currentTime = Date.now();
-          const currentElapsedTime = Math.floor((currentTime - (conversionStartTime || currentTime)) / 1000);
-          
-          // Only update the elapsed time if it's greater than the current
-          // or if we don't have a current time
-          if (currentElapsedTime > elapsedTime || elapsedTime === 0) {
-            setElapsedTime(currentElapsedTime);
-          }
-          
-          const state = {
-            status: conversionStatus,
-            progress,
-            audioData: audioData ? convertArrayBufferToBase64(audioData) : undefined,
-            audioDuration,
-            fileName: currentFileName || undefined,
-            conversionId: conversionId || undefined,
-            elapsedTime: currentElapsedTime,
-            conversionStartTime
-          };
-          
-          await saveConversionState(state);
-        } catch (error) {
-          console.error('Error saving conversion state:', error);
+    const unsubscribe = useConversionStore.subscribe(
+      (state) => {
+        // Only save if we're not in idle state
+        if (state.status !== 'idle') {
+          saveState(state);
         }
       }
-    };
-
-    saveState();
-  }, [conversionStatus, progress, audioData, audioDuration, currentFileName, conversionId, conversionStartTime, elapsedTime]);
+    );
+    
+    return () => unsubscribe();
+  }, []);
+  
+  // Function to save the state
+  const saveState = async (state: any) => {
+    try {
+      const storageState = {
+        status: state.status,
+        progress: state.progress,
+        audioData: state.audioData ? convertArrayBufferToBase64(state.audioData) : undefined,
+        audioDuration: state.audioDuration,
+        fileName: state.fileName || undefined,
+        conversionId: state.conversionId || undefined,
+        elapsedTime: state.time.elapsed,
+        conversionStartTime: state.time.startTime
+      };
+      
+      await saveConversionState(storageState);
+    } catch (error) {
+      console.error('Error saving conversion state:', error);
+    }
+  };
 
   return { clearConversionStorage };
 };

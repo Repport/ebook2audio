@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
 
@@ -25,91 +25,23 @@ interface ConversionStatusProps {
 }
 
 const ConversionStatus = ({
-  status,
-  progress = 0,
-  fileType = 'EPUB',
-  estimatedSeconds = 0,
-  conversionId,
-  textLength = 0,
+  status: externalStatus,
   showPercentage = true,
   initialElapsedTime = 0,
-  onProgressUpdate
+  textLength = 0,
+  conversionId = null,
+  fileType = 'EPUB',
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
-  const initializedRef = useRef(false);
   
-  // Obtener estado del store global
-  const { 
-    updateProgress, 
-    resetConversion,
-    setError 
-  } = useConversionStore();
+  // Read from store, don't update it directly
+  const storeStatus = useConversionStore(state => state.status);
+  const storeProgress = useConversionStore(state => state.progress);
+  const storeWarnings = useConversionStore(state => state.warnings);
+  const storeErrors = useConversionStore(state => state.errors);
   
-  // Para inicialización, se ejecuta solo una vez cuando el componente se monta
-  // o cuando cambia el status (no en cada render)
-  useEffect(() => {
-    console.log(`ConversionStatus - Status changed to ${status}, progress: ${progress}%`);
-    
-    // Evitar actualización circular: Solo inicializar si no se ha hecho ya
-    if (!initializedRef.current) {
-      initializedRef.current = true;
-      
-      // Inicializar el estado global basado en los props iniciales
-      if (status === 'converting' || status === 'processing') {
-        // Actualizar el store con datos iniciales
-        updateProgress({
-          progress,
-          processedChunks: 0,
-          totalChunks: 0,
-          processedCharacters: 0,
-          totalCharacters: textLength,
-          currentChunk: '' // Añadido campo requerido
-        });
-      } else if (status === 'completed') {
-        updateProgress({
-          progress: 100,
-          processedChunks: 1, // Valores por defecto para campos requeridos
-          totalChunks: 1,
-          processedCharacters: textLength,
-          totalCharacters: textLength,
-          currentChunk: '',
-          isCompleted: true
-        });
-      } else if (status === 'error') {
-        setError("Error en la conversión");
-      } else if (status === 'idle') {
-        resetConversion();
-      }
-    }
-  }, [status]); // Dependencia reducida para evitar bucles
-  
-  // Preparar la función de actualización para evitar recreaciones en cada render
-  const handleStoreUpdate = useCallback((state) => {
-    if (onProgressUpdate) {
-      onProgressUpdate({
-        progress: state.progress,
-        processedChunks: state.chunks.processed,
-        totalChunks: state.chunks.total,
-        elapsedTime: state.time.elapsed
-      });
-    }
-  }, [onProgressUpdate]);
-  
-  // Reenviar actualizaciones de progreso al componente padre
-  // Solo se vuelve a configurar cuando cambia onProgressUpdate
-  useEffect(() => {
-    if (onProgressUpdate) {
-      console.log('ConversionStatus - Setting up store subscription');
-      
-      // La suscripción ahora usa la función memoizada
-      const unsubscribe = useConversionStore.subscribe(handleStoreUpdate);
-      
-      return () => {
-        console.log('ConversionStatus - Cleaning up store subscription');
-        unsubscribe();
-      };
-    }
-  }, [handleStoreUpdate]);
+  // Determine which status to use - prefer store status if it's not idle
+  const effectiveStatus = (storeStatus !== 'idle') ? storeStatus : externalStatus;
 
   // Status messages (without reference to file type)
   const statusMessages = {
@@ -121,21 +53,20 @@ const ConversionStatus = ({
   };
 
   // Return the appropriate component based on status
-  if (status === 'converting' || status === 'processing') {
+  if (effectiveStatus === 'converting' || effectiveStatus === 'processing') {
     return <ConversionProgressBar 
              showPercentage={showPercentage}
-             message={statusMessages[status]} 
+             message={statusMessages[effectiveStatus]} 
            />;
-  } else if (status === 'completed') {
-    const { warnings, errors } = useConversionStore.getState();
+  } else if (effectiveStatus === 'completed') {
     return (
       <ConversionStatusCompleted
         message={statusMessages.completed}
-        warnings={warnings}
-        errors={errors}
+        warnings={storeWarnings}
+        errors={storeErrors}
       />
     );
-  } else if (status === 'error') {
+  } else if (effectiveStatus === 'error') {
     return (
       <ConversionStatusError
         message={statusMessages.error}
