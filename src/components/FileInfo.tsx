@@ -82,7 +82,7 @@ const FileInfo = ({ file, onRemove, onNext }: FileInfoProps) => {
         {onNext && (
           <Button
             onClick={onNext}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white rounded-full px-6"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700 rounded-full px-6"
           >
             {translations.continue || "Continue"}
             <ArrowRight className="w-4 h-4" />

@@ -36,7 +36,7 @@ const VoiceSettingsStep = ({
   const [isProcessing, setIsProcessing] = useState(false);
   
   const handleContinue = async () => {
-    // Evitar múltiples clics
+    // Prevent multiple clicks
     if (isProcessing) return;
     
     console.log('VoiceSettingsStep - handleContinue clicked with voice:', selectedVoice);
@@ -122,7 +122,7 @@ const VoiceSettingsStep = ({
         <Button
           onClick={handleContinue}
           disabled={isProcessing || !selectedVoice}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white dark:text-primary-foreground rounded-full px-6"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700 rounded-full px-6"
         >
           {isProcessing ? (
             <span>Processing...</span>

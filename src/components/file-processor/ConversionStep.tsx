@@ -45,12 +45,12 @@ const ConversionStep = ({
   const [currentProgress, setCurrentProgress] = useState(Math.max(1, progress));
   const { translations } = useLanguage();
 
-  // Actualizar el progreso cuando cambie externamente
+  // Update progress when it changes externally
   useEffect(() => {
     setCurrentProgress(Math.max(1, progress));
   }, [progress]);
 
-  // Actualizar isConverting cuando cambie el estado de conversión
+  // Update isConverting when conversion status changes
   useEffect(() => {
     if (conversionStatus === 'converting') {
       setIsConverting(true);
