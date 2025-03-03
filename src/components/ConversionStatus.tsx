@@ -104,7 +104,7 @@ const ConversionStatus = ({
   };
 
   // Return the appropriate component based on status
-  if (displayStatus === 'converting' || displayStatus === 'processing') {
+  if (displayStatus === 'converting') {
     return (
       <ConversionStatusConverting
         message={statusMessages[displayStatus]}
