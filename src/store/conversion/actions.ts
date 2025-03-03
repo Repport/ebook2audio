@@ -1,12 +1,11 @@
 
-import { StateCreator } from 'zustand';
 import { ConversionStore, ConversionState } from './types';
 import { initialState } from './initialState';
 import { calculateTimeRemaining } from './utils';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
 export const createConversionActions = (
-  set: StateCreator<ConversionStore>['setState'],
+  set: (state: Partial<ConversionState>) => void,
   get: () => ConversionStore
 ): Pick<ConversionStore, keyof Omit<ConversionStore, keyof ConversionState>> => ({
   // Acción para iniciar la conversión
@@ -78,7 +77,7 @@ export const createConversionActions = (
       timeRemaining = calculateTimeRemaining(
         state.time.elapsed,
         newProgress,
-        data.totalCharacters || 0
+        data.totalCharacters ||.0
       );
     }
     
@@ -119,40 +118,40 @@ export const createConversionActions = (
     if (state.time.startTime) {
       const elapsed = Math.floor((Date.now() - state.time.startTime) / 1000);
       
-      set(state => ({
+      set({
         time: {
           ...state.time,
           elapsed
         }
-      }));
+      });
       
       // Auto-incrementar el progreso ligeramente para mantener sensación de actividad
       if (elapsed % 3 === 0 && state.progress < 95) {
-        set(state => ({
+        set({
           progress: state.progress + 0.1
-        }));
+        });
       }
     }
   },
   
   // Method to update elapsed time safely
-  updateElapsedTime: (elapsed, startTime) => set(state => ({
+  updateElapsedTime: (elapsed, startTime) => set({
     time: {
-      ...state.time,
+      ...get().time,
       elapsed,
       startTime
     }
-  })),
+  }),
   
   // Establecer error
-  setError: (error) => set(state => ({
-    errors: [...state.errors, error]
-  })),
+  setError: (error) => set({
+    errors: [...get().errors, error]
+  }),
   
   // Establecer advertencia
-  setWarning: (warning) => set(state => ({
-    warnings: [...state.warnings, warning]
-  })),
+  setWarning: (warning) => set({
+    warnings: [...get().warnings, warning]
+  }),
   
   // Completar conversión
   completeConversion: (audio, id, duration) => set({

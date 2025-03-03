@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useConversionStore } from './conversionStore';
+import { useConversionStore } from '../conversionStore';
 
 /**
  * Hook para el timer de actualización automática del tiempo de conversión
