@@ -17,7 +17,7 @@ interface StepsProgressBarProps {
 
 const StepsProgressBar = ({ steps, currentStep }: StepsProgressBarProps) => {
   return (
-    <div className="flex justify-center items-center space-x-4 md:space-x-8 mb-10">
+    <div className="flex justify-center items-center space-x-4 md:space-x-8 mb-12">
       {steps.map((step) => (
         <React.Fragment key={step.id}>
           <div className="flex flex-col items-center">
@@ -45,7 +45,7 @@ const StepsProgressBar = ({ steps, currentStep }: StepsProgressBarProps) => {
           {step.id !== steps.length && (
             <div 
               className={cn(
-                "flex-1 h-0.5 transition-colors duration-200",
+                "flex-1 h-1 transition-colors duration-200",
                 currentStep > step.id
                   ? "bg-primary dark:bg-white"
                   : "bg-gray-300 dark:bg-gray-600"
