@@ -43,7 +43,6 @@ export interface ConversionActions {
   setWarning: (warning: string) => void;
   completeConversion: (audio: ArrayBuffer, id: string, duration: number) => void;
   resetConversion: () => void;
-  updateTime: () => void;
   updateElapsedTime: (elapsed: number, startTime: number) => void;
 }
 
