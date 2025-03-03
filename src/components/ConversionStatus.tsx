@@ -99,7 +99,7 @@ const ConversionStatus = ({
 
   // Render warnings and errors
   const renderWarningsAndErrors = () => {
-    if (warnings.length === 0 && errors.length === 0 || status !== 'converting') {
+    if (warnings.length === 0 && errors.length === 0 || displayStatus !== 'converting') {
       return null;
     }
     return <Accordion type="single" collapsible className="w-full">
