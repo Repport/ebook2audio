@@ -46,4 +46,5 @@ export interface ConversionActions {
   updateElapsedTime: (elapsed: number, startTime: number) => void;
 }
 
+// This specific type combination is what Zustand expects
 export type ConversionStore = ConversionState & ConversionActions;

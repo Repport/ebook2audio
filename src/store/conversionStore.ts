@@ -7,8 +7,14 @@ import { createConversionActions } from './conversion/actions';
 export { useConversionTimer } from './conversion/useConversionTimer';
 export type { ConversionStatus } from './conversion/types';
 
-// Create store
-export const useConversionStore = create<ConversionStore>((set, get) => ({
-  ...initialState,
-  ...createConversionActions(set, get)
-}));
+// Create store with explicit type annotation
+export const useConversionStore = create<ConversionStore>((set, get) => {
+  // First create all the actions
+  const actions = createConversionActions(set, get);
+  
+  // Then return the combined state and actions
+  return {
+    ...initialState,
+    ...actions
+  };
+});

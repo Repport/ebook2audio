@@ -1,12 +1,12 @@
 
-import { ConversionStore, ConversionState, ConversionActions } from './types';
+import { ConversionState, ConversionActions } from './types';
 import { initialState } from './initialState';
 import { calculateTimeRemaining } from './utils';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
 export const createConversionActions = (
   set: (state: Partial<ConversionState>) => void,
-  get: () => ConversionStore
+  get: () => any // Using any here to avoid circular reference issues
 ): ConversionActions => ({
   // Acción para iniciar la conversión
   startConversion: (fileName) => {
