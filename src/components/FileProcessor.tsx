@@ -136,7 +136,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           onGoBack={handleGoBack}
         />
 
-        <div className="w-full">
+        <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
           <ProcessorTabs 
             activeTab={activeTab} 
             onTabChange={handleTabChange} 
@@ -159,7 +159,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
               />
             </ErrorBoundary>
           </div>
-        </div>
+        </Tabs>
       </FileProcessorProvider>
     </ErrorBoundary>
   );

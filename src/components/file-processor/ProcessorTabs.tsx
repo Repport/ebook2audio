@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useFileProcessor } from '@/context/FileProcessorContext';
 
