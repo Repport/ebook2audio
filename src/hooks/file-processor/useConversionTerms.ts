@@ -1,46 +1,36 @@
 
 import { useState, useCallback } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useConversionTerms = () => {
-  const [showTerms, setShowTerms] = useState(false);
-  
-  const checkTermsAcceptance = useCallback(async () => {
-    // For debugging purposes, we'll assume terms are accepted
-    // In production this would check the database
+  const [showTerms, setShowTerms] = useState<boolean>(false);
+  const { user } = useAuth();
+
+  const checkTermsAcceptance = useCallback(async (): Promise<boolean> => {
+    if (!user) {
+      console.log('useConversionTerms - No user, showing terms');
+      return false; // No user, always show terms
+    }
     
-    /*
-    Try {
+    try {
       const { data, error } = await supabase
-        .from('terms_acceptance_logs')
-        .select('*')
-        .order('accepted_at', { ascending: false })
-        .limit(1);
-
+        .from('user_preferences')
+        .select('terms_accepted')
+        .eq('user_id', user.id)
+        .single();
+      
       if (error) {
-        console.error('Error checking terms acceptance:', error);
-        setShowTerms(true);
-        return false;
-      }
-
-      // If no records or last record is older than 24 hours
-      if (!data || data.length === 0 || 
-          new Date(data[0].accepted_at).getTime() < Date.now() - 24 * 60 * 60 * 1000) {
-        console.log('Need to show terms');
-        setShowTerms(true);
+        console.error('useConversionTerms - Error checking terms acceptance:', error);
         return false;
       }
       
-      return true;
+      return data?.terms_accepted === true;
     } catch (err) {
-      console.error('Error in terms acceptance check:', err);
-      setShowTerms(true);
+      console.error('useConversionTerms - Error in terms check:', err);
       return false;
     }
-    */
-    
-    return true;
-  }, []);
+  }, [user]);
   
   return {
     showTerms,

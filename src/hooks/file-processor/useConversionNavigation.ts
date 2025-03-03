@@ -1,9 +1,10 @@
 
 import { useCallback } from 'react';
+import { NavigateFunction } from 'react-router-dom';
 
-export const useConversionNavigation = (navigate: any) => {
+export const useConversionNavigation = (navigate: NavigateFunction) => {
   const handleViewConversions = useCallback(() => {
-    console.log('useConversionLogic - Navigating to conversions page');
+    console.log('useConversionNavigation - Navigating to conversions');
     navigate('/conversions');
   }, [navigate]);
   
