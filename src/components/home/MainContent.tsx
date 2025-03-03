@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import FileUploadZone from '@/components/FileUploadZone';
 import FileProcessor from '@/components/FileProcessor';
@@ -26,6 +26,16 @@ const MainContent = ({
   onNextStep,
   onPreviousStep
 }: MainContentProps) => {
+  useEffect(() => {
+    console.log('MainContent rendered with:', {
+      currentStep,
+      hasFile: !!selectedFile,
+      textLength: extractedText?.length || 0,
+      chaptersCount: chapters?.length || 0,
+      language: detectedLanguage
+    });
+  }, [currentStep, selectedFile, extractedText, chapters, detectedLanguage]);
+
   return (
     <Card className="p-6 shadow-lg mb-10">
       {currentStep === 1 && (
@@ -42,7 +52,10 @@ const MainContent = ({
             extractedText={extractedText}
             chapters={chapters}
             detectedLanguage={detectedLanguage}
-            onStepComplete={() => onNextStep()}
+            onStepComplete={() => {
+              console.log('FileProcessor completed step, advancing to next step');
+              onNextStep();
+            }}
             currentStep={currentStep}
             onNextStep={onNextStep}
             onPreviousStep={onPreviousStep}

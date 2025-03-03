@@ -6,6 +6,7 @@ import {
   clearConversionStorage 
 } from '@/services/storage/conversionStorageService';
 import { useConversionStore } from '@/store/conversionStore';
+import { convertArrayBufferToBase64, convertBase64ToArrayBuffer } from '@/services/storage/encodingUtils';
 
 /**
  * Hook for managing conversion storage with mechanisms to prevent update loops
@@ -175,9 +176,6 @@ export const useConversionStorage = () => {
       unsubscribe();
     };
   }, [saveStateWithDebounce]);
-  
-  // Import utility functions from storage service
-  const { convertArrayBufferToBase64, convertBase64ToArrayBuffer } = require('@/services/storage/encodingUtils');
   
   return { clearConversionStorage };
 };

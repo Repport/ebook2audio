@@ -1,5 +1,5 @@
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { validateFile } from '@/utils/fileUtils';
@@ -12,7 +12,7 @@ import { Button } from './ui/button';
 import { ArrowRight } from 'lucide-react';
 
 interface FileUploadZoneProps {
-  onFileSelect: (fileInfo: { file: File, text: string, language?: string } | null) => void;
+  onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
 }
 
 const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
@@ -20,11 +20,21 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [processedText, setProcessedText] = useState<string>('');
   const [processedLanguage, setProcessedLanguage] = useState<string | undefined>();
+  const [processedChapters, setProcessedChapters] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileMetadata, setFileMetadata] = useState<{
     totalCharacters?: number;
     processedPages?: number;
   }>({});
+
+  useEffect(() => {
+    console.log('FileUploadZone rendered with:', {
+      hasFile: !!selectedFile,
+      textLength: processedText?.length || 0,
+      language: processedLanguage,
+      chaptersCount: processedChapters?.length || 0
+    });
+  }, [selectedFile, processedText, processedLanguage, processedChapters]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0] || null;
@@ -101,6 +111,12 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       setProcessedText(result.text);
       setProcessedLanguage(result.metadata?.language);
       
+      // Save chapters if available
+      if (result.metadata?.chapters) {
+        setProcessedChapters(result.metadata.chapters);
+        console.log('Chapters detected:', result.metadata.chapters.length);
+      }
+      
       // Save metadata for display
       if (result.metadata) {
         setFileMetadata({
@@ -130,6 +146,7 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     setSelectedFile(null);
     setProcessedText('');
     setProcessedLanguage(undefined);
+    setProcessedChapters([]);
     setFileMetadata({});
     onFileSelect(null);
   };
@@ -143,10 +160,20 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       });
       return;
     }
+    
+    console.log('FileUploadZone - Continue clicked with:', {
+      fileName: selectedFile.name,
+      fileSize: selectedFile.size,
+      textLength: processedText.length,
+      language: processedLanguage,
+      chaptersCount: processedChapters.length
+    });
+    
     onFileSelect({
       file: selectedFile,
       text: processedText,
-      language: processedLanguage
+      language: processedLanguage,
+      chapters: processedChapters
     });
   };
 

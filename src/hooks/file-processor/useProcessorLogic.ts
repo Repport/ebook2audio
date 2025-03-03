@@ -43,7 +43,13 @@ export const useProcessorLogic = ({
   } = conversionLogic;
 
   const handleStartConversion = useCallback(async () => {
-    console.log('ProcessorLogic - handleStartConversion called');
+    console.log('ProcessorLogic - handleStartConversion called', {
+      currentStep,
+      hasFile: !!selectedFile,
+      hasText: !!extractedText,
+      selectedVoice,
+      isProcessing: isProcessingNextStep
+    });
     
     if (isProcessingNextStep) {
       console.log('ProcessorLogic - Already processing, ignoring request');
@@ -74,7 +80,10 @@ export const useProcessorLogic = ({
         setDetectChapters(false);
       }
 
+      console.log('ProcessorLogic - Initiating conversion...');
       const canConvert = await initiateConversion();
+      console.log('ProcessorLogic - initiateConversion result:', canConvert);
+      
       if (!canConvert) {
         console.log('ProcessorLogic - initiateConversion returned false');
         
@@ -118,7 +127,7 @@ export const useProcessorLogic = ({
   }, [
     isProcessingNextStep, selectedFile, extractedText, selectedVoice, 
     detectingChapters, setDetectChapters, initiateConversion, showTerms, 
-    handleAcceptTerms, notifyOnComplete, onNextStep
+    handleAcceptTerms, notifyOnComplete, onNextStep, currentStep
   ]);
 
   const handleTermsAccept = async () => {
