@@ -6,6 +6,7 @@ import StepsProgressBar from '@/components/steps/StepsProgressBar';
 import MainContent from '@/components/home/MainContent';
 import { useSessionStorage } from '@/hooks/useSessionStorage';
 import { conversionSteps } from '@/constants/steps';
+import { Chapter } from '@/utils/textExtraction';
 
 const Index = () => {
   const {
