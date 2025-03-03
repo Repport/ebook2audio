@@ -9,7 +9,7 @@ const ProcessorTabs: React.FC = () => {
   const { currentStep } = useFileProcessor();
   
   return (
-    <TabsList className="grid w-full grid-cols-3 mb-6 bg-gray-100 dark:bg-gray-800 rounded-full p-1">
+    <TabsList className="grid w-full grid-cols-3 mb-4 bg-gray-100 dark:bg-gray-800 rounded-full p-1">
       <TabsTrigger 
         value="file-info" 
         disabled={currentStep > 2}

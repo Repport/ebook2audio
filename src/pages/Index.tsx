@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import FileUploadZone from '@/components/FileUploadZone';
 import Header from '@/components/Header';
@@ -37,7 +36,6 @@ const Index = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
 
-  // Restaurar el estado al cargar la página
   useEffect(() => {
     const savedStep = sessionStorage.getItem('currentStep');
     const savedText = sessionStorage.getItem('extractedText');
@@ -56,10 +54,9 @@ const Index = () => {
       }
       setDetectedLanguage(savedLanguage || 'english');
 
-      // Reconstruir el objeto File
       if (savedFileType && savedFileLastModified && savedFileSize) {
         const file = new File(
-          [new Blob([])], // Contenido vacío ya que tenemos el texto extraído
+          [new Blob([])],
           savedFileName,
           {
             type: savedFileType,
@@ -71,7 +68,6 @@ const Index = () => {
     }
   }, []);
 
-  // Guardar el estado cuando cambie
   useEffect(() => {
     if (currentStep > 1 && selectedFile) {
       sessionStorage.setItem('currentStep', currentStep.toString());
@@ -83,7 +79,6 @@ const Index = () => {
       sessionStorage.setItem('fileLastModified', selectedFile.lastModified.toString());
       sessionStorage.setItem('fileSize', selectedFile.size.toString());
     } else {
-      // Limpiar storage si volvemos al paso 1
       sessionStorage.removeItem('currentStep');
       sessionStorage.removeItem('extractedText');
       sessionStorage.removeItem('chapters');
@@ -127,11 +122,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <main className="flex-grow container mx-auto py-12 px-4">
+      <main className="flex-grow container mx-auto py-12 px-4 pb-0">
         <div className="max-w-4xl mx-auto">
           <Header />
 
-          <div className="mb-12">
+          <div className="mb-10">
             <div className="flex justify-center items-center space-x-4 md:space-x-8">
               {steps.map((step) => (
                 <React.Fragment key={step.id}>
@@ -172,7 +167,7 @@ const Index = () => {
             </div>
           </div>
 
-          <Card className="p-6 shadow-lg">
+          <Card className="p-6 shadow-lg mb-10">
             {currentStep === 1 && (
               <div className="animate-fade-up">
                 <FileUploadZone onFileSelect={handleFileSelect} />
