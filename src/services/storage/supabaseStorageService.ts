@@ -107,8 +107,9 @@ export const fetchSupabaseConversion = async (conversionId: string, state: Store
     if (basicData) {
       console.log('✅ Basic conversion state found:', basicData);
       
-      // Update state with basic data
-      state.status = basicData.status;
+      // Update state with basic data - THIS IS WHERE THE TYPE ERROR WAS
+      // Fix: Cast the status to the correct union type
+      state.status = basicData.status as 'idle' | 'converting' | 'completed' | 'error';
       state.progress = basicData.progress;
       
       // Now try to get time data

@@ -1,5 +1,4 @@
 
-import { supabase } from "@/integrations/supabase/client";
 import { StoredConversionState } from './types';
 import { saveToSessionStorage, loadFromSessionStorage, clearSessionStorage } from './sessionStorageService';
 import { updateSupabaseConversion, fetchSupabaseConversion } from './supabaseStorageService';
