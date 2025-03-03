@@ -1,147 +1,155 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import JSZip from 'jszip';
+import { supabase } from "@/integrations/supabase/client";
+import { StoredConversionState } from './types';
 
-interface CachedAudio {
-  data: string;
-  timestamp: number;
-  format: string;
-}
+/**
+ * Updates conversion state in Supabase
+ */
+export const updateSupabaseConversion = async (state: StoredConversionState): Promise<void> => {
+  if (!state.conversionId) return;
 
-const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-export const saveToSupabase = async (
-  audio: ArrayBuffer,
-  extractedText: string,
-  duration: number,
-  fileName: string,
-  userId: string
-) => {
   try {
-    // Generate a unique file path for storage
-    const storagePath = `${userId}/${crypto.randomUUID()}.mp3`;
-    
-    // Compress the audio if it's larger than 10MB
-    let finalAudio = audio;
-    let finalPath = storagePath;
-    let contentType = 'audio/mpeg';
-    
-    if (audio.byteLength > 10 * 1024 * 1024) {
-      const zip = new JSZip();
-      zip.file('audio.mp3', audio);
-      finalAudio = await zip.generateAsync({ type: 'arraybuffer' });
-      finalPath = storagePath + '.zip';
-      contentType = 'application/zip';
-    }
-    
-    console.log('Uploading file with content type:', contentType);
-    
-    // Upload the audio file to storage
-    const { error: uploadError } = await supabase.storage
-      .from('audio_cache')
-      .upload(finalPath, finalAudio, {
-        contentType: contentType,
-        upsert: false
-      });
-
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      throw uploadError;
-    }
-
-    // Generate a hash of the text content to identify duplicate conversions
-    const textHash = btoa(extractedText.slice(0, 100)).slice(0, 32);
-
-    // Create a record in the text_conversions table
-    const { error: dbError } = await supabase
+    const { data: existingConversion, error } = await supabase
       .from('text_conversions')
-      .insert({
-        file_name: fileName,
-        storage_path: finalPath,
-        file_size: finalAudio.byteLength,
-        duration: Math.round(duration),
-        user_id: userId,
-        text_hash: textHash,
-        status: 'completed'
-      });
+      .select('text_hash, status')
+      .eq('id', state.conversionId)
+      .maybeSingle();
 
-    if (dbError) {
-      console.error('Database insert error:', dbError);
-      throw dbError;
+    if (error) {
+      console.error('Error checking conversion:', error);
+      return;
     }
 
-    return finalPath;
+    // Only update if:
+    // 1. The conversion exists
+    // 2. We're not trying to change a completed conversion to another state
+    if (existingConversion?.text_hash && 
+        !(existingConversion.status === 'completed' && state.status !== 'completed')) {
+      
+      console.log('🔄 Updating conversion state:', {
+        id: state.conversionId,
+        status: state.status,
+        progress: state.progress,
+        fileName: state.fileName,
+        elapsedTime: state.elapsedTime
+      });
+
+      const updateData: any = {
+        status: state.status,
+        progress: state.progress,
+        file_name: state.fileName,
+      };
+
+      // Only update time if defined
+      if (state.elapsedTime !== undefined) {
+        // First check if the column exists to avoid errors
+        const { data: columns, error: columnError } = await supabase
+          .from('text_conversions')
+          .select('elapsed_time')
+          .limit(1);
+
+        if (!columnError && columns) {
+          updateData.elapsed_time = state.elapsedTime;
+        }
+      }
+
+      // If starting conversion, save start time
+      if (state.status === 'converting' && state.conversionStartTime) {
+        // Check if started_at column exists
+        const { data: columns, error: columnError } = await supabase
+          .from('text_conversions')
+          .select('started_at')
+          .limit(1);
+
+        if (!columnError && columns) {
+          updateData.started_at = new Date(state.conversionStartTime).toISOString();
+        }
+      }
+
+      const { error: updateError } = await supabase
+        .from('text_conversions')
+        .update(updateData)
+        .eq('id', state.conversionId);
+
+      if (updateError) {
+        console.error('❌ Error updating conversion:', updateError);
+      }
+    } else {
+      console.warn('⚠️ Conversion not updated:', {
+        reason: existingConversion ? 'conversion already completed' : 'text_hash not found',
+        conversionId: state.conversionId
+      });
+    }
   } catch (error) {
-    console.error('Error in saveToSupabase:', error);
-    throw error;
+    console.error('❌ Error updating Supabase conversion:', error);
   }
 };
 
-export const fetchFromCache = async (storagePath: string): Promise<ArrayBuffer | null> => {
+/**
+ * Fetches latest conversion state from Supabase
+ */
+export const fetchSupabaseConversion = async (conversionId: string, state: StoredConversionState): Promise<StoredConversionState> => {
   try {
-    // Check browser cache first
-    const cachedData = localStorage.getItem(`audio-${storagePath}`);
-    if (cachedData) {
-      const cached: CachedAudio = JSON.parse(cachedData);
-      if (Date.now() - cached.timestamp < CACHE_EXPIRY) {
-        console.log('Serving audio from browser cache');
-        const binaryString = atob(cached.data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+    console.log('🔍 Looking for conversion in Supabase:', conversionId);
+    
+    // First make a basic query that should always work
+    const { data: basicData, error: basicError } = await supabase
+      .from('text_conversions')
+      .select('status, progress, storage_path')
+      .eq('id', conversionId)
+      .maybeSingle();
+
+    if (basicError) {
+      console.error('❌ Error loading basic conversion state:', basicError);
+      return state;
+    }
+
+    if (basicData) {
+      console.log('✅ Basic conversion state found:', basicData);
+      
+      // Update state with basic data
+      state.status = basicData.status;
+      state.progress = basicData.progress;
+      
+      // Now try to get time data
+      try {
+        const { data, error } = await supabase
+          .from('text_conversions')
+          .select('elapsed_time, started_at')
+          .eq('id', conversionId)
+          .maybeSingle();
+          
+        if (!error && data) {
+          // Time data available
+          if (data.elapsed_time) {
+            state.elapsedTime = data.elapsed_time;
+          }
+          
+          if (data.started_at && state.status === 'converting') {
+            const startTime = new Date(data.started_at).getTime();
+            state.conversionStartTime = startTime;
+            
+            // If no elapsed_time, calculate it
+            if (!state.elapsedTime) {
+              state.elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+            }
+          }
         }
-        return bytes.buffer;
-      } else {
-        localStorage.removeItem(`audio-${storagePath}`);
+      } catch (timeError) {
+        // Time columns may not exist yet, so handle silently
+        console.log('Time columns possibly not available:', timeError);
       }
+    } else {
+      console.warn('⚠️ Conversion not found:', conversionId);
+      // If conversion not found, reset state
+      state.status = 'idle';
+      state.progress = 0;
+      state.conversionId = undefined;
     }
-
-    console.log('Fetching from Supabase storage:', storagePath);
-
-    // Fetch from Supabase if not in cache
-    const { data, error } = await supabase.storage
-      .from('audio_cache')
-      .download(storagePath);
-
-    if (error) {
-      console.error('Cache fetch error:', error);
-      return null;
-    }
-
-    const arrayBuffer = await data.arrayBuffer();
-
-    // Handle zip files
-    if (storagePath.endsWith('.zip')) {
-      const zip = new JSZip();
-      const zipContent = await zip.loadAsync(arrayBuffer);
-      const audioFile = zipContent.file('audio.mp3');
-      if (!audioFile) {
-        throw new Error('No audio file found in zip');
-      }
-      const unzippedAudio = await audioFile.async('arraybuffer');
-      
-      // Cache the unzipped audio
-      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(unzippedAudio)));
-      localStorage.setItem(`audio-${storagePath}`, JSON.stringify({
-        data: base64Audio,
-        timestamp: Date.now(),
-        format: 'mp3'
-      }));
-      
-      return unzippedAudio;
-    }
-
-    // Cache the audio
-    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    localStorage.setItem(`audio-${storagePath}`, JSON.stringify({
-      data: base64Audio,
-      timestamp: Date.now(),
-      format: 'mp3'
-    }));
-
-    return arrayBuffer;
+    
+    return state;
   } catch (error) {
-    console.error('Error in fetchFromCache:', error);
-    return null;
+    console.error('❌ Error fetching Supabase conversion:', error);
+    return state;
   }
 };
