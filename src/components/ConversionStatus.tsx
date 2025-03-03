@@ -1,10 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Chapter } from '@/utils/textExtraction';
-import { ChaptersList } from './ChaptersList';
 import { useConversionProgress } from '@/hooks/useConversionProgress';
 import { useLanguage } from '@/hooks/useLanguage';
-import { ConversionStatusType } from './conversion-status/conversion-status-types';
 
 // Import our components
 import ConversionStatusIdle from './conversion-status/ConversionStatusIdle';
@@ -18,7 +15,7 @@ interface ConversionStatusProps {
   fileType?: 'PDF' | 'EPUB';
   chaptersFound?: number;
   detectingChapters?: boolean;
-  chapters?: Chapter[];
+  chapters?: any[];
   estimatedSeconds?: number;
   conversionId?: string | null;
   textLength?: number;
@@ -64,13 +61,13 @@ const ConversionStatus = ({
   // Make status changes slightly delayed to avoid flashing UI during quick status changes
   useEffect(() => {
     if (status !== stableStatus) {
-      // Reducimos el retraso a 150ms para una respuesta más rápida
+      // Reducimos el retraso a 100ms para una respuesta más rápida
       const timer = setTimeout(() => {
         if (isMountedRef.current) {
           setStableStatus(status);
           console.log(`ConversionStatus - stableStatus updated to ${status}`);
         }
-      }, 100); // Reducido de 150ms a 100ms
+      }, 100);
       
       return () => clearTimeout(timer);
     }
@@ -82,6 +79,7 @@ const ConversionStatus = ({
   const {
     progress: currentProgress,
     updateProgress,
+    resetProgress,
     timeRemaining,
     elapsedTime,
     hasStarted,
@@ -114,6 +112,14 @@ const ConversionStatus = ({
       }
     };
   }, []);
+
+  // Reset progress when initialElapsedTime changes to 0 (complete reset)
+  useEffect(() => {
+    if (initialElapsedTime === 0 && stableStatus === 'converting') {
+      console.log('ConversionStatus - Detected reset (initialElapsedTime=0), resetting progress');
+      resetProgress();
+    }
+  }, [initialElapsedTime, stableStatus]);
 
   // Debug logging
   useEffect(() => {

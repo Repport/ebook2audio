@@ -18,6 +18,9 @@ const Progress = React.forwardRef<
   // Referencia al valor anterior para comparación
   const prevValueRef = React.useRef<number>(1);
   
+  // Pulsación para mayor feedback visual durante la conversión
+  const [isPulsing, setIsPulsing] = React.useState(false);
+  
   // Actualizar valor de forma suave cuando cambia
   React.useEffect(() => {
     if (typeof value === 'number' && !isNaN(value) && value >= 0) {
@@ -35,6 +38,23 @@ const Progress = React.forwardRef<
     }
   }, [value, status]);
 
+  // Efecto para activar la pulsación periódicamente durante la conversión
+  React.useEffect(() => {
+    if (status === 'converting') {
+      // Activar pulsación inicial
+      setIsPulsing(true);
+      
+      // Alternar la pulsación cada 3 segundos para dar feedback visual
+      const intervalId = setInterval(() => {
+        setIsPulsing(prev => !prev);
+      }, 3000);
+      
+      return () => clearInterval(intervalId);
+    } else {
+      setIsPulsing(false);
+    }
+  }, [status]);
+
   const statusColors = {
     idle: "bg-primary",
     converting: "bg-blue-500",
@@ -43,19 +63,20 @@ const Progress = React.forwardRef<
   };
 
   // Añadimos un efecto pulsante para cuando está en proceso de conversión
-  const pulseEffect = status === 'converting' ? "animate-pulse" : "";
+  const pulseEffect = isPulsing && status === 'converting' ? "animate-pulse" : "";
 
   // Mejoramos el efecto shimmer para que sea más visible
-  const shimmerEffect = 
-    "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent " +
-    "before:animate-[shimmer_1.5s_infinite] before:content-['']";
+  const shimmerEffect = status === 'converting' 
+    ? "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent " +
+      "before:animate-[shimmer_1.5s_infinite] before:content-['']"
+    : "";
 
   return (
     <ProgressPrimitive.Root
       ref={ref}
       className={cn(
         "relative h-4 w-full overflow-hidden rounded-full bg-secondary",
-        status === 'converting' && shimmerEffect,
+        shimmerEffect,
         className
       )}
       {...props}
@@ -64,7 +85,7 @@ const Progress = React.forwardRef<
         className={cn(
           "h-full w-full flex-1 transition-transform duration-300 ease-out",
           statusColors[status],
-          status === 'converting' && pulseEffect
+          pulseEffect
         )}
         style={{ 
           transform: `translateX(-${100 - displayValue}%)` 

@@ -8,7 +8,7 @@ export const useProgressManagement = (initialProgress: number = 0) => {
   const [totalChunks, setTotalChunks] = useState<number>(0);
   const [speed, setSpeed] = useState<number>(0);
   
-  // Referencias para persistent data
+  // Referencias para datos persistentes
   const progressHistoryRef = useRef<{time: number, value: number}[]>([]);
   const processedCharsRef = useRef<number>(0);
   const totalCharsRef = useRef<number>(0);
@@ -16,28 +16,84 @@ export const useProgressManagement = (initialProgress: number = 0) => {
   const lastUpdateTimeRef = useRef<number>(Date.now());
   const errorCountRef = useRef<number>(0);
   const lastValidProgressRef = useRef<number>(Math.max(1, initialProgress));
+  const inactivityTimerRef = useRef<number | null>(null);
+  const heartbeatCountRef = useRef<number>(0);
 
-  // Inicializar el progreso mínimo garantizado
+  // Asegurar un progreso mínimo visible al inicializar
   useEffect(() => {
+    console.log('Inicializando progress management con progreso inicial:', initialProgress);
     if (progress < 1) {
       console.log('Garantizando progreso mínimo del 1%');
       setProgress(1);
     }
+    
+    // Iniciar un "heartbeat" que garantiza que siempre tengamos alguna actividad visible
+    startInactivityTimer();
+    
+    return () => {
+      // Limpiar timers al desmontar
+      if (inactivityTimerRef.current !== null) {
+        window.clearTimeout(inactivityTimerRef.current);
+      }
+    };
   }, []);
 
-  // Process progress updates
+  // Establece un timer que incrementará ligeramente el progreso si no hay actividad
+  // Este "heartbeat" es crucial para dar feedback al usuario
+  const startInactivityTimer = () => {
+    if (inactivityTimerRef.current !== null) {
+      window.clearTimeout(inactivityTimerRef.current);
+    }
+    
+    inactivityTimerRef.current = window.setTimeout(() => {
+      const now = Date.now();
+      const secondsSinceLastUpdate = (now - lastUpdateTimeRef.current) / 1000;
+      
+      if (secondsSinceLastUpdate > 2 && progress < 98) {
+        heartbeatCountRef.current += 1;
+        console.log(`Heartbeat #${heartbeatCountRef.current}: Sin actividad por ${secondsSinceLastUpdate.toFixed(1)}s`);
+        
+        // Incremento pequeño para mantener percepción de actividad
+        const smallIncrement = Math.min(0.5, Math.max(0.1, progress / 200));
+        incrementProgress(smallIncrement);
+        
+        // Si llevamos muchos heartbeats, aumentar la cantidad para evitar estancamiento percibido
+        if (heartbeatCountRef.current > 10 && progress < 90) {
+          incrementProgress(0.5);
+        }
+      }
+      
+      // Continuar el heartbeat
+      startInactivityTimer();
+    }, 2000);
+  };
+
+  // Incrementar progreso de forma segura
+  const incrementProgress = (amount: number) => {
+    setProgress(prev => {
+      const newProgress = Math.min(99, prev + amount);
+      console.log(`Incrementando progreso automáticamente: ${prev.toFixed(1)}% → ${newProgress.toFixed(1)}%`);
+      return newProgress;
+    });
+  };
+
+  // Procesar actualizaciones de progreso
   const updateProgress = (
     data: ChunkProgressData,
     elapsedTime: number
   ) => {
     if (!data) return;
     
-    // Mark time of this update
+    // Marcar tiempo de esta actualización y resetear el contador de heartbeat
     const now = Date.now();
     lastUpdateTimeRef.current = now;
+    heartbeatCountRef.current = 0;
     
-    // Log for debugging
-    console.log('Progress update received:', {
+    // Reiniciar el timer de inactividad
+    startInactivityTimer();
+    
+    // Log para depuración
+    console.log('Actualización de progreso recibida:', {
       progress: data.progress,
       processedChunks: data.processedChunks,
       totalChunks: data.totalChunks,
@@ -47,7 +103,7 @@ export const useProgressManagement = (initialProgress: number = 0) => {
       hasError: !!data.error
     });
     
-    // If we receive completed signal, go to 100%
+    // Si recibimos señal de completado, ir a 100%
     if (data.isCompleted) {
       setProgress(100);
       return;
@@ -60,14 +116,14 @@ export const useProgressManagement = (initialProgress: number = 0) => {
       // No retornamos para seguir procesando datos parciales
     }
     
-    // Update chunk counters if available
+    // Actualizar contadores de chunks si están disponibles
     if (typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
       setProcessedChunks(data.processedChunks);
       setTotalChunks(data.totalChunks);
       
       // Si tenemos chunks pero no caracteres, calculamos progreso basado en chunks
       if (!data.processedCharacters && !data.progress) {
-        const chunkProgress = Math.round((data.processedChunks / data.totalChunks) * 100);
+        const chunkProgress = Math.round((data.processedChunks / Math.max(1, data.totalChunks)) * 100);
         
         // Solo si es mayor que el progreso actual o el último válido
         if (chunkProgress > progress || chunkProgress > lastValidProgressRef.current) {
@@ -78,7 +134,7 @@ export const useProgressManagement = (initialProgress: number = 0) => {
       }
     }
     
-    // Update character counters if available
+    // Actualizar contadores de caracteres si están disponibles
     if (typeof data.processedCharacters === 'number') {
       processedCharsRef.current = data.processedCharacters;
     }
@@ -87,57 +143,56 @@ export const useProgressManagement = (initialProgress: number = 0) => {
       totalCharsRef.current = data.totalCharacters;
     }
     
-    // Update speed if we have character data
+    // Actualizar velocidad si tenemos datos de caracteres
     if (processedCharsRef.current > 0 && elapsedTime > 0) {
       const charsPerSecond = processedCharsRef.current / Math.max(1, elapsedTime);
       setSpeed(charsPerSecond);
     }
     
-    // Determine new progress value
+    // Determinar nuevo valor de progreso
     let newProgress: number | undefined;
     
-    // 1. Use direct progress if available
+    // 1. Usar progreso directo si está disponible
     if (typeof data.progress === 'number' && !isNaN(data.progress)) {
       newProgress = data.progress;
     }
-    // 2. Calculate based on characters if available
+    // 2. Calcular basado en caracteres si están disponibles
     else if (processedCharsRef.current > 0 && totalCharsRef.current > 0) {
       newProgress = Math.round((processedCharsRef.current / totalCharsRef.current) * 100);
     }
-    // 3. Calculate based on chunks if available (redundante pero por seguridad)
+    // 3. Calcular basado en chunks si están disponibles
     else if (data.processedChunks && data.totalChunks) {
-      newProgress = Math.round((data.processedChunks / data.totalChunks) * 100);
+      newProgress = Math.round((data.processedChunks / Math.max(1, data.totalChunks)) * 100);
     }
     
-    // If we have a valid value, update progress
+    // Si tenemos un valor válido, actualizar progreso
     if (typeof newProgress === 'number' && !isNaN(newProgress)) {
-      // Limit between 1% and 100%
+      // Limitar entre 1% y 100%
       newProgress = Math.max(1, Math.min(100, newProgress));
       
-      // Modificamos esta lógica para ser más sensible a cambios pequeños
       // Solo aceptamos progreso superior al actual o al último válido,
       // excepto en errores que podríamos permitir pequeñas reducciones
       if (newProgress >= progress || newProgress >= lastValidProgressRef.current) {
-        // Log for debugging
-        console.log(`Updating progress from ${progress}% to ${newProgress}%`);
+        // Log para depuración
+        console.log(`Actualizando progreso de ${progress}% a ${newProgress}%`);
         
-        // Exit auto-increment mode if we were in it
+        // Salir del modo de auto-incremento si estábamos en él
         if (autoIncrementRef.current) {
-          console.log(`Exiting auto-increment mode with real progress: ${newProgress}%`);
+          console.log(`Saliendo del modo auto-increment con progreso real: ${newProgress}%`);
           autoIncrementRef.current = false;
         }
         
         // Guardar el último progreso válido
         lastValidProgressRef.current = Math.max(lastValidProgressRef.current, newProgress);
         
-        // Update progress and record
+        // Actualizar progreso y registrar
         setProgress(newProgress);
         progressHistoryRef.current.push({time: now, value: newProgress});
       }
     }
   };
 
-  // Handle auto-increment logic with mejoras
+  // Manejar lógica de auto-incremento con mejoras
   const handleAutoIncrement = () => {
     const now = Date.now();
     const secondsSinceLastUpdate = (now - lastUpdateTimeRef.current) / 1000;
@@ -151,22 +206,38 @@ export const useProgressManagement = (initialProgress: number = 0) => {
       // Limitar a un máximo de 95%
       const newProgress = Math.min(95, progress + increment);
       
-      // Record that we're in auto-increment mode
+      // Registrar que estamos en modo auto-incremento
       if (!autoIncrementRef.current) {
         console.log('Activando auto-increment mode por inactividad');
         autoIncrementRef.current = true;
       }
       
-      console.log(`Auto-incrementing progress: ${progress}% → ${newProgress}%`);
+      console.log(`Auto-incrementando progreso: ${progress}% → ${newProgress}%`);
       setProgress(newProgress);
       
-      // Only record for analysis
+      // Registrar solo para análisis
       progressHistoryRef.current.push({time: now, value: newProgress});
       
       return newProgress;
     }
     
     return progress;
+  };
+
+  // Función para resetear completamente el progreso
+  const resetProgress = () => {
+    setProgress(1);
+    setProcessedChunks(0);
+    setTotalChunks(0);
+    setSpeed(0);
+    processedCharsRef.current = 0;
+    totalCharsRef.current = 0;
+    lastValidProgressRef.current = 1;
+    progressHistoryRef.current = [];
+    autoIncrementRef.current = false;
+    lastUpdateTimeRef.current = Date.now();
+    errorCountRef.current = 0;
+    heartbeatCountRef.current = 0;
   };
 
   return {
@@ -177,6 +248,7 @@ export const useProgressManagement = (initialProgress: number = 0) => {
     speed,
     updateProgress,
     handleAutoIncrement,
+    resetProgress,
     lastUpdateTimeRef,
     progressHistoryRef,
     processedCharsRef,

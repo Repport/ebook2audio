@@ -9,40 +9,85 @@ export const useTimeCalculation = (
   const [elapsedTime, setElapsedTime] = useState<number>(initialElapsedTime || 0);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(estimatedSeconds || 120);
   
-  // References for persistent data
+  // Referencias para persistent data
   const startTimeRef = useRef<number>(initialElapsedTime ? (Date.now() - initialElapsedTime * 1000) : Date.now());
   const elapsedTimeRef = useRef<number>(initialElapsedTime || 0);
   const timeRemainingHistoryRef = useRef<number[]>([]);
   const hasInitializedRef = useRef<boolean>(initialElapsedTime ? true : false);
+  const lastProgressRef = useRef<number>(0);
+  const progressSpeedRef = useRef<number[]>([]);
 
   // Initialize timer when status changes
   useEffect(() => {
     if (status === 'converting' || status === 'processing') {
       // Only initialize start time if first time or changing from completed/error
-      if (!hasInitializedRef.current || ['completed', 'error'].includes(status as string)) {
+      if (!hasInitializedRef.current || ['completed', 'error', 'idle'].includes(status as string)) {
         console.log('Initializing start time for conversion');
         startTimeRef.current = Date.now() - (elapsedTimeRef.current * 1000); // Maintain elapsed time
         hasInitializedRef.current = true;
+        
+        // Also update time remaining with fresh estimate
+        setTimeRemaining(estimatedSeconds || (textLength ? Math.ceil(textLength / 1000) : 120));
       }
       
       // Reset history if coming from completed/error
-      if (['completed', 'error'].includes(status as string)) {
+      if (['completed', 'error', 'idle'].includes(status as string)) {
         timeRemainingHistoryRef.current = [];
+        progressSpeedRef.current = [];
+        lastProgressRef.current = 0;
       }
     } 
     else if (status === 'completed') {
       setTimeRemaining(0);
     }
-  }, [status, initialElapsedTime]);
+  }, [status, initialElapsedTime, estimatedSeconds, textLength]);
 
   // Calculate time remaining based on progress and elapsed time
   const calculateTimeRemaining = (progress: number): number => {
-    // Early stage of conversion
+    // Track progress speed for better estimation
+    const now = Date.now();
+    const currentElapsed = elapsedTime;
+
+    // If we just started, use the initial estimate
     if (elapsedTime < 3 || progress <= 1) {
-      return estimatedSeconds || 120; // Reasonable initial value
+      return estimatedSeconds || (textLength ? Math.ceil(textLength / 1000) : 120);
+    }
+
+    // Calculate progress speed if we have enough data
+    if (progress > lastProgressRef.current && progress > 1) {
+      const progressDelta = progress - lastProgressRef.current;
+      const timeDelta = elapsedTime - elapsedTimeRef.current;
+      
+      if (timeDelta > 0 && progressDelta > 0) {
+        const speed = progressDelta / timeDelta; // % per second
+        progressSpeedRef.current.push(speed);
+        
+        // Keep only the last 5 values
+        if (progressSpeedRef.current.length > 5) {
+          progressSpeedRef.current.shift();
+        }
+        
+        lastProgressRef.current = progress;
+        elapsedTimeRef.current = elapsedTime;
+      }
     }
     
-    // Standard calculation based on progress and elapsed time
+    // Calculate based on progress speed history if available
+    if (progressSpeedRef.current.length > 0) {
+      // Use average of last speeds for stability
+      const avgSpeed = progressSpeedRef.current.reduce((a, b) => a + b, 0) / progressSpeedRef.current.length;
+      
+      if (avgSpeed > 0) {
+        const remainingProgress = 100 - progress;
+        const remainingTime = remainingProgress / avgSpeed;
+        
+        // Apply some corrections based on text length if available
+        const correction = textLength ? Math.min(1.5, textLength / 100000) : 1;
+        return Math.max(1, Math.ceil(remainingTime * correction));
+      }
+    }
+    
+    // Standard calculation based on progress and elapsed time as fallback
     const percentComplete = Math.max(0.01, progress / 100);
     const estimatedTotalTime = elapsedTime / percentComplete;
     const remaining = Math.max(1, estimatedTotalTime - elapsedTime);
@@ -92,11 +137,23 @@ export const useTimeCalculation = (
     setTimeRemaining(smoothedTime);
   };
 
+  // Reset function to clear all state
+  const resetTimeCalculation = () => {
+    timeRemainingHistoryRef.current = [];
+    progressSpeedRef.current = [];
+    lastProgressRef.current = 0;
+    elapsedTimeRef.current = 0;
+    setElapsedTime(0);
+    setTimeRemaining(estimatedSeconds);
+    startTimeRef.current = Date.now();
+  };
+
   return {
     elapsedTime,
     setElapsedTime,
     timeRemaining,
     updateTimeRemaining,
+    resetTimeCalculation,
     startTimeRef,
     elapsedTimeRef
   };
