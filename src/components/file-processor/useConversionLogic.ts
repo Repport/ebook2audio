@@ -18,11 +18,23 @@ export const useConversionLogic = (
     onStepComplete
   );
   
-  // Get conversion actions
+  // Get conversion actions - pass the full core object which now implements AudioConversionAPI
   const actions = useConversionActions(
     selectedFile,
     extractedText,
-    core,
+    {
+      conversionStatus: core.conversionStatus,
+      progress: core.progress,
+      audioData: core.audioData,
+      audioDuration: core.audioDuration,
+      elapsedTime: core.elapsedTime,
+      conversionId: core.conversionId,
+      setProgress: core.setProgress,
+      setConversionStatus: core.setConversionStatus,
+      resetConversion: core.resetConversion,
+      handleConversion: core.handleConversion,
+      handleDownload: core.handleDownload
+    },
     core.checkTermsAcceptance,
     core.setShowTerms,
     core.setDetectingChapters,

@@ -43,7 +43,7 @@ export const useConversionCore = (
   // Initialize the progress watcher
   watchConversionProgress();
   
-  // Unified return for the core hook
+  // Return an object that fully implements the AudioConversionAPI interface
   return {
     // State
     conversionStatus: audioConversion.conversionStatus,
@@ -52,6 +52,10 @@ export const useConversionCore = (
     audioDuration: audioConversion.audioDuration,
     elapsedTime: audioConversion.elapsedTime,
     conversionId: audioConversion.conversionId,
+    
+    // These methods need to be passed through from audioConversion
+    handleConversion: audioConversion.handleConversion,
+    handleDownload: audioConversion.handleDownload,
     
     // Conversion options
     detectChapters,
