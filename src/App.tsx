@@ -1,74 +1,36 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Index from '@/pages/Index';
+import Auth from '@/pages/Auth';
+import Settings from '@/pages/Settings';
+import Conversions from '@/pages/Conversions';
+import Monitoring from '@/pages/Monitoring';
+import Privacy from '@/pages/Privacy';
+import CookiePolicy from '@/pages/CookiePolicy';
+import NotFound from '@/pages/NotFound';
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+import CookieConsent from "@/components/CookieConsent"
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { ThemeProvider } from "next-themes";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Privacy from "./pages/Privacy";
-import CookiePolicy from "./pages/CookiePolicy";
-import Auth from "./pages/Auth";
-import Settings from "./pages/Settings";
-import Conversions from "./features/conversions/pages/Conversions";
-import CookieConsentBanner from "./components/CookieConsent";
-import { LanguageProvider } from "./hooks/useLanguage";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
-
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-  
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
-  
-  if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
-  }
-  
-  return <>{children}</>;
-};
-
-const queryClient = new QueryClient();
-
-const AppRoutes = () => (
-  <Routes>
-    <Route path="/" element={<Index />} />
-    <Route path="/auth" element={<Auth />} />
-    <Route path="/settings" element={<Settings />} />
-    <Route 
-      path="/conversions" 
-      element={
-        <ProtectedRoute>
-          <Conversions />
-        </ProtectedRoute>
-      } 
-    />
-    <Route path="/privacy" element={<Privacy />} />
-    <Route path="/cookie-policy" element={<CookiePolicy />} />
-    <Route path="*" element={<NotFound />} />
-  </Routes>
-);
-
-const App = () => (
-  <AuthProvider>
-    <LanguageProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <TooltipProvider>
-              <AppRoutes />
-              <Toaster />
-              <Sonner />
-              <CookieConsentBanner />
-            </TooltipProvider>
-          </ThemeProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </LanguageProvider>
-  </AuthProvider>
-);
+function App() {
+  return (
+    <BrowserRouter>
+      <ThemeProvider>
+        <Toaster />
+        <CookieConsent />
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/conversions" element={<Conversions />} />
+          <Route path="/monitoring" element={<Monitoring />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/cookie-policy" element={<CookiePolicy />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </ThemeProvider>
+    </BrowserRouter>
+  );
+}
 
 export default App;

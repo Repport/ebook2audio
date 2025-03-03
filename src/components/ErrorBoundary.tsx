@@ -2,11 +2,13 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LoggingService } from '@/utils/loggingService';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   onReset?: () => void;
+  componentName?: string;
 }
 
 interface State {
@@ -28,7 +30,18 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('Error caught by ErrorBoundary:', error, errorInfo);
+    const componentName = this.props.componentName || 'Unknown Component';
+    
+    // Log to console
+    console.error(`Error caught by ErrorBoundary in ${componentName}:`, error, errorInfo);
+    
+    // Log to our monitoring system
+    LoggingService.error('user_action', {
+      message: `React Error: ${error.message}`,
+      component: componentName,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   resetError = (): void => {

@@ -1,4 +1,4 @@
-
+import React from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,83 +6,79 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-import { User } from "@supabase/supabase-js";
-import UserAvatar from "./UserAvatar";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+  DropdownMenuGroup,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { UserAvatar } from "@/components/UserAvatar"
+import { useAuth } from "@/hooks/useAuth"
+import { LogOut, Settings, List, LogIn, Activity } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
-interface UserMenuProps {
-  user: User | null;
-}
-
-const UserMenu = ({ user }: UserMenuProps) => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
+const UserMenu = () => {
+  const { signOut, user } = useAuth()
+  const navigate = useNavigate()
 
   const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast({
-        title: "Signed out successfully",
-        description: "You have been signed out of your account.",
-      });
-      navigate("/auth");
-    } catch (error) {
-      toast({
-        title: "Error signing out",
-        description: "There was a problem signing out. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+    await signOut()
+    navigate("/auth")
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <UserAvatar user={user} />
+          <UserAvatar />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.email}</p>
+            {user && (
+              <p className="text-sm font-medium leading-none">{user.email}</p>
+            )}
+            <p className="text-xs leading-none text-muted-foreground">
+              {user ? 'Manage your account' : 'Sign in to your account'}
+            </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Button
-            variant="ghost"
-            className="w-full justify-start"
-            onClick={() => navigate("/conversions")}
-          >
-            My Conversions
-          </Button>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Button
-            variant="ghost"
-            className="w-full justify-start"
-            onClick={() => navigate("/settings")}
-          >
-            Settings
-          </Button>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Button
-            variant="ghost"
-            className="w-full justify-start"
-            onClick={handleSignOut}
-          >
-            Sign out
-          </Button>
+        <DropdownMenuGroup>
+          {user ? (
+            <>
+              <DropdownMenuItem onClick={() => navigate("/settings")}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/conversions")}>
+                <List className="mr-2 h-4 w-4" />
+                <span>Your Conversions</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/monitoring")}>
+                <Activity className="mr-2 h-4 w-4" />
+                <span>System Monitoring</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </>
+          ) : (
+            <DropdownMenuItem onClick={() => navigate("/auth")}>
+              <LogIn className="mr-2 h-4 w-4" />
+              <span>Log in</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem disabled>
+          {/* eslint-disable-next-line react/jsx-no-target-blank */}
+          <a href="https://lovable.ai" target="_blank" rel="noopener noreferrer">
+            About
+          </a>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-};
+  )
+}
 
-export default UserMenu;
+export default UserMenu
