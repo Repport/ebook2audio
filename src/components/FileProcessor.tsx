@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
 import { Chapter } from '@/utils/textExtraction';
-import { useConversionLogic } from './file-processor/useConversionLogic';
 import { useLanguage } from "@/hooks/useLanguage";
 import { toast } from "@/hooks/use-toast";
 import { FileProcessorProvider } from '@/context/FileProcessorContext';
@@ -12,6 +11,7 @@ import BackButton from './file-processor/BackButton';
 import ProcessorTabs from './file-processor/ProcessorTabs';
 import ProcessorTabContent from './file-processor/ProcessorTabContent';
 import FileProcessorTerms from './file-processor/FileProcessorTerms';
+import { useConversionLogic } from './file-processor/useConversionLogic';
 
 interface FileProcessorProps {
   selectedFile: File;
