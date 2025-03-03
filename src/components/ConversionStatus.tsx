@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -78,15 +79,15 @@ const ConversionStatus = ({
   // Reenviar actualizaciones de progreso al componente padre
   useEffect(() => {
     if (onProgressUpdate) {
+      // Fix: The subscribe method expects a single callback function
       const unsubscribe = useConversionStore.subscribe(
-        state => ({
-          progress: state.progress,
-          processedChunks: state.chunks.processed,
-          totalChunks: state.chunks.total,
-          elapsedTime: state.time.elapsed
-        }),
-        (data) => {
-          onProgressUpdate(data);
+        (state) => {
+          onProgressUpdate({
+            progress: state.progress,
+            processedChunks: state.chunks.processed,
+            totalChunks: state.chunks.total,
+            elapsedTime: state.time.elapsed
+          });
         }
       );
       
