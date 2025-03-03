@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import React from 'react';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
@@ -42,10 +43,11 @@ export interface ConversionState {
   completeConversion: (audio: ArrayBuffer, id: string, duration: number) => void;
   resetConversion: () => void;
   updateTime: () => void;
+  updateElapsedTime: (elapsed: number, startTime: number) => void;
 }
 
 // Estado inicial
-const initialState: Omit<ConversionState, 'startConversion' | 'updateProgress' | 'setError' | 'setWarning' | 'completeConversion' | 'resetConversion' | 'updateTime'> = {
+const initialState: Omit<ConversionState, 'startConversion' | 'updateProgress' | 'setError' | 'setWarning' | 'completeConversion' | 'resetConversion' | 'updateTime' | 'updateElapsedTime'> = {
   status: 'idle',
   progress: 0,
   chunks: {
@@ -211,6 +213,15 @@ export const useConversionStore = create<ConversionState>((set, get) => ({
       }
     }
   },
+  
+  // New method to update elapsed time safely
+  updateElapsedTime: (elapsed, startTime) => set(state => ({
+    time: {
+      ...state.time,
+      elapsed,
+      startTime
+    }
+  })),
   
   // Establecer error
   setError: (error) => set(state => ({
