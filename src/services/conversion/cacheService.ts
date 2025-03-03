@@ -6,10 +6,6 @@ import { downloadFromStorage, uploadToStorage } from './storage/cacheStorage';
 
 const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
 
-interface CacheRecord {
-  storage_path: string;
-}
-
 export async function checkCache(textHash: string): Promise<{ storagePath: string | null; error: CacheError | null }> {
   try {
     console.log('Checking cache for text hash:', textHash);
@@ -20,10 +16,11 @@ export async function checkCache(textHash: string): Promise<{ storagePath: strin
         .select('storage_path')
         .eq('text_hash', textHash)
         .eq('status', 'completed')
+        .eq('is_cached', true)
         .gt('expires_at', new Date().toISOString())
         .maybeSingle();
       
-      return { data: data as CacheRecord | null, error };
+      return { data, error };
     });
 
     if (result.data?.storage_path) {
@@ -76,11 +73,24 @@ export async function saveToCache(
             file_name: fileName,
             file_size: audioBuffer.byteLength,
             expires_at: expiresAt.toISOString(),
-            status: 'completed'
+            status: 'completed',
+            is_cached: true,
+            cache_created_at: now.toISOString()
           });
         
         if (error?.code === '23505') {
           console.log('Conversion already exists in completed state');
+          
+          // Update the existing record to mark as cached
+          const { error: updateError } = await supabase
+            .from('text_conversions')
+            .update({
+              is_cached: true,
+              cache_created_at: now.toISOString()
+            })
+            .eq('text_hash', textHash);
+            
+          if (updateError) throw updateError;
           return { error: null };
         }
         
@@ -91,46 +101,46 @@ export async function saveToCache(
     );
 
     console.log('Successfully saved cache record to database');
+    
+    // Log this caching operation to system_logs
+    await supabase.from('system_logs').insert({
+      event_type: 'cache',
+      entity_id: null,
+      details: {
+        text_hash: textHash,
+        file_name: fileName,
+        file_size: audioBuffer.byteLength,
+        storage_path: storagePath
+      },
+      status: 'success'
+    });
+    
     return { error: null };
   } catch (error) {
     console.error('Cache save failed:', error);
+    
+    // Log the error
+    await supabase.from('system_logs').insert({
+      event_type: 'cache',
+      details: {
+        text_hash: textHash,
+        file_name: fileName,
+        error: error.message
+      },
+      status: 'error'
+    });
+    
     return { error: error as Error };
   }
 }
 
 export async function cleanupExpiredCache(): Promise<{ error: Error | null }> {
   try {
-    const now = new Date().toISOString();
+    // We'll now use the improved cleanup_expired function directly
+    const { error } = await supabase.rpc('cleanup_expired');
     
-    const { data: expiredRecords, error: fetchError } = await supabase
-      .from('text_conversions')
-      .select('storage_path')
-      .lt('expires_at', now)
-      .limit(100);
-
-    if (fetchError) throw new CacheError('Failed to fetch expired records', fetchError);
-
-    if (expiredRecords?.length) {
-      const storagePaths = expiredRecords
-        .map(record => (record as CacheRecord).storage_path)
-        .filter((path): path is string => !!path);
-
-      if (storagePaths.length > 0) {
-        const { error: storageError } = await supabase.storage
-          .from('audio_cache')
-          .remove(storagePaths);
-
-        if (storageError) throw new CacheError('Failed to delete expired files', storageError);
-      }
-    }
-
-    const { error: dbError } = await supabase
-      .from('text_conversions')
-      .delete()
-      .lt('expires_at', now);
-
-    if (dbError) throw new CacheError('Failed to delete expired records', dbError);
-
+    if (error) throw new CacheError('Failed to execute cleanup function', error);
+    
     return { error: null };
   } catch (error) {
     console.error('Cache cleanup failed:', error);

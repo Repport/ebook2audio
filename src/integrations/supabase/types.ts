@@ -319,6 +319,42 @@ export type Database = {
           },
         ]
       }
+      system_logs: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          entity_id: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       terms_acceptance_logs: {
         Row: {
           accepted_at: string
@@ -399,6 +435,7 @@ export type Database = {
       }
       text_conversions: {
         Row: {
+          cache_created_at: string | null
           created_at: string
           duration: number | null
           elapsed_time: number | null
@@ -407,6 +444,7 @@ export type Database = {
           file_name: string | null
           file_size: number | null
           id: string
+          is_cached: boolean | null
           notify_on_complete: boolean | null
           processed_characters: number | null
           processed_chunks: number | null
@@ -421,6 +459,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          cache_created_at?: string | null
           created_at?: string
           duration?: number | null
           elapsed_time?: number | null
@@ -429,6 +468,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
+          is_cached?: boolean | null
           notify_on_complete?: boolean | null
           processed_characters?: number | null
           processed_chunks?: number | null
@@ -443,6 +483,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          cache_created_at?: string | null
           created_at?: string
           duration?: number | null
           elapsed_time?: number | null
@@ -451,6 +492,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
+          is_cached?: boolean | null
           notify_on_complete?: boolean | null
           processed_characters?: number | null
           processed_chunks?: number | null
@@ -501,7 +543,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_system_logs_recent: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          entity_id: string | null
+          event_type: string | null
+          file_name: string | null
+          id: string | null
+          ip_address: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          event_type?: string | null
+          file_name?: never
+          id?: string | null
+          ip_address?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          event_type?: string | null
+          file_name?: never
+          id?: string | null
+          ip_address?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_chunk_progress: {
@@ -549,6 +626,14 @@ export type Database = {
           p_processed_chunks: number
           p_total_chunks: number
         }
+        Returns: undefined
+      }
+      migrate_logs_to_system_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      migrate_text_cache_data: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       set_statement_timeout: {

@@ -19,62 +19,31 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    console.log('Starting cleanup of expired conversions...')
+    console.log('Starting enhanced cleanup of expired conversions...')
 
-    // First get the storage paths of expired conversions
-    const { data: expiredConversions, error: fetchError } = await supabaseClient
-      .from('text_conversions')
-      .select('id, storage_path')
-      .lt('expires_at', new Date().toISOString())
-      .not('storage_path', 'is', null)
+    // Call the improved cleanup_expired function
+    const { error } = await supabaseClient.rpc('cleanup_expired')
 
-    if (fetchError) {
-      throw fetchError
+    if (error) {
+      throw error
     }
 
-    console.log(`Found ${expiredConversions?.length || 0} expired conversions`)
-
-    // Delete files from storage
-    for (const conversion of expiredConversions || []) {
-      if (conversion.storage_path) {
-        const { error: deleteError } = await supabaseClient
-          .storage
-          .from('audio_cache')
-          .remove([conversion.storage_path])
-
-        if (deleteError) {
-          console.error(`Error deleting file ${conversion.storage_path}:`, deleteError)
-        } else {
-          console.log(`Deleted file: ${conversion.storage_path}`)
-        }
-      }
-    }
-
-    // Delete expired conversion records and their chunks
-    const { error: deleteChunksError } = await supabaseClient
-      .from('conversion_chunks')
+    // Perform additional cleanup for system_logs table
+    const { error: logsCleanupError } = await supabaseClient
+      .from('system_logs')
       .delete()
-      .in('conversion_id', 
-        expiredConversions?.map(c => c.id) || []
-      )
+      .lt('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
 
-    if (deleteChunksError) {
-      console.error('Error deleting chunks:', deleteChunksError)
+    if (logsCleanupError) {
+      console.error('Error cleaning up old system logs:', logsCleanupError)
     }
 
-    const { error: deleteConversionsError } = await supabaseClient
-      .from('text_conversions')
-      .delete()
-      .lt('expires_at', new Date().toISOString())
-
-    if (deleteConversionsError) {
-      console.error('Error deleting conversions:', deleteConversionsError)
-    }
-
+    console.log('Cleanup completed successfully')
+    
     return new Response(
       JSON.stringify({ 
-        message: 'Cleanup completed', 
-        deleted: expiredConversions?.length || 0 
+        message: 'Enhanced cleanup completed successfully',
+        timestamp: new Date().toISOString()
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

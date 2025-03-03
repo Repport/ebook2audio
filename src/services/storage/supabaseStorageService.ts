@@ -17,6 +17,18 @@ export const updateSupabaseConversion = async (state: StoredConversionState): Pr
 
     if (error) {
       console.error('Error checking conversion:', error);
+      
+      // Log error to system_logs
+      await supabase.from('system_logs').insert({
+        event_type: 'conversion_update',
+        entity_id: state.conversionId,
+        details: {
+          error: error.message,
+          attempted_status: state.status
+        },
+        status: 'error'
+      });
+      
       return;
     }
 
@@ -42,28 +54,12 @@ export const updateSupabaseConversion = async (state: StoredConversionState): Pr
 
       // Only update time if defined
       if (state.elapsedTime !== undefined) {
-        // First check if the column exists to avoid errors
-        const { data: columns, error: columnError } = await supabase
-          .from('text_conversions')
-          .select('elapsed_time')
-          .limit(1);
-
-        if (!columnError && columns) {
-          updateData.elapsed_time = state.elapsedTime;
-        }
+        updateData.elapsed_time = state.elapsedTime;
       }
 
       // If starting conversion, save start time
       if (state.status === 'converting' && state.conversionStartTime) {
-        // Check if started_at column exists
-        const { data: columns, error: columnError } = await supabase
-          .from('text_conversions')
-          .select('started_at')
-          .limit(1);
-
-        if (!columnError && columns) {
-          updateData.started_at = new Date(state.conversionStartTime).toISOString();
-        }
+        updateData.started_at = new Date(state.conversionStartTime).toISOString();
       }
 
       const { error: updateError } = await supabase
@@ -73,6 +69,32 @@ export const updateSupabaseConversion = async (state: StoredConversionState): Pr
 
       if (updateError) {
         console.error('❌ Error updating conversion:', updateError);
+        
+        // Log error to system_logs
+        await supabase.from('system_logs').insert({
+          event_type: 'conversion_update',
+          entity_id: state.conversionId,
+          details: {
+            error: updateError.message,
+            attempted_status: state.status,
+            attempted_progress: state.progress
+          },
+          status: 'error'
+        });
+      } else {
+        // Log successful update to system_logs if it's a significant state change
+        if (state.status === 'completed' || state.status === 'error' || state.status === 'converting') {
+          await supabase.from('system_logs').insert({
+            event_type: 'conversion_update',
+            entity_id: state.conversionId,
+            details: {
+              new_status: state.status,
+              progress: state.progress,
+              elapsed_time: state.elapsedTime
+            },
+            status: state.status
+          });
+        }
       }
     } else {
       console.warn('⚠️ Conversion not updated:', {
@@ -82,6 +104,19 @@ export const updateSupabaseConversion = async (state: StoredConversionState): Pr
     }
   } catch (error) {
     console.error('❌ Error updating Supabase conversion:', error);
+    
+    // Log unexpected errors
+    if (state.conversionId) {
+      await supabase.from('system_logs').insert({
+        event_type: 'conversion_update',
+        entity_id: state.conversionId,
+        details: {
+          error: error.message,
+          stack: error.stack
+        },
+        status: 'error'
+      });
+    }
   }
 };
 
@@ -101,14 +136,24 @@ export const fetchSupabaseConversion = async (conversionId: string, state: Store
 
     if (basicError) {
       console.error('❌ Error loading basic conversion state:', basicError);
+      
+      // Log error to system_logs
+      await supabase.from('system_logs').insert({
+        event_type: 'conversion_fetch',
+        entity_id: conversionId,
+        details: {
+          error: basicError.message
+        },
+        status: 'error'
+      });
+      
       return state;
     }
 
     if (basicData) {
       console.log('✅ Basic conversion state found:', basicData);
       
-      // Update state with basic data - THIS IS WHERE THE TYPE ERROR WAS
-      // Fix: Cast the status to the correct union type
+      // Update state with basic data
       state.status = basicData.status as 'idle' | 'converting' | 'completed' | 'error';
       state.progress = basicData.progress;
       
@@ -146,11 +191,33 @@ export const fetchSupabaseConversion = async (conversionId: string, state: Store
       state.status = 'idle';
       state.progress = 0;
       state.conversionId = undefined;
+      
+      // Log to system_logs
+      await supabase.from('system_logs').insert({
+        event_type: 'conversion_fetch',
+        entity_id: conversionId,
+        details: {
+          error: 'Conversion not found'
+        },
+        status: 'warning'
+      });
     }
     
     return state;
   } catch (error) {
     console.error('❌ Error fetching Supabase conversion:', error);
+    
+    // Log error to system_logs
+    await supabase.from('system_logs').insert({
+      event_type: 'conversion_fetch',
+      entity_id: conversionId,
+      details: {
+        error: error.message,
+        stack: error.stack
+      },
+      status: 'error'
+    });
+    
     return state;
   }
 };
