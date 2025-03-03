@@ -42,9 +42,13 @@ const Progress = React.forwardRef<
     success: "bg-green-500",
   };
 
+  // Añadimos un efecto pulsante para cuando está en proceso de conversión
+  const pulseEffect = status === 'converting' ? "animate-pulse" : "";
+
+  // Mejoramos el efecto shimmer para que sea más visible
   const shimmerEffect = 
-    "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent " +
-    "before:animate-[shimmer_2s_infinite] before:content-['']";
+    "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent " +
+    "before:animate-[shimmer_1.5s_infinite] before:content-['']";
 
   return (
     <ProgressPrimitive.Root
@@ -59,7 +63,8 @@ const Progress = React.forwardRef<
       <ProgressPrimitive.Indicator
         className={cn(
           "h-full w-full flex-1 transition-transform duration-300 ease-out",
-          statusColors[status]
+          statusColors[status],
+          status === 'converting' && pulseEffect
         )}
         style={{ 
           transform: `translateX(-${100 - displayValue}%)` 

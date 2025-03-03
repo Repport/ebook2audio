@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 import WarningsAndErrors from './WarningsAndErrors';
+import { LoadingSpinner } from '@/components/ui/spinner';
 
 interface ConversionStatusConvertingProps {
   message: string;
@@ -28,17 +29,20 @@ const ConversionStatusConverting = ({
   errors,
   showPercentage = true
 }: ConversionStatusConvertingProps) => {
+  // Aseguramos que el progreso nunca sea 0 para mantener la barra visible
+  const safeProgress = Math.max(1, progress);
+  
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative inline-flex items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" strokeWidth={2.5} />
+        <LoadingSpinner size="lg" className="text-primary" />
       </div>
       <p className="text-lg font-medium">
         {message}
       </p>
       <div className="w-full space-y-3">
         <Progress 
-          value={progress} 
+          value={safeProgress} 
           className="w-full" 
           showPercentage={showPercentage} 
           status="converting" 
@@ -60,6 +64,12 @@ const ConversionStatusConverting = ({
           {processedChunks > 0 && totalChunks > 0 && (
             <div>
               Procesando chunk {processedChunks} de {totalChunks}
+            </div>
+          )}
+          
+          {processedChunks === 0 && totalChunks > 0 && (
+            <div>
+              Iniciando procesamiento de {totalChunks} chunks...
             </div>
           )}
         </div>

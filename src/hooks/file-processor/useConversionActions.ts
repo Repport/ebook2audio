@@ -74,12 +74,17 @@ export const useConversionActions = (
     }
   }, [selectedFile, extractedText, audioConversion, checkTermsAcceptance, setShowTerms]);
 
+  // Creamos un sistema más robusto de manejo de progreso
+  const lastProgressRef = { current: 1 };
+  const errorCountRef = { current: 0 };
+
   const handleProgressUpdate = useCallback((data: ChunkProgressData) => {
     console.log('useConversionLogic - Progress update received:', data);
     
-    // Don't show toasts for chunk errors, just log to console
+    // Manejar errores sin dejar que afecten al progreso global
     if (data.error) {
       console.warn('useConversionLogic - Error processing chunk:', data.error);
+      errorCountRef.current += 1;
     }
     
     // Check if this is a completion message
@@ -90,24 +95,39 @@ export const useConversionActions = (
       return;
     }
     
+    // Calcular y actualizar el progreso basado en los datos disponibles
+    let newProgress = 0;
+    
     if (data.processedCharacters && data.totalCharacters) {
-      const newProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
-      console.log(`useConversionLogic - Setting progress to ${newProgress}%`);
-      audioConversion.setProgress(newProgress);
-      
-      // If progress is 100%, check if we should change state
-      if (newProgress >= 100) {
-        console.log('useConversionLogic - Progress reached 100%, setting to completed');
-        audioConversion.setConversionStatus('completed');
-      }
+      newProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
     } else if (typeof data.progress === 'number') {
-      console.log(`useConversionLogic - Setting direct progress: ${data.progress}%`);
-      audioConversion.setProgress(data.progress);
+      newProgress = data.progress;
+    } else if (data.processedChunks && data.totalChunks) {
+      newProgress = Math.round((data.processedChunks / data.totalChunks) * 100);
+    }
+    
+    // Garantizamos un progreso mínimo y no permitimos retrocesos
+    if (newProgress > 0) {
+      newProgress = Math.max(newProgress, lastProgressRef.current);
       
-      // Also check here if we've reached 100%
-      if (data.progress >= 100) {
-        console.log('useConversionLogic - Direct progress reached 100%');
-        audioConversion.setConversionStatus('completed');
+      // Solo actualizamos si hay un cambio significativo o es el progreso inicial
+      if (newProgress > lastProgressRef.current || audioConversion.progress <= 1) {
+        console.log(`useConversionLogic - Setting progress to ${newProgress}%`);
+        audioConversion.setProgress(newProgress);
+        lastProgressRef.current = newProgress;
+        
+        // Verificar si completamos la conversión
+        if (newProgress >= 100) {
+          console.log('useConversionLogic - Progress reached 100%, setting to completed');
+          audioConversion.setConversionStatus('completed');
+        }
+      }
+    } else {
+      // Cuando no tenemos datos de progreso pero estamos procesando
+      // asegurarnos de que al menos se muestre algo de progreso
+      if (audioConversion.progress < 1) {
+        console.log('useConversionLogic - Ensuring minimum progress visibility');
+        audioConversion.setProgress(1);
       }
     }
   }, [audioConversion]);
@@ -138,8 +158,14 @@ export const useConversionActions = (
 
     // Make sure we're not in a chapter detection state
     setDetectingChapters(false);
-    audioConversion.setConversionStatus('converting'); // Prevent duplicate conversions
-    audioConversion.setProgress(1); // Make sure we start from 1% for better UX
+    
+    // Establecemos inmediatamente el estado de conversión y un progreso inicial visible
+    audioConversion.setConversionStatus('converting');
+    audioConversion.setProgress(1);
+    
+    // Resetear contadores
+    lastProgressRef.current = 1;
+    errorCountRef.current = 0;
     
     try {
       console.log('useConversionLogic - Starting conversion with text length:', extractedText.length);
@@ -156,7 +182,7 @@ export const useConversionActions = (
             handleProgressUpdate
           );
         },
-        { maxRetries: 2, baseDelay: 1000 } // Fixed property name: delayMs → baseDelay
+        { maxRetries: 2, baseDelay: 1000 }
       );
       
       if (!result) {
@@ -188,7 +214,7 @@ export const useConversionActions = (
       toast({
         title: "Conversion complete",
         description: "Your audio file is ready to download",
-        variant: "success", // Changed back to "success" now that it's supported
+        variant: "success",
       });
       
     } catch (error: any) {
@@ -241,7 +267,7 @@ export const useConversionActions = (
       toast({
         title: "Download started",
         description: "Your audio file is being downloaded",
-        variant: "success", // Changed back to "success" now that it's supported
+        variant: "success",
       });
     } catch (error) {
       console.error('useConversionLogic - Download error:', error);

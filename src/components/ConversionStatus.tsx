@@ -43,11 +43,20 @@ const ConversionStatus = ({
   const isMountedRef = useRef(true);
   const progressUpdateTimeoutRef = useRef<number | null>(null);
   const [stableStatus, setStableStatus] = useState(status);
+  const [initialRenderCompleted, setInitialRenderCompleted] = useState(false);
   
   // Para mejor depuración
   useEffect(() => {
-    console.log(`ConversionStatus - Status changed from ${stableStatus} to ${status}`);
-  }, [status, stableStatus]);
+    console.log(`ConversionStatus - Status changed from ${stableStatus} to ${status}, progress: ${progress}%`);
+  }, [status, stableStatus, progress]);
+  
+  // Para asegurar que el progreso inicial sea visible inmediatamente
+  useEffect(() => {
+    if (!initialRenderCompleted && (status === 'converting' || status === 'processing')) {
+      console.log('ConversionStatus - Initial render with conversion status, ensuring progress visibility');
+      setInitialRenderCompleted(true);
+    }
+  }, [status, initialRenderCompleted]);
   
   // For consistency if the state is processing but the UI component shows "converting"
   const displayStatus = status === 'processing' ? 'converting' : status;
@@ -61,13 +70,15 @@ const ConversionStatus = ({
           setStableStatus(status);
           console.log(`ConversionStatus - stableStatus updated to ${status}`);
         }
-      }, 150);
+      }, 100); // Reducido de 150ms a 100ms
       
       return () => clearTimeout(timer);
     }
   }, [status, stableStatus]);
 
-  // Use improved progress hook
+  // Use improved progress hook - aseguramos un progreso inicial mínimo
+  const safeInitialProgress = Math.max(1, progress);
+  
   const {
     progress: currentProgress,
     updateProgress,
@@ -81,7 +92,7 @@ const ConversionStatus = ({
     warnings
   } = useConversionProgress(
     stableStatus, 
-    progress, 
+    safeInitialProgress, 
     estimatedSeconds, 
     conversionId, 
     textLength, 

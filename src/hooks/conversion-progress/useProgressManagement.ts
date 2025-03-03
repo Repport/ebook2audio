@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
 export const useProgressManagement = (initialProgress: number = 0) => {
@@ -14,6 +14,16 @@ export const useProgressManagement = (initialProgress: number = 0) => {
   const totalCharsRef = useRef<number>(0);
   const autoIncrementRef = useRef<boolean>(false);
   const lastUpdateTimeRef = useRef<number>(Date.now());
+  const errorCountRef = useRef<number>(0);
+  const lastValidProgressRef = useRef<number>(Math.max(1, initialProgress));
+
+  // Inicializar el progreso mínimo garantizado
+  useEffect(() => {
+    if (progress < 1) {
+      console.log('Garantizando progreso mínimo del 1%');
+      setProgress(1);
+    }
+  }, []);
 
   // Process progress updates
   const updateProgress = (
@@ -33,7 +43,8 @@ export const useProgressManagement = (initialProgress: number = 0) => {
       totalChunks: data.totalChunks,
       processedChars: data.processedCharacters,
       totalChars: data.totalCharacters,
-      isCompleted: data.isCompleted
+      isCompleted: data.isCompleted,
+      hasError: !!data.error
     });
     
     // If we receive completed signal, go to 100%
@@ -41,11 +52,30 @@ export const useProgressManagement = (initialProgress: number = 0) => {
       setProgress(100);
       return;
     }
+
+    // Manejar errores sin interrumpir el progreso
+    if (data.error) {
+      errorCountRef.current += 1;
+      console.warn(`Error en chunk (${errorCountRef.current} errores totales): ${data.error}`);
+      // No retornamos para seguir procesando datos parciales
+    }
     
     // Update chunk counters if available
     if (typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
       setProcessedChunks(data.processedChunks);
       setTotalChunks(data.totalChunks);
+      
+      // Si tenemos chunks pero no caracteres, calculamos progreso basado en chunks
+      if (!data.processedCharacters && !data.progress) {
+        const chunkProgress = Math.round((data.processedChunks / data.totalChunks) * 100);
+        
+        // Solo si es mayor que el progreso actual o el último válido
+        if (chunkProgress > progress || chunkProgress > lastValidProgressRef.current) {
+          console.log(`Actualizando progreso basado en chunks: ${chunkProgress}%`);
+          setProgress(Math.max(1, chunkProgress));
+          lastValidProgressRef.current = Math.max(lastValidProgressRef.current, chunkProgress);
+        }
+      }
     }
     
     // Update character counters if available
@@ -74,7 +104,7 @@ export const useProgressManagement = (initialProgress: number = 0) => {
     else if (processedCharsRef.current > 0 && totalCharsRef.current > 0) {
       newProgress = Math.round((processedCharsRef.current / totalCharsRef.current) * 100);
     }
-    // 3. Calculate based on chunks if available
+    // 3. Calculate based on chunks if available (redundante pero por seguridad)
     else if (data.processedChunks && data.totalChunks) {
       newProgress = Math.round((data.processedChunks / data.totalChunks) * 100);
     }
@@ -85,12 +115,9 @@ export const useProgressManagement = (initialProgress: number = 0) => {
       newProgress = Math.max(1, Math.min(100, newProgress));
       
       // Modificamos esta lógica para ser más sensible a cambios pequeños
-      // Ahora requerimos un cambio más pequeño para aceptar valores externos
-      const significantChange = autoIncrementRef.current 
-        ? newProgress > progress + 2  // Solo requiere un salto de 2% en lugar de 5%
-        : newProgress >= progress;    // Cualquier incremento o valor igual es válido
-      
-      if (significantChange) {
+      // Solo aceptamos progreso superior al actual o al último válido,
+      // excepto en errores que podríamos permitir pequeñas reducciones
+      if (newProgress >= progress || newProgress >= lastValidProgressRef.current) {
         // Log for debugging
         console.log(`Updating progress from ${progress}% to ${newProgress}%`);
         
@@ -100,6 +127,9 @@ export const useProgressManagement = (initialProgress: number = 0) => {
           autoIncrementRef.current = false;
         }
         
+        // Guardar el último progreso válido
+        lastValidProgressRef.current = Math.max(lastValidProgressRef.current, newProgress);
+        
         // Update progress and record
         setProgress(newProgress);
         progressHistoryRef.current.push({time: now, value: newProgress});
@@ -107,20 +137,23 @@ export const useProgressManagement = (initialProgress: number = 0) => {
     }
   };
 
-  // Handle auto-increment logic
+  // Handle auto-increment logic with mejoras
   const handleAutoIncrement = () => {
     const now = Date.now();
     const secondsSinceLastUpdate = (now - lastUpdateTimeRef.current) / 1000;
     
-    // If more than 5 seconds without updates (reduced from 10) and we're below 95%
-    if (secondsSinceLastUpdate > 5 && progress < 95) {
-      // Incrementar más rápido
-      const increment = Math.max(0.8, (100 - progress) / 80);
+    // Si llevamos más de 3 segundos sin actualizaciones y estamos por debajo del 95%
+    if (secondsSinceLastUpdate > 3 && progress < 95) {
+      // Incrementar más rápido al inicio y más lento cuando nos acercamos al 95%
+      const distanceToMax = 95 - progress;
+      const increment = Math.max(0.2, distanceToMax / 40);
+      
+      // Limitar a un máximo de 95%
       const newProgress = Math.min(95, progress + increment);
       
       // Record that we're in auto-increment mode
       if (!autoIncrementRef.current) {
-        console.log('Activating auto-increment mode due to inactivity');
+        console.log('Activando auto-increment mode por inactividad');
         autoIncrementRef.current = true;
       }
       
@@ -148,6 +181,8 @@ export const useProgressManagement = (initialProgress: number = 0) => {
     progressHistoryRef,
     processedCharsRef,
     totalCharsRef,
-    autoIncrementRef
+    autoIncrementRef,
+    lastValidProgressRef,
+    errorCountRef
   };
 };
