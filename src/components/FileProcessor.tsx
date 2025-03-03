@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -63,7 +62,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     resetConversion
   } = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
 
-  // Cambiar la pestaña activa cuando cambia el paso
   useEffect(() => {
     if (currentStep === 2) {
       setActiveTab("voice-settings");
@@ -74,7 +72,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     }
   }, [currentStep]);
 
-  // Efecto para manejar cambios en el estado de conversión
   useEffect(() => {
     if (conversionStatus === 'completed' && currentStep === 2) {
       console.log('FileProcessor - Conversion completed, moving to next step');
@@ -82,7 +79,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     }
   }, [conversionStatus, currentStep, onNextStep]);
 
-  // Añadir un timeout para salir del estado "detectingChapters"
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null;
     
@@ -102,7 +98,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   const handleStartConversion = useCallback(async () => {
     console.log('FileProcessor - handleStartConversion called');
     
-    // Evitar múltiples envíos
     if (isProcessingNextStep) {
       console.log('FileProcessor - Already processing, ignoring request');
       return false;
@@ -111,7 +106,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     setIsProcessingNextStep(true);
     
     try {
-      // Verificar que todos los datos necesarios estén presentes
       if (!selectedFile || !extractedText || !selectedVoice) {
         console.log('FileProcessor - Missing required data for conversion', {
           hasFile: !!selectedFile,
@@ -129,7 +123,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         return false;
       }
 
-      // Detener cualquier detección de capítulos activa antes de iniciar la conversión
       if (detectingChapters) {
         setDetectChapters(false);
       }
@@ -149,17 +142,13 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
       }
 
       if (showTerms) {
-        // Los términos se mostrarán, esperamos a la aceptación
         console.log('FileProcessor - Terms will be shown');
-        // No desactivamos isProcessingNextStep aquí, lo haremos después de la aceptación
         return true;
       }
 
-      // Si no necesitamos mostrar términos, iniciar conversión directamente e ir al siguiente paso
       console.log('FileProcessor - Starting conversion directly');
-      onNextStep(); // Avanzar inmediatamente al siguiente paso
+      onNextStep();
       
-      // Iniciar la conversión después de avanzar
       await handleAcceptTerms({
         selectedVoice,
         notifyOnComplete
@@ -190,13 +179,11 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     setShowTerms(false);
     
     try {
-      // Avanzar al siguiente paso inmediatamente después de aceptar los términos
       if (currentStep === 2) {
         console.log('FileProcessor - Moving to next step after terms acceptance');
         onNextStep();
       }
       
-      // Iniciar la conversión después de avanzar
       await handleAcceptTerms({
         selectedVoice,
         notifyOnComplete
@@ -216,7 +203,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
 
   const handleGoBack = () => {
     console.log('FileProcessor - handleGoBack called, conversionStatus:', conversionStatus);
-    // Solo permitir volver si no estamos en medio de una conversión
     if (conversionStatus !== 'converting' && !detectingChapters && !isProcessingNextStep) {
       if (currentStep > 1) {
         console.log('FileProcessor - Going to previous step');
@@ -284,21 +270,21 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           <TabsTrigger 
             value="file-info" 
             disabled={currentStep > 2}
-            className="rounded-full py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+            className="rounded-full py-2 px-4 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
           >
             {translations.fileInfo || "File Information"}
           </TabsTrigger>
           <TabsTrigger 
             value="voice-settings" 
             disabled={currentStep < 2}
-            className="rounded-full py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+            className="rounded-full py-2 px-4 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
           >
             {translations.voiceSettings || "Voice Settings"}
           </TabsTrigger>
           <TabsTrigger 
             value="conversion" 
             disabled={currentStep < 3}
-            className="rounded-full py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
+            className="rounded-full py-2 px-4 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-800 dark:data-[state=active]:text-white data-[state=active]:shadow-sm"
           >
             {translations.conversionAndDownload || "Conversion & Download"}
           </TabsTrigger>
