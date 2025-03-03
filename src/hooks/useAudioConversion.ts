@@ -43,19 +43,28 @@ export const useAudioConversion = () => {
 
   // Wrap handleDownload to include audioData from state
   const handleDownloadWithAudioData = useCallback((fileName: string) => {
+    if (!audioState.audioData) {
+      console.error('Error: No audio data available for download');
+      return;
+    }
     handleDownload(fileName, audioState.audioData);
   }, [handleDownload, audioState.audioData]);
 
   return {
+    // State
     conversionStatus: audioState.conversionStatus,
     progress: audioState.progress,
     audioData: audioState.audioData,
     audioDuration: audioState.audioDuration,
+    elapsedTime: audioState.elapsedTime,
+    conversionId: audioState.conversionId,
+    
+    // Methods
     handleConversion,
     handleDownload: handleDownloadWithAudioData,
     resetConversion,
-    conversionId: audioState.conversionId,
-    elapsedTime: audioState.elapsedTime,
+    
+    // State setters
     setProgress: audioState.setProgress,
     setConversionStatus: audioState.setConversionStatus
   };

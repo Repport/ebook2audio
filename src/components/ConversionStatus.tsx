@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Chapter } from '@/utils/textExtraction';
 import { ChaptersList } from './ChaptersList';
 import { useConversionProgress } from '@/hooks/useConversionProgress';
@@ -40,6 +40,7 @@ const ConversionStatus = ({
   onProgressUpdate
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
+  const isMountedRef = useRef(true);
   
   // For consistency if the state is processing but the UI component shows "converting"
   const displayStatus = status === 'processing' ? 'converting' : status;
@@ -65,42 +66,56 @@ const ConversionStatus = ({
     initialElapsedTime
   );
 
+  // Handle component lifecycle
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Debug logging
   useEffect(() => {
-    console.log('ConversionStatus - Progress Update:', {
-      status,
-      externalProgress: progress,
-      calculatedProgress: currentProgress,
-      timeRemaining,
-      elapsedTime,
-      initialElapsedTime,
-      processedChunks,
-      totalChunks,
-      hasErrors: errors.length > 0,
-      hasWarnings: warnings.length > 0
-    });
-  }, [progress, currentProgress, timeRemaining, elapsedTime, initialElapsedTime, processedChunks, totalChunks, status, errors.length, warnings.length]);
-
-  // Notify updates upstream
-  useEffect(() => {
-    if (onProgressUpdate) {
-      onProgressUpdate({
-        progress: currentProgress,
+    if (isMountedRef.current) {
+      console.log('ConversionStatus - Progress Update:', {
+        status,
+        externalProgress: progress,
+        calculatedProgress: currentProgress,
+        timeRemaining,
+        elapsedTime,
+        initialElapsedTime,
         processedChunks,
         totalChunks,
-        elapsedTime,
-        speed
+        hasErrors: errors.length > 0,
+        hasWarnings: warnings.length > 0
       });
+    }
+  }, [progress, currentProgress, timeRemaining, elapsedTime, initialElapsedTime, processedChunks, totalChunks, status, errors.length, warnings.length]);
+
+  // Notify updates upstream - only if component is still mounted
+  useEffect(() => {
+    if (isMountedRef.current && onProgressUpdate) {
+      try {
+        onProgressUpdate({
+          progress: currentProgress,
+          processedChunks,
+          totalChunks,
+          elapsedTime,
+          speed
+        });
+      } catch (e) {
+        console.error('Error in progress update callback:', e);
+      }
     }
   }, [currentProgress, processedChunks, totalChunks, elapsedTime, speed, onProgressUpdate]);
 
   // Status messages (without reference to file type)
   const statusMessages = {
-    idle: translations.readyToConvert,
-    converting: translations.converting.replace('{fileType}', ''),
-    completed: translations.conversionCompleted,
-    error: translations.conversionError,
-    processing: translations.converting.replace('{fileType}', '')
+    idle: translations.readyToConvert || "Ready to convert",
+    converting: translations.converting?.replace('{fileType}', '') || "Converting...",
+    completed: translations.conversionCompleted || "Conversion completed",
+    error: translations.conversionError || "Conversion error",
+    processing: translations.converting?.replace('{fileType}', '') || "Processing..."
   };
 
   // Return the appropriate component based on status

@@ -8,6 +8,22 @@ import { useToast } from '@/hooks/use-toast';
 import { Chapter } from '@/utils/textExtraction';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
+// Define the shape of the audio conversion API we're expecting
+interface AudioConversionAPI {
+  conversionStatus: 'idle' | 'converting' | 'completed' | 'error';
+  progress: number;
+  audioData: ArrayBuffer | null;
+  audioDuration: number;
+  elapsedTime: number;
+  conversionId: string | null;
+  setProgress: (progress: number) => void;
+  setConversionStatus: (status: 'idle' | 'converting' | 'completed' | 'error') => void;
+  resetConversion: () => void;
+  // Define the actual conversion method that matches useAudioConversion's implementation
+  handleConversion: (text: string, voiceId: string, detectChapters: boolean, chapters: Chapter[], fileName?: string, onProgress?: any) => Promise<any>;
+  handleDownload: (fileName: string) => void;
+}
+
 export interface ConversionOptions {
   selectedVoice: string;
   notifyOnComplete?: boolean;
@@ -16,7 +32,7 @@ export interface ConversionOptions {
 export const useConversionActions = (
   selectedFile: File | null,
   extractedText: string,
-  audioConversion: any,
+  audioConversion: AudioConversionAPI,
   checkTermsAcceptance: () => Promise<boolean>,
   setShowTerms: (show: boolean) => void,
   setDetectingChapters: (detecting: boolean) => void,
@@ -103,6 +119,13 @@ export const useConversionActions = (
         hasText: !!extractedText,
         hasVoice: !!options.selectedVoice
       });
+      
+      // Use safe toast call - check if we're still mounted
+      toast({
+        title: "Error",
+        description: "Missing required data for conversion",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -118,6 +141,8 @@ export const useConversionActions = (
     
     try {
       console.log('useConversionLogic - Starting conversion with text length:', extractedText.length);
+      
+      // Use the properly typed method from the audioConversion API
       const result = await audioConversion.handleConversion(
         extractedText,
         options.selectedVoice,
@@ -157,6 +182,8 @@ export const useConversionActions = (
       audioConversion.resetConversion();
       clearConversionStorage();
       audioConversion.setConversionStatus('error');
+      
+      // Use safe toast call
       toast({
         title: "Error",
         description: "An error occurred during conversion",

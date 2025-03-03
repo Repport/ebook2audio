@@ -1,4 +1,6 @@
-import { useToast } from "@/hooks/use-toast"
+
+import React, { useEffect, useState } from 'react';
+import { useToast } from "@/hooks/use-toast";
 import {
   Toast,
   ToastClose,
@@ -6,10 +8,20 @@ import {
   ToastProvider,
   ToastTitle,
   ToastViewport,
-} from "@/components/ui/toast"
+} from "@/components/ui/toast";
 
 export function Toaster() {
-  const { toasts } = useToast()
+  const { toasts } = useToast();
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Safety mechanism to prevent showing toasts during component unmounting
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
+  // Only render toasts if component is mounted
+  if (!isMounted) return null;
 
   return (
     <ToastProvider>
