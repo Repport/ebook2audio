@@ -4,20 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-interface PerformanceMetric {
-  operation: string;
-  avg_duration_ms: number;
-  max_duration_ms: number;
-  min_duration_ms: number;
-  count: number;
-}
-
-interface PerformanceMetricsProps {
-  metrics: PerformanceMetric[];
-  isLoading: boolean;
-  onRefresh: () => void;
-}
+import { PerformanceMetricsProps } from '../types';
 
 /**
  * Performance metrics component
