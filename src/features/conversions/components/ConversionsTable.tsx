@@ -14,13 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
-interface Conversion {
+// Updated interface to include all required properties
+export interface Conversion {
   id: string;
   created_at: string;
   expires_at: string;
-  file_name: string;
-  file_size: number;
-  storage_path: string;
+  file_name: string | null;
+  file_size: number | null;
+  storage_path: string | null;
   status: string;
 }
 
@@ -37,7 +38,7 @@ const ConversionsTable = ({
   onDownload,
   onDelete,
 }: ConversionsTableProps) => {
-  const formatFileSize = (bytes: number): string => {
+  const formatFileSize = (bytes: number | null): string => {
     if (!bytes) return "N/A";
     const mb = bytes / (1024 * 1024);
     return `${mb.toFixed(1)} MB`;
@@ -143,7 +144,7 @@ const ConversionsTable = ({
                   size="icon"
                   disabled={conversion.status !== 'completed' || !conversion.storage_path}
                   onClick={() =>
-                    onDownload(conversion.storage_path, conversion.file_name || `audio_${conversion.id}.mp3`)
+                    onDownload(conversion.storage_path || "", conversion.file_name || `audio_${conversion.id}.mp3`)
                   }
                   title={conversion.status !== 'completed' ? "La conversión debe estar completa para descargar" : "Descargar"}
                 >

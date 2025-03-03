@@ -1,24 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import ConversionsTable from '@/features/conversions/components/ConversionsTable';
+import ConversionsTable, { Conversion } from '@/features/conversions/components/ConversionsTable';
 import ConversionsPagination from '@/features/conversions/components/ConversionsPagination';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-
-interface Conversion {
-  id: string;
-  created_at: string;
-  expires_at: string;
-  file_name: string;
-  file_size: number;
-  storage_path: string;
-  status: string;
-}
 
 const Conversions = () => {
   const { user, isLoading } = useAuth();
