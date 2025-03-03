@@ -5,8 +5,8 @@ import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { ConversionsTable } from '@/features/conversions/components/ConversionsTable';
-import { ConversionsPagination } from '@/features/conversions/components/ConversionsPagination';
+import ConversionsTable from '@/features/conversions/components/ConversionsTable';
+import ConversionsPagination from '@/features/conversions/components/ConversionsPagination';
 
 const Conversions = () => {
   const { user, isLoading } = useAuth();

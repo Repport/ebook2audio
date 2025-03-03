@@ -1,4 +1,3 @@
-
 import { formatDistanceToNow } from "date-fns";
 import { Download, Trash2 } from "lucide-react";
 import {
@@ -125,4 +124,3 @@ const ConversionsTable = ({
 };
 
 export default ConversionsTable;
-
