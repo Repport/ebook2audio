@@ -7,17 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import ConversionsTable from "../components/ConversionsTable";
+import ConversionsTable, { Conversion } from "../components/ConversionsTable";
 import ConversionsPagination from "../components/ConversionsPagination";
-
-interface Conversion {
-  id: string;
-  created_at: string;
-  expires_at: string;
-  file_name: string;
-  file_size: number;
-  storage_path: string;
-}
 
 const ITEMS_PER_PAGE = 10;
 
@@ -48,7 +39,7 @@ const Conversions = () => {
       try {
         const { data, error } = await supabase
           .from("text_conversions")
-          .select("id, created_at, expires_at, file_name, file_size, storage_path")
+          .select("id, created_at, expires_at, file_name, file_size, storage_path, status")
           .eq('user_id', user.id)
           .eq('status', 'completed')
           .order("created_at", { ascending: false })
