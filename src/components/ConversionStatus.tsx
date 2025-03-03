@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
 
@@ -36,6 +36,7 @@ const ConversionStatus = ({
   onProgressUpdate
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
+  const initializedRef = useRef(false);
   
   // Obtener estado del store global
   const { 
@@ -44,56 +45,71 @@ const ConversionStatus = ({
     setError 
   } = useConversionStore();
   
-  // Para mejor depuración
+  // Para inicialización, se ejecuta solo una vez cuando el componente se monta
+  // o cuando cambia el status (no en cada render)
   useEffect(() => {
     console.log(`ConversionStatus - Status changed to ${status}, progress: ${progress}%`);
     
-    // Inicializar el estado global basado en los props iniciales
-    if (status === 'converting' || status === 'processing') {
-      // Actualizar el store con datos iniciales
-      updateProgress({
-        progress,
-        processedChunks: 0,
-        totalChunks: 0,
-        processedCharacters: 0,
-        totalCharacters: textLength,
-        currentChunk: '' // Añadido campo requerido
-      });
-    } else if (status === 'completed') {
-      updateProgress({
-        progress: 100,
-        processedChunks: 1, // Valores por defecto para campos requeridos
-        totalChunks: 1,
-        processedCharacters: textLength,
-        totalCharacters: textLength,
-        currentChunk: '',
-        isCompleted: true
-      });
-    } else if (status === 'error') {
-      setError("Error en la conversión");
-    } else if (status === 'idle') {
-      resetConversion();
-    }
-  }, [status, progress, textLength, updateProgress, resetConversion, setError]);
-  
-  // Reenviar actualizaciones de progreso al componente padre
-  useEffect(() => {
-    if (onProgressUpdate) {
-      // Fix: The subscribe method expects a single callback function
-      const unsubscribe = useConversionStore.subscribe(
-        (state) => {
-          onProgressUpdate({
-            progress: state.progress,
-            processedChunks: state.chunks.processed,
-            totalChunks: state.chunks.total,
-            elapsedTime: state.time.elapsed
-          });
-        }
-      );
+    // Evitar actualización circular: Solo inicializar si no se ha hecho ya
+    if (!initializedRef.current) {
+      initializedRef.current = true;
       
-      return () => unsubscribe();
+      // Inicializar el estado global basado en los props iniciales
+      if (status === 'converting' || status === 'processing') {
+        // Actualizar el store con datos iniciales
+        updateProgress({
+          progress,
+          processedChunks: 0,
+          totalChunks: 0,
+          processedCharacters: 0,
+          totalCharacters: textLength,
+          currentChunk: '' // Añadido campo requerido
+        });
+      } else if (status === 'completed') {
+        updateProgress({
+          progress: 100,
+          processedChunks: 1, // Valores por defecto para campos requeridos
+          totalChunks: 1,
+          processedCharacters: textLength,
+          totalCharacters: textLength,
+          currentChunk: '',
+          isCompleted: true
+        });
+      } else if (status === 'error') {
+        setError("Error en la conversión");
+      } else if (status === 'idle') {
+        resetConversion();
+      }
+    }
+  }, [status]); // Dependencia reducida para evitar bucles
+  
+  // Preparar la función de actualización para evitar recreaciones en cada render
+  const handleStoreUpdate = useCallback((state) => {
+    if (onProgressUpdate) {
+      onProgressUpdate({
+        progress: state.progress,
+        processedChunks: state.chunks.processed,
+        totalChunks: state.chunks.total,
+        elapsedTime: state.time.elapsed
+      });
     }
   }, [onProgressUpdate]);
+  
+  // Reenviar actualizaciones de progreso al componente padre
+  // Solo se vuelve a configurar cuando cambia onProgressUpdate
+  useEffect(() => {
+    if (onProgressUpdate) {
+      console.log('ConversionStatus - Setting up store subscription');
+      
+      // La suscripción ahora usa la función memoizada
+      const unsubscribe = useConversionStore.subscribe(handleStoreUpdate);
+      
+      return () => {
+        console.log('ConversionStatus - Cleaning up store subscription');
+        unsubscribe();
+      };
+    }
+  }, [handleStoreUpdate]);
 
   // Status messages (without reference to file type)
   const statusMessages = {
