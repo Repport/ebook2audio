@@ -19,6 +19,11 @@ export interface Database {
           status: string
           processed_chunks: number | null
           total_chunks: number | null
+          is_cached: boolean | null
+          cache_created_at: string | null
+          text_hash: string
+          file_name: string | null
+          file_size: number | null
         }
         Insert: {
           id?: string
@@ -28,6 +33,11 @@ export interface Database {
           status?: string
           processed_chunks?: number | null
           total_chunks?: number | null
+          is_cached?: boolean | null
+          cache_created_at?: string | null
+          text_hash: string
+          file_name?: string | null
+          file_size?: number | null
         }
         Update: {
           id?: string
@@ -37,6 +47,11 @@ export interface Database {
           status?: string
           processed_chunks?: number | null
           total_chunks?: number | null
+          is_cached?: boolean | null
+          cache_created_at?: string | null
+          text_hash?: string
+          file_name?: string | null
+          file_size?: number | null
         }
       }
       conversion_chunks: {
@@ -57,6 +72,38 @@ export interface Database {
           conversion_id?: string
           content?: string
           status?: string
+        }
+      }
+      system_logs: {
+        Row: {
+          id: string
+          event_type: string
+          entity_id: string | null
+          user_id: string | null
+          details: Json | null
+          status: string | null
+          created_at: string | null
+          ip_address: string | null
+        }
+        Insert: {
+          id?: string
+          event_type: string
+          entity_id?: string | null
+          user_id?: string | null
+          details?: Json | null
+          status?: string | null
+          created_at?: string | null
+          ip_address?: string | null
+        }
+        Update: {
+          id?: string
+          event_type?: string
+          entity_id?: string | null
+          user_id?: string | null
+          details?: Json | null
+          status?: string | null
+          created_at?: string | null
+          ip_address?: string | null
         }
       }
     }
