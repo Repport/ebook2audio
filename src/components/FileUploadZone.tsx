@@ -3,7 +3,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { validateFile } from '@/utils/fileUtils';
-import { processFile } from '@/utils/textExtraction';
+import { processFile, Chapter } from '@/utils/textExtraction';
 import { checkCache } from '@/services/conversion/cacheService';
 import { generateHash } from '@/services/conversion/utils';
 import FileInfo from './FileInfo';
