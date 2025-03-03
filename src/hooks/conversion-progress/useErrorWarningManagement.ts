@@ -39,7 +39,7 @@ export const useErrorWarningManagement = () => {
     if (data.processedChunks !== undefined && 
         data.totalChunks !== undefined && 
         data.processedChunks < data.totalChunks && 
-        data.status === 'completed') {
+        data.isCompleted === true) { // Cambiado de data.status === 'completed' a data.isCompleted === true
       const missingChunksWarning = `Se completaron solo ${data.processedChunks} de ${data.totalChunks} fragmentos de texto. El audio puede estar incompleto.`;
       
       if (!uniqueWarningsSet.has(missingChunksWarning)) {
