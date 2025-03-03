@@ -2,7 +2,6 @@
 import React, { useEffect } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
-import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
 // Import our components
 import ConversionStatusIdle from './conversion-status/ConversionStatusIdle';
@@ -56,11 +55,17 @@ const ConversionStatus = ({
         processedChunks: 0,
         totalChunks: 0,
         processedCharacters: 0,
-        totalCharacters: textLength
+        totalCharacters: textLength,
+        currentChunk: '' // Añadido campo requerido
       });
     } else if (status === 'completed') {
       updateProgress({
         progress: 100,
+        processedChunks: 1, // Valores por defecto para campos requeridos
+        totalChunks: 1,
+        processedCharacters: textLength,
+        totalCharacters: textLength,
+        currentChunk: '',
         isCompleted: true
       });
     } else if (status === 'error') {

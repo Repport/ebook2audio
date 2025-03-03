@@ -14,7 +14,7 @@ export interface ChunkProgressData {
   error?: string;
   warning?: string;
   progress?: number;
-  isCompleted?: boolean; // Añadimos esta propiedad para indicar finalización
+  isCompleted?: boolean;
 }
 
 export interface ChunkProcessingOptions {
