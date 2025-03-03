@@ -24,11 +24,13 @@ export function ThemeProvider({
 }: ThemeProviderProps): JSX.Element {
   const [theme, setTheme] = useState<Theme>(
     () => {
-      const storedTheme = localStorage.getItem(storageKey)
-      // Validate that storedTheme is a valid Theme value
-      return (storedTheme === "dark" || storedTheme === "light" || storedTheme === "system") 
-        ? storedTheme as Theme 
-        : defaultTheme
+      if (typeof localStorage !== 'undefined') {
+        const storedTheme = localStorage.getItem(storageKey)
+        if (storedTheme === "dark" || storedTheme === "light" || storedTheme === "system") {
+          return storedTheme as Theme
+        }
+      }
+      return defaultTheme
     }
   )
 
