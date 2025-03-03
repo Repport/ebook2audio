@@ -3,17 +3,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks } from './chunkProcessor.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
 import { validateChunk, splitTextIntoChunks } from './utils.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 import type { ConversionRequest, ConversionResponse, ErrorResponse } from './types/index.ts';
 
 console.log('Loading convert-to-audio function...');
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, Authorization, X-Client-Info',
-  'Access-Control-Max-Age': '86400',
-  'Content-Type': 'application/json'
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -23,13 +16,19 @@ serve(async (req) => {
     });
   }
 
+  const startTime = Date.now();
+  const requestId = crypto.randomUUID();
+  console.log(`🚀 [${requestId}] Starting text-to-speech conversion request`);
+  
   try {
-    console.log('🚀 Starting text-to-speech conversion request');
+    // Initialize Supabase client for logging
+    const supabase = await initializeSupabaseClient();
     
+    // Parse request body with better error handling
     let body: ConversionRequest;
     try {
       body = await req.json();
-      console.log('📝 Request received:', {
+      console.log(`📝 [${requestId}] Request received:`, {
         textLength: body.text?.length,
         voiceId: body.voiceId,
         fileName: body.fileName,
@@ -37,13 +36,25 @@ serve(async (req) => {
         chunkIndex: body.chunkIndex
       });
     } catch (e) {
-      console.error('❌ Failed to parse request body:', e);
-      throw new Error('Invalid request body');
+      console.error(`❌ [${requestId}] Failed to parse request body:`, e);
+      
+      // Log parsing error
+      await supabase.from('system_logs').insert({
+        event_type: 'conversion_error',
+        details: {
+          error_type: 'request_parsing',
+          message: e.message,
+          requestId
+        },
+        status: 'error'
+      });
+      
+      throw new Error('Invalid request body: ' + e.message);
     }
 
-    const { text, voiceId } = body;
+    const { text, voiceId, fileName } = body;
 
-    // Validaciones básicas
+    // Validations with improved error messages
     if (!text || typeof text !== 'string') {
       throw new Error('Text parameter must be a non-empty string');
     }
@@ -52,40 +63,90 @@ serve(async (req) => {
       throw new Error('VoiceId parameter must be a non-empty string');
     }
 
-    // Validar y procesar el chunk
+    // Validate and process the chunk
     try {
       validateChunk(text);
+      console.log(`✅ [${requestId}] Chunk validation passed: ${text.length} characters`);
     } catch (error) {
-      console.error('❌ Chunk validation failed:', error);
+      console.error(`❌ [${requestId}] Chunk validation failed:`, error);
+      
+      // Log validation error
+      await supabase.from('system_logs').insert({
+        event_type: 'conversion_error',
+        details: {
+          error_type: 'chunk_validation',
+          message: error.message,
+          text_length: text?.length,
+          requestId
+        },
+        status: 'error'
+      });
+      
       throw error;
     }
 
     // Inicializar clientes
     const accessToken = await getGoogleAccessToken();
-    console.log('🔑 Successfully obtained access token');
+    console.log(`🔑 [${requestId}] Successfully obtained access token`);
 
-    // Procesar el texto como un chunk individual
+    // Process the text chunk
+    console.log(`🔄 [${requestId}] Processing text chunk of ${text.length} characters`);
     const result = await processTextInChunks(text, voiceId, accessToken);
-    console.log('✅ Successfully processed text chunk');
+    
+    const processingTime = Date.now() - startTime;
+    console.log(`✅ [${requestId}] Successfully processed text chunk in ${processingTime}ms`);
+    
+    // Log successful conversion
+    await supabase.from('system_logs').insert({
+      event_type: 'conversion',
+      details: {
+        text_length: text.length,
+        voiceId,
+        fileName,
+        processing_time_ms: processingTime,
+        requestId
+      },
+      status: 'success'
+    });
 
     return new Response(
       JSON.stringify({
         data: {
           audioContent: result,
-          progress: 100
+          progress: 100,
+          processingTime
         }
       }),
       { headers: corsHeaders }
     );
 
   } catch (error) {
-    console.error('❌ Error in convert-to-audio function:', error);
+    const processingTime = Date.now() - startTime;
+    console.error(`❌ [${requestId}] Error in convert-to-audio function after ${processingTime}ms:`, error);
+    
+    // Try to log the error to system_logs
+    try {
+      const supabase = await initializeSupabaseClient();
+      await supabase.from('system_logs').insert({
+        event_type: 'conversion_error',
+        details: {
+          error: error.message,
+          stack: error.stack,
+          processing_time_ms: processingTime,
+          requestId
+        },
+        status: 'error'
+      });
+    } catch (logError) {
+      console.error(`❌ [${requestId}] Failed to log error to system_logs:`, logError);
+    }
     
     return new Response(
       JSON.stringify({
         error: error.message || 'Internal server error',
         details: error.stack,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        requestId
       }),
       { 
         status: 500,

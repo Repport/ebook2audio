@@ -21,13 +21,47 @@ serve(async (req) => {
 
   try {
     console.log('Processing voice preview request');
-    const { voiceId, previewText } = await req.json();
+    
+    // Parse the request with improved error handling
+    let requestData
+    try {
+      requestData = await req.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid request format' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
+    const { voiceId, previewText } = requestData;
 
     if (!voiceId) {
-      throw new Error('voiceId is required');
+      console.error('Missing required parameter: voiceId');
+      return new Response(
+        JSON.stringify({ error: 'voiceId is required' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    const { languageCode, ssmlGender } = parseVoiceId(voiceId);
+    try {
+      var { languageCode, ssmlGender } = parseVoiceId(voiceId);
+    } catch (parseError) {
+      console.error('Failed to parse voice ID:', parseError, 'voiceId:', voiceId);
+      return new Response(
+        JSON.stringify({ error: 'Invalid voice ID format' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
     
     // Determine the language from the voiceId (e.g., "es-US-Standard-A" -> "spanish")
     const language = languageCode.startsWith('es') ? 'spanish' :
@@ -53,18 +87,73 @@ serve(async (req) => {
       }
     };
 
-    const accessToken = await getAccessToken();
-    const response = await synthesizeSpeech(accessToken, requestBody);
-    const data = await response.json();
+    // Get access token
+    let accessToken
+    try {
+      accessToken = await getAccessToken();
+      console.log('Successfully obtained access token');
+    } catch (tokenError) {
+      console.error('Failed to get access token:', tokenError);
+      return new Response(
+        JSON.stringify({ error: 'Authentication failed: Unable to get access token' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Synthesize speech
+    let response
+    try {
+      response = await synthesizeSpeech(accessToken, requestBody);
+    } catch (synthesisError) {
+      console.error('Speech synthesis failed:', synthesisError);
+      return new Response(
+        JSON.stringify({ error: 'Speech synthesis failed: ' + synthesisError.message }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Process response
+    let data
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      console.error('Failed to parse Google API response:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to parse response from speech service' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     if (!data.audioContent) {
       console.error('No audio content in response:', data);
-      throw new Error('No audio content received from speech service');
+      return new Response(
+        JSON.stringify({ error: 'No audio content received from speech service' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     console.log('Successfully generated audio preview');
     return new Response(
-      JSON.stringify({ audioContent: data.audioContent }),
+      JSON.stringify({ 
+        audioContent: data.audioContent,
+        metadata: {
+          language: language,
+          voiceId: voiceId,
+          textLength: textToSpeak.length
+        }
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -73,7 +162,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Preview voice error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || 'An unexpected error occurred',
+        timestamp: new Date().toISOString()
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
