@@ -42,6 +42,9 @@ const ConversionStatus = ({
   } = useLanguage();
   const [showWarnings, setShowWarnings] = useState(false);
 
+  // For consistency if the state is processing but the UI component shows "converting"
+  const displayStatus = status === 'processing' ? 'converting' : status;
+
   // Use improved progress hook
   const {
     progress: currentProgress,
@@ -84,9 +87,6 @@ const ConversionStatus = ({
       });
     }
   }, [currentProgress, processedChunks, totalChunks, elapsedTime, speed, onProgressUpdate]);
-
-  // For consistency if the state is processing but the UI component shows "converting"
-  const displayStatus = status === 'processing' ? 'converting' : status;
 
   // Status messages (without reference to file type)
   const statusMessages = {
