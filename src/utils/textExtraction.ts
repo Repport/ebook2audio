@@ -64,9 +64,22 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
   }
 
   try {
-    const { text, chapters } = fileExtension === 'pdf' 
-      ? await extractPdfText(file)
-      : await extractEpubText(file);
+    let text = '';
+    let chapters: Chapter[] = [];
+    let pagesCount = 1;
+
+    if (fileExtension === 'pdf') {
+      const result = await extractPdfText(file);
+      text = result.text;
+      chapters = result.chapters;
+      pagesCount = result.pagesCount;
+    } else {
+      const result = await extractEpubText(file);
+      text = result.text;
+      chapters = result.chapters;
+      // We estimate EPUB pages based on character count (approx 2000 chars per page)
+      pagesCount = Math.max(1, Math.ceil(text.length / 2000));
+    }
 
     const detectedLanguage = detectLanguage(text);
     console.log('Detected language in processFile:', detectedLanguage);
@@ -74,7 +87,7 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
     const metadata = {
       totalCharacters: text.length,
       language: detectedLanguage,
-      processedPages: 1
+      processedPages: pagesCount
     };
 
     // Create an initial chapter with metadata if no chapters exist
@@ -99,6 +112,8 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
 
     console.log('Returning with language:', detectedLanguage);
     console.log('First chapter metadata:', updatedChapters[0].metadata);
+    console.log('Total characters:', text.length);
+    console.log('Estimated pages:', pagesCount);
 
     return {
       text,

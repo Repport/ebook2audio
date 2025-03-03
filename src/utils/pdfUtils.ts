@@ -15,7 +15,7 @@ type TextItem = {
   fontName?: string;
 };
 
-export const extractPdfText = async (file: File): Promise<{ text: string; chapters: Chapter[] }> => {
+export const extractPdfText = async (file: File): Promise<{ text: string; chapters: Chapter[], pagesCount: number }> => {
   try {
     console.log('Starting PDF text extraction with chapter detection...');
     const arrayBuffer = await file.arrayBuffer();
@@ -28,7 +28,13 @@ export const extractPdfText = async (file: File): Promise<{ text: string; chapte
     
     console.log('PDF text extraction completed, total length:', fullText.length);
     console.log('Chapters detected:', chapters.length);
-    return { text: fullText.trim(), chapters };
+    console.log('Total pages:', pdf.numPages);
+    
+    return { 
+      text: fullText.trim(), 
+      chapters,
+      pagesCount: pdf.numPages
+    };
   } catch (error) {
     console.error('PDF extraction error:', error);
     throw new Error('Failed to extract text from PDF');

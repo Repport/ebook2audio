@@ -6,11 +6,15 @@ import { useLanguage } from '@/hooks/useLanguage';
 
 interface FileInfoProps {
   file: File;
+  metadata?: {
+    totalCharacters?: number;
+    processedPages?: number;
+  };
   onRemove: () => void;
   onNext?: () => void;
 }
 
-const FileInfo = ({ file, onRemove, onNext }: FileInfoProps) => {
+const FileInfo = ({ file, onRemove, onNext, metadata }: FileInfoProps) => {
   const { translations } = useLanguage();
   
   if (!file) return null;
@@ -24,6 +28,11 @@ const FileInfo = ({ file, onRemove, onNext }: FileInfoProps) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatNumber = (num?: number): string => {
+    if (num === undefined) return "-";
+    return new Intl.NumberFormat().format(num);
   };
 
   return (
@@ -58,7 +67,7 @@ const FileInfo = ({ file, onRemove, onNext }: FileInfoProps) => {
             </span>
           </div>
           
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
             <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
               {translations.fileSize || "File size"}
             </span>
@@ -66,6 +75,28 @@ const FileInfo = ({ file, onRemove, onNext }: FileInfoProps) => {
               {formatFileSize(file.size)}
             </span>
           </div>
+          
+          {metadata?.totalCharacters !== undefined && (
+            <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {translations.totalCharacters || "Total characters"}
+              </span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {formatNumber(metadata.totalCharacters)}
+              </span>
+            </div>
+          )}
+          
+          {metadata?.processedPages !== undefined && (
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {translations.pages || "Pages"}
+              </span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {formatNumber(metadata.processedPages)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
       

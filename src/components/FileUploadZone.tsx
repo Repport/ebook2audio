@@ -21,6 +21,10 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   const [processedText, setProcessedText] = useState<string>('');
   const [processedLanguage, setProcessedLanguage] = useState<string | undefined>();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [fileMetadata, setFileMetadata] = useState<{
+    totalCharacters?: number;
+    processedPages?: number;
+  }>({});
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0] || null;
@@ -97,6 +101,14 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       setProcessedText(result.text);
       setProcessedLanguage(result.metadata?.language);
       
+      // Save metadata for display
+      if (result.metadata) {
+        setFileMetadata({
+          totalCharacters: result.metadata.totalCharacters,
+          processedPages: result.metadata.processedPages
+        });
+      }
+      
     } catch (error) {
       console.error('Error processing file:', error);
       
@@ -118,6 +130,7 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     setSelectedFile(null);
     setProcessedText('');
     setProcessedLanguage(undefined);
+    setFileMetadata({});
     onFileSelect(null);
   };
 
@@ -150,7 +163,11 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   if (selectedFile) {
     return (
       <div className="space-y-4">
-        <FileInfo file={selectedFile} onRemove={handleRemoveFile} />
+        <FileInfo 
+          file={selectedFile} 
+          onRemove={handleRemoveFile}
+          metadata={fileMetadata}
+        />
         <div className="flex justify-end mt-4">
           <Button 
             onClick={handleContinue}
