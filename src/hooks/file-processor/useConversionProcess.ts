@@ -5,6 +5,7 @@ import { useConversionStore } from '@/store/conversionStore';
 import { Chapter } from '@/utils/textExtraction';
 import { useTermsAndNotifications } from './useTermsAndNotifications';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
+import { ConversionOptions } from './useConversionActions';
 
 export function useConversionProcess() {
   const { toast } = useToast();
@@ -15,7 +16,7 @@ export function useConversionProcess() {
     audioConversion: any,
     selectedFile: File | null,
     extractedText: string,
-    options: { selectedVoice: string; notifyOnComplete: boolean },
+    options: ConversionOptions,
     detectChapters: boolean,
     chapters: Chapter[]
   ) => {
@@ -71,7 +72,7 @@ export function useConversionProcess() {
       );
       
       // Handle notification setup if enabled
-      await handleNotificationSetup(options.notifyOnComplete, result.id);
+      await handleNotificationSetup(options.notifyOnComplete || false, result.id);
       
       console.log('useConversionProcess - Conversion completed successfully');
       

@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { toast } from "@/hooks/use-toast";
 import { Chapter } from '@/utils/textExtraction';
+import { ConversionOptions } from './useConversionActions';
 
 interface ConversionActionsProps {
   selectedFile: File | null;
@@ -15,7 +16,7 @@ interface ConversionActionsProps {
   showTerms: boolean;
   setShowTerms: (show: boolean) => void;
   initiateConversion: () => Promise<boolean>;
-  handleAcceptTerms: (options: { selectedVoice: string; notifyOnComplete: boolean }) => Promise<void>;
+  handleAcceptTerms: (options: ConversionOptions) => Promise<void>;
   currentStep: number;
   notifyOnComplete: boolean;
 }
