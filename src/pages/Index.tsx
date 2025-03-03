@@ -54,11 +54,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <main className="flex-grow container mx-auto py-12 px-4 pb-0">
+      <main className="flex-grow container mx-auto py-12 px-4">
         <div className="max-w-4xl mx-auto">
           <Header />
 
-          <div className="mb-10">
+          <div className="mt-10">
             <StepsProgressBar steps={conversionSteps} currentStep={currentStep} />
           </div>
 

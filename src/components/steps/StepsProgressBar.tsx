@@ -17,7 +17,7 @@ interface StepsProgressBarProps {
 
 const StepsProgressBar = ({ steps, currentStep }: StepsProgressBarProps) => {
   return (
-    <div className="flex justify-center items-center space-x-4 md:space-x-8">
+    <div className="flex justify-center items-center space-x-4 md:space-x-8 mb-10">
       {steps.map((step) => (
         <React.Fragment key={step.id}>
           <div className="flex flex-col items-center">
