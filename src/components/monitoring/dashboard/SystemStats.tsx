@@ -3,17 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
-
-interface SystemStatsProps { 
-  stats: {
-    totalConversions: number;
-    completedConversions: number;
-    cachedItems: number;
-    avgProcessingTime: number;
-  };
-  isLoading: boolean;
-  onRefresh: () => void;
-}
+import { SystemStatsProps } from '../types';
 
 /**
  * System statistics component displaying global metrics
