@@ -10,24 +10,8 @@ export const useAudioConversion = () => {
   // Use our specialized hooks
   const audioState = useAudioState();
   
-  const { clearConversionStorage } = useConversionStorage(
-    audioState.conversionStatus,
-    audioState.progress,
-    audioState.audioData,
-    audioState.audioDuration,
-    audioState.currentFileName,
-    audioState.conversionId,
-    audioState.conversionStartTime,
-    audioState.elapsedTime,
-    audioState.setConversionStatus,
-    audioState.setProgress,
-    audioState.setAudioData,
-    audioState.setAudioDuration,
-    audioState.setCurrentFileName,
-    audioState.setConversionId,
-    audioState.setElapsedTime,
-    audioState.setConversionStartTime
-  );
+  // No longer passing arguments to useConversionStorage
+  const { clearConversionStorage } = useConversionStorage();
   
   const { resetConversion, handleConversion, handleDownload } = useConversionActions(
     audioState.setConversionStatus,
