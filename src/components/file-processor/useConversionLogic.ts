@@ -1,23 +1,13 @@
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
-import { useAudioConversion } from '@/hooks/useAudioConversion';
-import { Chapter } from '@/utils/textExtraction';
-import { clearConversionStorage } from '@/services/storage/conversionStorageService';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { retryOperation } from '@/services/conversion/utils/retryUtils';
-import { ChunkProgressData } from '@/services/conversion/types/chunks';
 import { useConversionCore } from '@/hooks/file-processor/useConversionCore';
 import { useConversionActions, ConversionOptions } from '@/hooks/file-processor/useConversionActions';
 
-export { ConversionOptions } from '@/hooks/file-processor/useConversionActions';
+export type { ConversionOptions } from '@/hooks/file-processor/useConversionActions';
 
 export const useConversionLogic = (
   selectedFile: File | null,
   extractedText: string,
-  chapters: Chapter[],
+  chapters: any[],
   onStepComplete?: () => void
 ) => {
   // Get core conversion functionality
@@ -32,17 +22,8 @@ export const useConversionLogic = (
   const actions = useConversionActions(
     selectedFile,
     extractedText,
-    {
-      conversionStatus: core.conversionStatus,
-      progress: core.progress,
-      audioData: core.audioData,
-      setConversionStatus: core.setConversionStatus,
-      setProgress: core.setProgress,
-      handleConversion: core.handleConversion,
-      handleDownload: core.handleDownload,
-      resetConversion: core.resetConversion
-    },
-    async () => true, // Mock checkTermsAcceptance for now
+    core,
+    core.checkTermsAcceptance,
     core.setShowTerms,
     core.setDetectingChapters,
     core.detectChapters,
@@ -77,7 +58,7 @@ export const useConversionLogic = (
     handleViewConversions: core.handleViewConversions,
     
     // Utility methods from core
-    calculateEstimatedSeconds: () => core.calculateEstimatedSeconds,
+    calculateEstimatedSeconds: core.calculateEstimatedSeconds,
     
     // State setters from core
     setProgress: core.setProgress,

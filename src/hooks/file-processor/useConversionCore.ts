@@ -62,6 +62,7 @@ export const useConversionCore = (
     // Terms dialog
     showTerms,
     setShowTerms,
+    checkTermsAcceptance,
     
     // State setters
     setProgress: audioConversion.setProgress,
