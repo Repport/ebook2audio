@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 import { Card } from '@/components/ui/card';
 import FileUploadZone from '@/components/FileUploadZone';
 import FileProcessor from '@/components/FileProcessor';
@@ -16,7 +16,8 @@ interface MainContentProps {
   onPreviousStep: () => void;
 }
 
-const MainContent = ({
+// Use memo to prevent unnecessary re-renders
+const MainContent = memo(({
   currentStep,
   selectedFile,
   extractedText,
@@ -64,6 +65,9 @@ const MainContent = ({
       )}
     </Card>
   );
-};
+});
+
+// Add displayName for debugging
+MainContent.displayName = 'MainContent';
 
 export default MainContent;

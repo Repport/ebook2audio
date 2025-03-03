@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import StepsProgressBar from '@/components/steps/StepsProgressBar';
@@ -22,7 +22,7 @@ const Index = () => {
     setDetectedLanguage
   } = useSessionStorage();
 
-  const handleFileSelect = async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
+  const handleFileSelect = useCallback(async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
     if (!fileInfo) {
       setSelectedFile(null);
       setExtractedText('');
@@ -32,25 +32,30 @@ const Index = () => {
       return;
     }
 
+    // Batch update for related state to reduce renders
     setSelectedFile(fileInfo.file);
     setExtractedText(fileInfo.text);
     setChapters(fileInfo.chapters || []);
     setDetectedLanguage(fileInfo.language || 'english');
-    setCurrentStep(2);
-    console.log('Index - Setting detected language:', fileInfo.language);
-  };
+    
+    // Only update step after other state is set
+    setTimeout(() => {
+      setCurrentStep(2);
+      console.log('Index - Setting detected language:', fileInfo.language);
+    }, 0);
+  }, [setSelectedFile, setExtractedText, setChapters, setDetectedLanguage, setCurrentStep]);
 
-  const goToNextStep = () => {
+  const goToNextStep = useCallback(() => {
     if (currentStep < conversionSteps.length) {
       setCurrentStep(prev => prev + 1);
     }
-  };
+  }, [currentStep, setCurrentStep]);
 
-  const goToPreviousStep = () => {
+  const goToPreviousStep = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
     }
-  };
+  }, [currentStep, setCurrentStep]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">

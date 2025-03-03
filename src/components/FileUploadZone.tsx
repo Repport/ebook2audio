@@ -1,5 +1,5 @@
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, memo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { validateFile } from '@/utils/fileUtils';
@@ -15,12 +15,12 @@ interface FileUploadZoneProps {
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
 }
 
-const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
+const FileUploadZone = memo(({ onFileSelect }: FileUploadZoneProps) => {
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [processedText, setProcessedText] = useState<string>('');
   const [processedLanguage, setProcessedLanguage] = useState<string | undefined>();
-  const [processedChapters, setProcessedChapters] = useState<any[]>([]);
+  const [processedChapters, setProcessedChapters] = useState<Chapter[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileMetadata, setFileMetadata] = useState<{
     totalCharacters?: number;
@@ -142,16 +142,16 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
     }
   }, [toast]);
 
-  const handleRemoveFile = () => {
+  const handleRemoveFile = useCallback(() => {
     setSelectedFile(null);
     setProcessedText('');
     setProcessedLanguage(undefined);
     setProcessedChapters([]);
     setFileMetadata({});
     onFileSelect(null);
-  };
+  }, [onFileSelect]);
 
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     if (!selectedFile || !processedText) {
       toast({
         title: "Error",
@@ -175,7 +175,7 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       language: processedLanguage,
       chapters: processedChapters
     });
-  };
+  }, [selectedFile, processedText, processedLanguage, processedChapters, toast, onFileSelect]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -216,6 +216,9 @@ const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
       isDragActive={isDragActive}
     />
   );
-};
+});
+
+// Add displayName for debugging
+FileUploadZone.displayName = 'FileUploadZone';
 
 export default FileUploadZone;
