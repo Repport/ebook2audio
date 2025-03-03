@@ -156,7 +156,7 @@ export const useConversionActions = (
             handleProgressUpdate
           );
         },
-        { maxRetries: 2, delayMs: 1000 }
+        { maxRetries: 2, baseDelay: 1000 } // Fixed property name: delayMs → baseDelay
       );
       
       if (!result) {

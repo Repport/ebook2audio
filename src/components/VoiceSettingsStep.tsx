@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
-import { VoiceSelector } from '@/components/VoiceSelector'; // Changed from voice-selector/VoiceSelect to VoiceSelector
+import VoiceSelector from '@/components/VoiceSelector'; // Fixed import statement - using default import
 
 interface VoiceSettingsStepProps {
   detectedLanguage: string;
