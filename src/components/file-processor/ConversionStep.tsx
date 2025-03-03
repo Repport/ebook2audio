@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Play, Download, List } from "lucide-react";
 import ConversionStatus from '@/components/ConversionStatus';
 import { ChaptersList } from '@/components/ChaptersList';
+import NavigationProtection from '@/components/NavigationProtection';
 import { Chapter } from '@/utils/textExtraction';
 import { useLanguage } from "@/hooks/useLanguage";
 import { toast } from "@/hooks/use-toast";
@@ -62,7 +63,11 @@ const ConversionStep = ({
     }
   }, [conversionStatus, currentProgress]);
 
-  const handleConvertClick = async () => {
+  const handleConvertClick = async (e: React.MouseEvent) => {
+    // Prevent default to avoid potential form submissions
+    e.preventDefault();
+    e.stopPropagation();
+    
     console.log("ConversionStep - handleConvertClick called");
     if (isConverting) {
       console.log("ConversionStep - Already converting, ignoring click");
@@ -103,6 +108,9 @@ const ConversionStep = ({
 
   return (
     <div className="space-y-8 animate-fade-up">
+      {/* Add NavigationProtection when conversion is in progress */}
+      <NavigationProtection isActive={conversionStatus === 'converting'} />
+      
       <div className="flex flex-col items-center text-center mb-6">
         <h2 className="text-xl font-medium text-gray-800 dark:text-gray-200">
           {translations.convertToAudio || "Convert to Audio"}
@@ -119,6 +127,7 @@ const ConversionStep = ({
             variant="outline"
             size="sm"
             onClick={onViewConversions}
+            type="button"
             className="flex items-center gap-2 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700"
           >
             <List className="w-4 h-4" />
@@ -130,6 +139,7 @@ const ConversionStep = ({
           <Button
             onClick={handleConvertClick}
             disabled={isConverting}
+            type="button"
             variant="default"
             className="w-full py-6 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700"
           >
@@ -141,6 +151,7 @@ const ConversionStep = ({
         {conversionStatus === 'completed' && audioData && (
           <Button
             onClick={onDownloadClick}
+            type="button"
             className="w-full py-6 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
           >
             <Download className="w-5 h-5" />

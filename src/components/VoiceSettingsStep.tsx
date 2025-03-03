@@ -1,19 +1,17 @@
 
-import React, { useState } from 'react';
-import VoiceSelector from '@/components/VoiceSelector';
-import ChapterDetectionToggle from '@/components/ChapterDetectionToggle';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/hooks/useAuth';
+import { ArrowRight } from 'lucide-react';
+import VoiceSelect from '@/components/voice-selector/VoiceSelect';
 import { useLanguage } from '@/hooks/useLanguage';
-import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface VoiceSettingsStepProps {
+  detectedLanguage: string;
   selectedVoice: string;
   setSelectedVoice: (voice: string) => void;
-  detectedLanguage: string;
   detectChapters: boolean;
   setDetectChapters: (detect: boolean) => void;
   notifyOnComplete: boolean;
@@ -22,116 +20,91 @@ interface VoiceSettingsStepProps {
 }
 
 const VoiceSettingsStep = ({
+  detectedLanguage,
   selectedVoice,
   setSelectedVoice,
-  detectedLanguage,
   detectChapters,
   setDetectChapters,
-  onNextStep,
   notifyOnComplete,
-  setNotifyOnComplete
+  setNotifyOnComplete,
+  onNextStep
 }: VoiceSettingsStepProps) => {
-  const { user } = useAuth();
   const { translations } = useLanguage();
-  const [isProcessing, setIsProcessing] = useState(false);
-  
-  const handleContinue = async () => {
-    // Prevent multiple clicks
-    if (isProcessing) return;
+  const { user } = useAuth();
+
+  const handleContinue = async (e: React.MouseEvent) => {
+    // Prevent default to avoid form submissions
+    e.preventDefault();
+    e.stopPropagation();
     
-    console.log('VoiceSettingsStep - handleContinue clicked with voice:', selectedVoice);
-    
-    if (!selectedVoice) {
-      toast({
-        title: "Error",
-        description: "Please select a voice before continuing",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsProcessing(true);
-    
-    try {
-      const result = await onNextStep();
-      console.log('VoiceSettingsStep - onNextStep result:', result);
-      
-      if (!result) {
-        toast({
-          title: "Error",
-          description: "Could not proceed to the next step",
-          variant: "destructive"
-        });
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('VoiceSettingsStep - Error in handleContinue:', error);
-      toast({
-        title: "Error",
-        description: "An error occurred while trying to continue",
-        variant: "destructive"
-      });
-      return false;
-    } finally {
-      setIsProcessing(false);
-    }
+    console.log('VoiceSettingsStep - handleContinue called');
+    await onNextStep();
   };
-  
+
   return (
     <div className="space-y-8 animate-fade-up">
-      <div className="mb-6">
-        <h2 className="text-xl font-medium text-center mb-1 text-gray-800 dark:text-gray-200">
-          {translations.selectVoiceType || "Select Voice Type"}
+      <div className="flex flex-col items-center text-center mb-6">
+        <h2 className="text-xl font-medium text-gray-800 dark:text-gray-200">
+          {translations.voiceSettings || "Voice Settings"}
         </h2>
-        <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
-          {translations.voiceDescription || "Choose the voice that will read your text"}
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {translations.voiceSettingsDesc || "Choose a voice and other conversion settings"}
         </p>
       </div>
-      
-      <VoiceSelector 
-        selectedVoice={selectedVoice}
-        onVoiceChange={setSelectedVoice}
-        detectedLanguage={detectedLanguage}
-      />
-      
-      <div className="space-y-6 mt-8 pt-4 border-t border-gray-100 dark:border-gray-800">
-        <div>
-          <ChapterDetectionToggle 
-            detectChapters={detectChapters}
-            onToggle={setDetectChapters}
-            chaptersFound={0}
+
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <VoiceSelect
+            selectedVoice={selectedVoice}
+            setSelectedVoice={setSelectedVoice}
+            detectedLanguage={detectedLanguage}
           />
+
+          <div className="space-y-4 mt-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="detect-chapters" className="text-sm font-medium">
+                  {translations.detectChapters || "Detect chapters"}
+                </Label>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {translations.detectChaptersDesc || "Automatically detect and mark chapters in audio"}
+                </p>
+              </div>
+              <Switch
+                id="detect-chapters"
+                checked={detectChapters}
+                onCheckedChange={setDetectChapters}
+              />
+            </div>
+
+            {user && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="notify-complete" className="text-sm font-medium">
+                    {translations.notifyOnComplete || "Notify on complete"}
+                  </Label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {translations.notifyOnCompleteDesc || "Send an email notification when conversion is complete"}
+                  </p>
+                </div>
+                <Switch
+                  id="notify-complete"
+                  checked={notifyOnComplete}
+                  onCheckedChange={setNotifyOnComplete}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
-        {user && (
-          <div className="flex items-center justify-between space-x-2 pt-4 border-t border-gray-100 dark:border-gray-800">
-            <Label htmlFor="notify-complete" className="text-gray-700 dark:text-gray-300 cursor-pointer">
-              {translations.notifyWhenComplete || "Notify me when complete"}
-            </Label>
-            <Switch
-              id="notify-complete"
-              checked={notifyOnComplete}
-              onCheckedChange={setNotifyOnComplete}
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-end mt-8">
         <Button
           onClick={handleContinue}
-          disabled={isProcessing || !selectedVoice}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700 rounded-full px-6"
+          className="flex w-full items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700"
+          disabled={!selectedVoice}
+          type="button"
         >
-          {isProcessing ? (
-            <span>Processing...</span>
-          ) : (
-            <>
-              {translations.continue || "Continue"}
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
+          {translations.continue || "Continue"}
+          <ArrowRight className="w-4 h-4" />
         </Button>
       </div>
     </div>

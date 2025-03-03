@@ -56,7 +56,9 @@ export const useConversionActions = (
       // For debugging, we'll reset the conversion state here
       audioConversion.resetConversion();
       clearConversionStorage();
-      audioConversion.setConversionStatus('converting');
+      
+      // Don't set to converting yet - wait until user actually starts conversion
+      // audioConversion.setConversionStatus('converting');
       
       const termsAccepted = await checkTermsAcceptance();
       if (!termsAccepted) {
@@ -108,7 +110,7 @@ export const useConversionActions = (
         audioConversion.setConversionStatus('completed');
       }
     }
-  }, [audioConversion.setProgress, audioConversion.setConversionStatus]);
+  }, [audioConversion]);
 
   const handleAcceptTerms = useCallback(async (options: ConversionOptions) => {
     console.log('useConversionLogic - handleAcceptTerms called with options:', options);
@@ -137,19 +139,24 @@ export const useConversionActions = (
     // Make sure we're not in a chapter detection state
     setDetectingChapters(false);
     audioConversion.setConversionStatus('converting'); // Prevent duplicate conversions
-    audioConversion.setProgress(0); // Make sure we start from 0
+    audioConversion.setProgress(1); // Make sure we start from 1% for better UX
     
     try {
       console.log('useConversionLogic - Starting conversion with text length:', extractedText.length);
       
-      // Use the properly typed method from the audioConversion API
-      const result = await audioConversion.handleConversion(
-        extractedText,
-        options.selectedVoice,
-        detectChapters,
-        chapters,
-        selectedFile.name,
-        handleProgressUpdate  // Pass the progress callback
+      // Use a try-catch with retry mechanism to handle conversion failures
+      const result = await retryOperation(
+        async () => {
+          return await audioConversion.handleConversion(
+            extractedText,
+            options.selectedVoice,
+            detectChapters,
+            chapters,
+            selectedFile.name,
+            handleProgressUpdate
+          );
+        },
+        { maxRetries: 2, delayMs: 1000 }
       );
       
       if (!result) {
@@ -177,16 +184,24 @@ export const useConversionActions = (
       
       console.log('useConversionLogic - Conversion completed successfully');
       
+      // Show completion toast
+      toast({
+        title: "Conversion complete",
+        description: "Your audio file is ready to download",
+        variant: "success",
+      });
+      
     } catch (error: any) {
       console.error('useConversionLogic - Conversion error:', error);
-      audioConversion.resetConversion();
-      clearConversionStorage();
+      
+      // Don't reset here, just update status to error
+      // This allows recovery of partial progress
       audioConversion.setConversionStatus('error');
       
       // Use safe toast call
       toast({
         title: "Error",
-        description: "An error occurred during conversion",
+        description: error.message || "An error occurred during conversion",
         variant: "destructive"
       });
     } finally {
@@ -209,12 +224,35 @@ export const useConversionActions = (
     
     if (!audioConversion.audioData) {
       console.log('useConversionLogic - No audio data available for download');
+      
+      toast({
+        title: "Error",
+        description: "No audio data available for download",
+        variant: "destructive",
+      });
+      
       return;
     }
 
     console.log('useConversionLogic - Starting download');
-    audioConversion.handleDownload(selectedFile?.name || "converted_audio");
-  }, [audioConversion.audioData, selectedFile, audioConversion.handleDownload]);
+    try {
+      audioConversion.handleDownload(selectedFile?.name || "converted_audio");
+      
+      toast({
+        title: "Download started",
+        description: "Your audio file is being downloaded",
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('useConversionLogic - Download error:', error);
+      
+      toast({
+        title: "Download error",
+        description: "Failed to download the audio file",
+        variant: "destructive",
+      });
+    }
+  }, [audioConversion.audioData, selectedFile, audioConversion.handleDownload, toast]);
 
   return {
     initiateConversion,

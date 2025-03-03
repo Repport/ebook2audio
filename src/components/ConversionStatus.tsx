@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Chapter } from '@/utils/textExtraction';
 import { ChaptersList } from './ChaptersList';
 import { useConversionProgress } from '@/hooks/useConversionProgress';
@@ -41,9 +41,24 @@ const ConversionStatus = ({
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
   const isMountedRef = useRef(true);
+  const progressUpdateTimeoutRef = useRef<number | null>(null);
+  const [stableStatus, setStableStatus] = useState(status);
   
   // For consistency if the state is processing but the UI component shows "converting"
   const displayStatus = status === 'processing' ? 'converting' : status;
+
+  // Make status changes slightly delayed to avoid flashing UI during quick status changes
+  useEffect(() => {
+    if (status !== stableStatus) {
+      const timer = setTimeout(() => {
+        if (isMountedRef.current) {
+          setStableStatus(status);
+        }
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [status, stableStatus]);
 
   // Use improved progress hook
   const {
@@ -58,7 +73,7 @@ const ConversionStatus = ({
     errors,
     warnings
   } = useConversionProgress(
-    status, 
+    stableStatus, 
     progress, 
     estimatedSeconds, 
     conversionId, 
@@ -69,16 +84,23 @@ const ConversionStatus = ({
   // Handle component lifecycle
   useEffect(() => {
     isMountedRef.current = true;
+    
     return () => {
       isMountedRef.current = false;
+      
+      // Clear any pending timeouts
+      if (progressUpdateTimeoutRef.current) {
+        window.clearTimeout(progressUpdateTimeoutRef.current);
+      }
     };
   }, []);
 
   // Debug logging
   useEffect(() => {
     if (isMountedRef.current) {
-      console.log('ConversionStatus - Progress Update:', {
+      console.log('ConversionStatus - Status Update:', {
         status,
+        stableStatus,
         externalProgress: progress,
         calculatedProgress: currentProgress,
         timeRemaining,
@@ -90,23 +112,48 @@ const ConversionStatus = ({
         hasWarnings: warnings.length > 0
       });
     }
-  }, [progress, currentProgress, timeRemaining, elapsedTime, initialElapsedTime, processedChunks, totalChunks, status, errors.length, warnings.length]);
+  }, [progress, currentProgress, timeRemaining, elapsedTime, initialElapsedTime, 
+      processedChunks, totalChunks, status, stableStatus, errors.length, warnings.length]);
 
-  // Notify updates upstream - only if component is still mounted
+  // Notify updates upstream - only if component is still mounted, with debounce
   useEffect(() => {
     if (isMountedRef.current && onProgressUpdate) {
       try {
-        onProgressUpdate({
-          progress: currentProgress,
-          processedChunks,
-          totalChunks,
-          elapsedTime,
-          speed
-        });
+        // Debounce progress updates to avoid overwhelming the parent component
+        if (progressUpdateTimeoutRef.current) {
+          window.clearTimeout(progressUpdateTimeoutRef.current);
+        }
+        
+        // Using window.setTimeout to ensure it's globally available
+        progressUpdateTimeoutRef.current = window.setTimeout(() => {
+          if (isMountedRef.current) {
+            try {
+              onProgressUpdate({
+                progress: currentProgress,
+                processedChunks,
+                totalChunks,
+                elapsedTime,
+                speed
+              });
+            } catch (e) {
+              console.error('Error in progress update callback:', e);
+            }
+            progressUpdateTimeoutRef.current = null;
+          }
+        }, 250); // Debounce for 250ms
       } catch (e) {
-        console.error('Error in progress update callback:', e);
+        console.error('Error setting up progress update:', e);
       }
     }
+    
+    // Cleanup on unmount
+    return () => {
+      if (progressUpdateTimeoutRef.current) {
+        window.clearTimeout(progressUpdateTimeoutRef.current);
+        progressUpdateTimeoutRef.current = null;
+      }
+    };
+    
   }, [currentProgress, processedChunks, totalChunks, elapsedTime, speed, onProgressUpdate]);
 
   // Status messages (without reference to file type)

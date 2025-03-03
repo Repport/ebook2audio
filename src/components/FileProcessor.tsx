@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { Tabs } from "@/components/ui/tabs";
 import { Chapter } from '@/utils/textExtraction';
@@ -7,6 +8,7 @@ import BackButton from './file-processor/BackButton';
 import ProcessorTabs from './file-processor/ProcessorTabs';
 import ProcessorTabContent from './file-processor/ProcessorTabContent';
 import FileProcessorTerms from './file-processor/FileProcessorTerms';
+import ErrorBoundary from './ErrorBoundary';
 import { useProcessorLogic } from '@/hooks/file-processor/useProcessorLogic';
 
 interface FileProcessorProps {
@@ -73,6 +75,15 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     }
   }, [currentStep, setActiveTab]);
 
+  // Handle error recovery
+  const handleErrorReset = () => {
+    console.log('FileProcessor - Handling error recovery');
+    resetConversion();
+    if (currentStep === 3) {
+      onPreviousStep();
+    }
+  };
+
   const contextValue = {
     selectedFile,
     extractedText,
@@ -97,41 +108,45 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   }
 
   return (
-    <FileProcessorProvider value={contextValue}>
-      <FileProcessorTerms
-        showTerms={showTerms}
-        setShowTerms={setShowTerms}
-        handleTermsAccept={handleTermsAccept}
-      />
-      
-      <BackButton
-        conversionStatus={conversionLogic.conversionStatus}
-        detectingChapters={detectingChapters}
-        isProcessingNextStep={processorLogic.isProcessingNextStep}
-        resetConversion={resetConversion}
-        onGoBack={handleGoBack}
-      />
+    <ErrorBoundary onReset={handleErrorReset}>
+      <FileProcessorProvider value={contextValue}>
+        <FileProcessorTerms
+          showTerms={showTerms}
+          setShowTerms={setShowTerms}
+          handleTermsAccept={handleTermsAccept}
+        />
+        
+        <BackButton
+          conversionStatus={conversionLogic.conversionStatus}
+          detectingChapters={detectingChapters}
+          isProcessingNextStep={processorLogic.isProcessingNextStep}
+          resetConversion={resetConversion}
+          onGoBack={handleGoBack}
+        />
 
-      <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
-        <ProcessorTabs />
+        <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
+          <ProcessorTabs />
 
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 transition-all">
-          <ProcessorTabContent
-            activeTab={activeTab}
-            selectedVoice={selectedVoice}
-            setSelectedVoice={setSelectedVoice}
-            notifyOnComplete={notifyOnComplete}
-            setNotifyOnComplete={setNotifyOnComplete}
-            detectChapters={detectChapters}
-            setDetectChapters={setDetectChapters}
-            handleStartConversion={handleStartConversion}
-            conversionLogic={conversionLogic}
-            resetConversion={resetConversion}
-            detectingChapters={detectingChapters}
-          />
-        </div>
-      </Tabs>
-    </FileProcessorProvider>
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 transition-all">
+            <ErrorBoundary onReset={handleErrorReset}>
+              <ProcessorTabContent
+                activeTab={activeTab}
+                selectedVoice={selectedVoice}
+                setSelectedVoice={setSelectedVoice}
+                notifyOnComplete={notifyOnComplete}
+                setNotifyOnComplete={setNotifyOnComplete}
+                detectChapters={detectChapters}
+                setDetectChapters={setDetectChapters}
+                handleStartConversion={handleStartConversion}
+                conversionLogic={conversionLogic}
+                resetConversion={resetConversion}
+                detectingChapters={detectingChapters}
+              />
+            </ErrorBoundary>
+          </div>
+        </Tabs>
+      </FileProcessorProvider>
+    </ErrorBoundary>
   );
 };
 
