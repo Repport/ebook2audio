@@ -27,7 +27,7 @@ export function ThemeProvider({
       const storedTheme = localStorage.getItem(storageKey)
       // Validate that storedTheme is a valid Theme value
       return (storedTheme === "dark" || storedTheme === "light" || storedTheme === "system") 
-        ? storedTheme 
+        ? storedTheme as Theme 
         : defaultTheme
     }
   )
