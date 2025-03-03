@@ -6,7 +6,7 @@ import { useConversionProgress } from '@/hooks/useConversionProgress';
 import { useLanguage } from '@/hooks/useLanguage';
 import { ConversionStatusType } from './conversion-status/conversion-status-types';
 
-// Import our new components
+// Import our components
 import ConversionStatusIdle from './conversion-status/ConversionStatusIdle';
 import ConversionStatusError from './conversion-status/ConversionStatusError';
 import ConversionStatusCompleted from './conversion-status/ConversionStatusCompleted';
