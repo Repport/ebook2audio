@@ -1,5 +1,5 @@
 
-import { ConversionStore, ConversionState } from './types';
+import { ConversionStore, ConversionState, ConversionActions } from './types';
 import { initialState } from './initialState';
 import { calculateTimeRemaining } from './utils';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
@@ -7,7 +7,7 @@ import { ChunkProgressData } from '@/services/conversion/types/chunks';
 export const createConversionActions = (
   set: (state: Partial<ConversionState>) => void,
   get: () => ConversionStore
-): Pick<ConversionStore, keyof Omit<ConversionStore, keyof ConversionState>> => ({
+): ConversionActions => ({
   // Acción para iniciar la conversión
   startConversion: (fileName) => {
     // Before starting a new conversion, check if we need to reset
@@ -131,7 +131,7 @@ export const createConversionActions = (
     set(updateObject);
   },
   
-  // Method to update elapsed time safely - MODIFIED to not increment progress automatically
+  // Method to update elapsed time safely
   updateElapsedTime: (elapsed, startTime) => {
     const state = get();
     // Only update if the time has actually changed to avoid unnecessary renders
