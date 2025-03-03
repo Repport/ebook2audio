@@ -52,8 +52,8 @@ export const createConversionActions = (
     }
     
     // Create new sets to avoid modifying existing state arrays
-    const uniqueErrors = new Set(state.errors);
-    const uniqueWarnings = new Set(state.warnings);
+    const uniqueErrors = new Set<string>(state.errors);
+    const uniqueWarnings = new Set<string>(state.warnings);
     
     // Manejar errores y advertencias
     if (data.error && typeof data.error === 'string' && data.error.trim() !== '') {
@@ -123,8 +123,8 @@ export const createConversionActions = (
         ...state.time,
         remaining: timeRemaining
       },
-      errors: Array.from(uniqueErrors),
-      warnings: Array.from(uniqueWarnings)
+      errors: Array.from(uniqueErrors) as string[],
+      warnings: Array.from(uniqueWarnings) as string[]
     };
     
     // Apply updates in a single operation
