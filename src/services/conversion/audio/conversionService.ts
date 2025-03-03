@@ -3,6 +3,7 @@ import { ChunkManager } from './chunkManager';
 import { processChunksInParallel } from './parallelProcessing';
 import { combineAudioBuffers } from './audioUtils';
 import { TextChunkCallback } from '../types/chunks';
+import { useConversionStore } from '@/store/conversionStore';
 
 /**
  * Servicio principal para la conversión de texto a audio
@@ -27,7 +28,16 @@ export async function convertTextToAudio(
     }
 
     // Inicializar el gestor de chunks
-    const chunkManager = new ChunkManager(text, onProgress);
+    const chunkManager = new ChunkManager(text, (progressData) => {
+      // Actualizar el store global al mismo tiempo que llamamos al callback original
+      const store = useConversionStore.getState();
+      store.updateProgress(progressData);
+      
+      // Llamar al callback original si existe
+      if (onProgress) {
+        onProgress(progressData);
+      }
+    });
     
     // Procesar los chunks en paralelo
     await processChunksInParallel(chunkManager, voiceId);
@@ -63,6 +73,11 @@ export async function convertTextToAudio(
     };
   } catch (error: any) {
     console.error('Fatal error in convertToAudio:', error);
+    
+    // Asegurarnos de que el error se refleje en el store
+    const store = useConversionStore.getState();
+    store.setError(error.message || 'Error desconocido en la conversión');
+    
     throw error;
   }
 }

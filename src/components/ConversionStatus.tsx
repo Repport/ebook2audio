@@ -1,13 +1,14 @@
 
-import React, { useEffect, useRef, useState } from 'react';
-import { useConversionProgress } from '@/hooks/useConversionProgress';
+import React, { useEffect } from 'react';
+import { useConversionStore } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
+import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
 // Import our components
 import ConversionStatusIdle from './conversion-status/ConversionStatusIdle';
 import ConversionStatusError from './conversion-status/ConversionStatusError';
 import ConversionStatusCompleted from './conversion-status/ConversionStatusCompleted';
-import ConversionStatusConverting from './conversion-status/ConversionStatusConverting';
+import ConversionProgressBar from './conversion-status/ConversionProgressBar';
 
 interface ConversionStatusProps {
   status: 'idle' | 'converting' | 'completed' | 'error' | 'processing';
@@ -28,7 +29,6 @@ const ConversionStatus = ({
   status,
   progress = 0,
   fileType = 'EPUB',
-  chapters = [],
   estimatedSeconds = 0,
   conversionId,
   textLength = 0,
@@ -37,151 +37,57 @@ const ConversionStatus = ({
   onProgressUpdate
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
-  const isMountedRef = useRef(true);
-  const progressUpdateTimeoutRef = useRef<number | null>(null);
-  const [stableStatus, setStableStatus] = useState(status);
-  const [initialRenderCompleted, setInitialRenderCompleted] = useState(false);
+  
+  // Obtener estado del store global
+  const { 
+    updateProgress, 
+    resetConversion 
+  } = useConversionStore();
   
   // Para mejor depuración
   useEffect(() => {
-    console.log(`ConversionStatus - Status changed from ${stableStatus} to ${status}, progress: ${progress}%`);
-  }, [status, stableStatus, progress]);
-  
-  // Para asegurar que el progreso inicial sea visible inmediatamente
-  useEffect(() => {
-    if (!initialRenderCompleted && (status === 'converting' || status === 'processing')) {
-      console.log('ConversionStatus - Initial render with conversion status, ensuring progress visibility');
-      setInitialRenderCompleted(true);
-    }
-  }, [status, initialRenderCompleted]);
-  
-  // For consistency if the state is processing but the UI component shows "converting"
-  const displayStatus = status === 'processing' ? 'converting' : status;
-
-  // Make status changes slightly delayed to avoid flashing UI during quick status changes
-  useEffect(() => {
-    if (status !== stableStatus) {
-      // Reducimos el retraso a 100ms para una respuesta más rápida
-      const timer = setTimeout(() => {
-        if (isMountedRef.current) {
-          setStableStatus(status);
-          console.log(`ConversionStatus - stableStatus updated to ${status}`);
-        }
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [status, stableStatus]);
-
-  // Use improved progress hook - aseguramos un progreso inicial mínimo
-  const safeInitialProgress = Math.max(1, progress);
-  
-  const {
-    progress: currentProgress,
-    updateProgress,
-    resetProgress,
-    timeRemaining,
-    elapsedTime,
-    hasStarted,
-    processedChunks,
-    totalChunks,
-    speed,
-    errors,
-    warnings
-  } = useConversionProgress(
-    stableStatus, 
-    safeInitialProgress, 
-    estimatedSeconds, 
-    conversionId, 
-    textLength, 
-    initialElapsedTime
-  );
-
-  // Handle component lifecycle
-  useEffect(() => {
-    isMountedRef.current = true;
-    console.log('ConversionStatus - Component mounted');
+    console.log(`ConversionStatus - Status changed to ${status}, progress: ${progress}%`);
     
-    return () => {
-      isMountedRef.current = false;
-      console.log('ConversionStatus - Component unmounted');
-      
-      // Clear any pending timeouts
-      if (progressUpdateTimeoutRef.current) {
-        window.clearTimeout(progressUpdateTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Reset progress when initialElapsedTime changes to 0 (complete reset)
-  useEffect(() => {
-    if (initialElapsedTime === 0 && stableStatus === 'converting') {
-      console.log('ConversionStatus - Detected reset (initialElapsedTime=0), resetting progress');
-      resetProgress();
-    }
-  }, [initialElapsedTime, stableStatus]);
-
-  // Debug logging
-  useEffect(() => {
-    if (isMountedRef.current) {
-      console.log('ConversionStatus - Status Update:', {
-        status,
-        stableStatus,
-        externalProgress: progress,
-        calculatedProgress: currentProgress,
-        timeRemaining,
-        elapsedTime,
-        initialElapsedTime,
-        processedChunks,
-        totalChunks,
-        hasErrors: errors.length > 0,
-        hasWarnings: warnings.length > 0
+    // Inicializar el estado global basado en los props iniciales
+    if (status === 'converting' || status === 'processing') {
+      // Actualizar el store con datos iniciales
+      updateProgress({
+        progress,
+        processedChunks: 0,
+        totalChunks: 0,
+        processedCharacters: 0,
+        totalCharacters: textLength
       });
+    } else if (status === 'completed') {
+      updateProgress({
+        progress: 100,
+        isCompleted: true
+      });
+    } else if (status === 'error') {
+      useConversionStore.getState().setError("Error en la conversión");
+    } else if (status === 'idle') {
+      resetConversion();
     }
-  }, [progress, currentProgress, timeRemaining, elapsedTime, initialElapsedTime, 
-      processedChunks, totalChunks, status, stableStatus, errors.length, warnings.length]);
-
-  // Notify updates upstream - only if component is still mounted, with debounce
+  }, [status, progress, textLength, updateProgress, resetConversion]);
+  
+  // Reenviar actualizaciones de progreso al componente padre
   useEffect(() => {
-    if (isMountedRef.current && onProgressUpdate) {
-      try {
-        // Debounce progress updates to avoid overwhelming the parent component
-        if (progressUpdateTimeoutRef.current) {
-          window.clearTimeout(progressUpdateTimeoutRef.current);
+    if (onProgressUpdate) {
+      const unsubscribe = useConversionStore.subscribe(
+        state => ({
+          progress: state.progress,
+          processedChunks: state.chunks.processed,
+          totalChunks: state.chunks.total,
+          elapsedTime: state.time.elapsed
+        }),
+        (data) => {
+          onProgressUpdate(data);
         }
-        
-        // Reducimos el debounce a 100ms para una actualización más frecuente
-        // Using window.setTimeout to ensure it's globally available
-        progressUpdateTimeoutRef.current = window.setTimeout(() => {
-          if (isMountedRef.current) {
-            try {
-              onProgressUpdate({
-                progress: currentProgress,
-                processedChunks,
-                totalChunks,
-                elapsedTime,
-                speed
-              });
-            } catch (e) {
-              console.error('Error in progress update callback:', e);
-            }
-            progressUpdateTimeoutRef.current = null;
-          }
-        }, 100); // Debounce for 100ms (reduced from 250ms)
-      } catch (e) {
-        console.error('Error setting up progress update:', e);
-      }
+      );
+      
+      return () => unsubscribe();
     }
-    
-    // Cleanup on unmount
-    return () => {
-      if (progressUpdateTimeoutRef.current) {
-        window.clearTimeout(progressUpdateTimeoutRef.current);
-        progressUpdateTimeoutRef.current = null;
-      }
-    };
-    
-  }, [currentProgress, processedChunks, totalChunks, elapsedTime, speed, onProgressUpdate]);
+  }, [onProgressUpdate]);
 
   // Status messages (without reference to file type)
   const statusMessages = {
@@ -193,38 +99,30 @@ const ConversionStatus = ({
   };
 
   // Return the appropriate component based on status
-  if (displayStatus === 'converting') {
-    return (
-      <ConversionStatusConverting
-        message={statusMessages[displayStatus]}
-        progress={currentProgress}
-        elapsedTime={elapsedTime}
-        timeRemaining={timeRemaining}
-        processedChunks={processedChunks}
-        totalChunks={totalChunks}
-        warnings={warnings}
-        errors={errors}
-        showPercentage={showPercentage}
-      />
-    );
-  } else if (displayStatus === 'completed') {
+  if (status === 'converting' || status === 'processing') {
+    return <ConversionProgressBar 
+             showPercentage={showPercentage}
+             message={statusMessages[status]} 
+           />;
+  } else if (status === 'completed') {
+    const { warnings, errors } = useConversionStore.getState();
     return (
       <ConversionStatusCompleted
-        message={statusMessages[displayStatus]}
+        message={statusMessages.completed}
         warnings={warnings}
         errors={errors}
       />
     );
-  } else if (displayStatus === 'error') {
+  } else if (status === 'error') {
     return (
       <ConversionStatusError
-        message={statusMessages[displayStatus]}
+        message={statusMessages.error}
       />
     );
   } else {
     return (
       <ConversionStatusIdle
-        message={statusMessages[displayStatus]}
+        message={statusMessages.idle}
       />
     );
   }

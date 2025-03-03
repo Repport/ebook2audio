@@ -8,6 +8,7 @@ import NavigationProtection from '@/components/NavigationProtection';
 import { Chapter } from '@/utils/textExtraction';
 import { useLanguage } from "@/hooks/useLanguage";
 import { toast } from "@/hooks/use-toast";
+import { useConversionStore } from '@/store/conversionStore';
 
 interface ConversionStepProps {
   selectedFile: File;
@@ -43,28 +44,24 @@ const ConversionStep = ({
   elapsedTime = 0
 }: ConversionStepProps) => {
   const [isConverting, setIsConverting] = useState(false);
-  const [currentProgress, setCurrentProgress] = useState(Math.max(1, progress));
   const { translations } = useLanguage();
+  
+  // Usar el store global para el progreso
+  const storeProgress = useConversionStore(state => state.progress);
+  const storeStatus = useConversionStore(state => state.status);
 
-  // Update progress when it changes externally
+  // Actualizar isConverting cuando cambia el estado de conversión
   useEffect(() => {
-    setCurrentProgress(Math.max(1, progress));
-  }, [progress]);
-
-  // Update isConverting when conversion status changes
-  useEffect(() => {
-    if (conversionStatus === 'converting') {
+    if (conversionStatus === 'converting' || storeStatus === 'converting') {
       setIsConverting(true);
-      if (currentProgress <= 0) {
-        setCurrentProgress(1);
-      }
-    } else if (conversionStatus === 'completed' || conversionStatus === 'error') {
+    } else if (conversionStatus === 'completed' || conversionStatus === 'error' || 
+               storeStatus === 'completed' || storeStatus === 'error') {
       setIsConverting(false);
     }
-  }, [conversionStatus, currentProgress]);
+  }, [conversionStatus, storeStatus]);
 
   const handleConvertClick = async (e: React.MouseEvent) => {
-    // Prevent default to avoid potential form submissions
+    // Prevenir comportamiento por defecto para evitar envíos de formulario potenciales
     e.preventDefault();
     e.stopPropagation();
     
@@ -100,16 +97,10 @@ const ConversionStep = ({
     }
   };
 
-  const handleProgressUpdate = (progressData: any) => {
-    if (typeof progressData.progress === 'number') {
-      setCurrentProgress(Math.max(1, progressData.progress));
-    }
-  };
-
   return (
     <div className="space-y-8 animate-fade-up">
       {/* Add NavigationProtection when conversion is in progress */}
-      <NavigationProtection isActive={conversionStatus === 'converting'} />
+      <NavigationProtection isActive={conversionStatus === 'converting' || storeStatus === 'converting'} />
       
       <div className="flex flex-col items-center text-center mb-6">
         <h2 className="text-xl font-medium text-gray-800 dark:text-gray-200">
@@ -135,7 +126,7 @@ const ConversionStep = ({
           </Button>
         </div>
 
-        {conversionStatus === 'idle' && (
+        {conversionStatus === 'idle' && storeStatus === 'idle' && (
           <Button
             onClick={handleConvertClick}
             disabled={isConverting}
@@ -148,7 +139,7 @@ const ConversionStep = ({
           </Button>
         )}
 
-        {conversionStatus === 'completed' && audioData && (
+        {(conversionStatus === 'completed' || storeStatus === 'completed') && audioData && (
           <Button
             onClick={onDownloadClick}
             type="button"
@@ -160,14 +151,13 @@ const ConversionStep = ({
         )}
 
         <ConversionStatus
-          status={conversionStatus}
-          progress={currentProgress}
+          status={storeStatus || conversionStatus}
+          progress={storeProgress || progress}
           estimatedSeconds={estimatedSeconds}
           detectingChapters={detectingChapters}
           textLength={textLength}
           conversionId={conversionId}
           initialElapsedTime={elapsedTime}
-          onProgressUpdate={handleProgressUpdate}
         />
 
         {chapters.length > 0 && (

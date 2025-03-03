@@ -6,7 +6,7 @@ import { retryOperation } from '@/services/conversion/utils/retryUtils';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 import { useToast } from '@/hooks/use-toast';
 import { Chapter } from '@/utils/textExtraction';
-import { ChunkProgressData } from '@/services/conversion/types/chunks';
+import { useConversionStore } from '@/store/conversionStore';
 
 // Define the shape of the audio conversion API we're expecting
 interface AudioConversionAPI {
@@ -41,6 +41,7 @@ export const useConversionActions = (
 ) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const conversionStore = useConversionStore();
   
   const initiateConversion = useCallback(async () => {
     console.log('useConversionLogic - initiateConversion called');
@@ -53,17 +54,15 @@ export const useConversionActions = (
     try {
       console.log('useConversionLogic - Checking terms acceptance');
       
-      // For debugging, we'll reset the conversion state here
+      // Para depuración, reseteamos el estado de conversión aquí
       audioConversion.resetConversion();
+      conversionStore.resetConversion();
       clearConversionStorage();
-      
-      // Don't set to converting yet - wait until user actually starts conversion
-      // audioConversion.setConversionStatus('converting');
       
       const termsAccepted = await checkTermsAcceptance();
       if (!termsAccepted) {
         setShowTerms(true);
-        return true; // We're showing terms, so this is a successful flow
+        return true; // Estamos mostrando términos, así que este es un flujo exitoso
       }
       
       return true;
@@ -72,65 +71,7 @@ export const useConversionActions = (
       setShowTerms(true);
       return false;
     }
-  }, [selectedFile, extractedText, audioConversion, checkTermsAcceptance, setShowTerms]);
-
-  // Creamos un sistema más robusto de manejo de progreso
-  const lastProgressRef = { current: 1 };
-  const errorCountRef = { current: 0 };
-
-  const handleProgressUpdate = useCallback((data: ChunkProgressData) => {
-    console.log('useConversionLogic - Progress update received:', data);
-    
-    // Manejar errores sin dejar que afecten al progreso global
-    if (data.error) {
-      console.warn('useConversionLogic - Error processing chunk:', data.error);
-      errorCountRef.current += 1;
-    }
-    
-    // Check if this is a completion message
-    if (data.isCompleted) {
-      console.log('useConversionLogic - Conversion completed via progress update');
-      audioConversion.setProgress(100);
-      audioConversion.setConversionStatus('completed');
-      return;
-    }
-    
-    // Calcular y actualizar el progreso basado en los datos disponibles
-    let newProgress = 0;
-    
-    if (data.processedCharacters && data.totalCharacters) {
-      newProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
-    } else if (typeof data.progress === 'number') {
-      newProgress = data.progress;
-    } else if (data.processedChunks && data.totalChunks) {
-      newProgress = Math.round((data.processedChunks / data.totalChunks) * 100);
-    }
-    
-    // Garantizamos un progreso mínimo y no permitimos retrocesos
-    if (newProgress > 0) {
-      newProgress = Math.max(newProgress, lastProgressRef.current);
-      
-      // Solo actualizamos si hay un cambio significativo o es el progreso inicial
-      if (newProgress > lastProgressRef.current || audioConversion.progress <= 1) {
-        console.log(`useConversionLogic - Setting progress to ${newProgress}%`);
-        audioConversion.setProgress(newProgress);
-        lastProgressRef.current = newProgress;
-        
-        // Verificar si completamos la conversión
-        if (newProgress >= 100) {
-          console.log('useConversionLogic - Progress reached 100%, setting to completed');
-          audioConversion.setConversionStatus('completed');
-        }
-      }
-    } else {
-      // Cuando no tenemos datos de progreso pero estamos procesando
-      // asegurarnos de que al menos se muestre algo de progreso
-      if (audioConversion.progress < 1) {
-        console.log('useConversionLogic - Ensuring minimum progress visibility');
-        audioConversion.setProgress(1);
-      }
-    }
-  }, [audioConversion]);
+  }, [selectedFile, extractedText, audioConversion, conversionStore, checkTermsAcceptance, setShowTerms]);
 
   const handleAcceptTerms = useCallback(async (options: ConversionOptions) => {
     console.log('useConversionLogic - handleAcceptTerms called with options:', options);
@@ -142,7 +83,6 @@ export const useConversionActions = (
         hasVoice: !!options.selectedVoice
       });
       
-      // Use safe toast call - check if we're still mounted
       toast({
         title: "Error",
         description: "Missing required data for conversion",
@@ -156,21 +96,20 @@ export const useConversionActions = (
       return;
     }
 
-    // Make sure we're not in a chapter detection state
+    // Asegurarnos de que no estamos en estado de detección de capítulos
     setDetectingChapters(false);
     
-    // Establecemos inmediatamente el estado de conversión y un progreso inicial visible
+    // Establecer estado de conversión en los dos sistemas (actual y nuevo)
     audioConversion.setConversionStatus('converting');
     audioConversion.setProgress(1);
     
-    // Resetear contadores
-    lastProgressRef.current = 1;
-    errorCountRef.current = 0;
+    // Inicializar el nuevo store con datos iniciales
+    conversionStore.startConversion(selectedFile.name);
     
     try {
       console.log('useConversionLogic - Starting conversion with text length:', extractedText.length);
       
-      // Use a try-catch with retry mechanism to handle conversion failures
+      // Usar un mecanismo de reintento para manejar errores de conversión
       const result = await retryOperation(
         async () => {
           return await audioConversion.handleConversion(
@@ -179,7 +118,10 @@ export const useConversionActions = (
             detectChapters,
             chapters,
             selectedFile.name,
-            handleProgressUpdate
+            (data: any) => {
+              // Actualizar también el nuevo store global
+              conversionStore.updateProgress(data);
+            }
           );
         },
         { maxRetries: 2, baseDelay: 1000 }
@@ -192,9 +134,16 @@ export const useConversionActions = (
       
       console.log('useConversionLogic - Conversion result received:', result);
       
-      // Make sure status is updated to completed
+      // Asegurarnos de que el estado se actualiza a completado en ambos sistemas
       audioConversion.setConversionStatus('completed');
       audioConversion.setProgress(100);
+      
+      // Actualizar el store global con el resultado
+      conversionStore.completeConversion(
+        result.audio, 
+        result.id,
+        Math.ceil(extractedText.length / 15) // Duración aproximada
+      );
       
       // Create notification if enabled and user is authenticated
       if (options.notifyOnComplete && user && result.id) {
@@ -220,11 +169,10 @@ export const useConversionActions = (
     } catch (error: any) {
       console.error('useConversionLogic - Conversion error:', error);
       
-      // Don't reset here, just update status to error
-      // This allows recovery of partial progress
+      // Actualizar estado a error en ambos sistemas
       audioConversion.setConversionStatus('error');
+      conversionStore.setError(error.message || "Error desconocido en la conversión");
       
-      // Use safe toast call
       toast({
         title: "Error",
         description: error.message || "An error occurred during conversion",
@@ -237,18 +185,21 @@ export const useConversionActions = (
     selectedFile, 
     extractedText, 
     audioConversion, 
+    conversionStore,
     detectChapters, 
     chapters, 
     setDetectingChapters, 
     user, 
-    handleProgressUpdate, 
     toast
   ]);
 
   const handleDownloadClick = useCallback(() => {
     console.log('useConversionLogic - handleDownloadClick called');
     
-    if (!audioConversion.audioData) {
+    // Usar el audioData del store global si está disponible, si no, usar el del audioConversion
+    const audioData = conversionStore.audioData || audioConversion.audioData;
+    
+    if (!audioData) {
       console.log('useConversionLogic - No audio data available for download');
       
       toast({
@@ -262,7 +213,10 @@ export const useConversionActions = (
 
     console.log('useConversionLogic - Starting download');
     try {
-      audioConversion.handleDownload(selectedFile?.name || "converted_audio");
+      // Determinar el nombre del archivo
+      const fileName = conversionStore.fileName || selectedFile?.name || "converted_audio";
+      
+      audioConversion.handleDownload(fileName);
       
       toast({
         title: "Download started",
@@ -278,7 +232,7 @@ export const useConversionActions = (
         variant: "destructive",
       });
     }
-  }, [audioConversion.audioData, selectedFile, audioConversion.handleDownload, toast]);
+  }, [conversionStore, audioConversion, selectedFile, toast]);
 
   return {
     initiateConversion,
