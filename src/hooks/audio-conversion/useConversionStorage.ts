@@ -24,32 +24,37 @@ export const useConversionStorage = () => {
   // Create a safe version of the store state
   const createStorageState = useCallback((state: any) => {
     return {
-      status: state.status,
+      status: state.status === 'converting' ? 'idle' : state.status, // Never store 'converting' state
       progress: state.progress,
       audioData: state.audioData ? convertArrayBufferToBase64(state.audioData) : undefined,
       audioDuration: state.audioDuration,
       fileName: state.fileName || undefined,
       conversionId: state.conversionId || undefined,
       elapsedTime: state.time.elapsed,
-      conversionStartTime: state.time.startTime
+      conversionStartTime: null // Don't resume conversion timers
     };
   }, []);
 
   // Compare if the new state is different enough to warrant a save
   const isStateDifferent = useCallback((prevHash: string, state: any) => {
+    // Only consider completed or error states for comparison to prevent update loops
+    if (state.status !== 'completed' && state.status !== 'error') {
+      return false;
+    }
+    
     const stateHash = `${state.status}-${state.progress}-${state.conversionId || ''}-${state.time.elapsed}`;
     return stateHash !== prevHash;
   }, []);
 
   // Function to save the state with debounce
   const saveStateWithDebounce = useCallback((state: any) => {
-    // Skip saving if we're currently loading state
+    // Skip saving if we're currently loading state or component is unmounted
     if (isLoadingState.current || !isMounted.current) {
       return;
     }
     
-    // Only save if we're not in idle state
-    if (state.status !== 'idle') {
+    // Only save completed or error states to prevent update loops
+    if (state.status === 'completed' || state.status === 'error') {
       // Cancel any pending save operations
       if (saveTimerRef.current !== null) {
         window.clearTimeout(saveTimerRef.current);
@@ -85,7 +90,7 @@ export const useConversionStorage = () => {
 
         const savedState = await loadConversionState();
         if (!savedState || !isMounted.current) {
-          console.log('No saved conversion state found');
+          console.log('No saved conversion state found or component unmounted');
           isLoadingState.current = false;
           return;
         }
@@ -93,51 +98,27 @@ export const useConversionStorage = () => {
         // Get the current store state and actions
         const store = useConversionStore.getState();
         
-        // Only restore non-idle states
-        if (savedState.status !== 'idle') {
-          console.log(`Restoring saved conversion state: ${savedState.status}`);
+        // Only restore completed states
+        if (savedState.status === 'completed' && savedState.audioData) {
+          console.log(`Restoring saved completed conversion`);
           
-          if (savedState.status === 'completed' && savedState.audioData) {
-            try {
-              const audioArrayBuffer = convertBase64ToArrayBuffer(savedState.audioData);
-              
-              // Use a single action to update the store to prevent multiple renders
-              store.completeConversion(
-                audioArrayBuffer,
-                savedState.conversionId || null,
-                savedState.audioDuration || 0
-              );
-            } catch (error) {
-              console.error('Error converting saved audio data:', error);
-            }
-          } else if (savedState.status === 'converting') {
-            // Instead of multiple updates, batch these operations
-            const startTime = savedState.conversionStartTime || Date.now() - (savedState.elapsedTime || 0) * 1000;
+          try {
+            const audioArrayBuffer = convertBase64ToArrayBuffer(savedState.audioData);
             
-            // Start with a complete state object to avoid partial updates
-            store.startConversion(savedState.fileName || null);
-            
-            // Only after the initial state is set, update progress in one operation
-            if (savedState.progress) {
-              store.updateProgress({
-                progress: savedState.progress,
-                processedChunks: 0,
-                totalChunks: 0,
-                processedCharacters: 0,
-                totalCharacters: 0,
-                currentChunk: ''
-              });
-            }
-            
-            // Update time in a single operation if needed
-            if (savedState.elapsedTime) {
-              store.updateElapsedTime(savedState.elapsedTime, startTime);
-            }
-          } else if (savedState.status === 'error') {
-            // Restore error state
-            store.setError('Error recuperado del almacenamiento');
+            // Use a single action to update the store to prevent multiple renders
+            store.completeConversion(
+              audioArrayBuffer,
+              savedState.conversionId || null,
+              savedState.audioDuration || 0
+            );
+          } catch (error) {
+            console.error('Error converting saved audio data:', error);
           }
+        } else if (savedState.status === 'error') {
+          // Restore error state
+          store.setError('Error recuperado del almacenamiento');
         }
+        // Never restore 'converting' or 'processing' states - these are transient
       } catch (error) {
         console.error('Error loading conversion state:', error);
       } finally {

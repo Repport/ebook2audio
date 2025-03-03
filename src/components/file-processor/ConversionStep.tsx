@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Play, Download, List } from "lucide-react";
 import ConversionStatus from '@/components/ConversionStatus';
@@ -27,7 +27,8 @@ interface ConversionStepProps {
   elapsedTime?: number;
 }
 
-const ConversionStep = ({
+// Wrap in React.memo to prevent unnecessary re-renders
+const ConversionStep = React.memo(({
   selectedFile,
   conversionStatus,
   progress,
@@ -46,20 +47,32 @@ const ConversionStep = ({
   const [isConverting, setIsConverting] = useState(false);
   const { translations } = useLanguage();
   
-  // Get store values only once during render to prevent infinite loops
-  const storeState = useConversionStore(useCallback(state => ({
-    progress: state.progress,
-    status: state.status
-  }), []));
+  // Get store values only once using selector functions
+  const storeProgress = useConversionStore(state => state.progress);
+  const storeStatus = useConversionStore(state => state.status);
   
-  // Use local refs to track previous values to avoid unnecessary re-renders
+  // Use refs to track previous values
   const prevStatus = React.useRef(conversionStatus);
-  const prevStoreStatus = React.useRef(storeState.status);
+  const prevStoreStatus = React.useRef(storeStatus);
+
+  // Create a memoized value for active conversion status
+  const isConversionActive = useMemo(() => 
+    conversionStatus === 'converting' || storeStatus === 'converting',
+  [conversionStatus, storeStatus]);
+  
+  // Use memoized values for display data
+  const displayProgress = useMemo(() => 
+    storeProgress || progress,
+  [storeProgress, progress]);
+  
+  const displayStatus = useMemo(() => 
+    storeStatus === 'idle' ? conversionStatus : storeStatus,
+  [storeStatus, conversionStatus]);
 
   // Only update isConverting when status actually changes
   useEffect(() => {
     const localConversionStatus = conversionStatus;
-    const localStoreStatus = storeState.status;
+    const localStoreStatus = storeStatus;
     
     // Only update if there's an actual change to avoid render loops
     if (localConversionStatus !== prevStatus.current || 
@@ -78,9 +91,9 @@ const ConversionStep = ({
       prevStatus.current = localConversionStatus;
       prevStoreStatus.current = localStoreStatus;
     }
-  }, [conversionStatus, storeState.status]);
+  }, [conversionStatus, storeStatus]);
 
-  const handleConvertClick = async (e: React.MouseEvent) => {
+  const handleConvertClick = useCallback(async (e: React.MouseEvent) => {
     // Prevenir comportamiento por defecto para evitar envíos de formulario potenciales
     e.preventDefault();
     e.stopPropagation();
@@ -115,20 +128,12 @@ const ConversionStep = ({
         variant: "destructive"
       });
     }
-  };
-
-  // Memoize this value to prevent unnecessary re-renders
-  const isConversionActive = 
-    conversionStatus === 'converting' || storeState.status === 'converting';
-
-  // Use the local or store progress/status based on what's available
-  const displayProgress = storeState.progress || progress;
-  const displayStatus = storeState.status || conversionStatus;
+  }, [isConverting, onConvert]);
   
   return (
     <div className="space-y-8 animate-fade-up">
       {/* Add NavigationProtection when conversion is in progress */}
-      <NavigationProtection isActive={isConversionActive} />
+      {isConversionActive && <NavigationProtection isActive={true} />}
       
       <div className="flex flex-col items-center text-center mb-6">
         <h2 className="text-xl font-medium text-gray-800 dark:text-gray-200">
@@ -199,6 +204,9 @@ const ConversionStep = ({
       </div>
     </div>
   );
-};
+});
+
+// Display name for debugging
+ConversionStep.displayName = 'ConversionStep';
 
 export default ConversionStep;

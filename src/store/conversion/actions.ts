@@ -131,42 +131,20 @@ export const createConversionActions = (
     set(updateObject);
   },
   
-  // Actualizar tiempo
-  updateTime: () => {
+  // Method to update elapsed time safely - MODIFIED to not increment progress automatically
+  updateElapsedTime: (elapsed, startTime) => {
     const state = get();
-    if (state.status !== 'converting' && state.status !== 'processing') return;
-    
-    // Solo actualizar si tenemos un tiempo de inicio
-    if (state.time.startTime) {
-      const elapsed = Math.floor((Date.now() - state.time.startTime) / 1000);
-      
-      // Only update if elapsed time has actually changed
-      if (elapsed !== state.time.elapsed) {
-        const updates: Partial<ConversionState> = {
-          time: {
-            ...state.time,
-            elapsed
-          }
-        };
-        
-        // Auto-incrementar el progreso ligeramente para mantener sensación de actividad
-        if (elapsed % 3 === 0 && state.progress < 95) {
-          updates.progress = state.progress + 0.1;
+    // Only update if the time has actually changed to avoid unnecessary renders
+    if (state.time.elapsed !== elapsed) {
+      set({
+        time: {
+          ...state.time,
+          elapsed,
+          startTime
         }
-        
-        set(updates);
-      }
+      });
     }
   },
-  
-  // Method to update elapsed time safely
-  updateElapsedTime: (elapsed, startTime) => set({
-    time: {
-      ...get().time,
-      elapsed,
-      startTime
-    }
-  }),
   
   // Establecer error
   setError: (error) => {
