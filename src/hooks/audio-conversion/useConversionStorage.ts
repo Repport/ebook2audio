@@ -151,18 +151,17 @@ export const useConversionStorage = () => {
 
   // Listen for store changes to save state
   useEffect(() => {
-    // Subscribe to store changes - use selector to avoid unnecessary renders
-    const unsubscribe = useConversionStore.subscribe(
-      (state) => [state.status, state.progress, state.audioData, state.conversionId, state.time.elapsed],
-      (newValues) => {
-        // Get the full state
-        const state = useConversionStore.getState();
-        // Don't save if we're loading state
-        if (!isLoadingState.current) {
-          saveStateWithDebounce(state);
-        }
+    const handleStateChange = () => {
+      // Get the full state
+      const state = useConversionStore.getState();
+      // Don't save if we're loading state
+      if (!isLoadingState.current) {
+        saveStateWithDebounce(state);
       }
-    );
+    };
+    
+    // Subscribe to store changes
+    const unsubscribe = useConversionStore.subscribe(handleStateChange);
     
     return () => {
       // Set mounted flag to false
