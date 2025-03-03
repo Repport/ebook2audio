@@ -50,7 +50,7 @@ export const LoggingService = {
       status?: string;
       ipAddress?: string;
     }
-  ): Promise<void> {
+  ): Promise<void> => {
     const { entityId, userId, status, ipAddress } = options || {};
     
     // Create log entry for database
