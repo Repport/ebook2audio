@@ -1,14 +1,17 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button } from "@/components/ui/button";
-import { Play, Download, List } from "lucide-react";
 import ConversionStatus from '@/components/ConversionStatus';
-import { ChaptersList } from '@/components/ChaptersList';
 import NavigationProtection from '@/components/NavigationProtection';
 import { Chapter } from '@/utils/textExtraction';
-import { useLanguage } from "@/hooks/useLanguage";
 import { toast } from "@/hooks/use-toast";
 import { useConversionStore } from '@/store/conversionStore';
+
+// Import our new components
+import ConversionHeader from './conversion-step/ConversionHeader';
+import ConversionButton from './conversion-step/ConversionButton';
+import DownloadButton from './conversion-step/DownloadButton';
+import ChaptersDisplay from './conversion-step/ChaptersDisplay';
+import ConversionStepTitle from './conversion-step/ConversionStepTitle';
 
 interface ConversionStepProps {
   selectedFile: File;
@@ -45,7 +48,6 @@ const ConversionStep = React.memo(({
   elapsedTime = 0
 }: ConversionStepProps) => {
   const [isConverting, setIsConverting] = useState(false);
-  const { translations } = useLanguage();
   
   // Get store values only once using selector functions
   const storeProgress = useConversionStore(state => state.progress);
@@ -135,52 +137,23 @@ const ConversionStep = React.memo(({
       {/* Add NavigationProtection when conversion is in progress */}
       {isConversionActive && <NavigationProtection isActive={true} />}
       
-      <div className="flex flex-col items-center text-center mb-6">
-        <h2 className="text-xl font-medium text-gray-800 dark:text-gray-200">
-          {translations.convertToAudio || "Convert to Audio"}
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          {translations.convertDesc || "Start the conversion process and download your audio"}
-        </p>
-      </div>
+      <ConversionStepTitle />
 
       <div className="space-y-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-medium text-gray-700 dark:text-gray-300">{selectedFile.name}</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onViewConversions}
-            type="button"
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700"
-          >
-            <List className="w-4 h-4" />
-            {translations.viewConversions || "View Conversions"}
-          </Button>
-        </div>
+        <ConversionHeader 
+          fileName={selectedFile.name}
+          onViewConversions={onViewConversions}
+        />
 
         {displayStatus === 'idle' && (
-          <Button
-            onClick={handleConvertClick}
-            disabled={isConverting}
-            type="button"
-            variant="default"
-            className="w-full py-6 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700"
-          >
-            <Play className="w-5 h-5" />
-            {isConverting ? translations.starting || "Starting..." : translations.startConversion || "Start Conversion"}
-          </Button>
+          <ConversionButton
+            isConverting={isConverting}
+            onConvert={handleConvertClick}
+          />
         )}
 
         {displayStatus === 'completed' && audioData && (
-          <Button
-            onClick={onDownloadClick}
-            type="button"
-            className="w-full py-6 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
-          >
-            <Download className="w-5 h-5" />
-            {translations.downloadAudio || "Download Audio"}
-          </Button>
+          <DownloadButton onDownloadClick={onDownloadClick} />
         )}
 
         <ConversionStatus
@@ -193,14 +166,7 @@ const ConversionStep = React.memo(({
           initialElapsedTime={elapsedTime}
         />
 
-        {chapters.length > 0 && (
-          <div className="mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-            <h4 className="text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">
-              {translations.detectedChapters || "Detected Chapters"}
-            </h4>
-            <ChaptersList chapters={chapters} />
-          </div>
-        )}
+        <ChaptersDisplay chapters={chapters} />
       </div>
     </div>
   );
