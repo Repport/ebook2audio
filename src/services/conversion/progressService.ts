@@ -2,6 +2,21 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ChunkProgressData } from "./types/chunks";
 
+// Define the database response type
+interface ConversionProgressRow {
+  conversion_id: string;
+  processed_chunks: number;
+  total_chunks: number;
+  processed_characters: number;
+  total_characters: number;
+  current_chunk: string | null;
+  progress: number;
+  status: 'pending' | 'converting' | 'completed' | 'error';
+  error_message: string | null;
+  warning_message: string | null;
+  updated_at: string;
+}
+
 /**
  * Updates the conversion progress in Supabase
  */
@@ -65,17 +80,20 @@ export const subscribeToProgress = (
         const { new: newData } = payload;
         if (!newData) return;
         
+        // Cast the payload data to our known type
+        const rowData = newData as ConversionProgressRow;
+        
         // Map from DB format to ChunkProgressData
         const progressData: ChunkProgressData = {
-          processedChunks: newData.processed_chunks || 0,
-          totalChunks: newData.total_chunks || 0,
-          processedCharacters: newData.processed_characters || 0,
-          totalCharacters: newData.total_characters || 0,
-          currentChunk: newData.current_chunk || '',
-          progress: newData.progress || 0,
-          error: newData.error_message,
-          warning: newData.warning_message,
-          isCompleted: newData.status === 'completed'
+          processedChunks: rowData.processed_chunks || 0,
+          totalChunks: rowData.total_chunks || 0,
+          processedCharacters: rowData.processed_characters || 0,
+          totalCharacters: rowData.total_characters || 0,
+          currentChunk: rowData.current_chunk || '',
+          progress: rowData.progress || 0,
+          error: rowData.error_message || undefined,
+          warning: rowData.warning_message || undefined,
+          isCompleted: rowData.status === 'completed'
         };
         
         console.log('Received realtime progress update:', progressData);
@@ -96,16 +114,19 @@ export const subscribeToProgress = (
         .maybeSingle();
 
       if (!error && data) {
+        // Cast to our known type
+        const rowData = data as ConversionProgressRow;
+        
         const progressData: ChunkProgressData = {
-          processedChunks: data.processed_chunks || 0,
-          totalChunks: data.total_chunks || 0,
-          processedCharacters: data.processed_characters || 0,
-          totalCharacters: data.total_characters || 0,
-          currentChunk: data.current_chunk || '',
-          progress: data.progress || 0,
-          error: data.error_message,
-          warning: data.warning_message,
-          isCompleted: data.status === 'completed'
+          processedChunks: rowData.processed_chunks || 0,
+          totalChunks: rowData.total_chunks || 0,
+          processedCharacters: rowData.processed_characters || 0,
+          totalCharacters: rowData.total_characters || 0,
+          currentChunk: rowData.current_chunk || '',
+          progress: rowData.progress || 0,
+          error: rowData.error_message || undefined,
+          warning: rowData.warning_message || undefined,
+          isCompleted: rowData.status === 'completed'
         };
         
         console.log('Found initial progress state:', progressData);
@@ -154,17 +175,20 @@ export const getConversionProgress = async (
     }
 
     console.log('Found progress data:', data);
+    
+    // Cast to our known type
+    const rowData = data as ConversionProgressRow;
 
     return {
-      processedChunks: data.processed_chunks || 0,
-      totalChunks: data.total_chunks || 0,
-      processedCharacters: data.processed_characters || 0,
-      totalCharacters: data.total_characters || 0,
-      currentChunk: data.current_chunk || '',
-      progress: data.progress || 0,
-      error: data.error_message,
-      warning: data.warning_message,
-      isCompleted: data.status === 'completed'
+      processedChunks: rowData.processed_chunks || 0,
+      totalChunks: rowData.total_chunks || 0,
+      processedCharacters: rowData.processed_characters || 0,
+      totalCharacters: rowData.total_characters || 0,
+      currentChunk: rowData.current_chunk || '',
+      progress: rowData.progress || 0,
+      error: rowData.error_message || undefined,
+      warning: rowData.warning_message || undefined,
+      isCompleted: rowData.status === 'completed'
     };
   } catch (e) {
     console.error('Failed to get conversion progress:', e);
