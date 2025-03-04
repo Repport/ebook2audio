@@ -1,12 +1,11 @@
-
 import React, { useEffect } from 'react';
-import { Tabs } from "@/components/ui/tabs";
+import { Tabs as UITabs } from "@/components/ui/tabs";
 import { Chapter } from '@/utils/textExtraction';
 import { FileProcessorProvider } from '@/context/FileProcessorContext';
 import ChapterDetectionState from './file-processor/ChapterDetectionState';
 import BackButton from './file-processor/BackButton';
 import ErrorHandler from './file-processor/ErrorHandler';
-import ProcessorTabs from './file-processor/Tabs';
+import Tabs from './file-processor/Tabs';
 import TabContent from './file-processor/TabContent';
 import FileProcessorTerms from './file-processor/FileProcessorTerms';
 import { useProcessorLogic } from '@/hooks/file-processor/useProcessorLogic';
@@ -65,7 +64,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     isProcessingNextStep
   } = processorLogic;
 
-  // Update activeTab based on currentStep
   useEffect(() => {
     if (currentStep === 2) {
       setActiveTab("voice-settings");
@@ -76,7 +74,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     }
   }, [currentStep, setActiveTab]);
 
-  // Handle error recovery
   const handleErrorReset = () => {
     console.log('FileProcessor - Handling error recovery');
     resetConversion();
@@ -85,11 +82,9 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     }
   };
 
-  // Handle tab change without page navigation
   const handleTabChange = (tab: string) => {
     console.log('FileProcessor - Tab changed to:', tab);
     
-    // Only allow navigation to tabs that are enabled based on currentStep
     if (tab === "file-info" || 
         (tab === "voice-settings" && currentStep >= 2) || 
         (tab === "conversion" && currentStep >= 3)) {
@@ -137,8 +132,8 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           onGoBack={handleGoBack}
         />
 
-        <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
-          <ProcessorTabs 
+        <UITabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
+          <Tabs 
             activeTab={activeTab} 
             onTabChange={handleTabChange} 
           />
@@ -160,7 +155,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
               />
             </ErrorHandler>
           </div>
-        </Tabs>
+        </UITabs>
       </FileProcessorProvider>
     </ErrorHandler>
   );
