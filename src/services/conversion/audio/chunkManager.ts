@@ -1,19 +1,11 @@
 
 import { splitTextIntoChunks } from '../utils';
 import { TextChunkCallback, ChunkProgressData } from '../types/chunks';
+import { calculateProgressData, saveProgressToLocalStorage } from './progressUtils';
+import { RetryTracker } from './retryTracker';
+import { ChunkProcessingContext } from './types/chunkTypes';
 
 const CHUNK_SIZE = 4800;
-
-export interface ProcessChunkResult {
-  buffer: ArrayBuffer;
-  index: number;
-}
-
-export interface ChunkProcessingContext {
-  totalChunks: number;
-  totalCharacters: number;
-  onProgress?: TextChunkCallback;
-}
 
 /**
  * Divide el texto en chunks y gestiona la distribución del procesamiento
@@ -28,7 +20,7 @@ export class ChunkManager {
   private instanceId: string;
   private lastProgressUpdate: number = 0;
   private MIN_UPDATE_INTERVAL = 100; // Reduced from 300ms to 100ms for more responsive updates
-  private retryCountMap = new Map<number, number>();
+  private retryTracker: RetryTracker;
 
   constructor(text: string, onProgress?: TextChunkCallback) {
     this.instanceId = crypto.randomUUID().substring(0, 8);
@@ -36,6 +28,7 @@ export class ChunkManager {
     this.totalChunks = this.chunks.length;
     this.totalCharacters = text.length;
     this.onProgress = onProgress;
+    this.retryTracker = new RetryTracker();
     
     console.log(`[ChunkManager-${this.instanceId}] Text split into ${this.chunks.length} chunks, total ${text.length} characters`);
     
@@ -90,15 +83,14 @@ export class ChunkManager {
    * Obtiene el número de reintentos para un chunk específico
    */
   getRetryCount(index: number): number {
-    return this.retryCountMap.get(index) || 0;
+    return this.retryTracker.getRetryCount(index);
   }
   
   /**
    * Incrementa el contador de reintentos para un chunk específico
    */
   incrementRetryCount(index: number): void {
-    const currentCount = this.retryCountMap.get(index) || 0;
-    this.retryCountMap.set(index, currentCount + 1);
+    this.retryTracker.incrementRetryCount(index);
   }
 
   /**
@@ -123,62 +115,26 @@ export class ChunkManager {
         this.localProcessedCharacters += additionalChars;
       }
       
-      // Ensure we don't exceed total count (can happen with rounding errors)
-      const safeProcessedChars = Math.min(this.localProcessedCharacters, this.totalCharacters);
-      
-      // Calculate progress percentage (1-99%)
-      const progressPercent = Math.min(
-        99, // Cap at 99% until explicitly completed
-        Math.max(1, Math.round((safeProcessedChars / this.totalCharacters) * 1000) / 10)
+      const progressData = calculateProgressData(
+        this.processedChunksMap.size,
+        this.totalChunks,
+        this.localProcessedCharacters,
+        this.totalCharacters,
+        currentChunk,
+        this.instanceId
       );
-      
-      // Calculate alternative progress based on processed chunks
-      const chunkProgress = Math.min(
-        99,
-        Math.max(1, Math.round((this.processedChunksMap.size / this.totalChunks) * 100))
-      );
-      
-      // Use the most reliable progress metric
-      const finalProgress = this.processedChunksMap.size > 0 ? chunkProgress : progressPercent;
-      
-      const progressData: ChunkProgressData = {
-        processedChunks: this.processedChunksMap.size,
-        totalChunks: this.totalChunks,
-        processedCharacters: safeProcessedChars,
-        totalCharacters: this.totalCharacters,
-        currentChunk: currentChunk || "",
-        progress: finalProgress
-      };
-      
-      console.log(`[ChunkManager-${this.instanceId}] Sending progress update:`, {
-        progress: `${finalProgress}%`,
-        chunks: `${this.processedChunksMap.size}/${this.totalChunks}`,
-        characters: `${safeProcessedChars}/${this.totalCharacters}`,
-        dataJson: JSON.stringify(progressData)
-      });
       
       // Asegurarnos de que todos los valores son correctos antes de enviar la actualización
       this.onProgress(progressData);
       
       // Guardar localmente para debug
-      try {
-        const progressLog = {
-          timestamp: new Date().toISOString(),
-          progress: finalProgress,
-          processedChunks: this.processedChunksMap.size,
-          totalChunks: this.totalChunks,
-          processedCharacters: safeProcessedChars,
-          totalCharacters: this.totalCharacters,
-        };
-        
-        // Guardar en localStorage para poder revisar logs fácilmente
-        const progressLogs = JSON.parse(localStorage.getItem('conversionProgressLogs') || '[]');
-        progressLogs.push(progressLog);
-        if (progressLogs.length > 100) progressLogs.shift(); // Limite de 100 logs
-        localStorage.setItem('conversionProgressLogs', JSON.stringify(progressLogs));
-      } catch (e) {
-        // Ignorar errores de localStorage
-      }
+      saveProgressToLocalStorage(
+        progressData.progress,
+        this.processedChunksMap.size,
+        this.totalChunks,
+        this.localProcessedCharacters,
+        this.totalCharacters
+      );
     }
   }
 
