@@ -28,6 +28,7 @@ export class ChunkManager {
   private instanceId: string;
   private lastProgressUpdate: number = 0;
   private MIN_UPDATE_INTERVAL = 100; // Reduced from 300ms to 100ms for more responsive updates
+  private retryCountMap = new Map<number, number>();
 
   constructor(text: string, onProgress?: TextChunkCallback) {
     this.instanceId = crypto.randomUUID().substring(0, 8);
@@ -69,6 +70,36 @@ export class ChunkManager {
   getAllChunks(): string[] {
     return this.chunks;
   }
+  
+  /**
+   * Actualiza los metadatos iniciales para asegurar valores correctos de rastreo
+   */
+  updateInitialMetadata(totalChunks: number, totalCharacters: number): void {
+    // Only update if our initial values were incorrect
+    if (this.totalChunks !== totalChunks || this.totalCharacters !== totalCharacters) {
+      console.log(`[ChunkManager-${this.instanceId}] Updating metadata: chunks ${this.totalChunks} -> ${totalChunks}, chars ${this.totalCharacters} -> ${totalCharacters}`);
+      this.totalChunks = totalChunks;
+      this.totalCharacters = totalCharacters;
+      
+      // Force a progress update with new metadata
+      this.sendProgressUpdate(0, null, true);
+    }
+  }
+  
+  /**
+   * Obtiene el número de reintentos para un chunk específico
+   */
+  getRetryCount(index: number): number {
+    return this.retryCountMap.get(index) || 0;
+  }
+  
+  /**
+   * Incrementa el contador de reintentos para un chunk específico
+   */
+  incrementRetryCount(index: number): void {
+    const currentCount = this.retryCountMap.get(index) || 0;
+    this.retryCountMap.set(index, currentCount + 1);
+  }
 
   /**
    * Envía una actualización de progreso con datos actuales
@@ -101,17 +132,26 @@ export class ChunkManager {
         Math.max(1, Math.round((safeProcessedChars / this.totalCharacters) * 1000) / 10)
       );
       
+      // Calculate alternative progress based on processed chunks
+      const chunkProgress = Math.min(
+        99,
+        Math.max(1, Math.round((this.processedChunksMap.size / this.totalChunks) * 100))
+      );
+      
+      // Use the most reliable progress metric
+      const finalProgress = this.processedChunksMap.size > 0 ? chunkProgress : progressPercent;
+      
       const progressData: ChunkProgressData = {
         processedChunks: this.processedChunksMap.size,
         totalChunks: this.totalChunks,
         processedCharacters: safeProcessedChars,
         totalCharacters: this.totalCharacters,
         currentChunk: currentChunk || "",
-        progress: progressPercent
+        progress: finalProgress
       };
       
       console.log(`[ChunkManager-${this.instanceId}] Sending progress update:`, {
-        progress: `${progressPercent}%`,
+        progress: `${finalProgress}%`,
         chunks: `${this.processedChunksMap.size}/${this.totalChunks}`,
         characters: `${safeProcessedChars}/${this.totalCharacters}`,
         dataJson: JSON.stringify(progressData)
@@ -124,7 +164,7 @@ export class ChunkManager {
       try {
         const progressLog = {
           timestamp: new Date().toISOString(),
-          progress: progressPercent,
+          progress: finalProgress,
           processedChunks: this.processedChunksMap.size,
           totalChunks: this.totalChunks,
           processedCharacters: safeProcessedChars,

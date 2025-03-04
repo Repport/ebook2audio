@@ -26,8 +26,15 @@ export async function processChunksInParallel(
     parallel_workers: OPTIMAL_PARALLEL_CHUNKS
   });
   
+  // First notify total chunks to ensure UI displays correctly
+  const totalCharacters = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+  chunkManager.updateInitialMetadata(totalChunks, totalCharacters);
+  
   let activeWorkers = 0;
   let nextChunkIndex = 0;
+  let completedChunks = 0;
+  let failedChunks = 0;
+  let retryQueue: number[] = [];
   
   // Iniciar el primer lote de workers
   const startInitialWorkers = async () => {
@@ -43,14 +50,19 @@ export async function processChunksInParallel(
   
   // Procesar el siguiente chunk disponible
   const processNextChunk = async () => {
-    const currentIndex = nextChunkIndex++;
+    // First try to process chunks from retry queue
+    let currentIndex: number;
     
-    if (currentIndex >= totalChunks) {
+    if (retryQueue.length > 0) {
+      currentIndex = retryQueue.shift()!;
+      console.log(`Worker retrying chunk ${currentIndex + 1}/${totalChunks}`);
+    } else if (nextChunkIndex < totalChunks) {
+      currentIndex = nextChunkIndex++;
+      console.log(`Worker starting chunk ${currentIndex + 1}/${totalChunks}`);
+    } else {
       activeWorkers--;
       return;
     }
-    
-    console.log(`Worker starting chunk ${currentIndex + 1}/${totalChunks}`);
     
     try {
       const chunk = chunkManager.getChunk(currentIndex);
@@ -58,12 +70,27 @@ export async function processChunksInParallel(
       
       // Registrar el resultado exitoso
       chunkManager.registerProcessedChunk(currentIndex, buffer);
+      completedChunks++;
+      
+      // Log progress to help debug
+      console.log(`Chunk ${currentIndex + 1}/${totalChunks} processed successfully, progress: ${Math.round((completedChunks / totalChunks) * 100)}%`);
       
       // Procesar el siguiente chunk
       processNextChunk();
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error processing chunk ${currentIndex + 1}/${totalChunks}:`, error);
-      chunkManager.registerChunkError(currentIndex, error as Error);
+      
+      // Add to retry queue if we haven't retried too many times
+      const retryAttempts = chunkManager.getRetryCount(currentIndex);
+      if (retryAttempts < 3) {
+        console.log(`Adding chunk ${currentIndex + 1} to retry queue (attempt ${retryAttempts + 1})`);
+        chunkManager.incrementRetryCount(currentIndex);
+        retryQueue.push(currentIndex);
+      } else {
+        console.error(`Chunk ${currentIndex + 1}/${totalChunks} failed after multiple retries`);
+        chunkManager.registerChunkError(currentIndex, error as Error);
+        failedChunks++;
+      }
       
       // A pesar del error, continuamos con el siguiente chunk
       processNextChunk();
@@ -76,23 +103,40 @@ export async function processChunksInParallel(
   // Esperar a que todos los chunks se procesen
   return new Promise<void>((resolve, reject) => {
     const checkCompletion = () => {
-      if (chunkManager.areAllChunksProcessed()) {
+      const allProcessed = completedChunks + failedChunks === totalChunks;
+      const noActiveWorkers = activeWorkers === 0;
+      
+      if (completedChunks === totalChunks) {
         console.log('All chunks processed successfully');
         LoggingService.info('conversion', {
           message: 'Todos los chunks procesados exitosamente',
           total_chunks: totalChunks
         });
         resolve();
-      } else if (activeWorkers === 0) {
-        // Si no hay workers activos pero hay chunks sin procesar, hubo un problema
+      } else if (allProcessed || (noActiveWorkers && retryQueue.length === 0)) {
+        // Si hay chunks que fallaron, pero hemos terminado de procesar todo lo posible
         const missingChunks = chunkManager.getMissingChunks();
-        const error = new Error(`Procesamiento incompleto. Faltan chunks: ${missingChunks.join(', ')}`);
-        console.error(error);
-        LoggingService.error('conversion', {
-          message: 'Procesamiento incompleto de chunks',
-          missing_chunks: missingChunks
-        });
-        reject(error);
+        if (missingChunks.length > 0) {
+          const error = new Error(`Procesamiento incompleto. Faltan chunks: ${missingChunks.join(', ')}`);
+          console.error(error);
+          LoggingService.error('conversion', {
+            message: 'Procesamiento incompleto de chunks',
+            missing_chunks: missingChunks,
+            completed_chunks: completedChunks,
+            total_chunks: totalChunks
+          });
+          reject(error);
+        } else {
+          // Si no hay chunks faltantes pero tuvimos errores, seguimos adelante
+          console.log(`Processing completed with ${failedChunks} failed chunks`);
+          LoggingService.warning('conversion', {
+            message: 'Procesamiento completado con errores',
+            failed_chunks: failedChunks,
+            completed_chunks: completedChunks,
+            total_chunks: totalChunks
+          });
+          resolve();
+        }
       } else {
         // Verificar nuevamente en 100ms
         setTimeout(checkCompletion, 100);

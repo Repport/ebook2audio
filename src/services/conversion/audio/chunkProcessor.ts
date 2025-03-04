@@ -38,7 +38,8 @@ export async function processChunk(
     text: chunk,
     voiceId: voiceId,
     chunkIndex: index,
-    totalChunks: totalChunks
+    totalChunks: totalChunks,
+    isChunk: true // Flag explícito para indicar que es un chunk
   };
   
   // Incrementamos el número de reintentos y añadimos backoff exponencial
@@ -71,6 +72,14 @@ export async function processChunk(
   }
 
   const { data } = response;
+
+  // Log detallado para debugging
+  console.log(`Received response for chunk ${index + 1}/${totalChunks}:`, {
+    hasAudioContent: !!data.audioContent,
+    contentLength: data.audioContent ? data.audioContent.length : 0,
+    progress: data.progress || 'unknown',
+    processingTime: data.processingTime || 'unknown'
+  });
 
   if (!data.audioContent) {
     console.error(`Missing audioContent for chunk ${index + 1} after multiple retries:`, data);
