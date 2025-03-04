@@ -1,15 +1,15 @@
 
 import React from 'react';
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useFileProcessor } from '@/context/FileProcessorContext';
 
-interface ProcessorTabsProps {
+interface TabsProps {
   activeTab: string;
   onTabChange: (value: string) => void;
 }
 
-const ProcessorTabs: React.FC<ProcessorTabsProps> = ({ activeTab, onTabChange }) => {
+const Tabs: React.FC<TabsProps> = ({ activeTab, onTabChange }) => {
   const { translations } = useLanguage();
   const { currentStep } = useFileProcessor();
   
@@ -51,4 +51,4 @@ const ProcessorTabs: React.FC<ProcessorTabsProps> = ({ activeTab, onTabChange })
   );
 };
 
-export default ProcessorTabs;
+export default Tabs;

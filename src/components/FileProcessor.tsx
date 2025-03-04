@@ -5,10 +5,10 @@ import { Chapter } from '@/utils/textExtraction';
 import { FileProcessorProvider } from '@/context/FileProcessorContext';
 import ChapterDetectionState from './file-processor/ChapterDetectionState';
 import BackButton from './file-processor/BackButton';
-import ProcessorTabs from './file-processor/ProcessorTabs';
-import ProcessorTabContent from './file-processor/ProcessorTabContent';
+import ErrorHandler from './file-processor/ErrorHandler';
+import ProcessorTabs from './file-processor/Tabs';
+import TabContent from './file-processor/TabContent';
 import FileProcessorTerms from './file-processor/FileProcessorTerms';
-import ErrorBoundary from './ErrorBoundary';
 import { useProcessorLogic } from '@/hooks/file-processor/useProcessorLogic';
 
 interface FileProcessorProps {
@@ -61,7 +61,8 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     handleStartConversion,
     handleTermsAccept,
     handleGoBack,
-    resetConversion
+    resetConversion,
+    isProcessingNextStep
   } = processorLogic;
 
   // Update activeTab based on currentStep
@@ -120,7 +121,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   }
 
   return (
-    <ErrorBoundary onReset={handleErrorReset}>
+    <ErrorHandler onReset={handleErrorReset}>
       <FileProcessorProvider value={contextValue}>
         <FileProcessorTerms
           showTerms={showTerms}
@@ -131,7 +132,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         <BackButton
           conversionStatus={conversionLogic.conversionStatus}
           detectingChapters={detectingChapters}
-          isProcessingNextStep={processorLogic.isProcessingNextStep}
+          isProcessingNextStep={isProcessingNextStep}
           resetConversion={resetConversion}
           onGoBack={handleGoBack}
         />
@@ -143,8 +144,8 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           />
 
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 transition-all">
-            <ErrorBoundary onReset={handleErrorReset}>
-              <ProcessorTabContent
+            <ErrorHandler onReset={handleErrorReset}>
+              <TabContent
                 activeTab={activeTab}
                 selectedVoice={selectedVoice}
                 setSelectedVoice={setSelectedVoice}
@@ -157,11 +158,11 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                 resetConversion={resetConversion}
                 detectingChapters={detectingChapters}
               />
-            </ErrorBoundary>
+            </ErrorHandler>
           </div>
         </Tabs>
       </FileProcessorProvider>
-    </ErrorBoundary>
+    </ErrorHandler>
   );
 };
 

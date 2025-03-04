@@ -6,7 +6,7 @@ import VoiceSettingsStep from '../VoiceSettingsStep';
 import ConversionStep from './ConversionStep';
 import { useFileProcessor } from '@/context/FileProcessorContext';
 
-interface ProcessorTabContentProps {
+interface TabContentProps {
   activeTab: string;
   selectedVoice: string;
   setSelectedVoice: (voice: string) => void;
@@ -30,7 +30,7 @@ interface ProcessorTabContentProps {
   detectingChapters: boolean;
 }
 
-const ProcessorTabContent: React.FC<ProcessorTabContentProps> = ({
+const TabContent: React.FC<TabContentProps> = ({
   activeTab,
   selectedVoice,
   setSelectedVoice,
@@ -104,4 +104,4 @@ const ProcessorTabContent: React.FC<ProcessorTabContentProps> = ({
   );
 };
 
-export default ProcessorTabContent;
+export default TabContent;
