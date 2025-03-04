@@ -10,19 +10,29 @@ export const useConversionTimer = () => {
   const status = useConversionStore(state => state.status);
   const startTime = useConversionStore(state => state.time.startTime);
   
+  // Store timer ID in a ref to avoid it being part of dependency array
+  const timerRef = React.useRef<number>();
+  
   React.useEffect(() => {
-    let timerId: number | undefined;
+    // Clear any existing timer first to prevent duplicates
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = undefined;
+    }
     
+    // Only start a new timer if we're in an active conversion state and have a startTime
     if ((status === 'converting' || status === 'processing') && startTime) {
-      timerId = window.setInterval(() => {
+      timerRef.current = window.setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         updateElapsedTime(elapsed, startTime);
       }, 1000);
     }
     
+    // Cleanup function to clear interval when component unmounts or status changes
     return () => {
-      if (timerId) {
-        window.clearInterval(timerId);
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = undefined;
       }
     };
   }, [status, updateElapsedTime, startTime]);

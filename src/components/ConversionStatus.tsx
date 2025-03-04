@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useConversionStore } from '@/store/conversionStore';
+import { useConversionStore, useConversionTimer } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
 
 // Import our components
@@ -39,6 +39,10 @@ const ConversionStatus = ({
   const storeProgress = useConversionStore(state => state.progress);
   const storeWarnings = useConversionStore(state => state.warnings);
   const storeErrors = useConversionStore(state => state.errors);
+  
+  // Start the timer at parent level to avoid multiple instances
+  // Only runs when conversion is active
+  useConversionTimer();
   
   // Determine which status to use - prefer store status if it's not idle
   const effectiveStatus = (storeStatus !== 'idle') ? storeStatus : externalStatus;

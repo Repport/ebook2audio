@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 import WarningsAndErrors from './WarningsAndErrors';
-import { useConversionStore, useConversionTimer } from '@/store/conversionStore';
+import { useConversionStore } from '@/store/conversionStore';
 
 interface ConversionProgressBarProps {
   showPercentage?: boolean;
@@ -14,36 +15,26 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   showPercentage = true,
   message
 }) => {
-  // Usar el store global
-  const {
-    status,
-    progress,
-    chunks,
-    time,
-    errors,
-    warnings
-  } = useConversionStore(state => ({
-    status: state.status,
-    progress: state.progress,
-    chunks: state.chunks,
-    time: state.time,
-    errors: state.errors,
-    warnings: state.warnings
-  }));
-  
-  // Iniciar el timer de actualización automática
-  useConversionTimer();
+  // Usar el store global with specific selectors to prevent unnecessary re-renders
+  const status = useConversionStore(state => state.status);
+  const progress = useConversionStore(state => state.progress);
+  const processedChunks = useConversionStore(state => state.chunks.processed);
+  const totalChunks = useConversionStore(state => state.chunks.total);
+  const timeElapsed = useConversionStore(state => state.time.elapsed);
+  const timeRemaining = useConversionStore(state => state.time.remaining);
+  const errors = useConversionStore(state => state.errors);
+  const warnings = useConversionStore(state => state.warnings);
   
   // Asegurarnos que el progreso nunca sea 0 para mantener la barra visible
   const safeProgress = Math.max(1, progress);
   
   // Estado local para determinar si tenemos suficiente información para mostrar detalles
-  const hasProcessingDetails = chunks.processed > 0 || chunks.total > 0;
-  const hasTimeInfo = time.elapsed > 0 || time.remaining !== null;
+  const hasProcessingDetails = processedChunks > 0 || totalChunks > 0;
+  const hasTimeInfo = timeElapsed > 0 || timeRemaining !== null;
 
   // Texto descriptivo basado en la etapa de procesamiento
   const getStatusText = () => {
-    if (time.elapsed < 5) {
+    if (timeElapsed < 5) {
       return "Iniciando conversión...";
     } else if (progress < 15) {
       return "Preparando archivos de audio...";
@@ -84,11 +75,11 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
           
           {hasTimeInfo && (
             <div className="min-h-[1.5rem] text-muted-foreground">
-              {time.elapsed > 0 && (
+              {timeElapsed > 0 && (
                 <span>
-                  Tiempo transcurrido: {formatTimeRemaining(time.elapsed)}
-                  {time.remaining !== null && time.remaining > 0 && (
-                    <span> • Tiempo restante: {formatTimeRemaining(time.remaining)}</span>
+                  Tiempo transcurrido: {formatTimeRemaining(timeElapsed)}
+                  {timeRemaining !== null && timeRemaining > 0 && (
+                    <span> • Tiempo restante: {formatTimeRemaining(timeRemaining)}</span>
                   )}
                 </span>
               )}
@@ -97,10 +88,10 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
           
           {hasProcessingDetails && (
             <div className="text-muted-foreground">
-              {chunks.processed > 0 && chunks.total > 0 ? (
-                <span>Procesando chunk {chunks.processed} de {chunks.total}</span>
+              {processedChunks > 0 && totalChunks > 0 ? (
+                <span>Procesando chunk {processedChunks} de {totalChunks}</span>
               ) : (
-                <span>Iniciando procesamiento{chunks.total > 0 ? ` de ${chunks.total} chunks` : ''}...</span>
+                <span>Iniciando procesamiento{totalChunks > 0 ? ` de ${totalChunks} chunks` : ''}...</span>
               )}
             </div>
           )}

@@ -1,4 +1,3 @@
-
 import { ConversionState, ConversionActions } from './types';
 import { initialState } from './initialState';
 import { calculateTimeRemaining } from './utils';
@@ -131,11 +130,12 @@ export const createConversionActions = (
     set(updateObject);
   },
   
-  // Method to update elapsed time safely
+  // Method to update elapsed time safely with an equality check to prevent infinite loops
   updateElapsedTime: (elapsed, startTime) => {
     const state = get();
-    // Only update if the time has actually changed to avoid unnecessary renders
-    if (state.time.elapsed !== elapsed) {
+    // Only update if the time has actually changed AND status is converting/processing to avoid unnecessary renders
+    if (state.time.elapsed !== elapsed && 
+        (state.status === 'converting' || state.status === 'processing')) {
       set({
         time: {
           ...state.time,
