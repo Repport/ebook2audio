@@ -55,15 +55,8 @@ export const createConversionActions = (
       return;
     }
     
-    // Log the incoming progress data for debugging
-    console.log(`ConversionStore: Progress update received:`, {
-      processedChunks: data.processedChunks,
-      totalChunks: data.totalChunks,
-      processedChars: data.processedCharacters,
-      totalChars: data.totalCharacters,
-      explicitProgress: data.progress,
-      currentProgress: state.progress
-    });
+    // Debug - veamos qué datos estamos recibiendo exactamente
+    console.log(`ConversionStore: Progress update raw data:`, JSON.stringify(data));
     
     // Create new sets to avoid modifying existing state arrays
     const uniqueErrors = new Set<string>(state.errors);
@@ -78,33 +71,52 @@ export const createConversionActions = (
       uniqueWarnings.add(data.warning);
     }
     
-    // Calcular el progreso - IMPORTANTE: SIEMPRE actualizar si hay datos nuevos
+    // Determinar si tenemos suficiente información para una actualización significativa
+    const hasValidData = (
+      (typeof data.processedChunks === 'number' && data.processedChunks > 0) ||
+      (typeof data.processedCharacters === 'number' && data.processedCharacters > 0) ||
+      (typeof data.progress === 'number' && data.progress > 0)
+    );
+    
+    // Si no hay datos válidos pero no es un error, mantenemos el estado actual
+    if (!hasValidData && !data.error) {
+      console.log('ConversionStore: Received update without valid progress data, maintaining current state');
+      return;
+    }
+    
+    // Calcular el progreso - usar la estrategia más fiable disponible
     let newProgress = state.progress;
     let progressSource = 'existing';
     
-    // Si tenemos un progreso explícito, usarlo siempre
-    if (typeof data.progress === 'number') {
-      newProgress = data.progress;
+    // 1. Prioridad: Progreso explícito
+    if (typeof data.progress === 'number' && !isNaN(data.progress) && data.progress > 0) {
+      newProgress = Math.min(99, data.progress); // Limitar a 99% hasta completado explícitamente
       progressSource = 'explicit';
-      console.log(`ConversionStore: Using explicit progress value: ${newProgress}%`);
     } 
-    // Si no, calcular basado en caracteres
-    else if (data.processedCharacters && data.totalCharacters) {
+    // 2. Prioridad: Cálculo basado en caracteres
+    else if (typeof data.processedCharacters === 'number' && data.processedCharacters > 0 && 
+             typeof data.totalCharacters === 'number' && data.totalCharacters > 0) {
       const calculatedProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
-      newProgress = calculatedProgress;
+      newProgress = Math.min(99, calculatedProgress);
       progressSource = 'characters';
-      console.log(`ConversionStore: Calculated progress from characters: ${newProgress}%`);
     }
-    // Si no hay información de caracteres, usar chunks
-    else if (data.processedChunks && data.totalChunks) {
+    // 3. Prioridad: Cálculo basado en chunks
+    else if (typeof data.processedChunks === 'number' && data.processedChunks > 0 && 
+             typeof data.totalChunks === 'number' && data.totalChunks > 0) {
       const calculatedProgress = Math.round((data.processedChunks / data.totalChunks) * 100);
-      newProgress = calculatedProgress;
+      newProgress = Math.min(99, calculatedProgress);
       progressSource = 'chunks';
-      console.log(`ConversionStore: Calculated progress from chunks: ${newProgress}%`);
+    }
+    
+    // Asegurar que el progreso siempre avance (nunca retroceda)
+    if (newProgress < state.progress && !data.isCompleted) {
+      console.log(`ConversionStore: Progress regression detected (${newProgress}% < ${state.progress}%), keeping current progress`);
+      newProgress = state.progress;
     }
     
     // Verificar si la conversión está completa
     const isComplete = data.isCompleted === true || newProgress >= 100;
+    const finalProgress = isComplete ? 100 : newProgress;
     
     // Calcular tiempo restante si no está completado
     let timeRemaining = state.time.remaining;
@@ -129,27 +141,26 @@ export const createConversionActions = (
     // Create a single update object to batch all changes
     const updateObject: Partial<ConversionState> = {
       status: isComplete ? 'completed' : 'converting',
-      progress: isComplete ? 100 : Math.min(99, newProgress), // Mantener en 99% hasta que explícitamente completemos
+      progress: finalProgress,
       chunks: {
-        processed: data.processedChunks || state.chunks.processed,
-        total: data.totalChunks || state.chunks.total,
-        processedCharacters: data.processedCharacters || state.chunks.processedCharacters,
-        totalCharacters: data.totalCharacters || state.chunks.totalCharacters
+        processed: data.processedChunks !== undefined ? data.processedChunks : state.chunks.processed,
+        total: data.totalChunks !== undefined ? data.totalChunks : state.chunks.total,
+        processedCharacters: data.processedCharacters !== undefined ? data.processedCharacters : state.chunks.processedCharacters,
+        totalCharacters: data.totalCharacters !== undefined ? data.totalCharacters : state.chunks.totalCharacters
       },
       time: {
         ...state.time,
         remaining: timeRemaining
       },
-      errors: Array.from(uniqueErrors) as string[],
-      warnings: Array.from(uniqueWarnings) as string[]
+      errors: Array.from(uniqueErrors),
+      warnings: Array.from(uniqueWarnings)
     };
     
-    // Log update summary before applying
-    console.log(`ConversionStore: Updating state:`, {
-      newProgress: updateObject.progress,
+    // Log update summary
+    console.log(`ConversionStore: Updating progress: ${finalProgress}% (source: ${progressSource})`, {
       oldProgress: state.progress,
-      progressSource,
-      newStatus: updateObject.status,
+      chunks: `${updateObject.chunks.processed}/${updateObject.chunks.total}`,
+      chars: `${updateObject.chunks.processedCharacters}/${updateObject.chunks.totalCharacters}`,
       isComplete
     });
     

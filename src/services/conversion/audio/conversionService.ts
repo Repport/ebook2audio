@@ -53,25 +53,42 @@ export async function convertTextToAudio(
       progress: 1 // Start with 1% visible
     });
 
-    // Wrapper para el callback de progreso para asegurar actualizaciones consistentes
+    // Crear una función wrapper para el callback de progreso que garantice la correcta actualización
     const progressCallback: TextChunkCallback = (progressData) => {
-      // Actualizar el store global de forma centralizada
-      store.updateProgress(progressData);
+      // Imprimir datos completos para debugging
+      console.log(`[CONVERSION-${conversionId}] Raw progress data:`, JSON.stringify(progressData));
       
-      // Llamar al callback original si existe (para compatibilidad)
-      if (onProgress) {
-        onProgress(progressData);
-      }
+      // Verificar que todos los campos estén presentes
+      const validatedData = {
+        processedChunks: progressData.processedChunks || 0,
+        totalChunks: progressData.totalChunks || 0,
+        processedCharacters: progressData.processedCharacters || 0,
+        totalCharacters: progressData.totalCharacters || text.length,
+        currentChunk: progressData.currentChunk || '',
+        progress: typeof progressData.progress === 'number' ? progressData.progress : 
+                 (progressData.processedCharacters && progressData.totalCharacters ? 
+                  Math.round((progressData.processedCharacters / progressData.totalCharacters) * 100) : 1),
+        error: progressData.error,
+        warning: progressData.warning,
+        isCompleted: progressData.isCompleted
+      };
       
-      // Enhanced log for debugging
-      console.log(`[CONVERSION-${conversionId}] Progress update:`, {
-        progress: `${progressData.progress}%`,
-        chunks: `${progressData.processedChunks}/${progressData.totalChunks}`,
-        chars: `${progressData.processedCharacters}/${progressData.totalCharacters}`,
+      // Actualizar el store directamente para evitar problemas de referencia
+      store.updateProgress(validatedData);
+      
+      // Actualizar el log con datos validados
+      console.log(`[CONVERSION-${conversionId}] Validated progress update:`, {
+        progress: `${validatedData.progress}%`,
+        chunks: `${validatedData.processedChunks}/${validatedData.totalChunks}`,
+        chars: `${validatedData.processedCharacters}/${validatedData.totalCharacters}`,
         storeProgress: store.progress,
-        storeStatus: store.status,
-        timeSinceStart: `${Math.round((Date.now() - conversionStartTime) / 1000)}s`
+        storeStatus: store.status
       });
+      
+      // Llamar al callback original si existe
+      if (onProgress) {
+        onProgress(validatedData);
+      }
     };
     
     // Inicializar el gestor de chunks con callback centralizado

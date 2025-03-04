@@ -12,19 +12,24 @@ const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
   ProgressProps
 >(({ className, value, status = "idle", showPercentage = true, ...props }, ref) => {
-  // Valor visible actual (con transición suave)
+  // Visible value with smooth transition
   const [displayValue, setDisplayValue] = React.useState(1);
   
   // Track last incoming value
   const lastValueRef = React.useRef<number | undefined>(undefined);
   
-  // Pulsación para mayor feedback visual durante la conversión
+  // Visual pulsing effect during conversion
   const [isPulsing, setIsPulsing] = React.useState(false);
   
-  // Actualizar valor de forma suave cuando cambia
+  // Log extra info for debugging
+  React.useEffect(() => {
+    console.log(`Progress component received value: ${value}, status: ${status}`);
+  }, [value, status]);
+  
+  // Update value with smooth transition when it changes
   React.useEffect(() => {
     if (typeof value === 'number' && !isNaN(value) && value >= 0) {
-      // Garantizar un valor mínimo de 1% para visibilidad
+      // Ensure a minimum of 1% for visibility
       const newValue = Math.max(1, Math.min(100, value));
       
       // Log when value changes significantly (more than 2%)
@@ -40,13 +45,13 @@ const Progress = React.forwardRef<
     }
   }, [value, status]);
 
-  // Efecto para activar la pulsación periódicamente durante la conversión
+  // Effect to activate pulsing periodically during conversion
   React.useEffect(() => {
     if (status === 'converting') {
-      // Activar pulsación inicial
+      // Initial pulse
       setIsPulsing(true);
       
-      // Alternar la pulsación cada 3 segundos para dar feedback visual
+      // Toggle pulsing every 3 seconds for visual feedback
       const intervalId = setInterval(() => {
         setIsPulsing(prev => !prev);
       }, 3000);
@@ -64,10 +69,10 @@ const Progress = React.forwardRef<
     success: "bg-green-500",
   };
 
-  // Añadimos un efecto pulsante para cuando está en proceso de conversión
+  // Add a pulsing effect when converting
   const pulseEffect = isPulsing && status === 'converting' ? "animate-pulse" : "";
 
-  // Mejoramos el efecto shimmer para que sea más visible
+  // Enhanced shimmer effect for better visibility
   const shimmerEffect = status === 'converting' 
     ? "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent " +
       "before:animate-[shimmer_1.5s_infinite] before:content-['']"

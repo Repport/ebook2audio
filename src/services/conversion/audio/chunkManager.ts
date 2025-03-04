@@ -27,7 +27,7 @@ export class ChunkManager {
   private localProcessedCharacters = 0;
   private instanceId: string;
   private lastProgressUpdate: number = 0;
-  private MIN_UPDATE_INTERVAL = 300; // ms between progress updates
+  private MIN_UPDATE_INTERVAL = 200; // Reduced from 300ms to 200ms for more responsive updates
 
   constructor(text: string, onProgress?: TextChunkCallback) {
     this.instanceId = crypto.randomUUID().substring(0, 8);
@@ -72,6 +72,9 @@ export class ChunkManager {
 
   /**
    * Envía una actualización de progreso con datos actuales
+   * @param additionalChars - Caracteres adicionales procesados
+   * @param currentChunk - Chunk actual siendo procesado
+   * @param forceUpdate - Forzar actualización sin importar el throttling
    */
   private sendProgressUpdate(additionalChars: number, currentChunk: string | null, forceUpdate = false): void {
     const now = Date.now();
@@ -84,32 +87,45 @@ export class ChunkManager {
     this.lastProgressUpdate = now;
     
     if (this.onProgress) {
-      // Calculate progress percentage
-      const processedChunks = this.processedChunksMap.size;
-      this.localProcessedCharacters += additionalChars || 0;
+      // Track processed characters
+      if (additionalChars > 0) {
+        this.localProcessedCharacters += additionalChars;
+      }
       
-      // Calculate actual progress percentage with 1 decimal point precision
+      // Ensure we don't exceed total count (can happen with rounding errors)
+      const safeProcessedChars = Math.min(this.localProcessedCharacters, this.totalCharacters);
+      
+      // Calculate progress percentage (1-99%)
       const progressPercent = Math.min(
         99, // Cap at 99% until explicitly completed
-        Math.round((this.localProcessedCharacters / this.totalCharacters) * 1000) / 10
+        Math.max(1, Math.round((safeProcessedChars / this.totalCharacters) * 1000) / 10)
       );
       
       const progressData: ChunkProgressData = {
-        processedChunks: processedChunks,
+        processedChunks: this.processedChunksMap.size,
         totalChunks: this.totalChunks,
-        processedCharacters: this.localProcessedCharacters,
+        processedCharacters: safeProcessedChars,
         totalCharacters: this.totalCharacters,
         currentChunk: currentChunk || "",
         progress: progressPercent
       };
       
-      console.log(`[ChunkManager-${this.instanceId}] Progress update:`, {
+      console.log(`[ChunkManager-${this.instanceId}] Sending progress update:`, {
         progress: `${progressPercent}%`,
-        chunks: `${processedChunks}/${this.totalChunks}`,
-        characters: `${this.localProcessedCharacters}/${this.totalCharacters}`
+        chunks: `${this.processedChunksMap.size}/${this.totalChunks}`,
+        characters: `${safeProcessedChars}/${this.totalCharacters}`,
+        dataJson: JSON.stringify(progressData)
       });
       
-      this.onProgress(progressData);
+      // Asegurarnos de que todos los valores son correctos antes de enviar la actualización
+      this.onProgress({
+        processedChunks: this.processedChunksMap.size,
+        totalChunks: this.totalChunks,
+        processedCharacters: safeProcessedChars,
+        totalCharacters: this.totalCharacters,
+        currentChunk: currentChunk || "",
+        progress: progressPercent
+      });
     }
   }
 
@@ -138,7 +154,8 @@ export class ChunkManager {
     console.log(`[ChunkManager-${this.instanceId}] Processed chunk ${index + 1}/${this.totalChunks}:`, {
       chunkSize: `${(buffer.byteLength / 1024).toFixed(2)} KB`,
       chunkChars: chunkLength,
-      totalProcessed: this.processedChunksMap.size
+      totalProcessed: this.processedChunksMap.size,
+      percentComplete: `${Math.round((this.processedChunksMap.size / this.totalChunks) * 100)}%`
     });
   }
   
