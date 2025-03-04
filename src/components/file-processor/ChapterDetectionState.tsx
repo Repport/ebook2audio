@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { LoadingSpinner } from '../ui/spinner';
+import { Spinner } from '../ui/spinner';
 import { useLanguage } from "@/hooks/useLanguage";
 
 interface ChapterDetectionStateProps {
@@ -13,7 +13,7 @@ const ChapterDetectionState: React.FC<ChapterDetectionStateProps> = ({ onSkip })
   
   return (
     <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-      <LoadingSpinner size="lg" />
+      <Spinner size="lg" />
       <p className="text-lg mt-4 text-gray-700 dark:text-gray-300">
         {translations.detectingChapters || "Detecting chapters..."}
       </p>

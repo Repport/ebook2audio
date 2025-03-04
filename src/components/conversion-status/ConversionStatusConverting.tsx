@@ -3,7 +3,7 @@ import React from 'react';
 import { Progress } from '@/components/ui/progress';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 import WarningsAndErrors from './WarningsAndErrors';
-import { LoadingSpinner } from '@/components/ui/spinner';
+import { Spinner } from '@/components/ui/spinner';
 
 interface ConversionStatusConvertingProps {
   message: string;
@@ -53,7 +53,7 @@ const ConversionStatusConverting = ({
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative inline-flex items-center justify-center">
-        <LoadingSpinner size="lg" className="text-primary" />
+        <Spinner size="lg" className="text-primary" />
       </div>
       <p className="text-lg font-medium">
         {message}
