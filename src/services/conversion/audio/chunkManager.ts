@@ -33,6 +33,9 @@ export class ChunkManager {
     this.onProgress = onProgress;
     
     console.log(`Text split into ${this.chunks.length} chunks`);
+    
+    // Send initial progress update immediately
+    this.sendProgressUpdate(0, null);
   }
 
   /**
@@ -64,26 +67,52 @@ export class ChunkManager {
   }
 
   /**
-   * Registra un chunk procesado en el mapa
+   * Envía una actualización de progreso con datos actuales
    */
-  registerProcessedChunk(index: number, buffer: ArrayBuffer): void {
-    this.processedChunksMap.set(index, buffer);
-    
-    // Actualizar el contador de caracteres procesados
-    this.localProcessedCharacters += this.chunks[index].length;
-    
-    // Notificar progreso
+  private sendProgressUpdate(additionalChars: number, currentChunk: string | null): void {
     if (this.onProgress) {
+      // Calculate progress percentage
+      const processedChunks = this.processedChunksMap.size;
+      this.localProcessedCharacters += additionalChars || 0;
+      
+      // Calculate actual progress percentage with 1 decimal point precision
+      const progressPercent = Math.min(
+        99, // Cap at 99% until explicitly completed
+        Math.round((this.localProcessedCharacters / this.totalCharacters) * 1000) / 10
+      );
+      
       const progressData: ChunkProgressData = {
-        processedChunks: this.processedChunksMap.size,
+        processedChunks: processedChunks,
         totalChunks: this.totalChunks,
         processedCharacters: this.localProcessedCharacters,
         totalCharacters: this.totalCharacters,
-        currentChunk: this.chunks[index],
-        progress: Math.round((this.localProcessedCharacters / this.totalCharacters) * 100)
+        currentChunk: currentChunk || "",
+        progress: progressPercent
       };
+      
+      console.log(`Progress update: ${progressPercent}% (${processedChunks}/${this.totalChunks} chunks, ${this.localProcessedCharacters}/${this.totalCharacters} chars)`);
+      
       this.onProgress(progressData);
     }
+  }
+
+  /**
+   * Registra un chunk procesado en el mapa
+   */
+  registerProcessedChunk(index: number, buffer: ArrayBuffer): void {
+    // Skip if this chunk was already processed to avoid double-counting
+    if (this.processedChunksMap.has(index)) {
+      console.log(`Chunk ${index + 1} was already processed, skipping`);
+      return;
+    }
+    
+    this.processedChunksMap.set(index, buffer);
+    
+    // Calculate the number of characters in this chunk
+    const chunkLength = this.chunks[index].length;
+    
+    // Send progress update
+    this.sendProgressUpdate(chunkLength, this.chunks[index]);
   }
   
   /**

@@ -15,9 +15,6 @@ const Progress = React.forwardRef<
   // Valor visible actual (con transición suave)
   const [displayValue, setDisplayValue] = React.useState(1);
   
-  // Referencia al valor anterior para comparación
-  const prevValueRef = React.useRef<number>(1);
-  
   // Pulsación para mayor feedback visual durante la conversión
   const [isPulsing, setIsPulsing] = React.useState(false);
   
@@ -27,14 +24,11 @@ const Progress = React.forwardRef<
       // Garantizar un valor mínimo de 1% para visibilidad
       const newValue = Math.max(1, Math.min(100, value));
       
-      // Actualizar siempre cuando estamos convirtiendo, esto es clave
-      if (status === 'converting' || Math.abs(newValue - prevValueRef.current) >= 0.5 || newValue === 100) {
-        setDisplayValue(newValue);
-        prevValueRef.current = newValue;
-        
-        // Log para depuración
-        console.log(`Progress updated: ${newValue}% (status: ${status})`);
-      }
+      // Always update the display value when the value changes
+      setDisplayValue(newValue);
+      
+      // Log for debugging
+      console.log(`Progress component updated: ${newValue}% (status: ${status})`);
     }
   }, [value, status]);
 

@@ -41,8 +41,8 @@ export async function convertTextToAudio(
       progress: 1 // Start with 1% visible
     });
 
-    // Inicializar el gestor de chunks con callback centralizado
-    const chunkManager = new ChunkManager(text, (progressData) => {
+    // Wrapper para el callback de progreso para asegurar actualizaciones consistentes
+    const progressCallback: TextChunkCallback = (progressData) => {
       // Actualizar el store global de forma centralizada
       store.updateProgress(progressData);
       
@@ -50,7 +50,13 @@ export async function convertTextToAudio(
       if (onProgress) {
         onProgress(progressData);
       }
-    });
+      
+      // Log para depuración
+      console.log(`Progress update in service: ${progressData.progress}%, Chunks: ${progressData.processedChunks}/${progressData.totalChunks}`);
+    };
+    
+    // Inicializar el gestor de chunks con callback centralizado
+    const chunkManager = new ChunkManager(text, progressCallback);
     
     // Procesar los chunks en paralelo
     await processChunksInParallel(chunkManager, voiceId);

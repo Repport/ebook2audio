@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
@@ -20,10 +20,18 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   const progress = useConversionStore(state => state.progress);
   const processedChunks = useConversionStore(state => state.chunks.processed);
   const totalChunks = useConversionStore(state => state.chunks.total);
+  const processedCharacters = useConversionStore(state => state.chunks.processedCharacters);
+  const totalCharacters = useConversionStore(state => state.chunks.totalCharacters);
   const timeElapsed = useConversionStore(state => state.time.elapsed);
   const timeRemaining = useConversionStore(state => state.time.remaining);
   const errors = useConversionStore(state => state.errors);
   const warnings = useConversionStore(state => state.warnings);
+  
+  // Log progress for debugging
+  useEffect(() => {
+    console.log(`ConversionProgressBar - Progress: ${progress}%, Status: ${status}`);
+    console.log(`Chunks: ${processedChunks}/${totalChunks}, Chars: ${processedCharacters}/${totalCharacters}`);
+  }, [progress, status, processedChunks, totalChunks, processedCharacters, totalCharacters]);
   
   // Asegurarnos que el progreso nunca sea 0 para mantener la barra visible
   const safeProgress = Math.max(1, progress);
@@ -31,6 +39,7 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   // Estado local para determinar si tenemos suficiente información para mostrar detalles
   const hasProcessingDetails = processedChunks > 0 || totalChunks > 0;
   const hasTimeInfo = timeElapsed > 0 || timeRemaining !== null;
+  const hasCharInfo = processedCharacters > 0 && totalCharacters > 0;
 
   // Texto descriptivo basado en la etapa de procesamiento
   const getStatusText = () => {
@@ -92,6 +101,12 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
                 <span>Procesando chunk {processedChunks} de {totalChunks}</span>
               ) : (
                 <span>Iniciando procesamiento{totalChunks > 0 ? ` de ${totalChunks} chunks` : ''}...</span>
+              )}
+              
+              {hasCharInfo && (
+                <span className="ml-2">
+                  ({Math.round((processedCharacters / totalCharacters) * 100)}% del texto)
+                </span>
               )}
             </div>
           )}

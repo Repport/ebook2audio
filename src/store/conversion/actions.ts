@@ -1,3 +1,4 @@
+
 import { ConversionState, ConversionActions } from './types';
 import { initialState } from './initialState';
 import { calculateTimeRemaining } from './utils';
@@ -17,6 +18,8 @@ export const createConversionActions = (
       // Reset first to avoid state conflicts
       set(initialState);
     }
+    
+    console.log(`Starting conversion for file: ${fileName || 'unnamed'}`);
     
     // Set to converting state
     set({
@@ -50,6 +53,16 @@ export const createConversionActions = (
       return;
     }
     
+    // Log the incoming progress data for debugging
+    console.log(`Progress update received:`, {
+      processedChunks: data.processedChunks,
+      totalChunks: data.totalChunks,
+      processedChars: data.processedCharacters,
+      totalChars: data.totalCharacters,
+      explicitProgress: data.progress,
+      currentProgress: state.progress
+    });
+    
     // Create new sets to avoid modifying existing state arrays
     const uniqueErrors = new Set<string>(state.errors);
     const uniqueWarnings = new Set<string>(state.warnings);
@@ -63,26 +76,25 @@ export const createConversionActions = (
       uniqueWarnings.add(data.warning);
     }
     
-    // Calcular el progreso
+    // Calcular el progreso - IMPORTANTE: SIEMPRE actualizar si hay datos nuevos
     let newProgress = state.progress;
     
-    // Si tenemos un progreso explícito, usarlo
-    if (typeof data.progress === 'number' && data.progress > newProgress) {
+    // Si tenemos un progreso explícito, usarlo siempre (eliminamos la condición > newProgress)
+    if (typeof data.progress === 'number') {
       newProgress = data.progress;
+      console.log(`Updating progress to explicit value: ${newProgress}%`);
     } 
     // Si no, calcular basado en caracteres
     else if (data.processedCharacters && data.totalCharacters) {
       const calculatedProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
-      if (calculatedProgress > newProgress) {
-        newProgress = calculatedProgress;
-      }
+      newProgress = calculatedProgress;
+      console.log(`Updating progress based on characters: ${newProgress}%`);
     }
     // Si no hay información de caracteres, usar chunks
     else if (data.processedChunks && data.totalChunks) {
       const calculatedProgress = Math.round((data.processedChunks / data.totalChunks) * 100);
-      if (calculatedProgress > newProgress) {
-        newProgress = calculatedProgress;
-      }
+      newProgress = calculatedProgress;
+      console.log(`Updating progress based on chunks: ${newProgress}%`);
     }
     
     // Verificar si la conversión está completa
@@ -111,7 +123,7 @@ export const createConversionActions = (
     // Create a single update object to batch all changes
     const updateObject: Partial<ConversionState> = {
       status: isComplete ? 'completed' : 'converting',
-      progress: Math.min(99, newProgress), // Mantener en 99% hasta que explícitamente completemos
+      progress: isComplete ? 100 : Math.min(99, newProgress), // Mantener en 99% hasta que explícitamente completemos
       chunks: {
         processed: data.processedChunks || state.chunks.processed,
         total: data.totalChunks || state.chunks.total,
@@ -155,6 +167,8 @@ export const createConversionActions = (
       return;
     }
     
+    console.log(`Setting error: ${error}`);
+    
     set({
       status: 'error',
       errors: [...state.errors, error]
@@ -176,13 +190,17 @@ export const createConversionActions = (
   },
   
   // Completar conversión
-  completeConversion: (audio, id, duration) => set({
-    status: 'completed',
-    progress: 100,
-    audioData: audio,
-    conversionId: id,
-    audioDuration: duration
-  }),
+  completeConversion: (audio, id, duration) => {
+    console.log(`Completing conversion with id: ${id}, duration: ${duration}s, audio size: ${audio?.byteLength || 0} bytes`);
+    
+    set({
+      status: 'completed',
+      progress: 100,
+      audioData: audio,
+      conversionId: id,
+      audioDuration: duration
+    });
+  },
   
   // Resetear conversión
   resetConversion: () => set(initialState)
