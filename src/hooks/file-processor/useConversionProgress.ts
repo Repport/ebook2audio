@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
 
 export const useConversionProgress = (
@@ -7,6 +7,11 @@ export const useConversionProgress = (
   audioConversion: any,
   onStepComplete?: () => void
 ) => {
+  // Use ref to track if onStepComplete has been called for current conversion
+  const completionCalledRef = useRef(false);
+  // Track previous conversion status
+  const previousStatusRef = useRef(audioConversion.conversionStatus);
+
   const watchConversionProgress = () => {
     // Effect for resetting conversion when file changes
     useEffect(() => {
@@ -17,15 +22,28 @@ export const useConversionProgress = (
         console.log('useConversionLogic - Resetting conversion state due to file change');
         audioConversion.resetConversion();
         clearConversionStorage();
+        // Reset completion flag when file changes
+        completionCalledRef.current = false;
       }
-    }, [selectedFile, audioConversion.conversionStatus, audioConversion.audioData]); 
+    }, [selectedFile]); // Remove dependencies that cause re-renders
 
     // Effect for completing step
     useEffect(() => {
-      if (audioConversion.conversionStatus === 'completed' && onStepComplete) {
+      // Only call onStepComplete once when status changes to completed
+      const currentStatus = audioConversion.conversionStatus;
+      const previousStatus = previousStatusRef.current;
+      
+      if (currentStatus === 'completed' && 
+          previousStatus !== 'completed' && 
+          onStepComplete && 
+          !completionCalledRef.current) {
         console.log('useConversionLogic - Conversion completed, calling onStepComplete');
+        completionCalledRef.current = true;
         onStepComplete();
       }
+      
+      // Update previous status ref
+      previousStatusRef.current = currentStatus;
     }, [audioConversion.conversionStatus, onStepComplete]);
     
     // Effect for resetting detectingChapters on error

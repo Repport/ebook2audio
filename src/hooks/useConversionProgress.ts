@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { subscribeToProgress, getConversionProgress } from '@/services/conversion/progressService';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
@@ -10,8 +10,25 @@ export const useConversionProgress = (conversionId: string | null) => {
   const setError = useConversionStore(state => state.setError);
   const completeConversion = useConversionStore(state => state.completeConversion);
   
+  // Track if completion has been called for this conversion
+  const completionCalledRef = useRef(false);
+  // Track current subscription for cleanup
+  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  
   useEffect(() => {
-    if (!conversionId) return;
+    // Reset completion flag when conversion ID changes
+    completionCalledRef.current = false;
+    
+    // Clean up previous subscription
+    if (subscriptionRef.current) {
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+    
+    if (!conversionId) {
+      setIsSubscribed(false);
+      return;
+    }
     
     // Get initial progress
     const fetchInitialProgress = async () => {
@@ -21,7 +38,8 @@ export const useConversionProgress = (conversionId: string | null) => {
           updateProgress(progress);
           
           // If the progress shows completed or error, update the store accordingly
-          if (progress.isCompleted) {
+          if (progress.isCompleted && !completionCalledRef.current) {
+            completionCalledRef.current = true;
             completeConversion(null, conversionId, progress.totalCharacters / 15);
           } else if (progress.error) {
             setError(progress.error);
@@ -39,17 +57,24 @@ export const useConversionProgress = (conversionId: string | null) => {
       console.log('Received progress update via subscription:', progressData);
       updateProgress(progressData);
       
-      if (progressData.isCompleted) {
+      // Only complete conversion once per subscription
+      if (progressData.isCompleted && !completionCalledRef.current) {
+        completionCalledRef.current = true;
         completeConversion(null, conversionId, progressData.totalCharacters / 15);
       } else if (progressData.error) {
         setError(progressData.error);
       }
     });
     
+    // Store subscription for cleanup
+    subscriptionRef.current = subscription;
     setIsSubscribed(true);
     
     return () => {
-      subscription.unsubscribe();
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
       setIsSubscribed(false);
     };
   }, [conversionId, updateProgress, setError, completeConversion]);

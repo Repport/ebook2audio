@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import WarningsAndErrors from './WarningsAndErrors';
@@ -11,6 +11,16 @@ interface ConversionStatusCompletedProps {
 }
 
 const ConversionStatusCompleted = ({ message, warnings, errors }: ConversionStatusCompletedProps) => {
+  // Use state to control when to show warnings/errors to avoid render loops
+  const [showIssues, setShowIssues] = useState(false);
+  
+  // Set showIssues after initial render to avoid render loops
+  useEffect(() => {
+    if (warnings.length > 0 || errors.length > 0) {
+      setShowIssues(true);
+    }
+  }, []);
+
   return (
     <div className="space-y-2">
       <Alert variant="success">
@@ -20,13 +30,13 @@ const ConversionStatusCompleted = ({ message, warnings, errors }: ConversionStat
         </AlertDescription>
       </Alert>
       
-      {/* Show warnings if any */}
-      {(warnings.length > 0 || errors.length > 0) && (
+      {/* Only show if there are issues and showIssues is true */}
+      {showIssues && (warnings.length > 0 || errors.length > 0) && (
         <WarningsAndErrors 
           warnings={warnings}
           errors={errors}
-          isConverting={true} // Always show in completed state if there are warnings
-          expanded={false}
+          isConverting={false} // Set to false in completed state
+          expanded={errors.length > 0} // Auto-expand if there are errors
         />
       )}
     </div>
