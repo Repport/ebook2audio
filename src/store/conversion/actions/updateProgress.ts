@@ -1,65 +1,14 @@
 
-import { ConversionState, ConversionActions } from './types';
-import { initialState } from './initialState';
-import { calculateTimeRemaining } from './utils';
+import { ConversionState } from '../types';
+import { calculateTimeRemaining } from '../utils';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
-import { LoggingService } from '@/utils/loggingService';
 
-export const createConversionActions = (
+export const updateProgressAction = (
   set: (state: Partial<ConversionState>) => void,
-  get: () => any // Using any here to avoid circular reference issues
-): ConversionActions => ({
-  // Acción para iniciar la conversión
-  startConversion: (fileName) => {
-    // Before starting a new conversion, check if we need to reset
-    const currentState = get();
-    const needsReset = currentState.status !== 'idle' && currentState.status !== 'converting';
-    
-    if (needsReset) {
-      console.log('ConversionStore: Resetting state before starting new conversion');
-      // Reset first to avoid state conflicts
-      set(initialState);
-    }
-    
-    console.log(`ConversionStore: Starting conversion for file: ${fileName || 'unnamed'}`);
-    
-    // Limpiamos logs de debug anteriores
-    try {
-      localStorage.setItem('conversionProgressLogs', '[]');
-    } catch (e) {
-      // Ignorar errores
-    }
-    
-    // Set to converting state with minimal initial values
-    set({
-      status: 'converting',
-      progress: 1, // Comenzar con 1% visible
-      chunks: {
-        processed: 0,
-        total: 0,
-        processedCharacters: 0,
-        totalCharacters: 0
-      },
-      time: {
-        elapsed: 0,
-        remaining: null,
-        startTime: Date.now()
-      },
-      errors: [],
-      warnings: [],
-      audioData: null,
-      fileName
-    });
-    
-    // Log inicio de conversión
-    LoggingService.info('conversion', {
-      message: 'Iniciando conversión de texto a audio',
-      file_name: fileName
-    });
-  },
-  
-  // Actualizar progreso basado en datos del chunk
-  updateProgress: (data: ChunkProgressData) => {
+  get: () => any,
+  LoggingService: any
+) => {
+  const updateProgress = (data: ChunkProgressData) => {
     // Obtener estado actual
     const state = get();
     
@@ -209,92 +158,7 @@ export const createConversionActions = (
         chars: `${updateObject.chunks.processedCharacters}/${updateObject.chunks.totalCharacters}`
       });
     }
-  },
-  
-  // Method to update elapsed time safely with an equality check to prevent infinite loops
-  updateElapsedTime: (elapsed, startTime) => {
-    const state = get();
-    // Only update if the time has actually changed AND status is converting/processing to avoid unnecessary renders
-    if (state.time.elapsed !== elapsed && 
-        (state.status === 'converting' || state.status === 'processing')) {
-      console.log(`ConversionStore: Updating elapsed time: ${elapsed}s`);
-      set({
-        time: {
-          ...state.time,
-          elapsed,
-          startTime
-        }
-      });
-    }
-  },
-  
-  // Establecer error
-  setError: (error) => {
-    const state = get();
-    
-    // Avoid duplicate errors
-    if (state.errors.includes(error)) {
-      return;
-    }
-    
-    console.log(`ConversionStore: Setting error: ${error}`);
-    
-    set({
-      status: 'error',
-      errors: [...state.errors, error]
-    });
-    
-    // Log error
-    LoggingService.error('conversion', {
-      message: 'Error en proceso de conversión',
-      error_details: error
-    });
-  },
-  
-  // Establecer advertencia
-  setWarning: (warning) => {
-    const state = get();
-    
-    // Avoid duplicate warnings
-    if (state.warnings.includes(warning)) {
-      return;
-    }
-    
-    console.log(`ConversionStore: Adding warning: ${warning}`);
-    
-    set({
-      warnings: [...state.warnings, warning]
-    });
-  },
-  
-  // Completar conversión
-  completeConversion: (audio, id, duration) => {
-    console.log(`ConversionStore: Completing conversion:`, {
-      id,
-      duration: `${duration}s`,
-      audioSize: audio ? `${(audio.byteLength / 1024).toFixed(2)} KB` : 'none'
-    });
-    
-    set({
-      status: 'completed',
-      progress: 100,
-      audioData: audio,
-      conversionId: id,
-      audioDuration: duration
-    });
-    
-    // Log completion
-    LoggingService.info('conversion', {
-      message: 'Conversión completada exitosamente',
-      audio_size: audio ? audio.byteLength : 0,
-      duration,
-      id
-    });
-  },
-  
-  // Resetear conversión
-  resetConversion: () => {
-    console.log('ConversionStore: Resetting conversion state');
-    set(initialState);
-  }
-});
+  };
+
+  return { updateProgress };
+};
