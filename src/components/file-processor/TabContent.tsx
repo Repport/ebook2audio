@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { TabsContent } from "@/components/ui/tabs";
 import FileInfo from '../FileInfo';
 import VoiceSettingsStep from '../VoiceSettingsStep';
 import ConversionStep from './ConversionStep';
@@ -56,52 +55,57 @@ const TabContent: React.FC<TabContentProps> = ({
   
   if (!selectedFile) return null;
 
-  return (
-    <>
-      <TabsContent value="file-info" className="mt-0">
-        <FileInfo
-          file={selectedFile}
-          onRemove={() => {
-            resetConversion();
-            onFileSelect(null);
-          }}
-          onNext={onNextStep}
-        />
-      </TabsContent>
+  // Render appropriate component based on activeTab
+  if (activeTab === "file-info") {
+    return (
+      <FileInfo
+        file={selectedFile}
+        onRemove={() => {
+          resetConversion();
+          onFileSelect(null);
+        }}
+        onNext={onNextStep}
+      />
+    );
+  }
 
-      <TabsContent value="voice-settings" className="mt-0">
-        <VoiceSettingsStep
-          detectedLanguage={detectedLanguage}
-          selectedVoice={selectedVoice}
-          setSelectedVoice={setSelectedVoice}
-          detectChapters={detectChapters}
-          setDetectChapters={setDetectChapters}
-          notifyOnComplete={notifyOnComplete}
-          setNotifyOnComplete={setNotifyOnComplete}
-          onNextStep={handleStartConversion}
-        />
-      </TabsContent>
+  if (activeTab === "voice-settings") {
+    return (
+      <VoiceSettingsStep
+        detectedLanguage={detectedLanguage}
+        selectedVoice={selectedVoice}
+        setSelectedVoice={setSelectedVoice}
+        detectChapters={detectChapters}
+        setDetectChapters={setDetectChapters}
+        notifyOnComplete={notifyOnComplete}
+        setNotifyOnComplete={setNotifyOnComplete}
+        onNextStep={handleStartConversion}
+      />
+    );
+  }
 
-      <TabsContent value="conversion" className="mt-0">
-        <ConversionStep
-          selectedFile={selectedFile}
-          conversionStatus={conversionLogic.conversionStatus}
-          progress={conversionLogic.progress}
-          audioData={conversionLogic.audioData}
-          audioDuration={conversionLogic.audioDuration}
-          estimatedSeconds={estimatedSeconds}
-          onConvert={handleStartConversion}
-          onDownloadClick={conversionLogic.handleDownloadClick}
-          onViewConversions={conversionLogic.handleViewConversions}
-          conversionId={conversionLogic.conversionId}
-          chapters={chapters}
-          detectingChapters={detectingChapters}
-          textLength={extractedText.length}
-          elapsedTime={conversionLogic.elapsedTime}
-        />
-      </TabsContent>
-    </>
-  );
+  if (activeTab === "conversion") {
+    return (
+      <ConversionStep
+        selectedFile={selectedFile}
+        conversionStatus={conversionLogic.conversionStatus}
+        progress={conversionLogic.progress}
+        audioData={conversionLogic.audioData}
+        audioDuration={conversionLogic.audioDuration}
+        estimatedSeconds={estimatedSeconds}
+        onConvert={handleStartConversion}
+        onDownloadClick={conversionLogic.handleDownloadClick}
+        onViewConversions={conversionLogic.handleViewConversions}
+        conversionId={conversionLogic.conversionId}
+        chapters={chapters}
+        detectingChapters={detectingChapters}
+        textLength={extractedText.length}
+        elapsedTime={conversionLogic.elapsedTime}
+      />
+    );
+  }
+
+  return null;
 };
 
 export default TabContent;

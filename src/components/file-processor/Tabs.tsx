@@ -14,7 +14,6 @@ const Tabs: React.FC<TabsProps> = ({ activeTab, onTabChange }) => {
   const { currentStep } = useFileProcessor();
   
   const handleTabClick = (value: string) => {
-    // Prevent default navigation behavior
     onTabChange(value);
   };
   

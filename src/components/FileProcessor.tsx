@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Tabs as UITabs } from "@/components/ui/tabs";
+import { Tabs as UITabs, TabsContent } from "@/components/ui/tabs";
 import { Chapter } from '@/utils/textExtraction';
 import { FileProcessorProvider } from '@/context/FileProcessorContext';
 import ChapterDetectionState from './file-processor/ChapterDetectionState';
@@ -140,19 +140,53 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
 
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 transition-all">
             <ErrorHandler onReset={handleErrorReset}>
-              <TabContent
-                activeTab={activeTab}
-                selectedVoice={selectedVoice}
-                setSelectedVoice={setSelectedVoice}
-                notifyOnComplete={notifyOnComplete}
-                setNotifyOnComplete={setNotifyOnComplete}
-                detectChapters={detectChapters}
-                setDetectChapters={setDetectChapters}
-                handleStartConversion={handleStartConversion}
-                conversionLogic={conversionLogic}
-                resetConversion={resetConversion}
-                detectingChapters={detectingChapters}
-              />
+              <TabsContent value="file-info" className="mt-0">
+                <TabContent
+                  activeTab="file-info"
+                  selectedVoice={selectedVoice}
+                  setSelectedVoice={setSelectedVoice}
+                  notifyOnComplete={notifyOnComplete}
+                  setNotifyOnComplete={setNotifyOnComplete}
+                  detectChapters={detectChapters}
+                  setDetectChapters={setDetectChapters}
+                  handleStartConversion={handleStartConversion}
+                  conversionLogic={conversionLogic}
+                  resetConversion={resetConversion}
+                  detectingChapters={detectingChapters}
+                />
+              </TabsContent>
+              
+              <TabsContent value="voice-settings" className="mt-0">
+                <TabContent
+                  activeTab="voice-settings"
+                  selectedVoice={selectedVoice}
+                  setSelectedVoice={setSelectedVoice}
+                  notifyOnComplete={notifyOnComplete}
+                  setNotifyOnComplete={setNotifyOnComplete}
+                  detectChapters={detectChapters}
+                  setDetectChapters={setDetectChapters}
+                  handleStartConversion={handleStartConversion}
+                  conversionLogic={conversionLogic}
+                  resetConversion={resetConversion}
+                  detectingChapters={detectingChapters}
+                />
+              </TabsContent>
+              
+              <TabsContent value="conversion" className="mt-0">
+                <TabContent
+                  activeTab="conversion"
+                  selectedVoice={selectedVoice}
+                  setSelectedVoice={setSelectedVoice}
+                  notifyOnComplete={notifyOnComplete}
+                  setNotifyOnComplete={setNotifyOnComplete}
+                  detectChapters={detectChapters}
+                  setDetectChapters={setDetectChapters}
+                  handleStartConversion={handleStartConversion}
+                  conversionLogic={conversionLogic}
+                  resetConversion={resetConversion}
+                  detectingChapters={detectingChapters}
+                />
+              </TabsContent>
             </ErrorHandler>
           </div>
         </UITabs>
