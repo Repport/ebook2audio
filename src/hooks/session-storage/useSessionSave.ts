@@ -51,8 +51,11 @@ export const useSessionSave = (
             sessionStorage.setItem('fileSize', selectedFile.size.toString());
             sessionStorage.setItem('conversionInProgress', conversionInProgress.toString());
             
-            // Update last saved state
-            lastSavedStateRef.current = currentSnapshot;
+            // Update last saved state - we need to make this mutable
+            if (lastSavedStateRef && typeof lastSavedStateRef === 'object' && 'current' in lastSavedStateRef) {
+              // Use type assertion to tell TypeScript this is a mutable ref
+              (lastSavedStateRef as { current: string }).current = currentSnapshot;
+            }
             console.log('State saved to sessionStorage');
           } else {
             console.log('State unchanged, skipping save');
