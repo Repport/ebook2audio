@@ -17,6 +17,7 @@ export function useMonitoringData(): MonitoringData {
   // Combine loading states
   const isLoading = statsLoading || logsLoading || errorLogsLoading || metricsLoading;
 
+  // Use useCallback to prevent function recreation on every render
   const loadTabData = useCallback(() => {
     switch (activeTab) {
       case "overview":
@@ -35,8 +36,10 @@ export function useMonitoringData(): MonitoringData {
     }
   }, [activeTab, loadStats, loadLogs, loadErrorLogs, loadPerformanceMetrics]);
 
+  // Only load data when the tab changes
   useEffect(() => {
     loadTabData();
+    // The effect dependency includes only what's needed
   }, [activeTab, loadTabData]);
 
   return {

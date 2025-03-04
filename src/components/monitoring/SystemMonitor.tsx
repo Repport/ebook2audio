@@ -26,6 +26,7 @@ const SystemMonitor = () => {
   } = useMonitoringData();
 
   // Convert database logs to the Log format expected by components
+  // Using useMemo to prevent unnecessary recalculations and infinite loops
   const adaptedLogs = React.useMemo(() => logs.map(adaptDatabaseLogToLog), [logs]);
   const adaptedErrorLogs = React.useMemo(() => errorLogs.map(adaptDatabaseLogToLog), [errorLogs]);
 

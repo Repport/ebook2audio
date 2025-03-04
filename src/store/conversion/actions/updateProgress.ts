@@ -135,6 +135,18 @@ export const updateProgressAction = (
       warnings: Array.from(uniqueWarnings)
     };
     
+    // Skip update if nothing has changed
+    const hasStateChanged = state.progress !== finalProgress || 
+                            state.status !== updateObject.status ||
+                            state.chunks.processed !== updatedChunks.processed ||
+                            state.errors.length !== uniqueErrors.size ||
+                            state.warnings.length !== uniqueWarnings.size;
+                            
+    if (!hasStateChanged) {
+      console.log('ConversionStore: Skipping update as state has not changed');
+      return;
+    }
+    
     // Log update summary para verificación
     console.log(`ConversionStore: Updating progress: ${finalProgress}% (source: ${progressSource})`, {
       oldProgress: state.progress,
