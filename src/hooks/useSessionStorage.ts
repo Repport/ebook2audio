@@ -1,10 +1,13 @@
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSessionState } from './session-storage/useSessionState';
 import { useSessionLoad } from './session-storage/useSessionLoad';
 import { useSessionSave, clearSessionStorageData as clearStorageData } from './session-storage/useSessionSave';
 
 export const useSessionStorage = () => {
+  // Add a state to track initialization
+  const [isInitialized, setIsInitialized] = useState(false);
+
   // Get state from useSessionState
   const {
     selectedFile,
@@ -31,18 +34,46 @@ export const useSessionStorage = () => {
     setConversionInProgress
   );
 
-  // Save to session storage
-  useSessionSave(
+  // Trigger save only after initialization is complete
+  useEffect(() => {
+    if (!isInitialLoad.current && !isLoadingFromStorage.current) {
+      setIsInitialized(true);
+    }
+  }, [isInitialLoad, isLoadingFromStorage]);
+
+  // Only connect the save hook after initialization
+  useEffect(() => {
+    if (!isInitialized) {
+      console.log('Skipping save hook connection until initialized');
+      return;
+    }
+
+    console.log('Connecting session save hook');
+    
+    // Save to session storage
+    useSessionSave(
+      isInitialLoad,
+      isLoadingFromStorage,
+      lastSavedState,
+      currentStep,
+      selectedFile,
+      extractedText,
+      chapters,
+      detectedLanguage,
+      conversionInProgress
+    );
+  }, [
+    isInitialized,
     isInitialLoad,
     isLoadingFromStorage,
     lastSavedState,
     currentStep,
-    selectedFile,
+    selectedFile, 
     extractedText,
     chapters,
     detectedLanguage,
     conversionInProgress
-  );
+  ]);
 
   // Clear session storage data (using the imported function)
   const clearSessionStorageData = useCallback(() => {
@@ -84,6 +115,7 @@ export const useSessionStorage = () => {
     setDetectedLanguage,
     conversionInProgress,
     setConversionInProgress,
-    clearSessionStorageData
+    clearSessionStorageData,
+    isInitialized
   };
 };

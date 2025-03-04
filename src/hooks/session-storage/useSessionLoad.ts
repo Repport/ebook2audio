@@ -36,6 +36,7 @@ export const useSessionLoad = (
   useEffect(() => {
     // Skip if we've already loaded the initial state
     if (hasLoadedInitialState.current) {
+      console.log('Initial state already loaded, skipping');
       return;
     }
 
@@ -55,7 +56,7 @@ export const useSessionLoad = (
         const savedFileSize = sessionStorage.getItem('fileSize');
         const savedConversionInProgress = sessionStorage.getItem('conversionInProgress');
 
-        // First check if we have valid saved state
+        // Only proceed if we have valid saved state
         if (!savedStep || !savedText || !savedFileName) {
           console.log('No valid saved state found in sessionStorage');
           isLoadingFromStorage.current = false;
@@ -63,6 +64,8 @@ export const useSessionLoad = (
           isInitialLoad.current = false;
           return;
         }
+
+        console.log('Found valid saved state, proceeding with restore');
 
         // Check if we had a conversion in progress
         if (savedConversionInProgress === 'true') {
@@ -77,21 +80,29 @@ export const useSessionLoad = (
           });
         }
 
-        let hasUpdates = false;
-        
+        // Batch state updates to minimize renders
         const parsedStep = parseInt(savedStep);
+        let updatedState = false;
+        
         if (!isNaN(parsedStep) && parsedStep > 0) {
+          console.log(`Setting current step to ${parsedStep}`);
           setCurrentStep(parsedStep);
-          hasUpdates = true;
+          updatedState = true;
         }
         
-        setExtractedText(savedText);
+        if (savedText) {
+          console.log(`Setting extracted text (length: ${savedText.length})`);
+          setExtractedText(savedText);
+          updatedState = true;
+        }
         
         if (savedChapters) {
           try {
             const parsedChapters = JSON.parse(savedChapters);
             if (Array.isArray(parsedChapters)) {
+              console.log(`Setting chapters (count: ${parsedChapters.length})`);
               setChapters(parsedChapters);
+              updatedState = true;
             }
           } catch (err) {
             console.error('Error parsing saved chapters:', err);
@@ -99,7 +110,9 @@ export const useSessionLoad = (
         }
         
         if (savedLanguage) {
+          console.log(`Setting detected language to ${savedLanguage}`);
           setDetectedLanguage(savedLanguage);
+          updatedState = true;
         }
 
         if (savedFileType && savedFileLastModified && savedFileSize) {
@@ -112,14 +125,16 @@ export const useSessionLoad = (
                 lastModified: parseInt(savedFileLastModified),
               }
             );
+            console.log(`Setting selected file: ${savedFileName}`);
             setSelectedFile(file);
+            updatedState = true;
           } catch (err) {
             console.error('Error creating file from saved data:', err);
           }
         }
         
-        // Create a snapshot of the loaded state to compare later
-        if (hasUpdates) {
+        // Create a snapshot of the loaded state for comparison
+        if (updatedState) {
           lastSavedState.current = createStateSnapshot(
             savedStep || '1',
             savedText || '',
@@ -127,15 +142,23 @@ export const useSessionLoad = (
             savedLanguage || 'english',
             savedConversionInProgress || 'false'
           );
+          console.log('Created snapshot of loaded state for comparison');
         }
       } catch (err) {
         console.error('Error loading from sessionStorage:', err);
       } finally {
-        // Reset loading flag
-        isLoadingFromStorage.current = false;
-        // Mark initial load as complete
-        isInitialLoad.current = false;
-        hasLoadedInitialState.current = true;
+        console.log('Finished loading from sessionStorage');
+        
+        // Use setTimeout to ensure state updates have time to process
+        // before we start saving again
+        setTimeout(() => {
+          // Reset loading flag
+          isLoadingFromStorage.current = false;
+          // Mark initial load as complete
+          isInitialLoad.current = false;
+          hasLoadedInitialState.current = true;
+          console.log('Load flags reset after timeout');
+        }, 100);
       }
     };
     
