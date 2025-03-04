@@ -15,11 +15,12 @@ export const createConversionActions = (
     const needsReset = currentState.status !== 'idle' && currentState.status !== 'converting';
     
     if (needsReset) {
+      console.log('ConversionStore: Resetting state before starting new conversion');
       // Reset first to avoid state conflicts
       set(initialState);
     }
     
-    console.log(`Starting conversion for file: ${fileName || 'unnamed'}`);
+    console.log(`ConversionStore: Starting conversion for file: ${fileName || 'unnamed'}`);
     
     // Set to converting state
     set({
@@ -50,11 +51,12 @@ export const createConversionActions = (
     
     // If status is completed or error, don't update progress to avoid loops
     if (state.status === 'completed' || state.status === 'error') {
+      console.log('ConversionStore: Ignoring progress update, conversion already completed or failed');
       return;
     }
     
     // Log the incoming progress data for debugging
-    console.log(`Progress update received:`, {
+    console.log(`ConversionStore: Progress update received:`, {
       processedChunks: data.processedChunks,
       totalChunks: data.totalChunks,
       processedChars: data.processedCharacters,
@@ -78,23 +80,27 @@ export const createConversionActions = (
     
     // Calcular el progreso - IMPORTANTE: SIEMPRE actualizar si hay datos nuevos
     let newProgress = state.progress;
+    let progressSource = 'existing';
     
-    // Si tenemos un progreso explícito, usarlo siempre (eliminamos la condición > newProgress)
+    // Si tenemos un progreso explícito, usarlo siempre
     if (typeof data.progress === 'number') {
       newProgress = data.progress;
-      console.log(`Updating progress to explicit value: ${newProgress}%`);
+      progressSource = 'explicit';
+      console.log(`ConversionStore: Using explicit progress value: ${newProgress}%`);
     } 
     // Si no, calcular basado en caracteres
     else if (data.processedCharacters && data.totalCharacters) {
       const calculatedProgress = Math.round((data.processedCharacters / data.totalCharacters) * 100);
       newProgress = calculatedProgress;
-      console.log(`Updating progress based on characters: ${newProgress}%`);
+      progressSource = 'characters';
+      console.log(`ConversionStore: Calculated progress from characters: ${newProgress}%`);
     }
     // Si no hay información de caracteres, usar chunks
     else if (data.processedChunks && data.totalChunks) {
       const calculatedProgress = Math.round((data.processedChunks / data.totalChunks) * 100);
       newProgress = calculatedProgress;
-      console.log(`Updating progress based on chunks: ${newProgress}%`);
+      progressSource = 'chunks';
+      console.log(`ConversionStore: Calculated progress from chunks: ${newProgress}%`);
     }
     
     // Verificar si la conversión está completa
@@ -138,6 +144,15 @@ export const createConversionActions = (
       warnings: Array.from(uniqueWarnings) as string[]
     };
     
+    // Log update summary before applying
+    console.log(`ConversionStore: Updating state:`, {
+      newProgress: updateObject.progress,
+      oldProgress: state.progress,
+      progressSource,
+      newStatus: updateObject.status,
+      isComplete
+    });
+    
     // Apply updates in a single operation
     set(updateObject);
   },
@@ -148,6 +163,7 @@ export const createConversionActions = (
     // Only update if the time has actually changed AND status is converting/processing to avoid unnecessary renders
     if (state.time.elapsed !== elapsed && 
         (state.status === 'converting' || state.status === 'processing')) {
+      console.log(`ConversionStore: Updating elapsed time: ${elapsed}s`);
       set({
         time: {
           ...state.time,
@@ -167,7 +183,7 @@ export const createConversionActions = (
       return;
     }
     
-    console.log(`Setting error: ${error}`);
+    console.log(`ConversionStore: Setting error: ${error}`);
     
     set({
       status: 'error',
@@ -184,6 +200,8 @@ export const createConversionActions = (
       return;
     }
     
+    console.log(`ConversionStore: Adding warning: ${warning}`);
+    
     set({
       warnings: [...state.warnings, warning]
     });
@@ -191,7 +209,11 @@ export const createConversionActions = (
   
   // Completar conversión
   completeConversion: (audio, id, duration) => {
-    console.log(`Completing conversion with id: ${id}, duration: ${duration}s, audio size: ${audio?.byteLength || 0} bytes`);
+    console.log(`ConversionStore: Completing conversion:`, {
+      id,
+      duration: `${duration}s`,
+      audioSize: audio ? `${(audio.byteLength / 1024).toFixed(2)} KB` : 'none'
+    });
     
     set({
       status: 'completed',
@@ -203,5 +225,8 @@ export const createConversionActions = (
   },
   
   // Resetear conversión
-  resetConversion: () => set(initialState)
+  resetConversion: () => {
+    console.log('ConversionStore: Resetting conversion state');
+    set(initialState);
+  }
 });

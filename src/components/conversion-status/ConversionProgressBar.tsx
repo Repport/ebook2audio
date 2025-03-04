@@ -27,10 +27,17 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   const errors = useConversionStore(state => state.errors);
   const warnings = useConversionStore(state => state.warnings);
   
+  // Last value ref to track significant changes
+  const lastProgressRef = React.useRef(progress);
+  
   // Log progress for debugging
   useEffect(() => {
-    console.log(`ConversionProgressBar - Progress: ${progress}%, Status: ${status}`);
-    console.log(`Chunks: ${processedChunks}/${totalChunks}, Chars: ${processedCharacters}/${totalCharacters}`);
+    // Only log when progress changes significantly to avoid too much noise
+    if (Math.abs(progress - lastProgressRef.current) >= 5) {
+      console.log(`ConversionProgressBar - Progress update: ${lastProgressRef.current}% -> ${progress}%, Status: ${status}`);
+      console.log(`Chunks: ${processedChunks}/${totalChunks}, Chars: ${processedCharacters}/${totalCharacters}`);
+      lastProgressRef.current = progress;
+    }
   }, [progress, status, processedChunks, totalChunks, processedCharacters, totalCharacters]);
   
   // Asegurarnos que el progreso nunca sea 0 para mantener la barra visible
@@ -55,6 +62,9 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
       return "Finalizando...";
     }
   };
+  
+  // Debug mode for detailed state information
+  const isDebugMode = import.meta.env.DEV;
   
   // Si no estamos convirtiendo, no mostrar nada
   if (status !== 'converting' && status !== 'processing') {
@@ -108,6 +118,17 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
                   ({Math.round((processedCharacters / totalCharacters) * 100)}% del texto)
                 </span>
               )}
+            </div>
+          )}
+          
+          {isDebugMode && (
+            <div className="bg-gray-100 dark:bg-gray-800 p-2 mt-2 text-xs rounded text-left">
+              <div><strong>Debug Info:</strong></div>
+              <div>Status: {status}</div>
+              <div>Progress: {progress}%</div>
+              <div>Chunks: {processedChunks}/{totalChunks}</div>
+              <div>Chars: {processedCharacters}/{totalCharacters}</div>
+              <div>Time: {timeElapsed}s elapsed, {timeRemaining}s remaining</div>
             </div>
           )}
         </div>

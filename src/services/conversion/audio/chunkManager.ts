@@ -25,17 +25,21 @@ export class ChunkManager {
   private totalCharacters: number;
   private onProgress?: TextChunkCallback;
   private localProcessedCharacters = 0;
+  private instanceId: string;
+  private lastProgressUpdate: number = 0;
+  private MIN_UPDATE_INTERVAL = 300; // ms between progress updates
 
   constructor(text: string, onProgress?: TextChunkCallback) {
+    this.instanceId = crypto.randomUUID().substring(0, 8);
     this.chunks = splitTextIntoChunks(text, CHUNK_SIZE);
     this.totalChunks = this.chunks.length;
     this.totalCharacters = text.length;
     this.onProgress = onProgress;
     
-    console.log(`Text split into ${this.chunks.length} chunks`);
+    console.log(`[ChunkManager-${this.instanceId}] Text split into ${this.chunks.length} chunks, total ${text.length} characters`);
     
     // Send initial progress update immediately
-    this.sendProgressUpdate(0, null);
+    this.sendProgressUpdate(0, null, true);
   }
 
   /**
@@ -69,7 +73,16 @@ export class ChunkManager {
   /**
    * Envía una actualización de progreso con datos actuales
    */
-  private sendProgressUpdate(additionalChars: number, currentChunk: string | null): void {
+  private sendProgressUpdate(additionalChars: number, currentChunk: string | null, forceUpdate = false): void {
+    const now = Date.now();
+    
+    // Throttle updates to prevent too many calls, unless forced
+    if (!forceUpdate && now - this.lastProgressUpdate < this.MIN_UPDATE_INTERVAL) {
+      return;
+    }
+    
+    this.lastProgressUpdate = now;
+    
     if (this.onProgress) {
       // Calculate progress percentage
       const processedChunks = this.processedChunksMap.size;
@@ -90,7 +103,11 @@ export class ChunkManager {
         progress: progressPercent
       };
       
-      console.log(`Progress update: ${progressPercent}% (${processedChunks}/${this.totalChunks} chunks, ${this.localProcessedCharacters}/${this.totalCharacters} chars)`);
+      console.log(`[ChunkManager-${this.instanceId}] Progress update:`, {
+        progress: `${progressPercent}%`,
+        chunks: `${processedChunks}/${this.totalChunks}`,
+        characters: `${this.localProcessedCharacters}/${this.totalCharacters}`
+      });
       
       this.onProgress(progressData);
     }
@@ -102,7 +119,7 @@ export class ChunkManager {
   registerProcessedChunk(index: number, buffer: ArrayBuffer): void {
     // Skip if this chunk was already processed to avoid double-counting
     if (this.processedChunksMap.has(index)) {
-      console.log(`Chunk ${index + 1} was already processed, skipping`);
+      console.log(`[ChunkManager-${this.instanceId}] Chunk ${index + 1} was already processed, skipping`);
       return;
     }
     
@@ -111,14 +128,26 @@ export class ChunkManager {
     // Calculate the number of characters in this chunk
     const chunkLength = this.chunks[index].length;
     
+    // Check if we're reaching completion to force progress update
+    const isNearingCompletion = this.processedChunksMap.size >= this.totalChunks - 1;
+    
     // Send progress update
-    this.sendProgressUpdate(chunkLength, this.chunks[index]);
+    this.sendProgressUpdate(chunkLength, this.chunks[index], isNearingCompletion);
+    
+    // Additional log for processed chunk
+    console.log(`[ChunkManager-${this.instanceId}] Processed chunk ${index + 1}/${this.totalChunks}:`, {
+      chunkSize: `${(buffer.byteLength / 1024).toFixed(2)} KB`,
+      chunkChars: chunkLength,
+      totalProcessed: this.processedChunksMap.size
+    });
   }
   
   /**
    * Registra un error al procesar un chunk
    */
   registerChunkError(index: number, error: Error): void {
+    console.error(`[ChunkManager-${this.instanceId}] Error processing chunk ${index + 1}:`, error);
+    
     if (this.onProgress) {
       const progressData: ChunkProgressData = {
         processedChunks: this.processedChunksMap.size,
@@ -170,6 +199,13 @@ export class ChunkManager {
    * Notifica la finalización del proceso
    */
   notifyCompletion(): void {
+    console.log(`[ChunkManager-${this.instanceId}] Process completed:`, {
+      processedChunks: this.processedChunksMap.size,
+      totalChunks: this.totalChunks,
+      processedCharacters: this.localProcessedCharacters,
+      totalCharacters: this.totalCharacters
+    });
+    
     if (this.onProgress) {
       this.onProgress({
         processedChunks: this.totalChunks,
