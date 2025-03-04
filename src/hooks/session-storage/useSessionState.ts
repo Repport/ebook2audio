@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Chapter } from '@/utils/textExtraction';
 
 /**
- * Hook providing session storage state
+ * Hook providing session storage state with proper default values
  */
 export const useSessionState = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -12,6 +12,7 @@ export const useSessionState = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [detectedLanguage, setDetectedLanguage] = useState<string>('english');
   const [conversionInProgress, setConversionInProgress] = useState<boolean>(false);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   return {
     // State
@@ -27,5 +28,7 @@ export const useSessionState = () => {
     setDetectedLanguage,
     conversionInProgress,
     setConversionInProgress,
+    isInitialized,
+    setIsInitialized
   };
 };

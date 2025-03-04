@@ -8,8 +8,11 @@ import { useSessionStorage } from '@/hooks/useSessionStorage';
 import { conversionSteps } from '@/constants/steps';
 import { Chapter } from '@/utils/textExtraction';
 import { Spinner } from '@/components/ui/spinner';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
+  const { toast } = useToast();
   const {
     selectedFile,
     setSelectedFile,
@@ -34,18 +37,27 @@ const Index = () => {
       return;
     }
 
-    // Batch update for related state to reduce renders
-    setSelectedFile(fileInfo.file);
-    setExtractedText(fileInfo.text);
-    setChapters(fileInfo.chapters || []);
-    setDetectedLanguage(fileInfo.language || 'english');
-    
-    // Only update step after other state is set
-    setTimeout(() => {
-      setCurrentStep(2);
-      console.log('Index - Setting detected language:', fileInfo.language);
-    }, 0);
-  }, [setSelectedFile, setExtractedText, setChapters, setDetectedLanguage, setCurrentStep]);
+    try {
+      // Batch update for related state to reduce renders
+      setSelectedFile(fileInfo.file);
+      setExtractedText(fileInfo.text || '');
+      setChapters(fileInfo.chapters || []);
+      setDetectedLanguage(fileInfo.language || 'english');
+      
+      // Only update step after other state is set
+      setTimeout(() => {
+        setCurrentStep(2);
+        console.log('Index - Setting detected language:', fileInfo.language);
+      }, 0);
+    } catch (error) {
+      console.error('Error handling file selection:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong processing your file. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [setSelectedFile, setExtractedText, setChapters, setDetectedLanguage, setCurrentStep, toast]);
 
   const goToNextStep = useCallback(() => {
     if (currentStep < conversionSteps.length) {
@@ -63,6 +75,19 @@ const Index = () => {
   useEffect(() => {
     console.log('Index component - Initialization state:', isInitialized);
   }, [isInitialized]);
+
+  const handleErrorReset = useCallback(() => {
+    // Reset application state in case of error
+    setCurrentStep(1);
+    setSelectedFile(null);
+    setExtractedText('');
+    setChapters([]);
+    toast({
+      title: "Application Reset",
+      description: "The application has been reset due to an error.",
+      variant: "default",
+    });
+  }, [setCurrentStep, setSelectedFile, setExtractedText, setChapters, toast]);
 
   // Show loading spinner if not initialized
   if (!isInitialized) {
@@ -88,16 +113,21 @@ const Index = () => {
             <StepsProgressBar steps={conversionSteps} currentStep={currentStep} />
           </div>
 
-          <MainContent 
-            currentStep={currentStep}
-            selectedFile={selectedFile}
-            extractedText={extractedText}
-            chapters={chapters}
-            detectedLanguage={detectedLanguage}
-            onFileSelect={handleFileSelect}
-            onNextStep={goToNextStep}
-            onPreviousStep={goToPreviousStep}
-          />
+          <ErrorBoundary 
+            componentName="MainContent" 
+            onReset={handleErrorReset}
+          >
+            <MainContent 
+              currentStep={currentStep}
+              selectedFile={selectedFile}
+              extractedText={extractedText}
+              chapters={chapters}
+              detectedLanguage={detectedLanguage}
+              onFileSelect={handleFileSelect}
+              onNextStep={goToNextStep}
+              onPreviousStep={goToPreviousStep}
+            />
+          </ErrorBoundary>
         </div>
       </main>
       <Footer />

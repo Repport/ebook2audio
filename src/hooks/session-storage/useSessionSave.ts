@@ -26,13 +26,18 @@ export const saveToSessionStorage = ({
   lastSavedState
 }: SessionStorageData) => {
   try {
+    if (currentStep <= 0) {
+      console.warn('Invalid currentStep value:', currentStep);
+      return;
+    }
+
     // Create a snapshot before trying to save
     const currentSnapshot = createStateSnapshot(
       currentStep.toString(),
-      extractedText,
-      JSON.stringify(chapters),
-      detectedLanguage,
-      conversionInProgress.toString()
+      extractedText || '',
+      JSON.stringify(chapters || []),
+      detectedLanguage || 'english',
+      (conversionInProgress || false).toString()
     );
     
     // Skip saving if the state hasn't changed
@@ -45,23 +50,31 @@ export const saveToSessionStorage = ({
     
     // Save to sessionStorage
     sessionStorage.setItem('currentStep', currentStep.toString());
-    sessionStorage.setItem('extractedText', extractedText);
-    sessionStorage.setItem('chapters', JSON.stringify(chapters));
-    sessionStorage.setItem('detectedLanguage', detectedLanguage);
+    sessionStorage.setItem('extractedText', extractedText || '');
+    sessionStorage.setItem('chapters', JSON.stringify(chapters || []));
+    sessionStorage.setItem('detectedLanguage', detectedLanguage || 'english');
     
     if (selectedFile) {
       sessionStorage.setItem('fileName', selectedFile.name);
       sessionStorage.setItem('fileType', selectedFile.type);
       sessionStorage.setItem('fileLastModified', selectedFile.lastModified.toString());
       sessionStorage.setItem('fileSize', selectedFile.size.toString());
+    } else {
+      // Clear file-related data if no file is selected
+      sessionStorage.removeItem('fileName');
+      sessionStorage.removeItem('fileType');
+      sessionStorage.removeItem('fileLastModified');
+      sessionStorage.removeItem('fileSize');
     }
     
-    sessionStorage.setItem('conversionInProgress', conversionInProgress.toString());
+    sessionStorage.setItem('conversionInProgress', (conversionInProgress || false).toString());
     
     // Update last saved state reference
     if (lastSavedState && typeof lastSavedState === 'object' && 'current' in lastSavedState) {
       (lastSavedState as { current: string }).current = currentSnapshot;
       console.log('Updated lastSavedState reference');
+    } else {
+      console.warn('lastSavedState ref is invalid:', lastSavedState);
     }
     
     console.log('State saved to sessionStorage successfully');
@@ -76,15 +89,25 @@ export const saveToSessionStorage = ({
 export const clearSessionStorageData = () => {
   try {
     console.log('Clearing sessionStorage data');
-    sessionStorage.removeItem('currentStep');
-    sessionStorage.removeItem('extractedText');
-    sessionStorage.removeItem('chapters');
-    sessionStorage.removeItem('detectedLanguage');
-    sessionStorage.removeItem('fileName');
-    sessionStorage.removeItem('fileType');
-    sessionStorage.removeItem('fileLastModified');
-    sessionStorage.removeItem('fileSize');
-    sessionStorage.removeItem('conversionInProgress');
+    
+    const keys = [
+      'currentStep',
+      'extractedText',
+      'chapters',
+      'detectedLanguage',
+      'fileName',
+      'fileType',
+      'fileLastModified',
+      'fileSize',
+      'conversionInProgress'
+    ];
+    
+    // Remove each key
+    keys.forEach(key => {
+      sessionStorage.removeItem(key);
+    });
+    
+    console.log('SessionStorage data cleared successfully');
   } catch (err) {
     console.error('Error clearing sessionStorage:', err);
   }

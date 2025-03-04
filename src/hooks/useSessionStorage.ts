@@ -3,12 +3,12 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useSessionState } from './session-storage/useSessionState';
 import { useSessionLoad } from './session-storage/useSessionLoad';
 import { saveToSessionStorage, clearSessionStorageData as clearStorageData } from './session-storage/useSessionSave';
+import { useToast } from './use-toast';
 
 export const useSessionStorage = () => {
-  // Add a state to track initialization
-  const [isInitialized, setIsInitialized] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef(true);
+  const { toast } = useToast();
 
   // Get state from useSessionState
   const {
@@ -23,7 +23,9 @@ export const useSessionStorage = () => {
     detectedLanguage,
     setDetectedLanguage,
     conversionInProgress,
-    setConversionInProgress
+    setConversionInProgress,
+    isInitialized,
+    setIsInitialized
   } = useSessionState();
   
   // Load from session storage - provides refs to track loading state
@@ -33,14 +35,15 @@ export const useSessionStorage = () => {
     setChapters,
     setDetectedLanguage,
     setSelectedFile,
-    setConversionInProgress
+    setConversionInProgress,
+    setIsInitialized
   );
 
   // Save to session storage with debounce
   const saveSessionState = useCallback(() => {
     // Skip if initial load or loading from storage is in progress
-    if (isInitialLoad.current || isLoadingFromStorage.current) {
-      console.log('Skipping save because we are loading initial state or loading from storage');
+    if (isInitialLoad.current || isLoadingFromStorage.current || !isInitialized) {
+      console.log('Skipping save because we are loading initial state or loading from storage or not initialized');
       return;
     }
 
@@ -78,6 +81,12 @@ export const useSessionStorage = () => {
         console.log('State saved to sessionStorage successfully');
       } catch (err) {
         console.error('Error saving to sessionStorage:', err);
+        
+        toast({
+          title: "Save Error",
+          description: "Failed to save your progress. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         saveTimeoutRef.current = null;
       }
@@ -91,16 +100,10 @@ export const useSessionStorage = () => {
     conversionInProgress,
     isInitialLoad,
     isLoadingFromStorage,
-    lastSavedState
+    lastSavedState,
+    isInitialized,
+    toast
   ]);
-
-  // Trigger initialization after initial load is complete
-  useEffect(() => {
-    if (!isInitialLoad.current && !isLoadingFromStorage.current && !isInitialized) {
-      console.log('Setting initialized state to true');
-      setIsInitialized(true);
-    }
-  }, [isInitialLoad, isLoadingFromStorage, isInitialized]);
 
   // Set up cleanup on unmount
   useEffect(() => {
