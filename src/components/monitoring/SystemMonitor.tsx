@@ -2,8 +2,7 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SystemStats from './dashboard/SystemStats';
-import RecentLogs from './logs/RecentLogs';
-import ErrorLogs from './logs/ErrorLogs';
+import { RecentLogs, ErrorLogs } from './logs';
 import PerformanceMetrics from './performance/PerformanceMetrics';
 import { useMonitoringData } from './hooks/useMonitoringData';
 
