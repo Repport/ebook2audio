@@ -129,7 +129,7 @@ export async function processChunksInParallel(
         } else {
           // Si no hay chunks faltantes pero tuvimos errores, seguimos adelante
           console.log(`Processing completed with ${failedChunks} failed chunks`);
-          LoggingService.warning('conversion', {
+          LoggingService.warn('conversion', {
             message: 'Procesamiento completado con errores',
             failed_chunks: failedChunks,
             completed_chunks: completedChunks,
