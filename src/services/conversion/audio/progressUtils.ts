@@ -1,4 +1,3 @@
-
 import { ChunkProgressData } from '../types/chunks';
 
 /**
