@@ -46,13 +46,30 @@ export const useSessionStorage = () => {
 
   // Clear session storage data (using the imported function)
   const clearSessionStorageData = useCallback(() => {
+    console.log('useSessionStorage: Clearing all session storage data');
     clearStorageData();
     
-    // Reset the last saved state
+    // Reset the state
+    setSelectedFile(null);
+    setExtractedText('');
+    setChapters([]);
+    setCurrentStep(1);
+    setDetectedLanguage('english');
+    setConversionInProgress(false);
+    
+    // Reset the last saved state reference
     if (lastSavedState && typeof lastSavedState === 'object' && 'current' in lastSavedState) {
       (lastSavedState as { current: string }).current = '';
     }
-  }, [lastSavedState]);
+  }, [
+    setSelectedFile, 
+    setExtractedText, 
+    setChapters, 
+    setCurrentStep, 
+    setDetectedLanguage, 
+    setConversionInProgress, 
+    lastSavedState
+  ]);
 
   return {
     selectedFile,

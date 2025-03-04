@@ -21,52 +21,59 @@ export const useSessionSave = (
   useEffect(() => {
     // Skip during initial load or when we're loading from storage
     if (isInitialLoadRef.current || isLoadingFromStorageRef.current) {
+      console.log('Skipping save because we are loading initial state');
+      return;
+    }
+
+    // Skip if no file is selected or we're on step 1
+    if (currentStep <= 1 || !selectedFile) {
+      if (currentStep <= 1) {
+        clearSessionStorageData();
+      }
       return;
     }
     
     // Debounce save operations
     const saveTimeout = setTimeout(() => {
-      if (currentStep > 1 && selectedFile) {
-        try {
-          console.log('Saving state to sessionStorage...');
+      try {
+        console.log('Preparing to save state to sessionStorage...');
+        
+        // Create current state snapshot
+        const currentSnapshot = createStateSnapshot(
+          currentStep.toString(),
+          extractedText,
+          JSON.stringify(chapters),
+          detectedLanguage,
+          conversionInProgress.toString()
+        );
+        
+        // Only save if state has actually changed
+        if (currentSnapshot !== lastSavedStateRef.current) {
+          console.log('State changed, saving to sessionStorage');
           
-          // Create current state snapshot
-          const currentSnapshot = createStateSnapshot(
-            currentStep.toString(),
-            extractedText,
-            JSON.stringify(chapters),
-            detectedLanguage,
-            conversionInProgress.toString()
-          );
+          sessionStorage.setItem('currentStep', currentStep.toString());
+          sessionStorage.setItem('extractedText', extractedText);
+          sessionStorage.setItem('chapters', JSON.stringify(chapters));
+          sessionStorage.setItem('detectedLanguage', detectedLanguage);
+          sessionStorage.setItem('fileName', selectedFile.name);
+          sessionStorage.setItem('fileType', selectedFile.type);
+          sessionStorage.setItem('fileLastModified', selectedFile.lastModified.toString());
+          sessionStorage.setItem('fileSize', selectedFile.size.toString());
+          sessionStorage.setItem('conversionInProgress', conversionInProgress.toString());
           
-          // Only save if state has actually changed
-          if (currentSnapshot !== lastSavedStateRef.current) {
-            sessionStorage.setItem('currentStep', currentStep.toString());
-            sessionStorage.setItem('extractedText', extractedText);
-            sessionStorage.setItem('chapters', JSON.stringify(chapters));
-            sessionStorage.setItem('detectedLanguage', detectedLanguage);
-            sessionStorage.setItem('fileName', selectedFile.name);
-            sessionStorage.setItem('fileType', selectedFile.type);
-            sessionStorage.setItem('fileLastModified', selectedFile.lastModified.toString());
-            sessionStorage.setItem('fileSize', selectedFile.size.toString());
-            sessionStorage.setItem('conversionInProgress', conversionInProgress.toString());
-            
-            // Update last saved state - we need to make this mutable
-            if (lastSavedStateRef && typeof lastSavedStateRef === 'object' && 'current' in lastSavedStateRef) {
-              // Use type assertion to tell TypeScript this is a mutable ref
-              (lastSavedStateRef as { current: string }).current = currentSnapshot;
-            }
-            console.log('State saved to sessionStorage');
-          } else {
-            console.log('State unchanged, skipping save');
+          // Update last saved state reference
+          if (lastSavedStateRef && typeof lastSavedStateRef === 'object' && 'current' in lastSavedStateRef) {
+            (lastSavedStateRef as { current: string }).current = currentSnapshot;
           }
-        } catch (err) {
-          console.error('Error saving to sessionStorage:', err);
+          
+          console.log('State saved to sessionStorage successfully');
+        } else {
+          console.log('State unchanged, skipping save');
         }
-      } else {
-        clearSessionStorageData();
+      } catch (err) {
+        console.error('Error saving to sessionStorage:', err);
       }
-    }, 300); // 300ms debounce
+    }, 500); // Increase debounce to 500ms
     
     // Cleanup timeout
     return () => clearTimeout(saveTimeout);
