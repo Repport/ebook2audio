@@ -36,6 +36,3 @@ export interface ChunkProcessingOptions {
   timeout?: number;
   progressCallback?: TextChunkCallback;
 }
-
-// Add the dependency
-<lov-add-dependency>uuid@latest</lov-add-dependency>
