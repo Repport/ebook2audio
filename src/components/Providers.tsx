@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ThemeProvider } from '@/components/ThemeProvider';
+import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import ConversionDebugPanel from './debug/ConversionDebugPanel';
 
