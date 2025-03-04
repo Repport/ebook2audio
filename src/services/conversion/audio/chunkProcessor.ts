@@ -12,7 +12,8 @@ export async function processChunk(
   chunk: string, 
   index: number,
   voiceId: string,
-  totalChunks: number
+  totalChunks: number,
+  conversionId?: string
 ): Promise<ArrayBuffer> {
   console.log(`Processing chunk ${index + 1}/${totalChunks}, size: ${chunk.length} characters`);
   
@@ -39,7 +40,8 @@ export async function processChunk(
     voiceId: voiceId,
     chunkIndex: index,
     totalChunks: totalChunks,
-    isChunk: true // Flag explícito para indicar que es un chunk
+    isChunk: true, // Flag explícito para indicar que es un chunk
+    conversionId: conversionId // Pass the conversionId if available
   };
   
   // Incrementamos el número de reintentos y añadimos backoff exponencial

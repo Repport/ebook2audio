@@ -5,6 +5,7 @@ import { combineAudioBuffers } from './audioUtils';
 import { TextChunkCallback } from '../types/chunks';
 import { useConversionStore } from '@/store/conversionStore';
 import { LoggingService } from '@/utils/loggingService';
+import { updateConversionProgress } from '../progressService';
 
 /**
  * Servicio principal para la conversión de texto a audio
@@ -53,12 +54,12 @@ export async function convertTextToAudio(
       progress: 1 // Start with 1% visible
     });
 
-    // Crear una función wrapper para el callback de progreso que garantice la correcta actualización
-    const progressCallback: TextChunkCallback = (progressData) => {
-      // Imprimir datos completos para debugging
+    // Create a wrapper function for the progress callback with real-time updates
+    const progressCallback: TextChunkCallback = async (progressData) => {
+      // Log complete data for debugging
       console.log(`[CONVERSION-${conversionId}] Raw progress data:`, JSON.stringify(progressData));
       
-      // Verificar que todos los campos estén presentes
+      // Ensure all fields are present
       const validatedData = {
         processedChunks: progressData.processedChunks || 0,
         totalChunks: progressData.totalChunks || 0,
@@ -73,10 +74,13 @@ export async function convertTextToAudio(
         isCompleted: progressData.isCompleted
       };
       
-      // Actualizar el store directamente para evitar problemas de referencia
+      // Update the real-time progress in Supabase
+      await updateConversionProgress(conversionId, validatedData);
+      
+      // Update the store directly to avoid reference problems
       store.updateProgress(validatedData);
       
-      // Actualizar el log con datos validados
+      // Log validated data
       console.log(`[CONVERSION-${conversionId}] Validated progress update:`, {
         progress: `${validatedData.progress}%`,
         chunks: `${validatedData.processedChunks}/${validatedData.totalChunks}`,
@@ -85,13 +89,13 @@ export async function convertTextToAudio(
         storeStatus: store.status
       });
       
-      // Llamar al callback original si existe
+      // Call the original callback if it exists
       if (onProgress) {
         onProgress(validatedData);
       }
     };
     
-    // Inicializar el gestor de chunks con callback centralizado
+    // Initialize the chunk manager with the centralized callback
     const chunkManager = new ChunkManager(text, progressCallback);
     
     console.log(`[CONVERSION-${conversionId}] Chunk manager initialized:`, {
@@ -107,10 +111,10 @@ export async function convertTextToAudio(
       chunks_count: chunkManager.getTotalChunks()
     }, { entityId: conversionId });
     
-    // Procesar los chunks en paralelo
+    // Process chunks in parallel
     await processChunksInParallel(chunkManager, voiceId);
     
-    // Verificación de integridad
+    // Integrity check
     const missingChunks = chunkManager.getMissingChunks();
     if (missingChunks.length > 0) {
       console.error(`[CONVERSION-${conversionId}] CRITICAL INTEGRITY ERROR: Missing chunks after all processing attempts: ${missingChunks.join(', ')}`);
@@ -118,11 +122,11 @@ export async function convertTextToAudio(
       throw new Error(`Error crítico de integridad: No se pudieron procesar todos los chunks después de múltiples intentos`);
     }
     
-    // Combinar los buffers de audio
+    // Combine audio buffers
     const orderedBuffers = chunkManager.getOrderedBuffers();
     const finalAudioBuffer = combineAudioBuffers(orderedBuffers);
     
-    // Verificación final de integridad
+    // Final integrity check
     if (!finalAudioBuffer || finalAudioBuffer.byteLength === 0) {
       console.error(`[CONVERSION-${conversionId}] CRITICAL: Final audio buffer is empty after all processing`);
       store.setError('Error crítico: El archivo de audio final está vacío después de todos los intentos');
@@ -145,7 +149,7 @@ export async function convertTextToAudio(
       audio_size_bytes: finalAudioBuffer.byteLength
     }, { entityId: conversionId });
     
-    // Notificar la finalización del proceso
+    // Notify completion
     chunkManager.notifyCompletion();
     
     // Complete the conversion in the store
@@ -174,7 +178,7 @@ export async function convertTextToAudio(
       text_length: text?.length
     }, { entityId: conversionId });
     
-    // Asegurarnos de que el error se refleje en el store
+    // Make sure error is reflected in the store
     const store = useConversionStore.getState();
     store.setError(error.message || 'Error desconocido en la conversión');
     

@@ -2,6 +2,7 @@
 import React from 'react';
 import { useConversionStore, useConversionTimer } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useConversionProgress } from '@/hooks/useConversionProgress';
 
 // Import our components
 import ConversionStatusIdle from './conversion-status/ConversionStatusIdle';
@@ -39,6 +40,13 @@ const ConversionStatus = ({
   const storeProgress = useConversionStore(state => state.progress);
   const storeWarnings = useConversionStore(state => state.warnings);
   const storeErrors = useConversionStore(state => state.errors);
+  const storeConversionId = useConversionStore(state => state.conversionId);
+  
+  // Use either the prop conversionId or the one from the store
+  const effectiveConversionId = conversionId || storeConversionId;
+  
+  // Subscribe to realtime progress updates if we have a conversion ID
+  useConversionProgress(effectiveConversionId);
   
   // Start the timer at parent level to avoid multiple instances
   // Only runs when conversion is active

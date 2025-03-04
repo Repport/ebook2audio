@@ -1,206 +1,155 @@
 
-import { splitTextIntoChunks } from '../utils';
-import { TextChunkCallback, ChunkProgressData } from '../types/chunks';
-import { calculateProgressData, saveProgressToLocalStorage } from './progressUtils';
+import { ChunkProgressUpdate, ChunkProcessingContext, ProcessChunkResult } from './types/chunkTypes';
 import { RetryTracker } from './retryTracker';
-import { ChunkProcessingContext } from './types/chunkTypes';
-
-const CHUNK_SIZE = 4800;
+import { calculateProgressData } from './progressUtils';
+import { TextChunkCallback } from '../types/chunks';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Divide el texto en chunks y gestiona la distribución del procesamiento
+ * Manages the processing of text chunks for conversion
  */
 export class ChunkManager {
-  private chunks: string[];
-  private processedChunksMap = new Map<number, ArrayBuffer>();
-  private totalChunks: number;
-  private totalCharacters: number;
+  private chunks: string[] = [];
+  private processedChunks: {[key: number]: ArrayBuffer} = {};
+  private retryTracker = new RetryTracker();
+  private totalCharacters: number = 0;
+  private processedCharacters: number = 0;
+  private conversionId: string;
   private onProgress?: TextChunkCallback;
-  private localProcessedCharacters = 0;
-  private instanceId: string;
-  private lastProgressUpdate: number = 0;
-  private MIN_UPDATE_INTERVAL = 100; // Reduced from 300ms to 100ms for more responsive updates
-  private retryTracker: RetryTracker;
-
+  
   constructor(text: string, onProgress?: TextChunkCallback) {
-    this.instanceId = crypto.randomUUID().substring(0, 8);
-    this.chunks = splitTextIntoChunks(text, CHUNK_SIZE);
-    this.totalChunks = this.chunks.length;
+    this.splitTextIntoChunks(text);
     this.totalCharacters = text.length;
     this.onProgress = onProgress;
-    this.retryTracker = new RetryTracker();
+    this.conversionId = uuidv4();
     
-    console.log(`[ChunkManager-${this.instanceId}] Text split into ${this.chunks.length} chunks, total ${text.length} characters`);
-    
-    // Send initial progress update immediately with more info about total chunks
-    this.sendProgressUpdate(0, null, true);
-  }
-
-  /**
-   * Obtiene el número total de chunks
-   */
-  getTotalChunks(): number {
-    return this.totalChunks;
+    // Initial progress update
+    this.updateProgress(0, null, true);
   }
   
   /**
-   * Obtiene el número total de caracteres
+   * Splits the input text into manageable chunks
+   */
+  private splitTextIntoChunks(text: string) {
+    // Simple splitting by character count for demonstration
+    // A more sophisticated implementation would respect sentence boundaries
+    const chunkSize = 4500; // Keep chunks under 5000 characters
+    let remainingText = text;
+    
+    while (remainingText.length > 0) {
+      if (remainingText.length <= chunkSize) {
+        this.chunks.push(remainingText);
+        remainingText = '';
+      } else {
+        // Find a good breakpoint (end of sentence or paragraph)
+        let splitPoint = remainingText.lastIndexOf('. ', chunkSize);
+        splitPoint = splitPoint > 0 ? splitPoint + 1 : 
+                      (remainingText.lastIndexOf('\n', chunkSize) > 0 ? 
+                      remainingText.lastIndexOf('\n', chunkSize) : chunkSize);
+        
+        this.chunks.push(remainingText.substring(0, splitPoint));
+        remainingText = remainingText.substring(splitPoint).trim();
+      }
+    }
+    
+    console.log(`Split text into ${this.chunks.length} chunks`);
+  }
+  
+  /**
+   * Gets the total number of chunks
+   */
+  getTotalChunks(): number {
+    return this.chunks.length;
+  }
+  
+  /**
+   * Gets the total number of characters
    */
   getTotalCharacters(): number {
     return this.totalCharacters;
   }
   
   /**
-   * Obtiene el chunk en un índice específico
+   * Gets the content of a specific chunk
    */
-  getChunk(index: number): string {
+  getChunkContent(index: number): string {
+    if (index < 0 || index >= this.chunks.length) {
+      throw new Error(`Invalid chunk index: ${index}`);
+    }
     return this.chunks[index];
   }
   
   /**
-   * Obtiene todos los chunks
+   * Gets the conversion ID
    */
-  getAllChunks(): string[] {
-    return this.chunks;
+  getConversionId(): string {
+    return this.conversionId;
   }
   
   /**
-   * Actualiza los metadatos iniciales para asegurar valores correctos de rastreo
-   */
-  updateInitialMetadata(totalChunks: number, totalCharacters: number): void {
-    // Only update if our initial values were incorrect
-    if (this.totalChunks !== totalChunks || this.totalCharacters !== totalCharacters) {
-      console.log(`[ChunkManager-${this.instanceId}] Updating metadata: chunks ${this.totalChunks} -> ${totalChunks}, chars ${this.totalCharacters} -> ${totalCharacters}`);
-      this.totalChunks = totalChunks;
-      this.totalCharacters = totalCharacters;
-      
-      // Force a progress update with new metadata
-      this.sendProgressUpdate(0, null, true);
-    }
-  }
-  
-  /**
-   * Obtiene el número de reintentos para un chunk específico
+   * Gets the retry count for a specific chunk
    */
   getRetryCount(index: number): number {
     return this.retryTracker.getRetryCount(index);
   }
   
   /**
-   * Incrementa el contador de reintentos para un chunk específico
+   * Increments the retry count for a specific chunk
    */
   incrementRetryCount(index: number): void {
     this.retryTracker.incrementRetryCount(index);
   }
-
+  
   /**
-   * Envía una actualización de progreso con datos actuales
-   * @param additionalChars - Caracteres adicionales procesados
-   * @param currentChunk - Chunk actual siendo procesado
-   * @param forceUpdate - Forzar actualización sin importar el throttling
+   * Registers the result of processing a chunk
    */
-  private sendProgressUpdate(additionalChars: number, currentChunk: string | null, forceUpdate = false): void {
-    const now = Date.now();
+  registerChunkResult(result: ProcessChunkResult): void {
+    // Store the processed chunk
+    this.processedChunks[result.index] = result.buffer;
     
-    // Throttle updates to prevent too many calls, unless forced or at beginning/end
-    if (!forceUpdate && now - this.lastProgressUpdate < this.MIN_UPDATE_INTERVAL) {
-      return;
-    }
+    // Update processed characters count
+    const chunkLength = this.getChunkContent(result.index).length;
+    this.processedCharacters += chunkLength;
     
-    this.lastProgressUpdate = now;
-    
-    if (this.onProgress) {
-      // Track processed characters
-      if (additionalChars > 0) {
-        this.localProcessedCharacters += additionalChars;
-      }
-      
-      const progressData = calculateProgressData(
-        this.processedChunksMap.size,
-        this.totalChunks,
-        this.localProcessedCharacters,
-        this.totalCharacters,
-        currentChunk,
-        this.instanceId
-      );
-      
-      // Asegurarnos de que todos los valores son correctos antes de enviar la actualización
-      this.onProgress(progressData);
-      
-      // Guardar localmente para debug
-      saveProgressToLocalStorage(
-        progressData.progress,
-        this.processedChunksMap.size,
-        this.totalChunks,
-        this.localProcessedCharacters,
-        this.totalCharacters
-      );
-    }
-  }
-
-  /**
-   * Registra un chunk procesado en el mapa
-   */
-  registerProcessedChunk(index: number, buffer: ArrayBuffer): void {
-    // Skip if this chunk was already processed to avoid double-counting
-    if (this.processedChunksMap.has(index)) {
-      console.log(`[ChunkManager-${this.instanceId}] Chunk ${index + 1} was already processed, skipping`);
-      return;
-    }
-    
-    this.processedChunksMap.set(index, buffer);
-    
-    // Calculate the number of characters in this chunk
-    const chunkLength = this.chunks[index].length;
-    
-    // Check if we're reaching completion to force progress update
-    const isNearingCompletion = this.processedChunksMap.size >= this.totalChunks - 1;
-    
-    // Send progress update
-    this.sendProgressUpdate(chunkLength, this.chunks[index], isNearingCompletion);
-    
-    // Additional log for processed chunk
-    console.log(`[ChunkManager-${this.instanceId}] Processed chunk ${index + 1}/${this.totalChunks}:`, {
-      chunkSize: `${(buffer.byteLength / 1024).toFixed(2)} KB`,
-      chunkChars: chunkLength,
-      totalProcessed: this.processedChunksMap.size,
-      percentComplete: `${Math.round((this.processedChunksMap.size / this.totalChunks) * 100)}%`
-    });
+    // Update progress
+    this.updateProgress(
+      Object.keys(this.processedChunks).length,
+      this.getChunkContent(result.index)
+    );
   }
   
   /**
-   * Registra un error al procesar un chunk
+   * Updates the progress callback with current state
    */
-  registerChunkError(index: number, error: Error): void {
-    console.error(`[ChunkManager-${this.instanceId}] Error processing chunk ${index + 1}:`, error);
+  private updateProgress(processedChunksCount: number, currentChunk: string | null, forceUpdate: boolean = false): void {
+    if (!this.onProgress) return;
     
-    if (this.onProgress) {
-      const progressData: ChunkProgressData = {
-        processedChunks: this.processedChunksMap.size,
-        totalChunks: this.totalChunks,
-        processedCharacters: this.localProcessedCharacters,
-        totalCharacters: this.totalCharacters,
-        currentChunk: this.chunks[index],
-        error: error instanceof Error ? error.message : String(error)
-      };
-      this.onProgress(progressData);
-    }
+    const updateData = {
+      processedChunks: processedChunksCount,
+      totalChunks: this.chunks.length,
+      processedCharacters: this.processedCharacters,
+      totalCharacters: this.totalCharacters,
+      currentChunk,
+      forceUpdate
+    };
+    
+    this.onProgress(calculateProgressData(
+      updateData.processedChunks,
+      updateData.totalChunks,
+      updateData.processedCharacters,
+      updateData.totalCharacters,
+      updateData.currentChunk,
+      this.conversionId
+    ));
   }
   
   /**
-   * Verifica si todos los chunks han sido procesados
-   */
-  areAllChunksProcessed(): boolean {
-    return this.processedChunksMap.size === this.totalChunks;
-  }
-  
-  /**
-   * Obtiene los chunks faltantes
+   * Gets an array of indices for missing chunks
    */
   getMissingChunks(): number[] {
     const missing: number[] = [];
-    for (let i = 0; i < this.totalChunks; i++) {
-      if (!this.processedChunksMap.has(i)) {
+    for (let i = 0; i < this.chunks.length; i++) {
+      if (!this.processedChunks[i]) {
         missing.push(i);
       }
     }
@@ -208,40 +157,33 @@ export class ChunkManager {
   }
   
   /**
-   * Obtiene los buffers de audio procesados en orden
+   * Gets an array of processed buffers in the correct order
    */
   getOrderedBuffers(): ArrayBuffer[] {
-    const orderedBuffers: ArrayBuffer[] = [];
-    for (let i = 0; i < this.totalChunks; i++) {
-      const buffer = this.processedChunksMap.get(i);
-      if (buffer) {
-        orderedBuffers.push(buffer);
+    const buffers: ArrayBuffer[] = [];
+    for (let i = 0; i < this.chunks.length; i++) {
+      if (this.processedChunks[i]) {
+        buffers.push(this.processedChunks[i]);
       }
     }
-    return orderedBuffers;
+    return buffers;
   }
   
   /**
-   * Notifica la finalización del proceso
+   * Notifies the completion of all chunks
    */
   notifyCompletion(): void {
-    console.log(`[ChunkManager-${this.instanceId}] Process completed:`, {
-      processedChunks: this.processedChunksMap.size,
-      totalChunks: this.totalChunks,
-      processedCharacters: this.localProcessedCharacters,
-      totalCharacters: this.totalCharacters
-    });
+    if (!this.onProgress) return;
     
-    if (this.onProgress) {
-      this.onProgress({
-        processedChunks: this.totalChunks,
-        totalChunks: this.totalChunks,
-        processedCharacters: this.totalCharacters,
-        totalCharacters: this.totalCharacters,
-        currentChunk: "",
-        progress: 100,
-        isCompleted: true
-      });
-    }
+    // Final progress update with completion flag
+    this.onProgress({
+      processedChunks: this.chunks.length,
+      totalChunks: this.chunks.length,
+      processedCharacters: this.totalCharacters,
+      totalCharacters: this.totalCharacters,
+      currentChunk: 'Finalizado',
+      progress: 100,
+      isCompleted: true
+    });
   }
 }

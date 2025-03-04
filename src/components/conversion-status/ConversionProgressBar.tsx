@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/spinner';
@@ -6,6 +5,7 @@ import { formatTimeRemaining } from '@/utils/timeFormatting';
 import WarningsAndErrors from './WarningsAndErrors';
 import { useConversionStore } from '@/store/conversionStore';
 import { LoggingService } from '@/utils/loggingService';
+import { useConversionProgress } from '@/hooks/useConversionProgress';
 
 interface ConversionProgressBarProps {
   showPercentage?: boolean;
@@ -16,7 +16,7 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   showPercentage = true,
   message
 }) => {
-  // Usar el store global with specific selectors to prevent unnecessary re-renders
+  // Use the store global with specific selectors to prevent unnecessary re-renders
   const status = useConversionStore(state => state.status);
   const progress = useConversionStore(state => state.progress);
   const processedChunks = useConversionStore(state => state.chunks.processed);
@@ -27,8 +27,12 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   const timeRemaining = useConversionStore(state => state.time.remaining);
   const errors = useConversionStore(state => state.errors);
   const warnings = useConversionStore(state => state.warnings);
+  const conversionId = useConversionStore(state => state.conversionId);
   
-  // Estado local para mantener un log de las actualizaciones de progreso para debugging
+  // Subscribe to realtime progress updates if we have a conversion ID
+  const { isSubscribed } = useConversionProgress(conversionId);
+  
+  // Local state for debug logs
   const [debugLogs, setDebugLogs] = useState<Array<{
     timestamp: string;
     progress: number;
@@ -41,10 +45,10 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   const lastChunksRef = React.useRef(processedChunks);
   const lastCharsRef = React.useRef(processedCharacters);
   
-  // Flag para mostrar información de debug
+  // Flag for showing debug info
   const [showDebug, setShowDebug] = useState(false);
   
-  // Cargar logs de progreso del localStorage para debugging
+  // Load progress logs from localStorage for debugging
   useEffect(() => {
     try {
       const storedLogs = localStorage.getItem('conversionProgressLogs');
@@ -58,10 +62,10 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
         })));
       }
     } catch (e) {
-      // Ignorar errores
+      // Ignore errors
     }
     
-    // Habilitar modo debug con triple clic
+    // Enable debug mode with triple click
     const handleTripleClick = () => {
       setShowDebug(prev => !prev);
     };
@@ -87,23 +91,25 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
     if (progressChanged || chunksChanged || charsChanged) {
       console.log(`ConversionProgressBar - Progress update: ${lastProgressRef.current}% -> ${progress}%, Status: ${status}`);
       console.log(`Chunks: ${processedChunks}/${totalChunks}, Chars: ${processedCharacters}/${totalCharacters}`);
+      console.log(`Realtime subscription active: ${isSubscribed}`);
       
-      // Actualizar referencias
+      // Update references
       lastProgressRef.current = progress;
       lastChunksRef.current = processedChunks;
       lastCharsRef.current = processedCharacters;
       
-      // Log para monitoreo del sistema
+      // Log for system monitoring
       if (progressChanged) {
         LoggingService.debug('conversion', {
           message: 'Actualización significativa de progreso en UI',
           progress,
           chunks: `${processedChunks}/${totalChunks}`,
-          chars: `${processedCharacters}/${totalCharacters}`
+          chars: `${processedCharacters}/${totalCharacters}`,
+          subscription_active: isSubscribed
         });
       }
       
-      // Añadir al log de debug
+      // Add to debug log
       setDebugLogs(prev => {
         const newLog = {
           timestamp: new Date().toLocaleTimeString(),
@@ -118,17 +124,17 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
         return updatedLogs;
       });
     }
-  }, [progress, status, processedChunks, totalChunks, processedCharacters, totalCharacters]);
+  }, [progress, status, processedChunks, totalChunks, processedCharacters, totalCharacters, isSubscribed]);
   
-  // Asegurarnos que el progreso nunca sea 0 para mantener la barra visible
+  // Make sure progress is never 0 to keep the bar visible
   const safeProgress = Math.max(1, progress);
   
-  // Estado local para determinar si tenemos suficiente información para mostrar detalles
+  // Local state to determine if we have enough information to show details
   const hasProcessingDetails = processedChunks > 0 || totalChunks > 0;
   const hasTimeInfo = timeElapsed > 0 || timeRemaining !== null;
   const hasCharInfo = processedCharacters > 0 && totalCharacters > 0;
 
-  // Texto descriptivo basado en la etapa de procesamiento
+  // Descriptive text based on processing stage
   const getStatusText = () => {
     if (timeElapsed < 5) {
       return "Iniciando conversión...";
@@ -146,7 +152,7 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   // Debug mode for detailed state information
   const isDebugMode = import.meta.env.DEV || showDebug;
   
-  // Si no estamos convirtiendo, no mostrar nada
+  // If not converting, show nothing
   if (status !== 'converting' && status !== 'processing') {
     return null;
   }
@@ -158,6 +164,7 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
       </div>
       <p className="text-lg font-medium">
         {message || "Convirtiendo texto a audio..."}
+        {isSubscribed && <span className="text-xs text-green-500 ml-2">(Realtime)</span>}
       </p>
       <div className="w-full space-y-3">
         <Progress 
@@ -201,7 +208,7 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
             </div>
           )}
           
-          {/* Botón para alternar modo debug en producción */}
+          {/* Button to toggle debug mode in production */}
           {!import.meta.env.DEV && (
             <div className="pt-2">
               <button 
@@ -221,6 +228,8 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
               <div>Chunks: {processedChunks}/{totalChunks} ({totalChunks > 0 ? Math.round((processedChunks / totalChunks) * 100) : 0}%)</div>
               <div>Chars: {processedCharacters}/{totalCharacters} ({totalCharacters > 0 ? Math.round((processedCharacters / totalCharacters) * 100) : 0}%)</div>
               <div>Time: {timeElapsed}s elapsed, {timeRemaining}s remaining</div>
+              <div>Conversion ID: {conversionId || 'no id'}</div>
+              <div>Realtime subscription: {isSubscribed ? 'Active' : 'Inactive'}</div>
               
               {debugLogs.length > 0 && (
                 <div className="mt-2">
