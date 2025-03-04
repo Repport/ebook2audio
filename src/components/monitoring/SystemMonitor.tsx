@@ -2,7 +2,7 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SystemStats from './dashboard/SystemStats';
-import { RecentLogs, ErrorLogs } from './logs';
+import { RecentLogs, ErrorLogs, adaptDatabaseLogToLog } from './logs';
 import PerformanceMetrics from './performance/PerformanceMetrics';
 import { useMonitoringData } from './hooks/useMonitoringData';
 
@@ -25,6 +25,10 @@ const SystemMonitor = () => {
     clearLogs
   } = useMonitoringData();
 
+  // Convert database logs to the Log format expected by components
+  const adaptedLogs = React.useMemo(() => logs.map(adaptDatabaseLogToLog), [logs]);
+  const adaptedErrorLogs = React.useMemo(() => errorLogs.map(adaptDatabaseLogToLog), [errorLogs]);
+
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
@@ -46,7 +50,7 @@ const SystemMonitor = () => {
             onRefresh={loadStats} 
           />
           <RecentLogs 
-            logs={logs} 
+            logs={adaptedLogs} 
             isLoading={isLoading} 
             onRefresh={loadLogs} 
             onClearLogs={clearLogs} 
@@ -55,7 +59,7 @@ const SystemMonitor = () => {
         
         <TabsContent value="logs">
           <RecentLogs 
-            logs={logs} 
+            logs={adaptedLogs} 
             isLoading={isLoading} 
             onRefresh={loadLogs} 
             onClearLogs={clearLogs} 
@@ -64,7 +68,7 @@ const SystemMonitor = () => {
         
         <TabsContent value="errors">
           <ErrorLogs 
-            logs={errorLogs} 
+            logs={adaptedErrorLogs} 
             isLoading={isLoading} 
             onRefresh={loadErrorLogs} 
           />

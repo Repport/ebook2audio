@@ -25,3 +25,28 @@ export interface PerformanceMetric {
   history: number[];
   status?: 'good' | 'warning' | 'critical';
 }
+
+// Props interfaces
+export interface SystemStatsProps {
+  stats: any;
+  isLoading: boolean;
+  onRefresh: () => void;
+}
+
+export interface LogsProps {
+  logs: Log[];
+  isLoading: boolean;
+  onRefresh: () => void;
+}
+
+export interface RecentLogsProps extends LogsProps {
+  onClearLogs?: () => void;
+}
+
+export interface ErrorLogsProps extends LogsProps {}
+
+export interface PerformanceMetricsProps {
+  metrics: any;
+  isLoading: boolean;
+  onRefresh: () => void;
+}
