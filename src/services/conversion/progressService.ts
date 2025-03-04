@@ -2,19 +2,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ChunkProgressData } from "./types/chunks";
 
-interface ProgressUpdate {
-  conversion_id: string;
-  processed_chunks: number;
-  total_chunks: number;
-  processed_characters: number;
-  total_characters: number;
-  current_chunk: string | null;
-  progress: number;
-  status: 'converting' | 'completed' | 'error';
-  error_message?: string;
-  warning_message?: string;
-}
-
 /**
  * Updates the conversion progress in Supabase
  */
@@ -23,7 +10,14 @@ export const updateConversionProgress = async (
   data: ChunkProgressData
 ): Promise<void> => {
   try {
-    const update: ProgressUpdate = {
+    console.log('Updating conversion progress in Supabase:', {
+      conversionId, 
+      processed: data.processedChunks, 
+      total: data.totalChunks,
+      progress: data.progress
+    });
+    
+    const updateData = {
       conversion_id: conversionId,
       processed_chunks: data.processedChunks,
       total_chunks: data.totalChunks,
@@ -32,13 +26,15 @@ export const updateConversionProgress = async (
       current_chunk: data.currentChunk || null,
       progress: data.progress,
       status: data.isCompleted ? 'completed' : (data.error ? 'error' : 'converting'),
-      error_message: data.error,
-      warning_message: data.warning
+      error_message: data.error || null,
+      warning_message: data.warning || null,
+      updated_at: new Date().toISOString()
     };
 
+    // Use upsert to handle both insert and update
     const { error } = await supabase
       .from('conversion_progress')
-      .upsert(update, { onConflict: 'conversion_id' });
+      .upsert(updateData, { onConflict: 'conversion_id' });
 
     if (error) {
       console.error('Error updating conversion progress:', error);
@@ -71,44 +67,54 @@ export const subscribeToProgress = (
         
         // Map from DB format to ChunkProgressData
         const progressData: ChunkProgressData = {
-          processedChunks: newData.processed_chunks,
-          totalChunks: newData.total_chunks,
-          processedCharacters: newData.processed_characters,
-          totalCharacters: newData.total_characters,
+          processedChunks: newData.processed_chunks || 0,
+          totalChunks: newData.total_chunks || 0,
+          processedCharacters: newData.processed_characters || 0,
+          totalCharacters: newData.total_characters || 0,
           currentChunk: newData.current_chunk || '',
-          progress: newData.progress,
+          progress: newData.progress || 0,
           error: newData.error_message,
           warning: newData.warning_message,
           isCompleted: newData.status === 'completed'
         };
         
+        console.log('Received realtime progress update:', progressData);
         callback(progressData);
       }
     )
     .subscribe();
 
+  console.log(`Subscribed to progress updates for conversion ${conversionId}`);
+
   // Also fetch the initial state
   const fetchInitialState = async () => {
-    const { data, error } = await supabase
-      .from('conversion_progress')
-      .select('*')
-      .eq('conversion_id', conversionId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('conversion_progress')
+        .select('*')
+        .eq('conversion_id', conversionId)
+        .maybeSingle();
 
-    if (!error && data) {
-      const progressData: ChunkProgressData = {
-        processedChunks: data.processed_chunks,
-        totalChunks: data.total_chunks,
-        processedCharacters: data.processed_characters,
-        totalCharacters: data.total_characters,
-        currentChunk: data.current_chunk || '',
-        progress: data.progress,
-        error: data.error_message,
-        warning: data.warning_message,
-        isCompleted: data.status === 'completed'
-      };
-      
-      callback(progressData);
+      if (!error && data) {
+        const progressData: ChunkProgressData = {
+          processedChunks: data.processed_chunks || 0,
+          totalChunks: data.total_chunks || 0,
+          processedCharacters: data.processed_characters || 0,
+          totalCharacters: data.total_characters || 0,
+          currentChunk: data.current_chunk || '',
+          progress: data.progress || 0,
+          error: data.error_message,
+          warning: data.warning_message,
+          isCompleted: data.status === 'completed'
+        };
+        
+        console.log('Found initial progress state:', progressData);
+        callback(progressData);
+      } else if (error) {
+        console.error('Error fetching initial progress state:', error);
+      }
+    } catch (e) {
+      console.error('Exception during initial progress fetch:', e);
     }
   };
   
@@ -116,6 +122,7 @@ export const subscribeToProgress = (
   
   return {
     unsubscribe: () => {
+      console.log(`Unsubscribing from progress updates for conversion ${conversionId}`);
       supabase.removeChannel(channel);
     }
   };
@@ -128,6 +135,8 @@ export const getConversionProgress = async (
   conversionId: string
 ): Promise<ChunkProgressData | null> => {
   try {
+    console.log('Fetching progress for conversion:', conversionId);
+    
     const { data, error } = await supabase
       .from('conversion_progress')
       .select('*')
@@ -139,15 +148,20 @@ export const getConversionProgress = async (
       return null;
     }
 
-    if (!data) return null;
+    if (!data) {
+      console.log('No progress data found for conversion:', conversionId);
+      return null;
+    }
+
+    console.log('Found progress data:', data);
 
     return {
-      processedChunks: data.processed_chunks,
-      totalChunks: data.total_chunks,
-      processedCharacters: data.processed_characters,
-      totalCharacters: data.total_characters,
+      processedChunks: data.processed_chunks || 0,
+      totalChunks: data.total_chunks || 0,
+      processedCharacters: data.processed_characters || 0,
+      totalCharacters: data.total_characters || 0,
       currentChunk: data.current_chunk || '',
-      progress: data.progress,
+      progress: data.progress || 0,
       error: data.error_message,
       warning: data.warning_message,
       isCompleted: data.status === 'completed'

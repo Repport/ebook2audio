@@ -15,18 +15,20 @@ export const useConversionProgress = (conversionId: string | null) => {
     
     // Get initial progress
     const fetchInitialProgress = async () => {
-      const progress = await getConversionProgress(conversionId);
-      if (progress) {
-        updateProgress(progress);
-        
-        // If the progress shows completed or error, update the store accordingly
-        if (progress.isCompleted) {
-          // We don't have the audio data here, but we can mark the conversion as completed
-          // The audio data will need to be fetched separately
-          completeConversion(null, conversionId, progress.totalCharacters / 15);
-        } else if (progress.error) {
-          setError(progress.error);
+      try {
+        const progress = await getConversionProgress(conversionId);
+        if (progress) {
+          updateProgress(progress);
+          
+          // If the progress shows completed or error, update the store accordingly
+          if (progress.isCompleted) {
+            completeConversion(null, conversionId, progress.totalCharacters / 15);
+          } else if (progress.error) {
+            setError(progress.error);
+          }
         }
+      } catch (error) {
+        console.error('Error fetching initial progress:', error);
       }
     };
     

@@ -168,6 +168,51 @@ export type Database = {
           },
         ]
       }
+      conversion_progress: {
+        Row: {
+          conversion_id: string
+          created_at: string
+          current_chunk: string | null
+          error_message: string | null
+          processed_characters: number
+          processed_chunks: number
+          progress: number
+          status: string
+          total_characters: number
+          total_chunks: number
+          updated_at: string
+          warning_message: string | null
+        }
+        Insert: {
+          conversion_id: string
+          created_at?: string
+          current_chunk?: string | null
+          error_message?: string | null
+          processed_characters?: number
+          processed_chunks?: number
+          progress?: number
+          status?: string
+          total_characters?: number
+          total_chunks?: number
+          updated_at?: string
+          warning_message?: string | null
+        }
+        Update: {
+          conversion_id?: string
+          created_at?: string
+          current_chunk?: string | null
+          error_message?: string | null
+          processed_characters?: number
+          processed_chunks?: number
+          progress?: number
+          status?: string
+          total_characters?: number
+          total_chunks?: number
+          updated_at?: string
+          warning_message?: string | null
+        }
+        Relationships: []
+      }
       email_change_history: {
         Row: {
           changed_at: string | null

@@ -2,6 +2,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { retryOperation } from "../utils";
 import { LoggingService } from "@/utils/loggingService";
+import { updateConversionProgress } from "../progressService";
+import { ChunkProgressData } from "../types/chunks";
 
 const MAX_RETRIES_PER_CHUNK = 5;
 
@@ -35,6 +37,22 @@ export async function processChunk(
     return silencePlaceholder.buffer;
   }
 
+  // Update progress if we have a conversion ID
+  if (conversionId) {
+    const progressData: ChunkProgressData = {
+      processedChunks: index,
+      totalChunks: totalChunks,
+      processedCharacters: index * (chunk.length || 0), // Estimate
+      totalCharacters: totalChunks * (chunk.length || 0), // Estimate
+      currentChunk: chunk.substring(0, 50) + "...",
+      progress: Math.round((index / totalChunks) * 100),
+      isCompleted: false
+    };
+    
+    // Update progress in Supabase
+    await updateConversionProgress(conversionId, progressData);
+  }
+
   const requestBody = {
     text: chunk,
     voiceId: voiceId,
@@ -65,11 +83,44 @@ export async function processChunk(
       total_chunks: totalChunks
     });
     
+    // Update progress with error if we have a conversion ID
+    if (conversionId) {
+      const errorData: ChunkProgressData = {
+        processedChunks: index,
+        totalChunks: totalChunks,
+        processedCharacters: index * (chunk.length || 0),
+        totalCharacters: totalChunks * (chunk.length || 0),
+        currentChunk: chunk.substring(0, 50) + "...",
+        progress: Math.round((index / totalChunks) * 100),
+        error: `Error crítico en chunk ${index + 1}: ${response.error.message}`,
+        isCompleted: false
+      };
+      
+      await updateConversionProgress(conversionId, errorData);
+    }
+    
     throw new Error(`Error crítico en chunk ${index + 1}: ${response.error.message}`);
   }
 
   if (!response.data) {
     console.error(`Empty response for chunk ${index + 1} after multiple retries:`, response);
+    
+    // Update progress with error if we have a conversion ID
+    if (conversionId) {
+      const errorData: ChunkProgressData = {
+        processedChunks: index,
+        totalChunks: totalChunks,
+        processedCharacters: index * (chunk.length || 0),
+        totalCharacters: totalChunks * (chunk.length || 0),
+        currentChunk: chunk.substring(0, 50) + "...",
+        progress: Math.round((index / totalChunks) * 100),
+        error: `No se recibieron datos del edge function para el chunk ${index + 1}`,
+        isCompleted: false
+      };
+      
+      await updateConversionProgress(conversionId, errorData);
+    }
+    
     throw new Error(`No se recibieron datos del edge function para el chunk ${index + 1}`);
   }
 
@@ -85,6 +136,23 @@ export async function processChunk(
 
   if (!data.audioContent) {
     console.error(`Missing audioContent for chunk ${index + 1} after multiple retries:`, data);
+    
+    // Update progress with error if we have a conversion ID
+    if (conversionId) {
+      const errorData: ChunkProgressData = {
+        processedChunks: index,
+        totalChunks: totalChunks,
+        processedCharacters: index * (chunk.length || 0),
+        totalCharacters: totalChunks * (chunk.length || 0),
+        currentChunk: chunk.substring(0, 50) + "...",
+        progress: Math.round((index / totalChunks) * 100),
+        error: `Contenido de audio ausente para el chunk ${index + 1}`,
+        isCompleted: false
+      };
+      
+      await updateConversionProgress(conversionId, errorData);
+    }
+    
     throw new Error(`Contenido de audio ausente para el chunk ${index + 1}`);
   }
 
@@ -110,9 +178,41 @@ export async function processChunk(
       progress: data.progress || Math.round(((index + 1) / totalChunks) * 100)
     });
     
+    // Update progress for successful chunk
+    if (conversionId) {
+      const successData: ChunkProgressData = {
+        processedChunks: index + 1, // This chunk is now processed
+        totalChunks: totalChunks,
+        processedCharacters: (index + 1) * (chunk.length || 0),
+        totalCharacters: totalChunks * (chunk.length || 0),
+        currentChunk: index < totalChunks - 1 ? "Preparando siguiente chunk..." : "Finalizando...",
+        progress: Math.round(((index + 1) / totalChunks) * 100),
+        isCompleted: index === totalChunks - 1 // Mark as completed if this is the last chunk
+      };
+      
+      await updateConversionProgress(conversionId, successData);
+    }
+    
     return bytes.buffer;
   } catch (error: any) {
     console.error(`Base64 conversion error for chunk ${index + 1}:`, error);
+    
+    // Update progress with error if we have a conversion ID
+    if (conversionId) {
+      const errorData: ChunkProgressData = {
+        processedChunks: index,
+        totalChunks: totalChunks,
+        processedCharacters: index * (chunk.length || 0),
+        totalCharacters: totalChunks * (chunk.length || 0),
+        currentChunk: chunk.substring(0, 50) + "...",
+        progress: Math.round((index / totalChunks) * 100),
+        error: `Error al procesar los datos de audio para el chunk ${index + 1}: ${error.message}`,
+        isCompleted: false
+      };
+      
+      await updateConversionProgress(conversionId, errorData);
+    }
+    
     throw new Error(`Error al procesar los datos de audio para el chunk ${index + 1}: ${error.message}`);
   }
 }

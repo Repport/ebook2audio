@@ -46,7 +46,14 @@ const ConversionStatus = ({
   const effectiveConversionId = conversionId || storeConversionId;
   
   // Subscribe to realtime progress updates if we have a conversion ID
-  useConversionProgress(effectiveConversionId);
+  const { isSubscribed } = useConversionProgress(effectiveConversionId);
+  
+  // Log subscription status
+  React.useEffect(() => {
+    if (effectiveConversionId) {
+      console.log(`Progress subscription status for ${effectiveConversionId}: ${isSubscribed ? 'active' : 'inactive'}`);
+    }
+  }, [effectiveConversionId, isSubscribed]);
   
   // Start the timer at parent level to avoid multiple instances
   // Only runs when conversion is active
