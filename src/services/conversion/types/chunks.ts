@@ -17,9 +17,10 @@ export interface ProgressSubscription {
   unsubscribe: () => void;
 }
 
-// Add the audio response type that was missing
+// Audio response type 
 export interface AudioResponse {
   audioContent: string;
+  data?: any; // Added data property to fix TypeScript errors
   duration?: number;
   format?: string;
   sampleRate?: number;
@@ -28,11 +29,18 @@ export interface AudioResponse {
   error?: string;
 }
 
-// Add the chunk processing options type that was missing
+// Enhanced chunk processing options
 export interface ChunkProcessingOptions {
   maxParallelChunks?: number;
   retryDelayMs?: number;
   maxRetries?: number;
   timeout?: number;
   progressCallback?: TextChunkCallback;
+  
+  // Additional properties needed by batchProcessor
+  voiceId?: string;
+  fileName?: string;
+  conversionId?: string;
+  totalChunks?: number;
+  totalCharacters?: number;
 }
