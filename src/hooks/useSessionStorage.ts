@@ -1,12 +1,14 @@
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useSessionState } from './session-storage/useSessionState';
 import { useSessionLoad } from './session-storage/useSessionLoad';
-import { useSessionSave, clearSessionStorageData as clearStorageData } from './session-storage/useSessionSave';
+import { saveToSessionStorage, clearSessionStorageData as clearStorageData } from './session-storage/useSessionSave';
 
 export const useSessionStorage = () => {
   // Add a state to track initialization
   const [isInitialized, setIsInitialized] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMounted = useRef(true);
 
   // Get state from useSessionState
   const {
@@ -24,7 +26,7 @@ export const useSessionStorage = () => {
     setConversionInProgress
   } = useSessionState();
   
-  // Load from session storage
+  // Load from session storage - provides refs to track loading state
   const { isLoadingFromStorage, isInitialLoad, lastSavedState } = useSessionLoad(
     setCurrentStep,
     setExtractedText,
@@ -34,45 +36,96 @@ export const useSessionStorage = () => {
     setConversionInProgress
   );
 
-  // Trigger save only after initialization is complete
-  useEffect(() => {
-    if (!isInitialLoad.current && !isLoadingFromStorage.current) {
-      setIsInitialized(true);
-    }
-  }, [isInitialLoad, isLoadingFromStorage]);
-
-  // Only connect the save hook after initialization
-  useEffect(() => {
-    if (!isInitialized) {
-      console.log('Skipping save hook connection until initialized');
+  // Save to session storage with debounce
+  const saveSessionState = useCallback(() => {
+    // Skip if initial load or loading from storage is in progress
+    if (isInitialLoad.current || isLoadingFromStorage.current) {
+      console.log('Skipping save because we are loading initial state or loading from storage');
       return;
     }
 
-    console.log('Connecting session save hook');
-    
-    // Save to session storage
-    useSessionSave(
-      isInitialLoad,
-      isLoadingFromStorage,
-      lastSavedState,
-      currentStep,
-      selectedFile,
-      extractedText,
-      chapters,
-      detectedLanguage,
-      conversionInProgress
-    );
+    // Skip if no file is selected or we're on step 1
+    if (currentStep <= 1 || !selectedFile) {
+      if (currentStep <= 1) {
+        console.log('Clearing session storage as we are on step 1');
+        clearStorageData();
+      }
+      return;
+    }
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce save operations
+    saveTimeoutRef.current = setTimeout(() => {
+      if (!isMounted.current) return;
+
+      try {
+        console.log('Saving state to sessionStorage...');
+        
+        saveToSessionStorage({
+          currentStep,
+          extractedText,
+          chapters,
+          detectedLanguage,
+          selectedFile,
+          conversionInProgress,
+          lastSavedState
+        });
+        
+        console.log('State saved to sessionStorage successfully');
+      } catch (err) {
+        console.error('Error saving to sessionStorage:', err);
+      } finally {
+        saveTimeoutRef.current = null;
+      }
+    }, 1000); // 1000ms debounce
   }, [
-    isInitialized,
-    isInitialLoad,
-    isLoadingFromStorage,
-    lastSavedState,
     currentStep,
-    selectedFile, 
+    selectedFile,
     extractedText,
     chapters,
     detectedLanguage,
-    conversionInProgress
+    conversionInProgress,
+    isInitialLoad,
+    isLoadingFromStorage,
+    lastSavedState
+  ]);
+
+  // Trigger initialization after initial load is complete
+  useEffect(() => {
+    if (!isInitialLoad.current && !isLoadingFromStorage.current && !isInitialized) {
+      console.log('Setting initialized state to true');
+      setIsInitialized(true);
+    }
+  }, [isInitialLoad, isLoadingFromStorage, isInitialized]);
+
+  // Set up cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Save state when any relevant state changes
+  useEffect(() => {
+    if (isInitialized) {
+      saveSessionState();
+    }
+  }, [
+    isInitialized,
+    currentStep,
+    selectedFile,
+    extractedText,
+    chapters,
+    detectedLanguage,
+    conversionInProgress,
+    saveSessionState
   ]);
 
   // Clear session storage data (using the imported function)
