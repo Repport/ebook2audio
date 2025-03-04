@@ -33,7 +33,8 @@ serve(async (req) => {
         voiceId: body.voiceId,
         fileName: body.fileName,
         isChunk: body.isChunk,
-        chunkIndex: body.chunkIndex
+        chunkIndex: body.chunkIndex,
+        totalChunks: body.totalChunks // Nuevo campo para tracking
       });
     } catch (e) {
       console.error(`❌ [${requestId}] Failed to parse request body:`, e);
@@ -52,7 +53,7 @@ serve(async (req) => {
       throw new Error('Invalid request body: ' + e.message);
     }
 
-    const { text, voiceId, fileName } = body;
+    const { text, voiceId, fileName, chunkIndex, totalChunks } = body;
 
     // Validations with improved error messages
     if (!text || typeof text !== 'string') {
@@ -96,7 +97,20 @@ serve(async (req) => {
     const processingTime = Date.now() - startTime;
     console.log(`✅ [${requestId}] Successfully processed text chunk in ${processingTime}ms`);
     
-    // Log successful conversion
+    // Calcular información de progreso (si disponible)
+    let progress = 100; // Por defecto 100% para un chunk individual
+    
+    if (typeof chunkIndex === 'number' && typeof totalChunks === 'number' && totalChunks > 0) {
+      // Calcular progreso basado en el índice del chunk actual
+      progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+      
+      // Limitar progreso a 99% hasta que se complete totalmente
+      if (chunkIndex < totalChunks - 1) {
+        progress = Math.min(progress, 99);
+      }
+    }
+    
+    // Log successful conversion con datos mejorados
     await supabase.from('system_logs').insert({
       event_type: 'conversion',
       details: {
@@ -104,7 +118,10 @@ serve(async (req) => {
         voiceId,
         fileName,
         processing_time_ms: processingTime,
-        requestId
+        requestId,
+        chunk_index: chunkIndex,
+        total_chunks: totalChunks,
+        progress
       },
       status: 'success'
     });
@@ -113,11 +130,19 @@ serve(async (req) => {
       JSON.stringify({
         data: {
           audioContent: result,
-          progress: 100,
-          processingTime
+          progress: progress,
+          processingTime,
+          chunkIndex,
+          totalChunks,
+          characterCount: text.length
         }
       }),
-      { headers: corsHeaders }
+      { 
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
     );
 
   } catch (error) {
@@ -150,7 +175,10 @@ serve(async (req) => {
       }),
       { 
         status: 500,
-        headers: corsHeaders
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       }
     );
   }

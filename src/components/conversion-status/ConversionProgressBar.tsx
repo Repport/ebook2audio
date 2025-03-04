@@ -1,10 +1,11 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/spinner';
 import { formatTimeRemaining } from '@/utils/timeFormatting';
 import WarningsAndErrors from './WarningsAndErrors';
 import { useConversionStore } from '@/store/conversionStore';
+import { LoggingService } from '@/utils/loggingService';
 
 interface ConversionProgressBarProps {
   showPercentage?: boolean;
@@ -27,16 +28,95 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   const errors = useConversionStore(state => state.errors);
   const warnings = useConversionStore(state => state.warnings);
   
+  // Estado local para mantener un log de las actualizaciones de progreso para debugging
+  const [debugLogs, setDebugLogs] = useState<Array<{
+    timestamp: string;
+    progress: number;
+    chunks: string;
+    chars: string;
+  }>>([]);
+  
   // Last value ref to track significant changes
   const lastProgressRef = React.useRef(progress);
+  const lastChunksRef = React.useRef(processedChunks);
+  const lastCharsRef = React.useRef(processedCharacters);
+  
+  // Flag para mostrar información de debug
+  const [showDebug, setShowDebug] = useState(false);
+  
+  // Cargar logs de progreso del localStorage para debugging
+  useEffect(() => {
+    try {
+      const storedLogs = localStorage.getItem('conversionProgressLogs');
+      if (storedLogs) {
+        const parsedLogs = JSON.parse(storedLogs);
+        setDebugLogs(parsedLogs.map((log: any) => ({
+          timestamp: new Date(log.timestamp).toLocaleTimeString(),
+          progress: log.progress,
+          chunks: `${log.processedChunks}/${log.totalChunks}`,
+          chars: `${log.processedCharacters}/${log.totalCharacters}`
+        })));
+      }
+    } catch (e) {
+      // Ignorar errores
+    }
+    
+    // Habilitar modo debug con triple clic
+    const handleTripleClick = () => {
+      setShowDebug(prev => !prev);
+    };
+    
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        handleTripleClick();
+      }
+    });
+    
+    return () => {
+      document.removeEventListener('keydown', handleTripleClick);
+    };
+  }, []);
   
   // Log progress for debugging
   useEffect(() => {
-    // Only log when progress changes significantly to avoid too much noise
-    if (Math.abs(progress - lastProgressRef.current) >= 5) {
+    // Only log when progress changes significantly or chunks/chars change
+    const progressChanged = Math.abs(progress - lastProgressRef.current) >= 5;
+    const chunksChanged = processedChunks !== lastChunksRef.current;
+    const charsChanged = Math.abs(processedCharacters - lastCharsRef.current) >= 1000;
+    
+    if (progressChanged || chunksChanged || charsChanged) {
       console.log(`ConversionProgressBar - Progress update: ${lastProgressRef.current}% -> ${progress}%, Status: ${status}`);
       console.log(`Chunks: ${processedChunks}/${totalChunks}, Chars: ${processedCharacters}/${totalCharacters}`);
+      
+      // Actualizar referencias
       lastProgressRef.current = progress;
+      lastChunksRef.current = processedChunks;
+      lastCharsRef.current = processedCharacters;
+      
+      // Log para monitoreo del sistema
+      if (progressChanged) {
+        LoggingService.debug('conversion', {
+          message: 'Actualización significativa de progreso en UI',
+          progress,
+          chunks: `${processedChunks}/${totalChunks}`,
+          chars: `${processedCharacters}/${totalCharacters}`
+        });
+      }
+      
+      // Añadir al log de debug
+      setDebugLogs(prev => {
+        const newLog = {
+          timestamp: new Date().toLocaleTimeString(),
+          progress,
+          chunks: `${processedChunks}/${totalChunks}`,
+          chars: `${processedCharacters}/${totalCharacters}`
+        };
+        const updatedLogs = [...prev, newLog];
+        if (updatedLogs.length > 20) {
+          return updatedLogs.slice(-20);
+        }
+        return updatedLogs;
+      });
     }
   }, [progress, status, processedChunks, totalChunks, processedCharacters, totalCharacters]);
   
@@ -64,7 +144,7 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
   };
   
   // Debug mode for detailed state information
-  const isDebugMode = import.meta.env.DEV;
+  const isDebugMode = import.meta.env.DEV || showDebug;
   
   // Si no estamos convirtiendo, no mostrar nada
   if (status !== 'converting' && status !== 'processing') {
@@ -121,14 +201,54 @@ const ConversionProgressBar: React.FC<ConversionProgressBarProps> = ({
             </div>
           )}
           
+          {/* Botón para alternar modo debug en producción */}
+          {!import.meta.env.DEV && (
+            <div className="pt-2">
+              <button 
+                onClick={() => setShowDebug(prev => !prev)}
+                className="text-xs text-muted-foreground hover:text-muted-foreground/80 transition-colors"
+              >
+                {showDebug ? '⬆️ Ocultar debug' : '⬇️ Mostrar debug'}
+              </button>
+            </div>
+          )}
+          
           {isDebugMode && (
             <div className="bg-gray-100 dark:bg-gray-800 p-2 mt-2 text-xs rounded text-left">
-              <div><strong>Debug Info:</strong></div>
+              <div><strong>Estado de Conversión:</strong></div>
               <div>Status: {status}</div>
               <div>Progress: {progress}%</div>
-              <div>Chunks: {processedChunks}/{totalChunks}</div>
-              <div>Chars: {processedCharacters}/{totalCharacters}</div>
+              <div>Chunks: {processedChunks}/{totalChunks} ({totalChunks > 0 ? Math.round((processedChunks / totalChunks) * 100) : 0}%)</div>
+              <div>Chars: {processedCharacters}/{totalCharacters} ({totalCharacters > 0 ? Math.round((processedCharacters / totalCharacters) * 100) : 0}%)</div>
               <div>Time: {timeElapsed}s elapsed, {timeRemaining}s remaining</div>
+              
+              {debugLogs.length > 0 && (
+                <div className="mt-2">
+                  <div><strong>Historial de Progreso:</strong></div>
+                  <div className="max-h-32 overflow-y-auto text-[10px] mt-1">
+                    <table className="w-full">
+                      <thead>
+                        <tr>
+                          <th className="px-1 text-left">Hora</th>
+                          <th className="px-1 text-left">Progreso</th>
+                          <th className="px-1 text-left">Chunks</th>
+                          <th className="px-1 text-left">Caracteres</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {debugLogs.map((log, i) => (
+                          <tr key={i} className={i % 2 === 0 ? 'bg-gray-200 dark:bg-gray-700' : ''}>
+                            <td className="px-1">{log.timestamp}</td>
+                            <td className="px-1">{log.progress}%</td>
+                            <td className="px-1">{log.chunks}</td>
+                            <td className="px-1">{log.chars}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -27,7 +27,7 @@ export class ChunkManager {
   private localProcessedCharacters = 0;
   private instanceId: string;
   private lastProgressUpdate: number = 0;
-  private MIN_UPDATE_INTERVAL = 200; // Reduced from 300ms to 200ms for more responsive updates
+  private MIN_UPDATE_INTERVAL = 100; // Reduced from 300ms to 100ms for more responsive updates
 
   constructor(text: string, onProgress?: TextChunkCallback) {
     this.instanceId = crypto.randomUUID().substring(0, 8);
@@ -38,7 +38,7 @@ export class ChunkManager {
     
     console.log(`[ChunkManager-${this.instanceId}] Text split into ${this.chunks.length} chunks, total ${text.length} characters`);
     
-    // Send initial progress update immediately
+    // Send initial progress update immediately with more info about total chunks
     this.sendProgressUpdate(0, null, true);
   }
 
@@ -79,7 +79,7 @@ export class ChunkManager {
   private sendProgressUpdate(additionalChars: number, currentChunk: string | null, forceUpdate = false): void {
     const now = Date.now();
     
-    // Throttle updates to prevent too many calls, unless forced
+    // Throttle updates to prevent too many calls, unless forced or at beginning/end
     if (!forceUpdate && now - this.lastProgressUpdate < this.MIN_UPDATE_INTERVAL) {
       return;
     }
@@ -118,14 +118,27 @@ export class ChunkManager {
       });
       
       // Asegurarnos de que todos los valores son correctos antes de enviar la actualización
-      this.onProgress({
-        processedChunks: this.processedChunksMap.size,
-        totalChunks: this.totalChunks,
-        processedCharacters: safeProcessedChars,
-        totalCharacters: this.totalCharacters,
-        currentChunk: currentChunk || "",
-        progress: progressPercent
-      });
+      this.onProgress(progressData);
+      
+      // Guardar localmente para debug
+      try {
+        const progressLog = {
+          timestamp: new Date().toISOString(),
+          progress: progressPercent,
+          processedChunks: this.processedChunksMap.size,
+          totalChunks: this.totalChunks,
+          processedCharacters: safeProcessedChars,
+          totalCharacters: this.totalCharacters,
+        };
+        
+        // Guardar en localStorage para poder revisar logs fácilmente
+        const progressLogs = JSON.parse(localStorage.getItem('conversionProgressLogs') || '[]');
+        progressLogs.push(progressLog);
+        if (progressLogs.length > 100) progressLogs.shift(); // Limite de 100 logs
+        localStorage.setItem('conversionProgressLogs', JSON.stringify(progressLogs));
+      } catch (e) {
+        // Ignorar errores de localStorage
+      }
     }
   }
 

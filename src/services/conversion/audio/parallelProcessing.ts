@@ -1,107 +1,105 @@
 
 import { ChunkManager } from './chunkManager';
 import { processChunk } from './chunkProcessor';
-import { retryOperation } from '../utils';
-import { createSilencePlaceholder } from './audioUtils';
+import { LoggingService } from '@/utils/loggingService';
 
-const MAX_CONCURRENT_REQUESTS = 3;
-const MAX_RETRIES_PER_CHUNK = 5;
+// Definir un número óptimo de procesamiento paralelo basado en recursos disponibles
+const OPTIMAL_PARALLEL_CHUNKS = typeof navigator !== 'undefined' && navigator.hardwareConcurrency 
+  ? Math.max(2, Math.min(4, navigator.hardwareConcurrency - 1)) 
+  : 2;
 
 /**
- * Procesa múltiples chunks en paralelo con un límite de concurrencia
+ * Procesa múltiples chunks en paralelo de forma controlada
  */
 export async function processChunksInParallel(
   chunkManager: ChunkManager,
   voiceId: string
 ): Promise<void> {
-  let currentIndex = 0;
-  let failedChunks: number[] = [];
-  const totalChunks = chunkManager.getTotalChunks();
+  const chunks = chunkManager.getAllChunks();
+  const totalChunks = chunks.length;
   
-  console.log(`Starting robust parallel processing with max ${MAX_CONCURRENT_REQUESTS} concurrent requests`);
+  // Log inicial
+  console.log(`Starting parallel processing of ${totalChunks} chunks with ${OPTIMAL_PARALLEL_CHUNKS} workers`);
+  LoggingService.info('conversion', {
+    message: 'Iniciando procesamiento paralelo de chunks',
+    total_chunks: totalChunks,
+    parallel_workers: OPTIMAL_PARALLEL_CHUNKS
+  });
   
-  const getNextChunkIndex = (): number | null => {
-    if (currentIndex >= totalChunks) {
-      return null;
-    }
-    return currentIndex++;
-  };
-
-  const worker = async (): Promise<void> => {
-    let nextIndex: number | null;
+  let activeWorkers = 0;
+  let nextChunkIndex = 0;
+  
+  // Iniciar el primer lote de workers
+  const startInitialWorkers = async () => {
+    const initialWorkers = Math.min(OPTIMAL_PARALLEL_CHUNKS, totalChunks);
     
-    while ((nextIndex = getNextChunkIndex()) !== null) {
-      try {
-        console.log(`Worker starting chunk ${nextIndex + 1}/${totalChunks}`);
-        const chunk = chunkManager.getChunk(nextIndex);
-        const buffer = await processChunk(chunk, nextIndex, voiceId, totalChunks);
-        
-        // Almacenar el buffer en el mapa con el índice como clave
-        chunkManager.registerProcessedChunk(nextIndex, buffer);
-        
-        console.log(`Worker completed chunk ${nextIndex + 1}/${totalChunks} successfully`);
-      } catch (error) {
-        console.error(`Error processing chunk ${nextIndex}:`, error);
-        failedChunks.push(nextIndex);
-        
-        chunkManager.registerChunkError(nextIndex, error as Error);
+    for (let i = 0; i < initialWorkers; i++) {
+      if (nextChunkIndex < totalChunks) {
+        activeWorkers++;
+        processNextChunk();
       }
     }
   };
-
-  // Ejecutar trabajadores en paralelo con límite de concurrencia
-  const workers = Array(Math.min(MAX_CONCURRENT_REQUESTS, totalChunks))
-    .fill(null)
-    .map(() => worker());
   
-  await Promise.all(workers);
-  
-  console.log(`First pass completed. Processed ${totalChunks - failedChunks.length}/${totalChunks} chunks successfully. Failed: ${failedChunks.length}`);
-  
-  // Segunda pasada para reintentar chunks fallidos con máxima prioridad
-  if (failedChunks.length > 0) {
-    await retryFailedChunks(failedChunks, chunkManager, voiceId);
-  }
-}
-
-/**
- * Reintenta procesar los chunks que fallaron en el primer intento
- */
-async function retryFailedChunks(
-  failedChunks: number[],
-  chunkManager: ChunkManager,
-  voiceId: string
-): Promise<void> {
-  console.log(`Starting second pass to retry ${failedChunks.length} failed chunks`);
-  
-  for (const failedIndex of failedChunks) {
-    try {
-      console.log(`Retrying failed chunk ${failedIndex + 1}/${chunkManager.getTotalChunks()} with higher priority`);
-      
-      const chunk = chunkManager.getChunk(failedIndex);
-      
-      // Intento especial con más reintentos y tiempos de espera más largos
-      const buffer = await retryOperation(
-        () => processChunk(chunk, failedIndex, voiceId, chunkManager.getTotalChunks()),
-        { 
-          maxRetries: MAX_RETRIES_PER_CHUNK * 2, // Duplicamos los reintentos 
-          baseDelay: 2000, // Mayor tiempo entre reintentos
-          operation: `Retry failed chunk ${failedIndex + 1}`
-        }
-      );
-      
-      chunkManager.registerProcessedChunk(failedIndex, buffer);
-      
-      console.log(`Successfully recovered chunk ${failedIndex + 1} in second pass`);
-    } catch (error) {
-      console.error(`CRITICAL: Failed to process chunk ${failedIndex + 1} even after extensive retries:`, error);
-      
-      // Como último recurso, crear un placeholder para mantener continuidad
-      const silencePlaceholder = createSilencePlaceholder();
-      
-      chunkManager.registerProcessedChunk(failedIndex, silencePlaceholder);
-      
-      // El error ya fue registrado por registerProcessedChunk
+  // Procesar el siguiente chunk disponible
+  const processNextChunk = async () => {
+    const currentIndex = nextChunkIndex++;
+    
+    if (currentIndex >= totalChunks) {
+      activeWorkers--;
+      return;
     }
-  }
+    
+    console.log(`Worker starting chunk ${currentIndex + 1}/${totalChunks}`);
+    
+    try {
+      const chunk = chunkManager.getChunk(currentIndex);
+      const buffer = await processChunk(chunk, currentIndex, voiceId, totalChunks);
+      
+      // Registrar el resultado exitoso
+      chunkManager.registerProcessedChunk(currentIndex, buffer);
+      
+      // Procesar el siguiente chunk
+      processNextChunk();
+    } catch (error) {
+      console.error(`Error processing chunk ${currentIndex + 1}/${totalChunks}:`, error);
+      chunkManager.registerChunkError(currentIndex, error as Error);
+      
+      // A pesar del error, continuamos con el siguiente chunk
+      processNextChunk();
+    }
+  };
+  
+  // Iniciar los workers
+  await startInitialWorkers();
+  
+  // Esperar a que todos los chunks se procesen
+  return new Promise<void>((resolve, reject) => {
+    const checkCompletion = () => {
+      if (chunkManager.areAllChunksProcessed()) {
+        console.log('All chunks processed successfully');
+        LoggingService.info('conversion', {
+          message: 'Todos los chunks procesados exitosamente',
+          total_chunks: totalChunks
+        });
+        resolve();
+      } else if (activeWorkers === 0) {
+        // Si no hay workers activos pero hay chunks sin procesar, hubo un problema
+        const missingChunks = chunkManager.getMissingChunks();
+        const error = new Error(`Procesamiento incompleto. Faltan chunks: ${missingChunks.join(', ')}`);
+        console.error(error);
+        LoggingService.error('conversion', {
+          message: 'Procesamiento incompleto de chunks',
+          missing_chunks: missingChunks
+        });
+        reject(error);
+      } else {
+        // Verificar nuevamente en 100ms
+        setTimeout(checkCompletion, 100);
+      }
+    };
+    
+    // Iniciar verificación
+    checkCompletion();
+  });
 }

@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { retryOperation } from "../utils";
+import { LoggingService } from "@/utils/loggingService";
 
 const MAX_RETRIES_PER_CHUNK = 5;
 
@@ -14,6 +15,14 @@ export async function processChunk(
   totalChunks: number
 ): Promise<ArrayBuffer> {
   console.log(`Processing chunk ${index + 1}/${totalChunks}, size: ${chunk.length} characters`);
+  
+  // Log para seguimiento detallado
+  LoggingService.debug('conversion', {
+    message: `Iniciando procesamiento de chunk ${index + 1}/${totalChunks}`,
+    chunk_length: chunk.length,
+    chunk_index: index,
+    total_chunks: totalChunks
+  });
   
   if (!chunk.trim()) {
     console.warn(`Empty chunk detected at index ${index}, using placeholder audio`);
@@ -44,6 +53,15 @@ export async function processChunk(
 
   if (response.error) {
     console.error(`Edge function error for chunk ${index + 1} after multiple retries:`, response.error);
+    
+    // Log error detallado
+    LoggingService.error('conversion', {
+      message: `Error procesando chunk ${index + 1}/${totalChunks}`,
+      error: response.error.message,
+      chunk_index: index,
+      total_chunks: totalChunks
+    });
+    
     throw new Error(`Error crítico en chunk ${index + 1}: ${response.error.message}`);
   }
 
@@ -71,6 +89,15 @@ export async function processChunk(
     if (bytes.length === 0) {
       throw new Error(`El buffer de audio del chunk ${index + 1} está vacío`);
     }
+    
+    // Log exitoso
+    LoggingService.debug('conversion', {
+      message: `Chunk ${index + 1}/${totalChunks} procesado exitosamente`,
+      audio_size: bytes.length,
+      chunk_index: index,
+      total_chunks: totalChunks,
+      progress: data.progress || Math.round(((index + 1) / totalChunks) * 100)
+    });
     
     return bytes.buffer;
   } catch (error: any) {
