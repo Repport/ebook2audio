@@ -23,10 +23,17 @@ export function useConversionInitiation() {
     try {
       console.log('useConversionInitiation - Checking terms acceptance');
       
-      // For debugging, reset conversion state here
-      audioConversion.resetConversion();
-      conversionStore.resetConversion();
-      clearConversionStorage();
+      // Only reset if not already converting to prevent duplicate requests
+      const currentStatus = conversionStore.getState().status;
+      if (currentStatus !== 'converting' && currentStatus !== 'processing') {
+        console.log('useConversionInitiation - Resetting conversion state');
+        audioConversion.resetConversion();
+        conversionStore.resetConversion();
+        clearConversionStorage();
+      } else {
+        console.log('useConversionInitiation - Already converting, skipping reset');
+        return true; // Already converting, don't restart
+      }
       
       const termsAccepted = await checkTermsAcceptance();
       if (!termsAccepted) {
