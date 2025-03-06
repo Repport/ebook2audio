@@ -50,8 +50,8 @@ const ConversionProgressBar = ({
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center mb-1">
-        <div className="font-medium">{message}</div>
-        {timeMessage && (
+        <div className="font-medium">{status === 'error' ? 'Error en la conversión' : message}</div>
+        {timeMessage && status !== 'error' && (
           <div className="text-sm text-muted-foreground">
             {timeMessage}
           </div>
@@ -64,7 +64,7 @@ const ConversionProgressBar = ({
         showPercentage={showPercentage}
       />
       
-      {/* Warnings and errors accordion */}
+      {/* Warnings and errors accordion - always expand on error */}
       <WarningsAndErrors 
         warnings={warnings}
         errors={errors}

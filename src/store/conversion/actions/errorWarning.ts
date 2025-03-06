@@ -19,7 +19,8 @@ export const errorWarningActions = (
     
     set({
       status: 'error',
-      errors: [...state.errors, error]
+      errors: [...state.errors, error],
+      progress: 100 // Set progress to 100 on error to show full error bar
     });
     
     // Log error

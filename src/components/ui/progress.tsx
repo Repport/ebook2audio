@@ -49,7 +49,7 @@ const Progress = React.memo(React.forwardRef<
           shimmerEffect
         )}
         style={{ 
-          transform: `translateX(-${100 - displayValue}%)` 
+          transform: `translateX(-${100 - (status === 'error' ? 100 : displayValue)}%)` 
         }}
       />
       {showPercentage && (
@@ -59,7 +59,7 @@ const Progress = React.memo(React.forwardRef<
             textShadow: "0 1px 1px rgba(0,0,0,0.5)"
           }}
         >
-          {Math.round(displayValue)}%
+          {status === 'error' ? 'Error' : `${Math.round(displayValue)}%`}
         </span>
       )}
     </ProgressPrimitive.Root>
