@@ -21,8 +21,8 @@ export const useProgressValue = ({
       return;
     }
     
-    // Special case for completed status - always show 100%
-    if (status === 'success' || status === 'completed') {
+    // Special case for completed/success status - always show 100%
+    if (status === 'success') {
       setDisplayValue(100);
       return;
     }
