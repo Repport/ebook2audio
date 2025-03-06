@@ -15,7 +15,7 @@ export const createConversionActions = (
   const startConversion = startConversionAction(set, get, LoggingService);
   const { updateProgress } = updateProgressAction(set, get, LoggingService);
   const { updateElapsedTime } = updateElapsedTimeAction(set, get);
-  const { setError, setWarning } = errorWarningActions(set, get, LoggingService);
+  const { setError, setWarning, clearErrors, clearWarnings } = errorWarningActions(set, get, LoggingService);
   const { completeConversion, resetConversion } = completionResetActions(set, get, LoggingService);
 
   // Return combined actions
@@ -25,6 +25,8 @@ export const createConversionActions = (
     updateElapsedTime,
     setError,
     setWarning,
+    clearErrors,
+    clearWarnings,
     completeConversion,
     resetConversion
   };

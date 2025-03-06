@@ -41,6 +41,8 @@ export interface ConversionActions {
   updateProgress: (data: import('@/services/conversion/types/chunks').ChunkProgressData) => void;
   setError: (error: string) => void;
   setWarning: (warning: string) => void;
+  clearErrors: () => void;
+  clearWarnings: () => void;
   completeConversion: (audio: ArrayBuffer, id: string, duration: number) => void;
   resetConversion: () => void;
   updateElapsedTime: (elapsed: number, startTime: number) => void;
