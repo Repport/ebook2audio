@@ -24,7 +24,7 @@ export function useConversionInitiation() {
       console.log('useConversionInitiation - Checking terms acceptance');
       
       // Only reset if not already converting to prevent duplicate requests
-      const currentStatus = conversionStore.getState().status;
+      const currentStatus = conversionStore.status;
       if (currentStatus !== 'converting' && currentStatus !== 'processing') {
         console.log('useConversionInitiation - Resetting conversion state');
         audioConversion.resetConversion();
