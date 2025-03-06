@@ -2,9 +2,9 @@
 import { useMemo } from 'react';
 
 export const useConversionEstimation = (extractedText: string) => {
-  // Memorizar la función de cálculo para evitar recreaciones innecesarias
+  // Memoize the calculation function to avoid unnecessary recreations
   return useMemo(() => {
-    // Devolver un objeto con la función que puede ser llamada cuando sea necesario
+    // Return an object with a function that can be called when needed
     return {
       calculateEstimatedSeconds: () => {
         if (!extractedText) return 0;
@@ -12,15 +12,15 @@ export const useConversionEstimation = (extractedText: string) => {
         const wordsCount = extractedText.split(/\s+/).length;
         const charactersCount = extractedText.length;
         
-        // Mejores estimaciones basadas en datos reales
-        // 150 palabras por minuto (2.5 palabras por segundo)
+        // Better estimates based on real data
+        // 150 words per minute (2.5 words per second)
         const wordBasedEstimate = Math.ceil(wordsCount / 2.5);
         
-        // Aproximadamente 15 caracteres por segundo para la síntesis de voz
+        // Approximately 15 characters per second for speech synthesis
         const charBasedEstimate = Math.ceil(charactersCount / 15);
         
-        // Tiempo base de procesamiento más el mayor de las estimaciones
-        const baseProcessingTime = 10; // Tiempo mínimo en segundos
+        // Base processing time plus the greater of the estimates
+        const baseProcessingTime = 10; // Minimum time in seconds
         const finalEstimate = baseProcessingTime + Math.max(wordBasedEstimate, charBasedEstimate);
         
         console.log('Estimated conversion time:', {

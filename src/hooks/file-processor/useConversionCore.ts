@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { Chapter } from '@/utils/textExtraction';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
-import { useConversionOptions } from './useConversionOptions';
 import { useConversionProgress } from './useConversionProgress';
 import { useConversionTerms } from './useConversionTerms';
 import { useConversionNavigation } from './useConversionNavigation';
@@ -21,8 +20,6 @@ export const useConversionCore = (
   
   // Use our specialized hooks
   const audioConversion = useAudioConversion();
-  const { detectChapters, setDetectChapters, detectingChapters, setDetectingChapters } = 
-    useConversionOptions();
   const { showTerms, setShowTerms, checkTermsAcceptance } = 
     useConversionTerms();
   const { handleViewConversions } = 
@@ -30,16 +27,13 @@ export const useConversionCore = (
   const { calculateEstimatedSeconds } = 
     useConversionEstimation(extractedText);
   
-  // Effect for resetting conversion when file changes
-  // Effect for completing step
-  // These are now in the useConversionProgress hook
+  // Initialize the progress watcher
   const { watchConversionProgress } = useConversionProgress(
     selectedFile,
     audioConversion,
     onStepComplete
   );
   
-  // Initialize the progress watcher
   watchConversionProgress();
   
   // Return an object that fully implements the AudioConversionAPI interface
@@ -56,11 +50,7 @@ export const useConversionCore = (
     handleConversion: audioConversion.handleConversion,
     handleDownload: audioConversion.handleDownload,
     
-    // Conversion options
-    detectChapters,
-    setDetectChapters,
-    detectingChapters,
-    setDetectingChapters,
+    // Removed chapter detection options
     
     // Terms dialog
     showTerms,

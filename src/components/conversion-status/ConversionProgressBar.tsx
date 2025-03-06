@@ -14,7 +14,7 @@ const ConversionProgressBar = ({
   message,
   showPercentage = true
 }: ConversionProgressBarProps) => {
-  // Use selectors para minimizar re-renders
+  // Use selectors to minimize re-renders
   const progress = useConversionStore(state => state.progress);
   const warnings = useConversionStore(state => state.warnings);
   const errors = useConversionStore(state => state.errors);
@@ -25,7 +25,7 @@ const ConversionProgressBar = ({
     status === 'converting' || status === 'processing',
   [status]);
   
-  // Memoizar el mensaje de tiempo para evitar cálculos innecesarios
+  // Memoize the time message to avoid unnecessary calculations
   const timeMessage = useMemo(() => {
     if (time.elapsed <= 0) return null;
     
@@ -53,12 +53,12 @@ const ConversionProgressBar = ({
         showPercentage={showPercentage}
       />
       
-      {/* Acordión de advertencias y errores */}
+      {/* Warnings and errors accordion */}
       <WarningsAndErrors 
         warnings={warnings}
         errors={errors}
         isConverting={isConverting}
-        expanded={errors.length > 0} // Expandir automáticamente si hay errores
+        expanded={errors.length > 0} // Auto-expand if there are errors
       />
     </div>
   );

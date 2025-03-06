@@ -45,13 +45,10 @@ export const useProcessorLogic = ({
   // Get conversion logic from existing hook
   const conversionLogic = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
   const {
-    detectChapters,
-    setDetectChapters,
-    detectingChapters,
-    showTerms,
-    setShowTerms,
     conversionStatus,
     resetConversion,
+    showTerms,
+    setShowTerms,
     initiateConversion,
     handleAcceptTerms
   } = conversionLogic;
@@ -63,7 +60,7 @@ export const useProcessorLogic = ({
     onFileSelect,
     resetConversion,
     conversionStatus,
-    detectingChapters,
+    detectingChapters: false, // Removed chapter detection
     isProcessingNextStep
   });
 
@@ -77,8 +74,8 @@ export const useProcessorLogic = ({
     selectedVoice,
     isProcessingNextStep,
     setIsProcessingNextStep,
-    detectingChapters,
-    setDetectChapters,
+    detectingChapters: false, // Removed chapter detection
+    setDetectChapters: () => {}, // Empty function
     onNextStep,
     showTerms,
     setShowTerms,
@@ -103,9 +100,9 @@ export const useProcessorLogic = ({
     
     // Conversion logic
     conversionLogic,
-    detectChapters,
-    setDetectChapters,
-    detectingChapters,
+    detectChapters: false, // Removed chapter detection
+    setDetectChapters: () => {}, // Empty function
+    detectingChapters: false, // Removed chapter detection
     showTerms,
     setShowTerms,
     

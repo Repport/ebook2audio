@@ -1,6 +1,6 @@
 
 /**
- * Formatea minutos en formato legible
+ * Format minutes in a readable format
  */
 export const formatTimestamp = (minutes: number) => {
   const hrs = Math.floor(minutes / 60);
@@ -9,7 +9,7 @@ export const formatTimestamp = (minutes: number) => {
 };
 
 /**
- * Formatea segundos restantes en formato legible
+ * Format remaining seconds in a readable format
  */
 export const formatTimeRemaining = (seconds: number) => {
   if (seconds < 60) return `${Math.ceil(seconds)}s`;

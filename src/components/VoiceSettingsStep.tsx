@@ -6,14 +6,12 @@ import { Label } from '@/components/ui/label';
 import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
-import VoiceSelector from '@/components/VoiceSelector'; // Fixed import statement - using default import
+import VoiceSelector from '@/components/VoiceSelector';
 
 interface VoiceSettingsStepProps {
   detectedLanguage: string;
   selectedVoice: string;
   setSelectedVoice: (voice: string) => void;
-  detectChapters: boolean;
-  setDetectChapters: (detect: boolean) => void;
   notifyOnComplete: boolean;
   setNotifyOnComplete: (notify: boolean) => void;
   onNextStep: () => Promise<boolean>;
@@ -23,8 +21,6 @@ const VoiceSettingsStep = ({
   detectedLanguage,
   selectedVoice,
   setSelectedVoice,
-  detectChapters,
-  setDetectChapters,
   notifyOnComplete,
   setNotifyOnComplete,
   onNextStep
@@ -61,21 +57,7 @@ const VoiceSettingsStep = ({
           />
 
           <div className="space-y-4 mt-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="detect-chapters" className="text-sm font-medium">
-                  {translations.detectChapters || "Detect chapters"}
-                </Label>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {translations.detectChaptersDesc || "Automatically detect and mark chapters in audio"}
-                </p>
-              </div>
-              <Switch
-                id="detect-chapters"
-                checked={detectChapters}
-                onCheckedChange={setDetectChapters}
-              />
-            </div>
+            {/* Removed chapter detection toggle */}
 
             {user && (
               <div className="flex items-center justify-between">

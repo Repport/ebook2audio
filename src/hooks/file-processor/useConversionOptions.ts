@@ -2,13 +2,8 @@
 import { useState } from 'react';
 
 export const useConversionOptions = () => {
-  const [detectChapters, setDetectChapters] = useState<boolean>(false);
-  const [detectingChapters, setDetectingChapters] = useState<boolean>(false);
-  
+  // Removed chapter detection functionality
   return {
-    detectChapters,
-    setDetectChapters,
-    detectingChapters,
-    setDetectingChapters
+    // Empty object as we've removed chapter detection
   };
 };

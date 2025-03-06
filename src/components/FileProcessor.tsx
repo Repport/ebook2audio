@@ -1,8 +1,8 @@
+
 import React, { useEffect } from 'react';
 import { Tabs as UITabs, TabsContent } from "@/components/ui/tabs";
 import { Chapter } from '@/utils/textExtraction';
 import { FileProcessorProvider } from '@/context/FileProcessorContext';
-import ChapterDetectionState from './file-processor/ChapterDetectionState';
 import BackButton from './file-processor/BackButton';
 import ErrorHandler from './file-processor/ErrorHandler';
 import Tabs from './file-processor/Tabs';
@@ -52,9 +52,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     activeTab, 
     setActiveTab,
     conversionLogic,
-    detectChapters,
-    setDetectChapters,
-    detectingChapters,
     showTerms,
     setShowTerms,
     handleStartConversion,
@@ -104,17 +101,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     onStepComplete
   };
 
-  if (detectingChapters) {
-    return (
-      <ChapterDetectionState 
-        onSkip={() => {
-          console.log('FileProcessor - Manual skip of chapter detection');
-          setDetectChapters(false);
-        }} 
-      />
-    );
-  }
-
   return (
     <ErrorHandler onReset={handleErrorReset}>
       <FileProcessorProvider value={contextValue}>
@@ -126,7 +112,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         
         <BackButton
           conversionStatus={conversionLogic.conversionStatus}
-          detectingChapters={detectingChapters}
+          detectingChapters={false} // Removed chapter detection
           isProcessingNextStep={isProcessingNextStep}
           resetConversion={resetConversion}
           onGoBack={handleGoBack}
@@ -147,12 +133,12 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                   setSelectedVoice={setSelectedVoice}
                   notifyOnComplete={notifyOnComplete}
                   setNotifyOnComplete={setNotifyOnComplete}
-                  detectChapters={detectChapters}
-                  setDetectChapters={setDetectChapters}
+                  detectChapters={false} // Removed chapter detection
+                  setDetectChapters={() => {}} // Empty function
                   handleStartConversion={handleStartConversion}
                   conversionLogic={conversionLogic}
                   resetConversion={resetConversion}
-                  detectingChapters={detectingChapters}
+                  detectingChapters={false} // Removed chapter detection
                 />
               </TabsContent>
               
@@ -163,12 +149,12 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                   setSelectedVoice={setSelectedVoice}
                   notifyOnComplete={notifyOnComplete}
                   setNotifyOnComplete={setNotifyOnComplete}
-                  detectChapters={detectChapters}
-                  setDetectChapters={setDetectChapters}
+                  detectChapters={false} // Removed chapter detection
+                  setDetectChapters={() => {}} // Empty function
                   handleStartConversion={handleStartConversion}
                   conversionLogic={conversionLogic}
                   resetConversion={resetConversion}
-                  detectingChapters={detectingChapters}
+                  detectingChapters={false} // Removed chapter detection
                 />
               </TabsContent>
               
@@ -179,12 +165,12 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                   setSelectedVoice={setSelectedVoice}
                   notifyOnComplete={notifyOnComplete}
                   setNotifyOnComplete={setNotifyOnComplete}
-                  detectChapters={detectChapters}
-                  setDetectChapters={setDetectChapters}
+                  detectChapters={false} // Removed chapter detection
+                  setDetectChapters={() => {}} // Empty function
                   handleStartConversion={handleStartConversion}
                   conversionLogic={conversionLogic}
                   resetConversion={resetConversion}
-                  detectingChapters={detectingChapters}
+                  detectingChapters={false} // Removed chapter detection
                 />
               </TabsContent>
             </ErrorHandler>

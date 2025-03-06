@@ -34,8 +34,8 @@ export const useConversionActions = (
   const handleConversion = useCallback(async (
     text: string,
     voiceId: string,
-    detectChapters: boolean,
-    chapters: Chapter[],
+    detectChapters: boolean, // Keep param for compatibility
+    chapters: Chapter[], // Keep param for compatibility
     fileName?: string,
     onProgress?: TextChunkCallback
   ) => {
@@ -50,8 +50,9 @@ export const useConversionActions = (
       setElapsedTime(0);
       
       console.log(`🎯 Starting conversion for: ${fileName || 'unknown file'}`);
-      console.log(`📊 Text length: ${text.length} characters, Detecting chapters: ${detectChapters}`);
+      console.log(`📊 Text length: ${text.length} characters`);
       
+      // No chapter detection
       const result = await convertToAudio(text, voiceId, onProgress);
       
       console.log('✅ Conversion completed:', {

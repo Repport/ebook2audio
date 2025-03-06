@@ -6,11 +6,10 @@ import { Chapter } from '@/utils/textExtraction';
 import { toast } from "@/hooks/use-toast";
 import { useConversionStore, useConversionTimer } from '@/store/conversionStore';
 
-// Import our new components
+// Import our components
 import ConversionHeader from './conversion-step/ConversionHeader';
 import ConversionButton from './conversion-step/ConversionButton';
 import DownloadButton from './conversion-step/DownloadButton';
-import ChaptersDisplay from './conversion-step/ChaptersDisplay';
 import ConversionStepTitle from './conversion-step/ConversionStepTitle';
 
 interface ConversionStepProps {
@@ -42,8 +41,6 @@ const ConversionStep = React.memo(({
   onDownloadClick,
   onViewConversions,
   conversionId,
-  chapters,
-  detectingChapters,
   textLength,
   elapsedTime = 0
 }: ConversionStepProps) => {
@@ -99,7 +96,7 @@ const ConversionStep = React.memo(({
   }, [conversionStatus, storeStatus]);
 
   const handleConvertClick = useCallback(async (e: React.MouseEvent) => {
-    // Prevenir comportamiento por defecto para evitar envíos de formulario potenciales
+    // Prevent default behavior
     e.preventDefault();
     e.stopPropagation();
     
@@ -163,13 +160,13 @@ const ConversionStep = React.memo(({
           status={displayStatus}
           progress={displayProgress}
           estimatedSeconds={estimatedSeconds}
-          detectingChapters={detectingChapters}
+          detectingChapters={false} // Removed chapter detection
           textLength={textLength}
           conversionId={conversionId}
           initialElapsedTime={elapsedTime}
         />
 
-        <ChaptersDisplay chapters={chapters} />
+        {/* Removed ChaptersDisplay component */}
       </div>
     </div>
   );
