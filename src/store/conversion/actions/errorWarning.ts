@@ -1,5 +1,6 @@
 
 import { ConversionState } from '../types';
+import { LoggingService } from '@/utils/loggingService';
 
 export const errorWarningActions = (
   set: (state: Partial<ConversionState>) => void,
@@ -44,13 +45,20 @@ export const errorWarningActions = (
     set({
       warnings: [...state.warnings, warning]
     });
+    
+    // Log warning
+    LoggingService.warn('conversion', {
+      message: 'Advertencia en proceso de conversión',
+      warning_details: warning
+    });
   };
 
   // Limpiar errores
   const clearErrors = () => {
     console.log('ConversionStore: Clearing all errors');
     set({
-      errors: []
+      errors: [],
+      status: get().status === 'error' ? 'idle' : get().status // Reset status if in error state
     });
   };
   
@@ -64,3 +72,4 @@ export const errorWarningActions = (
 
   return { setError, setWarning, clearErrors, clearWarnings };
 };
+
