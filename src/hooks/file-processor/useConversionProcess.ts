@@ -4,8 +4,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useConversionStore } from '@/store/conversionStore';
 import { Chapter } from '@/utils/textExtraction';
 import { useTermsAndNotifications } from './useTermsAndNotifications';
-import { retryOperation } from '@/services/conversion/utils/retryUtils';
+import { retryOperation, clearProcessedCache } from '@/services/conversion/utils/retryUtils';
 import { ConversionOptions } from './useConversionActions';
+import { LoggingService } from '@/utils/loggingService';
 
 export function useConversionProcess() {
   const { toast } = useToast();
@@ -25,6 +26,17 @@ export function useConversionProcess() {
       return null;
     }
     
+    // Clear any cached chunk data from previous conversions
+    clearProcessedCache();
+    
+    // Log the start of conversion
+    LoggingService.info('conversion', {
+      message: 'Starting new conversion process',
+      fileName: selectedFile.name,
+      textLength: extractedText.length,
+      voice: options.selectedVoice
+    });
+    
     // Establish state of conversion in both systems
     audioConversion.setConversionStatus('converting');
     audioConversion.setProgress(1);
@@ -34,6 +46,10 @@ export function useConversionProcess() {
     
     try {
       console.log('useConversionProcess - Starting conversion with text length:', extractedText.length);
+      
+      // Clear existing errors and warnings
+      conversionStore.clearErrors();
+      conversionStore.clearWarnings();
       
       // Use retry mechanism to handle conversion errors
       const result = await retryOperation(
@@ -50,7 +66,26 @@ export function useConversionProcess() {
             }
           );
         },
-        { maxRetries: 2, baseDelay: 1000 }
+        { 
+          maxRetries: 1, // Reduce retries to avoid excessive reprocessing
+          baseDelay: 1000,
+          operation: 'Text-to-speech conversion',
+          onBeforeRetry: async (error) => {
+            // Notify user of retry
+            toast({
+              title: "Reintentando conversión",
+              description: "Hubo un problema, estamos intentando nuevamente",
+              variant: "default",
+            });
+            
+            // Log retry attempt
+            LoggingService.warn('conversion', {
+              message: 'Retrying conversion due to error',
+              error: error.message,
+              fileName: selectedFile.name
+            });
+          }
+        }
       );
       
       if (!result) {
@@ -78,9 +113,17 @@ export function useConversionProcess() {
       
       // Show completion toast
       toast({
-        title: "Conversion complete",
-        description: "Your audio file is ready to download",
+        title: "Conversión completada",
+        description: "Tu archivo de audio está listo para descargar",
         variant: "success",
+      });
+      
+      // Log successful completion
+      LoggingService.info('conversion', {
+        message: 'Conversion completed successfully',
+        fileName: selectedFile.name,
+        conversionId: result.id,
+        audioSize: result.audio?.byteLength
       });
       
       return result;
@@ -91,9 +134,16 @@ export function useConversionProcess() {
       audioConversion.setConversionStatus('error');
       conversionStore.setError(error.message || "Error desconocido en la conversión");
       
+      // Log the error
+      LoggingService.error('conversion', {
+        message: 'Conversion failed with error',
+        error: error.message,
+        fileName: selectedFile.name
+      });
+      
       toast({
         title: "Error",
-        description: error.message || "An error occurred during conversion",
+        description: error.message || "Ocurrió un error durante la conversión",
         variant: "destructive"
       });
       

@@ -2,6 +2,8 @@
 import { useCallback } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { clearConversionStorage } from '@/services/storage/conversionStorageService';
+import { clearProcessedCache } from '@/services/conversion/utils/retryUtils';
+import { LoggingService } from '@/utils/loggingService';
 
 export function useConversionInitiation() {
   const conversionStore = useConversionStore();
@@ -27,6 +29,11 @@ export function useConversionInitiation() {
       const currentStatus = conversionStore.status;
       if (currentStatus === 'converting' || currentStatus === 'processing') {
         console.log('useConversionInitiation - Already converting, skipping new request');
+        LoggingService.warn('conversion', {
+          message: 'Attempted to start a new conversion while one is already in progress',
+          currentStatus,
+          fileName: selectedFile.name
+        });
         return true; // Already converting, don't restart
       }
       
@@ -43,6 +50,7 @@ export function useConversionInitiation() {
       audioConversion.resetConversion();
       conversionStore.resetConversion();
       clearConversionStorage();
+      clearProcessedCache(); // Clear the processed cache
       
       const termsAccepted = await checkTermsAcceptance();
       if (!termsAccepted) {

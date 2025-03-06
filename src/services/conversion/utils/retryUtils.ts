@@ -9,6 +9,7 @@ export async function retryOperation<T>(
     baseDelay?: number;
     operation?: string;
     shouldRetry?: (error: any, attempt: number) => boolean;
+    onBeforeRetry?: (error: any, attempt: number) => Promise<void> | void;
   } = {}
 ): Promise<T> {
   const {
@@ -22,7 +23,8 @@ export async function retryOperation<T>(
         'Maximum chunk size exceeded',
         'Unauthorized',
         'Rate limit exceeded',
-        'Missing audioContent'
+        'Missing audioContent',
+        'Duplicate chunk detected'
       ];
       
       for (const phrase of nonRetryableErrors) {
@@ -39,7 +41,8 @@ export async function retryOperation<T>(
       }
       
       return true;
-    }
+    },
+    onBeforeRetry
   } = options;
   
   let lastError: Error | undefined;
@@ -63,6 +66,11 @@ export async function retryOperation<T>(
       
       // Only retry if this wasn't the last attempt
       if (attempt <= maxRetries) {
+        // Call the onBeforeRetry callback if provided
+        if (onBeforeRetry) {
+          await onBeforeRetry(error, attempt);
+        }
+        
         const delay = baseDelay * Math.pow(2, attempt - 1);
         console.log(`${operationName} - Waiting ${delay}ms before next attempt...`);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -71,4 +79,35 @@ export async function retryOperation<T>(
   }
   
   throw lastError || new Error(`${operationName} failed after ${maxRetries} attempts`);
+}
+
+// Create a cache to prevent redundant processing of identical content
+const processedCache = new Map<string, any>();
+
+/**
+ * Clear the processed items cache
+ */
+export function clearProcessedCache(): void {
+  processedCache.clear();
+}
+
+/**
+ * Check if an item has been processed already using its key
+ */
+export function hasProcessedItem(key: string): boolean {
+  return processedCache.has(key);
+}
+
+/**
+ * Mark an item as processed with optional result value
+ */
+export function markAsProcessed(key: string, value?: any): void {
+  processedCache.set(key, value || true);
+}
+
+/**
+ * Get a processed item's value
+ */
+export function getProcessedItem(key: string): any {
+  return processedCache.get(key);
 }
