@@ -2,8 +2,9 @@
 import { useMemo } from 'react';
 
 export const useConversionEstimation = (extractedText: string) => {
-  // Create a memoized function that calculates the estimation
+  // Create a memoized calculation function
   const calculateEstimatedSeconds = useMemo(() => {
+    // Return a function that can be called when needed
     return () => {
       if (!extractedText) return 0;
 
@@ -12,7 +13,6 @@ export const useConversionEstimation = (extractedText: string) => {
       const baseProcessingTime = 5; // Minimum time in seconds
       
       const estimation = Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime);
-      console.log('useConversionLogic - Estimated conversion time:', estimation, 'seconds');
       return estimation;
     };
   }, [extractedText]);

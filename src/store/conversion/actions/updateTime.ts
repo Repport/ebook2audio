@@ -8,7 +8,8 @@ export const updateElapsedTimeAction = (
   // Create a persistent reference for debounce state that won't be reset between calls
   const debounceState = {
     lastUpdateTime: 0,
-    lastElapsedTime: 0
+    lastElapsedTime: 0,
+    lastTimeRemaining: undefined
   };
   
   const MIN_UPDATE_INTERVAL = 500; // msec
@@ -30,10 +31,6 @@ export const updateElapsedTimeAction = (
       return;
     }
     
-    // Update tracking vars
-    debounceState.lastUpdateTime = now;
-    debounceState.lastElapsedTime = elapsedSeconds;
-    
     // Calculate remaining time based on progress and elapsed time
     let timeRemaining: number | undefined = undefined;
     
@@ -42,6 +39,21 @@ export const updateElapsedTimeAction = (
       const estimatedTotalSeconds = (elapsedSeconds / currentState.progress) * 100;
       timeRemaining = Math.max(1, estimatedTotalSeconds - elapsedSeconds);
     }
+    
+    // Skip update if time remaining hasn't changed significantly
+    if (
+      typeof timeRemaining === 'number' && 
+      typeof debounceState.lastTimeRemaining === 'number' && 
+      Math.abs(timeRemaining - debounceState.lastTimeRemaining) < 2 &&
+      timeElapsed < MIN_UPDATE_INTERVAL * 2
+    ) {
+      return;
+    }
+    
+    // Update tracking vars
+    debounceState.lastUpdateTime = now;
+    debounceState.lastElapsedTime = elapsedSeconds;
+    debounceState.lastTimeRemaining = timeRemaining;
     
     // Batch update to minimize renders
     set({

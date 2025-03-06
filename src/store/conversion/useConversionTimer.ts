@@ -16,7 +16,23 @@ export const useConversionTimer = () => {
   // Track if the timer is already running to prevent duplicate timers
   const isRunningRef = React.useRef(false);
   
+  // Track previous values to prevent unnecessary effect triggers
+  const prevStatusRef = React.useRef(status);
+  const prevStartTimeRef = React.useRef(startTime);
+  
   React.useEffect(() => {
+    // Only run effect if relevant values changed
+    const statusChanged = prevStatusRef.current !== status;
+    const startTimeChanged = prevStartTimeRef.current !== startTime;
+    
+    if (!statusChanged && !startTimeChanged && timerRef.current !== null) {
+      return; // Skip if nothing relevant changed and timer exists
+    }
+    
+    // Update previous values
+    prevStatusRef.current = status;
+    prevStartTimeRef.current = startTime;
+    
     // Clear any existing timer
     if (timerRef.current !== null) {
       window.clearInterval(timerRef.current);
@@ -30,7 +46,7 @@ export const useConversionTimer = () => {
     if (isActiveConversion && startTime && !isRunningRef.current) {
       isRunningRef.current = true;
       
-      console.log('Starting conversion timer');
+      console.log('Starting conversion timer with startTime:', startTime);
       
       // Set initial value immediately to avoid delay
       const initialElapsed = Math.floor((Date.now() - startTime) / 1000);

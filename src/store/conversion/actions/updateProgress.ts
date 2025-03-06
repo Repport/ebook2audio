@@ -1,3 +1,4 @@
+
 import { ConversionState } from '../types';
 import { calculateTimeRemaining } from '../utils';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
@@ -11,6 +12,7 @@ export const updateProgressAction = (
   const updateState = {
     lastUpdateHash: '',
     lastUpdateTime: 0,
+    lastProgress: 0,
   };
   const UPDATE_THROTTLE_MS = 100; // Minimum time between updates
 
@@ -106,6 +108,13 @@ export const updateProgressAction = (
       newProgress = state.progress;
     }
     
+    // Skip if progress hasn't changed significantly (preventing wasteful renders)
+    if (Math.abs(newProgress - updateState.lastProgress) < 1 && 
+        !data.error && !data.warning && !data.isCompleted && 
+        (now - updateState.lastUpdateTime < UPDATE_THROTTLE_MS * 5)) {
+      return;
+    }
+    
     // Check if conversion is complete
     const isComplete = data.isCompleted === true || newProgress >= 100;
     const finalProgress = isComplete ? 100 : newProgress;
@@ -129,8 +138,10 @@ export const updateProgressAction = (
       return;
     }
     
+    // Update tracking state
     updateState.lastUpdateHash = newStateHash;
     updateState.lastUpdateTime = now;
+    updateState.lastProgress = finalProgress;
     
     // Create a single update object to batch all changes
     const updateObject: Partial<ConversionState> = {
