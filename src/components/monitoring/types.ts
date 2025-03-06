@@ -1,52 +1,44 @@
 
-export interface Log {
-  id?: string;
-  timestamp: string;
-  level: 'info' | 'warning' | 'error' | 'debug';
-  message: string;
-  source: string;
-  details?: string;
-}
-
-export interface SystemStat {
-  id: string;
-  name: string;
-  value: string | number;
-  change?: number;
-  status?: 'positive' | 'negative' | 'neutral';
-  icon?: string;
-}
+import { DatabaseLogEntry } from '@/utils/loggingService';
 
 export interface PerformanceMetric {
-  id: string;
-  name: string;
-  value: number;
-  unit: string;
-  history: number[];
-  status?: 'good' | 'warning' | 'critical';
+  operation: string;
+  avg_duration_ms: number;
+  max_duration_ms: number;
+  min_duration_ms: number;
+  count: number;
 }
 
-// Props interfaces
+export interface SystemStats {
+  totalConversions: number;
+  completedConversions: number;
+  cachedItems: number;
+  avgProcessingTime: number;
+}
+
+export interface MonitoringData {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  isLoading: boolean;
+  stats: SystemStats;
+  logs: DatabaseLogEntry[];
+  errorLogs: DatabaseLogEntry[];
+  performanceMetrics: PerformanceMetric[];
+  loadStats: () => Promise<void>;
+  loadLogs: () => Promise<void>;
+  loadErrorLogs: () => Promise<void>;
+  loadPerformanceMetrics: () => Promise<void>;
+  clearLogs: () => Promise<void>;
+}
+
 export interface SystemStatsProps {
-  stats: any;
+  stats: SystemStats;
   isLoading: boolean;
   onRefresh: () => void;
 }
-
-export interface LogsProps {
-  logs: Log[];
-  isLoading: boolean;
-  onRefresh: () => void;
-}
-
-export interface RecentLogsProps extends LogsProps {
-  onClearLogs?: () => void;
-}
-
-export interface ErrorLogsProps extends LogsProps {}
 
 export interface PerformanceMetricsProps {
-  metrics: any;
+  metrics: PerformanceMetric[];
   isLoading: boolean;
   onRefresh: () => void;
 }
