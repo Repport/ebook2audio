@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,21 +7,21 @@ import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLanguage } from '@/hooks/useLanguage';
 import LanguageSelector from './LanguageSelector';
-
 const Header = () => {
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
   const isMobile = useIsMobile();
-  const { translations } = useLanguage();
-
-  return (
-    <header role="banner" className="mb-12">
+  const {
+    translations
+  } = useLanguage();
+  return <header role="banner" className="mb-12">
       <div className="flex justify-between items-center mb-4">
         <div className="flex-1">
           <LanguageSelector />
         </div>
         <div className="flex items-center gap-2">
-          {!user && (
-            <>
+          {!user && <>
               <Link to="/auth">
                 <Button variant="ghost" size={isMobile ? "sm" : "default"}>
                   {translations.signIn}
@@ -33,8 +32,7 @@ const Header = () => {
                   {translations.signUp}
                 </Button>
               </Link>
-            </>
-          )}
+            </>}
           <ThemeToggle />
           {user && <UserMenu />}
         </div>
@@ -47,14 +45,9 @@ const Header = () => {
           Convert your PDF and EPUB files into high-quality audio files
         </p>
         <nav className="mt-4" aria-label="Main features">
-          <ul className="flex justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-            <li>Smart Chapter Detection</li>
-            <li>Multiple Voices</li>
-          </ul>
+          
         </nav>
       </div>
-    </header>
-  );
+    </header>;
 };
-
 export default Header;
