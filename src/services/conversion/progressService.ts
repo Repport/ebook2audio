@@ -29,7 +29,8 @@ export const updateConversionProgress = async (
       conversionId, 
       processed: data.processedChunks, 
       total: data.totalChunks,
-      progress: data.progress
+      progress: data.progress,
+      isCompleted: data.isCompleted
     });
     
     const updateData = {
@@ -39,7 +40,7 @@ export const updateConversionProgress = async (
       processed_characters: data.processedCharacters,
       total_characters: data.totalCharacters,
       current_chunk: data.currentChunk || null,
-      progress: data.progress,
+      progress: data.isCompleted ? 100 : data.progress, // Ensure 100% on completion
       status: data.isCompleted ? 'completed' : (data.error ? 'error' : 'converting'),
       error_message: data.error || null,
       warning_message: data.warning || null,
@@ -66,6 +67,8 @@ export const subscribeToProgress = (
   conversionId: string,
   callback: (data: ChunkProgressData) => void
 ) => {
+  console.log(`Subscribing to progress updates for conversion ${conversionId}`);
+  
   const channel = supabase
     .channel(`progress:${conversionId}`)
     .on(

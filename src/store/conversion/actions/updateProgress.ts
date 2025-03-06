@@ -117,7 +117,7 @@ export const updateProgressAction = (
     }
     
     // Verificar si la conversión está completa
-    const isComplete = data.isCompleted === true || newProgress >= 100;
+    const isComplete = data.isCompleted === true;
     const finalProgress = isComplete ? 100 : newProgress;
     
     // Calcular tiempo restante si no está completo
@@ -146,7 +146,7 @@ export const updateProgressAction = (
     
     // Crear un único objeto de actualización para agrupar todos los cambios
     const updateObject: Partial<ConversionState> = {
-      status: isComplete ? 'completed' : 'converting',
+      status: isComplete ? 'completed' : (data.error ? 'error' : 'converting'),
       progress: finalProgress,
       chunks: updatedChunks,
       time: {
@@ -159,6 +159,13 @@ export const updateProgressAction = (
     
     // Aplicar la actualización
     set(updateObject);
+    
+    console.log('Actualización de progreso:', {
+      progreso: finalProgress, 
+      chunks: `${updatedChunks.processed}/${updatedChunks.total}`,
+      caracteres: `${updatedChunks.processedCharacters}/${updatedChunks.totalCharacters}`,
+      estado: updateObject.status
+    });
   };
 
   return { updateProgress };

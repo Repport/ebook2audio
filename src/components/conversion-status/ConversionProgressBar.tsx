@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { Progress } from "@/components/ui/progress";
 import WarningsAndErrors from './WarningsAndErrors';
+import { formatTimeRemaining } from '@/utils/timeFormatting';
 
 interface ConversionProgressBarProps {
   message: string;
@@ -29,9 +30,9 @@ const ConversionProgressBar = ({
     if (time.elapsed <= 0) return null;
     
     if (time.remaining) {
-      return `${Math.ceil(time.remaining)}s restantes`;
+      return formatTimeRemaining(time.remaining);
     } else {
-      return `${Math.floor(time.elapsed)}s transcurridos`;
+      return `${Math.floor(time.elapsed)}s`;
     }
   }, [time.elapsed, time.remaining]);
   

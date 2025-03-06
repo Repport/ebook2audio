@@ -33,7 +33,7 @@ export const updateElapsedTimeAction = (
     }
     
     // Calcular tiempo restante basado en progreso y tiempo transcurrido
-    let timeRemaining: number | undefined = undefined;
+    let timeRemaining: number | null = null;
     
     if (currentState.progress > 5 && elapsedSeconds > 5) {
       // Proyección lineal simple

@@ -10,11 +10,28 @@ export const useConversionEstimation = (extractedText: string) => {
         if (!extractedText) return 0;
 
         const wordsCount = extractedText.split(/\s+/).length;
-        const averageWordsPerMinute = 150;
-        const baseProcessingTime = 5; // Tiempo mínimo en segundos
+        const charactersCount = extractedText.length;
         
-        const estimation = Math.ceil((wordsCount / averageWordsPerMinute) * 60 + baseProcessingTime);
-        return estimation;
+        // Mejores estimaciones basadas en datos reales
+        // 150 palabras por minuto (2.5 palabras por segundo)
+        const wordBasedEstimate = Math.ceil(wordsCount / 2.5);
+        
+        // Aproximadamente 15 caracteres por segundo para la síntesis de voz
+        const charBasedEstimate = Math.ceil(charactersCount / 15);
+        
+        // Tiempo base de procesamiento más el mayor de las estimaciones
+        const baseProcessingTime = 10; // Tiempo mínimo en segundos
+        const finalEstimate = baseProcessingTime + Math.max(wordBasedEstimate, charBasedEstimate);
+        
+        console.log('Estimated conversion time:', {
+          words: wordsCount,
+          characters: charactersCount,
+          wordBasedEstimate,
+          charBasedEstimate,
+          finalEstimate
+        });
+        
+        return finalEstimate;
       }
     };
   }, [extractedText]);

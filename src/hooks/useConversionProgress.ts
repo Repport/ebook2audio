@@ -14,7 +14,7 @@ export const useConversionProgress = (conversionId: string | null) => {
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const prevConversionIdRef = useRef<string | null>(null);
   const lastUpdateTimeRef = useRef(0);
-  const UPDATE_THROTTLE_MS = 300; // Incrementado para reducir actualizaciones
+  const UPDATE_THROTTLE_MS = 300;
   
   useEffect(() => {
     // Evitar efecto si conversionId no ha cambiado
@@ -73,6 +73,7 @@ export const useConversionProgress = (conversionId: string | null) => {
       
       lastUpdateTimeRef.current = now;
       
+      console.log('Received progress update:', progressData);
       updateProgress(progressData);
       
       // Solo completar la conversión una vez por suscripción
@@ -80,6 +81,7 @@ export const useConversionProgress = (conversionId: string | null) => {
         completionCalledRef.current = true;
         completeConversion(null, conversionId, progressData.totalCharacters / 15);
       } else if (progressData.error) {
+        console.error('Error en progreso de conversión:', progressData.error);
         setError(progressData.error);
       }
     };
@@ -99,7 +101,7 @@ export const useConversionProgress = (conversionId: string | null) => {
       }
       setIsSubscribed(false);
     };
-  }, [conversionId]); // ¡Importante! Eliminar updateProgress, setError y completeConversion del array de dependencias
+  }, [conversionId, updateProgress, setError, completeConversion]);
   
   return { isSubscribed };
 };
