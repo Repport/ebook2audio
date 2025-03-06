@@ -17,9 +17,12 @@ export const useConversionTimer = () => {
   const prevStartTimeRef = React.useRef(startTime);
   
   React.useEffect(() => {
-    // Only update if values actually changed to prevent infinite loops
-    if (status === prevStatusRef.current && startTime === prevStartTimeRef.current) {
-      return;
+    // Check if values ACTUALLY changed to prevent unnecessary effect runs
+    const statusChanged = status !== prevStatusRef.current;
+    const startTimeChanged = startTime !== prevStartTimeRef.current;
+    
+    if (!statusChanged && !startTimeChanged) {
+      return; // No changes, exit early
     }
     
     // Update ref values

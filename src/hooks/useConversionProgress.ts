@@ -14,8 +14,18 @@ export const useConversionProgress = (conversionId: string | null) => {
   const completionCalledRef = useRef(false);
   // Track current subscription for cleanup
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  // Track previous conversion ID to detect changes
+  const prevConversionIdRef = useRef<string | null>(null);
   
   useEffect(() => {
+    // Skip if conversionId is the same as before
+    if (conversionId === prevConversionIdRef.current) {
+      return;
+    }
+    
+    // Update the reference
+    prevConversionIdRef.current = conversionId;
+    
     // Reset completion flag when conversion ID changes
     completionCalledRef.current = false;
     
@@ -25,6 +35,7 @@ export const useConversionProgress = (conversionId: string | null) => {
       subscriptionRef.current = null;
     }
     
+    // If no conversion ID, exit early
     if (!conversionId) {
       setIsSubscribed(false);
       return;
@@ -52,9 +63,18 @@ export const useConversionProgress = (conversionId: string | null) => {
     
     fetchInitialProgress();
     
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates with a debounced handler
+    let lastUpdateTime = 0;
+    const MIN_UPDATE_INTERVAL = 150; // ms between updates
+    
     const subscription = subscribeToProgress(conversionId, (progressData) => {
-      console.log('Received progress update via subscription:', progressData);
+      // Debounce frequent updates to prevent UI thrashing
+      const now = Date.now();
+      if (now - lastUpdateTime < MIN_UPDATE_INTERVAL) {
+        return;
+      }
+      lastUpdateTime = now;
+      
       updateProgress(progressData);
       
       // Only complete conversion once per subscription

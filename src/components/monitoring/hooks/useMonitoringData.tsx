@@ -9,6 +9,7 @@ import { MonitoringData } from '../types';
 export function useMonitoringData(): MonitoringData {
   const [activeTab, setActiveTab] = useState("overview");
   const isInitialMount = useRef(true);
+  const previousTabRef = useRef(activeTab);
   
   const { stats, isLoading: statsLoading, loadStats } = useStats();
   const { logs, isLoading: logsLoading, loadLogs, clearLogs } = useLogs();
@@ -25,6 +26,15 @@ export function useMonitoringData(): MonitoringData {
       return;
     }
     
+    // Skip if tab hasn't actually changed
+    if (activeTab === previousTabRef.current) {
+      return;
+    }
+    
+    // Update the reference to current tab
+    previousTabRef.current = activeTab;
+    
+    // Only load data for the active tab
     switch (activeTab) {
       case "overview":
         loadStats();

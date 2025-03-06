@@ -25,7 +25,7 @@ interface ConversionStatusProps {
   initialElapsedTime?: number;
 }
 
-const ConversionStatus = ({
+const ConversionStatus = React.memo(({
   status: externalStatus,
   showPercentage = true,
   initialElapsedTime = 0,
@@ -42,34 +42,52 @@ const ConversionStatus = ({
   const storeErrors = useConversionStore(state => state.errors);
   const storeConversionId = useConversionStore(state => state.conversionId);
   
+  // Track previous values to prevent unnecessary renders
+  const prevStoreStatusRef = React.useRef(storeStatus);
+  const prevExternalStatusRef = React.useRef(externalStatus);
+  
   // Use either the prop conversionId or the one from the store
   const effectiveConversionId = conversionId || storeConversionId;
   
   // Subscribe to realtime progress updates if we have a conversion ID
   const { isSubscribed } = useConversionProgress(effectiveConversionId);
   
-  // Log subscription status
+  // Log subscription status only when it changes
   React.useEffect(() => {
-    if (effectiveConversionId) {
+    if (isSubscribed !== prevIsSubscribedRef.current && effectiveConversionId) {
       console.log(`Progress subscription status for ${effectiveConversionId}: ${isSubscribed ? 'active' : 'inactive'}`);
+      prevIsSubscribedRef.current = isSubscribed;
     }
   }, [effectiveConversionId, isSubscribed]);
+  const prevIsSubscribedRef = React.useRef(isSubscribed);
   
   // Start the timer at parent level to avoid multiple instances
   // Only runs when conversion is active
   useConversionTimer();
   
   // Determine which status to use - prefer store status if it's not idle
-  const effectiveStatus = (storeStatus !== 'idle') ? storeStatus : externalStatus;
+  const effectiveStatus = React.useMemo(() => {
+    const newStatus = (storeStatus !== 'idle') ? storeStatus : externalStatus;
+    
+    // Only update refs if status changed
+    if (storeStatus !== prevStoreStatusRef.current) {
+      prevStoreStatusRef.current = storeStatus;
+    }
+    if (externalStatus !== prevExternalStatusRef.current) {
+      prevExternalStatusRef.current = externalStatus;
+    }
+    
+    return newStatus;
+  }, [storeStatus, externalStatus]);
 
   // Status messages (without reference to file type)
-  const statusMessages = {
+  const statusMessages = React.useMemo(() => ({
     idle: translations.readyToConvert || "Ready to convert",
     converting: translations.converting?.replace('{fileType}', '') || "Converting...",
     completed: translations.conversionCompleted || "Conversion completed",
     error: translations.conversionError || "Conversion error",
     processing: translations.converting?.replace('{fileType}', '') || "Processing..."
-  };
+  }), [translations]);
 
   // Return the appropriate component based on status
   if (effectiveStatus === 'converting' || effectiveStatus === 'processing') {
@@ -98,6 +116,8 @@ const ConversionStatus = ({
       />
     );
   }
-};
+});
+
+ConversionStatus.displayName = 'ConversionStatus';
 
 export default ConversionStatus;

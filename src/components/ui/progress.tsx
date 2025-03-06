@@ -8,41 +8,45 @@ interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPr
   showPercentage?: boolean;
 }
 
-const Progress = React.forwardRef<
+const Progress = React.memo(React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
   ProgressProps
 >(({ className, value, status = "idle", showPercentage = true, ...props }, ref) => {
   // Visible value with smooth transition
   const [displayValue, setDisplayValue] = React.useState(1);
   
-  // Track last incoming value
+  // Track last incoming value and last update time for throttling
   const lastValueRef = React.useRef<number | undefined>(undefined);
+  const lastUpdateTimeRef = React.useRef(0);
+  const MIN_UPDATE_MS = 100; // Milliseconds between updates
   
   // Visual pulsing effect during conversion
   const [isPulsing, setIsPulsing] = React.useState(false);
   
-  // Log extra info for debugging
-  React.useEffect(() => {
-    console.log(`Progress component received value: ${value}, status: ${status}`);
-  }, [value, status]);
-  
   // Update value with smooth transition when it changes
   React.useEffect(() => {
-    if (typeof value === 'number' && !isNaN(value) && value >= 0) {
-      // Ensure a minimum of 1% for visibility
-      const newValue = Math.max(1, Math.min(100, value));
-      
-      // Log when value changes significantly (more than 2%)
-      if (lastValueRef.current === undefined || Math.abs(newValue - lastValueRef.current) > 2) {
-        console.log(`Progress component value update: ${lastValueRef.current || 0}% -> ${newValue}% (status: ${status})`);
-      }
-      
-      // Update ref
-      lastValueRef.current = newValue;
-      
-      // Always update the display value when the value changes
-      setDisplayValue(newValue);
+    if (typeof value !== 'number' || isNaN(value) || value < 0) {
+      return; // Skip invalid values
     }
+    
+    // Ensure a minimum of 1% for visibility
+    const newValue = Math.max(1, Math.min(100, value));
+    
+    // Skip if value hasn't changed or update is too frequent
+    const now = Date.now();
+    if (
+      (lastValueRef.current === newValue) || 
+      (now - lastUpdateTimeRef.current < MIN_UPDATE_MS && Math.abs((lastValueRef.current || 0) - newValue) < 3)
+    ) {
+      return;
+    }
+    
+    // Update ref and time
+    lastValueRef.current = newValue;
+    lastUpdateTimeRef.current = now;
+    
+    // Update display value
+    setDisplayValue(newValue);
   }, [value, status]);
 
   // Effect to activate pulsing periodically during conversion
@@ -110,7 +114,8 @@ const Progress = React.forwardRef<
       )}
     </ProgressPrimitive.Root>
   );
-});
+}));
+
 Progress.displayName = ProgressPrimitive.Root.displayName;
 
 export { Progress };

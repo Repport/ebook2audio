@@ -23,53 +23,49 @@ export const useAudioState = () => {
 
   // Wrap setState functions in useCallback to maintain stable references and prevent unnecessary updates
   const setConversionStatusStable = useCallback((status: 'idle' | 'converting' | 'completed' | 'error') => {
-    setConversionStatus(prev => {
-      if (prev === status) return prev;
-      prevConversionStatus.current = status;
-      return status;
-    });
+    if (status === prevConversionStatus.current) return; // Skip if unchanged
+    prevConversionStatus.current = status;
+    setConversionStatus(status);
   }, []);
 
   const setProgressStable = useCallback((newProgress: number) => {
-    setProgress(prev => {
-      if (prev === newProgress) return prev;
-      prevProgress.current = newProgress;
-      return newProgress;
-    });
+    if (newProgress === prevProgress.current) return; // Skip if unchanged
+    prevProgress.current = newProgress;
+    setProgress(newProgress);
   }, []);
 
   const setAudioDataStable = useCallback((data: ArrayBuffer | null) => {
-    if (data === prevAudioData.current) return;
+    if (data === prevAudioData.current) return; // Skip if unchanged
     prevAudioData.current = data;
     setAudioData(data);
   }, []);
 
   const setAudioDurationStable = useCallback((duration: number) => {
-    if (duration === prevAudioDuration.current) return;
+    if (duration === prevAudioDuration.current) return; // Skip if unchanged
     prevAudioDuration.current = duration;
     setAudioDuration(duration);
   }, []);
 
   const setConversionIdStable = useCallback((id: string | null) => {
-    if (id === prevConversionId.current) return;
+    if (id === prevConversionId.current) return; // Skip if unchanged
     prevConversionId.current = id;
     setConversionId(id);
   }, []);
 
   const setCurrentFileNameStable = useCallback((fileName: string | null) => {
-    if (fileName === prevCurrentFileName.current) return;
+    if (fileName === prevCurrentFileName.current) return; // Skip if unchanged
     prevCurrentFileName.current = fileName;
     setCurrentFileName(fileName);
   }, []);
 
   const setElapsedTimeStable = useCallback((time: number) => {
-    if (time === prevElapsedTime.current) return;
+    if (time === prevElapsedTime.current) return; // Skip if unchanged
     prevElapsedTime.current = time;
     setElapsedTime(time);
   }, []);
 
   const setConversionStartTimeStable = useCallback((time: number | undefined) => {
-    if (time === prevConversionStartTime.current) return;
+    if (time === prevConversionStartTime.current) return; // Skip if unchanged
     prevConversionStartTime.current = time;
     setConversionStartTime(time);
   }, []);
