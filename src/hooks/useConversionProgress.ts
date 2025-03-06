@@ -16,6 +16,9 @@ export const useConversionProgress = (conversionId: string | null) => {
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   // Track previous conversion ID to detect changes
   const prevConversionIdRef = useRef<string | null>(null);
+  // Track last update time for throttling
+  const lastUpdateTimeRef = useRef(0);
+  const UPDATE_THROTTLE_MS = 150;
   
   useEffect(() => {
     // Skip if conversionId is the same as before
@@ -41,6 +44,8 @@ export const useConversionProgress = (conversionId: string | null) => {
       return;
     }
     
+    console.log(`Setting up progress subscription for ${conversionId}`);
+    
     // Get initial progress
     const fetchInitialProgress = async () => {
       try {
@@ -63,17 +68,14 @@ export const useConversionProgress = (conversionId: string | null) => {
     
     fetchInitialProgress();
     
-    // Subscribe to real-time updates with a debounced handler
-    let lastUpdateTime = 0;
-    const MIN_UPDATE_INTERVAL = 150; // ms between updates
-    
-    const subscription = subscribeToProgress(conversionId, (progressData) => {
-      // Debounce frequent updates to prevent UI thrashing
+    // Process updates with throttling
+    const processUpdate = (progressData: ChunkProgressData) => {
       const now = Date.now();
-      if (now - lastUpdateTime < MIN_UPDATE_INTERVAL) {
+      if (now - lastUpdateTimeRef.current < UPDATE_THROTTLE_MS) {
         return;
       }
-      lastUpdateTime = now;
+      
+      lastUpdateTimeRef.current = now;
       
       updateProgress(progressData);
       
@@ -84,13 +86,17 @@ export const useConversionProgress = (conversionId: string | null) => {
       } else if (progressData.error) {
         setError(progressData.error);
       }
-    });
+    };
+    
+    // Subscribe to real-time updates
+    const subscription = subscribeToProgress(conversionId, processUpdate);
     
     // Store subscription for cleanup
     subscriptionRef.current = subscription;
     setIsSubscribed(true);
     
     return () => {
+      console.log(`Cleaning up progress subscription for ${conversionId}`);
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;

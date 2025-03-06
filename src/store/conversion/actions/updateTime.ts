@@ -5,10 +5,11 @@ export const updateElapsedTimeAction = (
   set: (state: Partial<ConversionState>) => void,
   get: () => any
 ) => {
-  // Use closure variables for debouncing to ensure they persist between function calls
-  // These variables are shared across all invocations of updateElapsedTime
-  let lastUpdateTime = 0;
-  let lastElapsedTime = 0;
+  // Create a persistent reference for debounce state that won't be reset between calls
+  const debounceState = {
+    lastUpdateTime: 0,
+    lastElapsedTime: 0
+  };
   
   const MIN_UPDATE_INTERVAL = 500; // msec
   
@@ -22,16 +23,16 @@ export const updateElapsedTimeAction = (
     
     // Debounce updates - only update if significant change or enough time passed
     const now = Date.now();
-    const timeElapsed = now - lastUpdateTime;
-    const secondsDiff = Math.abs(elapsedSeconds - lastElapsedTime);
+    const timeElapsed = now - debounceState.lastUpdateTime;
+    const secondsDiff = Math.abs(elapsedSeconds - debounceState.lastElapsedTime);
     
     if (timeElapsed < MIN_UPDATE_INTERVAL && secondsDiff < 2) {
       return;
     }
     
     // Update tracking vars
-    lastUpdateTime = now;
-    lastElapsedTime = elapsedSeconds;
+    debounceState.lastUpdateTime = now;
+    debounceState.lastElapsedTime = elapsedSeconds;
     
     // Calculate remaining time based on progress and elapsed time
     let timeRemaining: number | undefined = undefined;

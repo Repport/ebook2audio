@@ -8,14 +8,16 @@ export const updateProgressAction = (
   LoggingService: any
 ) => {
   // Keep track of last update state to prevent redundant updates
-  let lastUpdateHash = '';
-  let lastUpdateTime = 0;
+  const updateState = {
+    lastUpdateHash: '',
+    lastUpdateTime: 0,
+  };
   const UPDATE_THROTTLE_MS = 100; // Minimum time between updates
 
   const updateProgress = (data: ChunkProgressData) => {
     // Throttle updates to prevent excessive renders
     const now = Date.now();
-    if (now - lastUpdateTime < UPDATE_THROTTLE_MS) {
+    if (now - updateState.lastUpdateTime < UPDATE_THROTTLE_MS) {
       return;
     }
     
@@ -82,24 +84,20 @@ export const updateProgressAction = (
     
     // 2. Calculate progress - use the most reliable strategy available
     let newProgress = state.progress;
-    let progressSource = 'existing';
     
     // Priority 1: Explicit progress
     if (hasExplicitProgress) {
       newProgress = Math.min(99, data.progress);
-      progressSource = 'explicit';
     } 
     // Priority 2: Calculation based on processed characters
     else if (hasValidCharData && updatedChunks.totalCharacters > 0) {
       const calculatedProgress = Math.round((updatedChunks.processedCharacters / updatedChunks.totalCharacters) * 100);
       newProgress = Math.min(99, calculatedProgress);
-      progressSource = 'characters';
     }
     // Priority 3: Calculation based on processed chunks
     else if (hasValidChunksData && updatedChunks.total > 0) {
       const calculatedProgress = Math.round((updatedChunks.processed / updatedChunks.total) * 100);
       newProgress = Math.min(99, calculatedProgress);
-      progressSource = 'chunks';
     }
     
     // Ensure progress always advances (never regresses)
@@ -127,12 +125,12 @@ export const updateProgressAction = (
     const newStateHash = `${isComplete ? 'completed' : 'converting'}-${finalProgress}-${updatedChunks.processed}/${updatedChunks.total}-${uniqueErrors.size}-${uniqueWarnings.size}`;
     
     // Skip update if nothing has changed
-    if (newStateHash === lastUpdateHash) {
+    if (newStateHash === updateState.lastUpdateHash) {
       return;
     }
     
-    lastUpdateHash = newStateHash;
-    lastUpdateTime = now;
+    updateState.lastUpdateHash = newStateHash;
+    updateState.lastUpdateTime = now;
     
     // Create a single update object to batch all changes
     const updateObject: Partial<ConversionState> = {

@@ -42,10 +42,6 @@ const ConversionStatus = React.memo(({
   const storeErrors = useConversionStore(state => state.errors);
   const storeConversionId = useConversionStore(state => state.conversionId);
   
-  // Track previous values to prevent unnecessary renders
-  const prevStoreStatusRef = React.useRef(storeStatus);
-  const prevExternalStatusRef = React.useRef(externalStatus);
-  
   // Use either the prop conversionId or the one from the store
   const effectiveConversionId = conversionId || storeConversionId;
   
@@ -63,21 +59,10 @@ const ConversionStatus = React.memo(({
   
   // ⚠️ Important: The timer should NOT be initialized here
   // It creates a new timer instance on every render
-  // useConversionTimer();
   
   // Determine which status to use - prefer store status if it's not idle
   const effectiveStatus = React.useMemo(() => {
-    const newStatus = (storeStatus !== 'idle') ? storeStatus : externalStatus;
-    
-    // Only update refs if status changed
-    if (storeStatus !== prevStoreStatusRef.current) {
-      prevStoreStatusRef.current = storeStatus;
-    }
-    if (externalStatus !== prevExternalStatusRef.current) {
-      prevExternalStatusRef.current = externalStatus;
-    }
-    
-    return newStatus;
+    return (storeStatus !== 'idle') ? storeStatus : externalStatus;
   }, [storeStatus, externalStatus]);
 
   // Status messages (without reference to file type)

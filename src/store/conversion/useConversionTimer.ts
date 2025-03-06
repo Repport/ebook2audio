@@ -11,34 +11,35 @@ export const useConversionTimer = () => {
   const startTime = useConversionStore(state => state.time.startTime);
   
   // Store timer ID in a ref to avoid it being part of dependency array
-  const timerRef = React.useRef<number>();
+  const timerRef = React.useRef<number | null>(null);
   
-  // Use refs to track previous values to prevent unnecessary effect triggers
-  const prevStatusRef = React.useRef(status);
-  const prevStartTimeRef = React.useRef(startTime);
+  // Track if the timer is already running to prevent duplicate timers
+  const isRunningRef = React.useRef(false);
   
   React.useEffect(() => {
-    // Check if values ACTUALLY changed to prevent unnecessary effect runs
-    const statusChanged = status !== prevStatusRef.current;
-    const startTimeChanged = startTime !== prevStartTimeRef.current;
-    
-    if (!statusChanged && !startTimeChanged) {
-      return; // No changes, exit early
-    }
-    
-    // Update ref values
-    prevStatusRef.current = status;
-    prevStartTimeRef.current = startTime;
-    
-    // Clear any existing timer first to prevent duplicates
-    if (timerRef.current) {
+    // Clear any existing timer
+    if (timerRef.current !== null) {
       window.clearInterval(timerRef.current);
-      timerRef.current = undefined;
+      timerRef.current = null;
+      isRunningRef.current = false;
     }
     
     // Only start a new timer if we're in an active conversion state and have a startTime
-    if ((status === 'converting' || status === 'processing') && startTime) {
+    const isActiveConversion = (status === 'converting' || status === 'processing');
+    
+    if (isActiveConversion && startTime && !isRunningRef.current) {
+      isRunningRef.current = true;
+      
+      console.log('Starting conversion timer');
+      
+      // Set initial value immediately to avoid delay
+      const initialElapsed = Math.floor((Date.now() - startTime) / 1000);
+      updateElapsedTime(initialElapsed, startTime);
+      
+      // Set up the interval
       timerRef.current = window.setInterval(() => {
+        if (!isRunningRef.current) return; // Safety check
+        
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         updateElapsedTime(elapsed, startTime);
       }, 1000);
@@ -46,9 +47,10 @@ export const useConversionTimer = () => {
     
     // Cleanup function to clear interval when component unmounts or status changes
     return () => {
-      if (timerRef.current) {
+      if (timerRef.current !== null) {
         window.clearInterval(timerRef.current);
-        timerRef.current = undefined;
+        timerRef.current = null;
+        isRunningRef.current = false;
       }
     };
   }, [status, updateElapsedTime, startTime]);
