@@ -12,7 +12,7 @@ export const createConversionActions = (
   get: () => any
 ): ConversionActions => {
   // Obtener los creadores de acción individuales y combinarlos
-  const { startConversion } = startConversionAction(set, get, LoggingService);
+  const startConversion = startConversionAction(set, get, LoggingService);
   const { updateProgress } = updateProgressAction(set, get, LoggingService);
   const { updateElapsedTime } = updateElapsedTimeAction(set, get);
   const { setError, setWarning } = errorWarningActions(set, get, LoggingService);
