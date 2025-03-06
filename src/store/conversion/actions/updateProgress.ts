@@ -3,51 +3,40 @@ import { ConversionState } from '../types';
 import { calculateTimeRemaining } from '../utils';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
-// Estado de actualización persistente (fuera de la función para mantenerlo entre actualizaciones)
-const updateState = {
-  lastUpdateHash: '',
-  lastUpdateTime: 0,
-  lastProgress: 0,
-};
-
 export const updateProgressAction = (
   set: (state: Partial<ConversionState>) => void,
   get: () => any,
   LoggingService: any
 ) => {
-  const UPDATE_THROTTLE_MS = 200; // Incrementado para reducir actualizaciones
+  const UPDATE_THROTTLE_MS = 200;
+  let lastUpdateTime = 0;
+  let lastProgressValue = 0;
 
   const updateProgress = (data: ChunkProgressData) => {
-    // Limitar actualizaciones para evitar renders excesivos
+    // Apply throttling to reduce rendering frequency
     const now = Date.now();
-    if (now - updateState.lastUpdateTime < UPDATE_THROTTLE_MS) {
+    if (now - lastUpdateTime < UPDATE_THROTTLE_MS) {
       return;
     }
     
-    // Obtener estado actual
+    // Get current state
     const state = get();
     
-    // Si el estado es completado o error, no actualizar el progreso para evitar bucles
+    // Skip updates if we're already in completed or error state
     if (state.status === 'completed' || state.status === 'error') {
       return;
     }
 
-    // Validar campos críticos para evitar errores con valores indefinidos
-    if (!data || (typeof data.progress !== 'number' && 
-                 !data.processedChunks && 
-                 !data.processedCharacters && 
-                 !data.error && 
-                 !data.warning && 
-                 !data.isCompleted)) {
-      console.warn('ConversionStore: Ignoring invalid progress update:', data);
+    // Validate required data fields
+    if (!data || typeof data.progress !== 'number') {
+      console.warn('ConversionStore: Invalid progress data:', data);
       return;
     }
     
-    // Crear nuevos conjuntos para evitar modificar arrays de estado existentes
+    // Process errors and warnings
     const uniqueErrors = new Set<string>(state.errors);
     const uniqueWarnings = new Set<string>(state.warnings);
     
-    // Manejar errores y advertencias
     if (data.error && typeof data.error === 'string' && data.error.trim() !== '') {
       uniqueErrors.add(data.error);
     }
@@ -56,99 +45,58 @@ export const updateProgressAction = (
       uniqueWarnings.add(data.warning);
     }
     
-    // Validaciones críticas: verificar que tenemos todos los datos necesarios
-    const hasValidChunksData = typeof data.processedChunks === 'number' && 
-                              typeof data.totalChunks === 'number' && 
-                              data.totalChunks > 0;
-                              
-    const hasValidCharData = typeof data.processedCharacters === 'number' && 
-                            typeof data.totalCharacters === 'number' && 
-                            data.totalCharacters > 0;
-    
-    const hasExplicitProgress = typeof data.progress === 'number' && 
-                               !isNaN(data.progress) && 
-                               data.progress >= 0;
-    
-    // Si no hay datos válidos y no es un error o una bandera de finalización, salir temprano
-    if (!hasValidChunksData && !hasValidCharData && !hasExplicitProgress && 
-        !data.error && !data.isCompleted) {
-      return;
-    }
-    
-    // Resolución de datos: priorizar nuevos datos, pero mantener existentes si no hay nuevos datos
-    
-    // 1. Datos de chunks
-    const updatedChunks = {
-      processed: hasValidChunksData ? data.processedChunks : state.chunks.processed,
-      total: hasValidChunksData ? data.totalChunks : state.chunks.total,
-      processedCharacters: hasValidCharData ? data.processedCharacters : state.chunks.processedCharacters,
-      totalCharacters: hasValidCharData ? data.totalCharacters : state.chunks.totalCharacters
+    // Determine progress data
+    const progressData = {
+      processed: typeof data.processedChunks === 'number' ? data.processedChunks : state.chunks.processed,
+      total: typeof data.totalChunks === 'number' ? data.totalChunks : state.chunks.total,
+      processedChars: typeof data.processedCharacters === 'number' ? data.processedCharacters : state.chunks.processedCharacters,
+      totalChars: typeof data.totalCharacters === 'number' ? data.totalCharacters : state.chunks.totalCharacters
     };
     
-    // 2. Calcular progreso - usar la estrategia más confiable disponible
-    let newProgress = state.progress;
+    // Calculate progress value
+    let newProgress = data.progress;
     
-    // Prioridad 1: Progreso explícito
-    if (hasExplicitProgress) {
-      newProgress = Math.min(99, data.progress);
-    } 
-    // Prioridad 2: Cálculo basado en caracteres procesados
-    else if (hasValidCharData && updatedChunks.totalCharacters > 0) {
-      const calculatedProgress = Math.round((updatedChunks.processedCharacters / updatedChunks.totalCharacters) * 100);
-      newProgress = Math.min(99, calculatedProgress);
-    }
-    // Prioridad 3: Cálculo basado en chunks procesados
-    else if (hasValidChunksData && updatedChunks.total > 0) {
-      const calculatedProgress = Math.round((updatedChunks.processed / updatedChunks.total) * 100);
-      newProgress = Math.min(99, calculatedProgress);
+    // Ensure progress never decreases (unless there's a significant correction)
+    if (newProgress < lastProgressValue && Math.abs(newProgress - lastProgressValue) < 10) {
+      newProgress = lastProgressValue;
     }
     
-    // Asegurar que el progreso siempre avance (nunca retroceda)
-    // Excepción: si hay un cambio grande (>10%), aceptarlo (podría ser una corrección)
-    if (newProgress < state.progress && Math.abs(newProgress - state.progress) < 10 && !data.isCompleted) {
-      newProgress = state.progress;
+    // Cap at 99% until explicitly completed
+    if (!data.isCompleted) {
+      newProgress = Math.min(99, newProgress);
     }
     
-    // Omitir si el progreso no ha cambiado significativamente (evitando renders innecesarios)
-    if (Math.abs(newProgress - updateState.lastProgress) < 1 && 
-        !data.error && !data.warning && !data.isCompleted && 
-        (now - updateState.lastUpdateTime < UPDATE_THROTTLE_MS * 5)) {
+    // Skip update if progress hasn't changed significantly
+    if (Math.abs(newProgress - lastProgressValue) < 1 && 
+        !data.error && !data.warning && !data.isCompleted) {
       return;
     }
     
-    // Verificar si la conversión está completa
-    const isComplete = data.isCompleted === true;
-    const finalProgress = isComplete ? 100 : newProgress;
-    
-    // Calcular tiempo restante si no está completo
+    // Calculate time remaining if we have enough data
     let timeRemaining = state.time.remaining;
     
-    if (!isComplete && state.time.elapsed > 5 && newProgress > 5) {
+    if (!data.isCompleted && state.time.elapsed > 5 && newProgress > 5) {
       timeRemaining = calculateTimeRemaining(
         state.time.elapsed,
         newProgress,
-        updatedChunks.totalCharacters || 0
+        progressData.totalChars
       );
     }
     
-    // Generar un hash del nuevo estado para detectar cambios
-    const newStateHash = `${isComplete ? 'completed' : 'converting'}-${finalProgress}-${updatedChunks.processed}/${updatedChunks.total}-${uniqueErrors.size}-${uniqueWarnings.size}`;
+    // Update state values
+    lastUpdateTime = now;
+    lastProgressValue = newProgress;
     
-    // Omitir actualización si nada ha cambiado
-    if (newStateHash === updateState.lastUpdateHash) {
-      return;
-    }
-    
-    // Actualizar estado de seguimiento
-    updateState.lastUpdateHash = newStateHash;
-    updateState.lastUpdateTime = now;
-    updateState.lastProgress = finalProgress;
-    
-    // Crear un único objeto de actualización para agrupar todos los cambios
+    // Build the state update
     const updateObject: Partial<ConversionState> = {
-      status: isComplete ? 'completed' : (data.error ? 'error' : 'converting'),
-      progress: finalProgress,
-      chunks: updatedChunks,
+      status: data.isCompleted ? 'completed' : (data.error ? 'error' : 'converting'),
+      progress: data.isCompleted ? 100 : newProgress,
+      chunks: {
+        processed: progressData.processed,
+        total: progressData.total,
+        processedCharacters: progressData.processedChars,
+        totalCharacters: progressData.totalChars
+      },
       time: {
         ...state.time,
         remaining: timeRemaining
@@ -157,14 +105,14 @@ export const updateProgressAction = (
       warnings: Array.from(uniqueWarnings)
     };
     
-    // Aplicar la actualización
+    // Apply the update
     set(updateObject);
     
-    console.log('Actualización de progreso:', {
-      progreso: finalProgress, 
-      chunks: `${updatedChunks.processed}/${updatedChunks.total}`,
-      caracteres: `${updatedChunks.processedCharacters}/${updatedChunks.totalCharacters}`,
-      estado: updateObject.status
+    console.log('Progress update:', {
+      progress: newProgress, 
+      chunks: `${progressData.processed}/${progressData.total}`,
+      chars: `${progressData.processedChars}/${progressData.totalChars}`,
+      status: updateObject.status
     });
   };
 

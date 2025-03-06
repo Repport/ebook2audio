@@ -2,6 +2,7 @@
 import * as React from "react"
 import * as ProgressPrimitive from "@radix-ui/react-progress"
 import { cn } from "@/lib/utils"
+import { useProgressValue } from "@/hooks/useProgressValue"
 
 interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
   status?: "idle" | "converting" | "error" | "success";
@@ -12,74 +13,24 @@ const Progress = React.memo(React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
   ProgressProps
 >(({ className, value, status = "idle", showPercentage = true, ...props }, ref) => {
-  // Visible value with smooth transition
-  const [displayValue, setDisplayValue] = React.useState(1);
-  
-  // Track last incoming value and last update time for throttling
-  const lastValueRef = React.useRef<number | undefined>(undefined);
-  const lastUpdateTimeRef = React.useRef(0);
-  const MIN_UPDATE_MS = 100; // Milliseconds between updates
-  
-  // Visual pulsing effect during conversion
-  const [isPulsing, setIsPulsing] = React.useState(false);
-  
-  // Update value with smooth transition when it changes
-  React.useEffect(() => {
-    if (typeof value !== 'number' || isNaN(value) || value < 0) {
-      return; // Skip invalid values
-    }
-    
-    // Ensure a minimum of 1% for visibility
-    const newValue = Math.max(1, Math.min(100, value));
-    
-    // Skip if value hasn't changed or update is too frequent
-    const now = Date.now();
-    if (
-      (lastValueRef.current === newValue) || 
-      (now - lastUpdateTimeRef.current < MIN_UPDATE_MS && Math.abs((lastValueRef.current || 0) - newValue) < 3)
-    ) {
-      return;
-    }
-    
-    // Update ref and time
-    lastValueRef.current = newValue;
-    lastUpdateTimeRef.current = now;
-    
-    // Update display value
-    setDisplayValue(newValue);
-  }, [value, status]);
+  // Use our hook for smooth animations
+  const { displayValue } = useProgressValue({
+    value: value as number,
+    status,
+    animationDuration: 300
+  });
 
-  // Effect to activate pulsing periodically during conversion
-  React.useEffect(() => {
-    if (status === 'converting') {
-      // Initial pulse
-      setIsPulsing(true);
-      
-      // Toggle pulsing every 3 seconds for visual feedback
-      const intervalId = setInterval(() => {
-        setIsPulsing(prev => !prev);
-      }, 3000);
-      
-      return () => clearInterval(intervalId);
-    } else {
-      setIsPulsing(false);
-    }
-  }, [status]);
-
-  const statusColors = {
+  // Define status-based styling
+  const statusClasses = {
     idle: "bg-primary",
     converting: "bg-blue-500",
     error: "bg-destructive",
     success: "bg-green-500",
   };
 
-  // Add a pulsing effect when converting
-  const pulseEffect = isPulsing && status === 'converting' ? "animate-pulse" : "";
-
-  // Enhanced shimmer effect for better visibility
+  // For converting status, add shimmer effect
   const shimmerEffect = status === 'converting' 
-    ? "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent " +
-      "before:animate-[shimmer_1.5s_infinite] before:content-['']"
+    ? "relative overflow-hidden before:absolute before:inset-0 before:translate-x-[-100%] before:animate-[shimmer_2s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent"
     : "";
 
   return (
@@ -87,7 +38,6 @@ const Progress = React.memo(React.forwardRef<
       ref={ref}
       className={cn(
         "relative h-4 w-full overflow-hidden rounded-full bg-secondary",
-        shimmerEffect,
         className
       )}
       {...props}
@@ -95,8 +45,8 @@ const Progress = React.memo(React.forwardRef<
       <ProgressPrimitive.Indicator
         className={cn(
           "h-full w-full flex-1 transition-transform duration-300 ease-out",
-          statusColors[status],
-          pulseEffect
+          statusClasses[status],
+          shimmerEffect
         )}
         style={{ 
           transform: `translateX(-${100 - displayValue}%)` 
@@ -104,9 +54,9 @@ const Progress = React.memo(React.forwardRef<
       />
       {showPercentage && (
         <span 
-          className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white mix-blend-difference"
+          className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white"
           style={{ 
-            textShadow: "0 1px 2px rgba(0,0,0,0.3)"
+            textShadow: "0 1px 1px rgba(0,0,0,0.5)"
           }}
         >
           {Math.round(displayValue)}%

@@ -36,6 +36,17 @@ const ConversionProgressBar = ({
     }
   }, [time.elapsed, time.remaining]);
   
+  // Map conversion status to progress component status
+  const progressStatus = useMemo(() => {
+    switch (status) {
+      case 'error': return 'error';
+      case 'completed': return 'success';
+      case 'converting':
+      case 'processing': return 'converting';
+      default: return 'idle';
+    }
+  }, [status]);
+  
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center mb-1">
@@ -49,7 +60,7 @@ const ConversionProgressBar = ({
       
       <Progress 
         value={progress} 
-        status={status === 'error' ? 'error' : 'converting'} 
+        status={progressStatus}
         showPercentage={showPercentage}
       />
       

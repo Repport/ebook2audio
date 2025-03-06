@@ -1,26 +1,34 @@
 
 /**
- * Format minutes in a readable format
+ * Formats a time value in seconds to a human-readable string
+ * @param seconds Time in seconds
+ * @returns Formatted time string
  */
-export const formatTimestamp = (minutes: number) => {
-  const hrs = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-};
-
-/**
- * Format remaining seconds in a readable format
- */
-export const formatTimeRemaining = (seconds: number) => {
-  if (seconds < 60) return `${Math.ceil(seconds)}s`;
-  
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.ceil(seconds % 60);
-  
-  if (minutes < 60) {
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+export function formatTimeRemaining(seconds: number): string {
+  if (seconds === null || seconds === undefined || isNaN(seconds)) {
+    return "";
   }
   
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h ${minutes % 60}m`;
-};
+  // Round to nearest second
+  const roundedSeconds = Math.round(seconds);
+  
+  if (roundedSeconds < 60) {
+    return `${roundedSeconds} sec`;
+  } else if (roundedSeconds < 3600) {
+    const minutes = Math.floor(roundedSeconds / 60);
+    const remainingSeconds = roundedSeconds % 60;
+    
+    if (remainingSeconds === 0) {
+      return `${minutes} min`;
+    }
+    return `${minutes} min ${remainingSeconds} sec`;
+  } else {
+    const hours = Math.floor(roundedSeconds / 3600);
+    const minutes = Math.floor((roundedSeconds % 3600) / 60);
+    
+    if (minutes === 0) {
+      return `${hours} hr`;
+    }
+    return `${hours} hr ${minutes} min`;
+  }
+}
