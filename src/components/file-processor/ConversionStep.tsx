@@ -4,7 +4,7 @@ import ConversionStatus from '@/components/ConversionStatus';
 import NavigationProtection from '@/components/NavigationProtection';
 import { Chapter } from '@/utils/textExtraction';
 import { toast } from "@/hooks/use-toast";
-import { useConversionStore } from '@/store/conversionStore';
+import { useConversionStore, useConversionTimer } from '@/store/conversionStore';
 
 // Import our new components
 import ConversionHeader from './conversion-step/ConversionHeader';
@@ -52,6 +52,9 @@ const ConversionStep = React.memo(({
   // Get store values only once using selector functions
   const storeProgress = useConversionStore(state => state.progress);
   const storeStatus = useConversionStore(state => state.status);
+  
+  // Initialize the timer at this higher level
+  useConversionTimer();
   
   // Use refs to track previous values
   const prevStatus = React.useRef(conversionStatus);

@@ -3,7 +3,7 @@ import React from 'react';
 import { useConversionStore } from '../conversionStore';
 
 /**
- * Hook para el timer de actualización automática del tiempo de conversión
+ * Hook for automatic conversion time updates
  */
 export const useConversionTimer = () => {
   const updateElapsedTime = useConversionStore(state => state.updateElapsedTime);
@@ -12,7 +12,8 @@ export const useConversionTimer = () => {
   
   // Store timer ID in a ref to avoid it being part of dependency array
   const timerRef = React.useRef<number>();
-  // Use a ref to track previous values to prevent unnecessary effect triggers
+  
+  // Use refs to track previous values to prevent unnecessary effect triggers
   const prevStatusRef = React.useRef(status);
   const prevStartTimeRef = React.useRef(startTime);
   

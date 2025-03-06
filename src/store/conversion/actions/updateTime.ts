@@ -5,7 +5,8 @@ export const updateElapsedTimeAction = (
   set: (state: Partial<ConversionState>) => void,
   get: () => any
 ) => {
-  // Add debouncing to prevent frequent updates
+  // Use closure variables for debouncing to ensure they persist between function calls
+  // These variables are shared across all invocations of updateElapsedTime
   let lastUpdateTime = 0;
   let lastElapsedTime = 0;
   

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useConversionStore, useConversionTimer } from '@/store/conversionStore';
+import { useConversionStore } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useConversionProgress } from '@/hooks/useConversionProgress';
 
@@ -53,17 +53,17 @@ const ConversionStatus = React.memo(({
   const { isSubscribed } = useConversionProgress(effectiveConversionId);
   
   // Log subscription status only when it changes
+  const prevIsSubscribedRef = React.useRef(isSubscribed);
   React.useEffect(() => {
     if (isSubscribed !== prevIsSubscribedRef.current && effectiveConversionId) {
       console.log(`Progress subscription status for ${effectiveConversionId}: ${isSubscribed ? 'active' : 'inactive'}`);
       prevIsSubscribedRef.current = isSubscribed;
     }
   }, [effectiveConversionId, isSubscribed]);
-  const prevIsSubscribedRef = React.useRef(isSubscribed);
   
-  // Start the timer at parent level to avoid multiple instances
-  // Only runs when conversion is active
-  useConversionTimer();
+  // ⚠️ Important: The timer should NOT be initialized here
+  // It creates a new timer instance on every render
+  // useConversionTimer();
   
   // Determine which status to use - prefer store status if it's not idle
   const effectiveStatus = React.useMemo(() => {

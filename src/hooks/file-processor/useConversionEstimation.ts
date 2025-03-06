@@ -2,8 +2,7 @@
 import { useMemo } from 'react';
 
 export const useConversionEstimation = (extractedText: string) => {
-  // This was incorrectly returning a number when a function was expected
-  // Let's return a function that returns the calculated number
+  // This hook should return a function that calculates the estimation
   const calculateEstimatedSeconds = () => {
     if (!extractedText) return 0;
 
