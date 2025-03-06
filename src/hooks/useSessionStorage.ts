@@ -8,6 +8,8 @@ import { useToast } from './use-toast';
 export const useSessionStorage = () => {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef(true);
+  const hasLoadedRef = useRef(false);
+  const pendingSaveRef = useRef(false);
   const { toast } = useToast();
 
   // Get state from useSessionState
@@ -42,8 +44,8 @@ export const useSessionStorage = () => {
   // Save to session storage with debounce
   const saveSessionState = useCallback(() => {
     // Skip if initial load or loading from storage is in progress
-    if (isInitialLoad.current || isLoadingFromStorage.current || !isInitialized) {
-      console.log('Skipping save because we are loading initial state or loading from storage or not initialized');
+    if (isLoadingFromStorage.current || !isInitialized || !hasLoadedRef.current) {
+      pendingSaveRef.current = true;
       return;
     }
 
@@ -79,6 +81,7 @@ export const useSessionStorage = () => {
         });
         
         console.log('State saved to sessionStorage successfully');
+        pendingSaveRef.current = false;
       } catch (err) {
         console.error('Error saving to sessionStorage:', err);
         
@@ -98,12 +101,22 @@ export const useSessionStorage = () => {
     chapters,
     detectedLanguage,
     conversionInProgress,
-    isInitialLoad,
     isLoadingFromStorage,
     lastSavedState,
     isInitialized,
     toast
   ]);
+
+  // Set loaded flag after component is mounted and initialized
+  useEffect(() => {
+    if (isInitialized && !hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      // If there was a pending save, do it now
+      if (pendingSaveRef.current) {
+        saveSessionState();
+      }
+    }
+  }, [isInitialized, saveSessionState]);
 
   // Set up cleanup on unmount
   useEffect(() => {
@@ -117,7 +130,7 @@ export const useSessionStorage = () => {
 
   // Save state when any relevant state changes
   useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && hasLoadedRef.current) {
       saveSessionState();
     }
   }, [

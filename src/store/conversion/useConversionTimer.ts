@@ -12,8 +12,20 @@ export const useConversionTimer = () => {
   
   // Store timer ID in a ref to avoid it being part of dependency array
   const timerRef = React.useRef<number>();
+  // Use a ref to track previous values to prevent unnecessary effect triggers
+  const prevStatusRef = React.useRef(status);
+  const prevStartTimeRef = React.useRef(startTime);
   
   React.useEffect(() => {
+    // Only update if values actually changed to prevent infinite loops
+    if (status === prevStatusRef.current && startTime === prevStartTimeRef.current) {
+      return;
+    }
+    
+    // Update ref values
+    prevStatusRef.current = status;
+    prevStartTimeRef.current = startTime;
+    
     // Clear any existing timer first to prevent duplicates
     if (timerRef.current) {
       window.clearInterval(timerRef.current);

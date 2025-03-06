@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 export const useAudioState = () => {
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
@@ -11,10 +11,21 @@ export const useAudioState = () => {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [conversionStartTime, setConversionStartTime] = useState<number | undefined>(undefined);
 
-  // Wrap setState functions in useCallback to maintain stable references
+  // Use refs to track previous values to prevent unnecessary state updates
+  const prevConversionStatus = useRef(conversionStatus);
+  const prevProgress = useRef(progress);
+  const prevAudioData = useRef(audioData);
+  const prevAudioDuration = useRef(audioDuration);
+  const prevConversionId = useRef(conversionId);
+  const prevCurrentFileName = useRef(currentFileName);
+  const prevElapsedTime = useRef(elapsedTime);
+  const prevConversionStartTime = useRef(conversionStartTime);
+
+  // Wrap setState functions in useCallback to maintain stable references and prevent unnecessary updates
   const setConversionStatusStable = useCallback((status: 'idle' | 'converting' | 'completed' | 'error') => {
     setConversionStatus(prev => {
       if (prev === status) return prev;
+      prevConversionStatus.current = status;
       return status;
     });
   }, []);
@@ -22,50 +33,45 @@ export const useAudioState = () => {
   const setProgressStable = useCallback((newProgress: number) => {
     setProgress(prev => {
       if (prev === newProgress) return prev;
+      prevProgress.current = newProgress;
       return newProgress;
     });
   }, []);
 
   const setAudioDataStable = useCallback((data: ArrayBuffer | null) => {
-    setAudioData(prev => {
-      if (prev === data) return prev;
-      return data;
-    });
+    if (data === prevAudioData.current) return;
+    prevAudioData.current = data;
+    setAudioData(data);
   }, []);
 
   const setAudioDurationStable = useCallback((duration: number) => {
-    setAudioDuration(prev => {
-      if (prev === duration) return prev;
-      return duration;
-    });
+    if (duration === prevAudioDuration.current) return;
+    prevAudioDuration.current = duration;
+    setAudioDuration(duration);
   }, []);
 
   const setConversionIdStable = useCallback((id: string | null) => {
-    setConversionId(prev => {
-      if (prev === id) return prev;
-      return id;
-    });
+    if (id === prevConversionId.current) return;
+    prevConversionId.current = id;
+    setConversionId(id);
   }, []);
 
   const setCurrentFileNameStable = useCallback((fileName: string | null) => {
-    setCurrentFileName(prev => {
-      if (prev === fileName) return prev;
-      return fileName;
-    });
+    if (fileName === prevCurrentFileName.current) return;
+    prevCurrentFileName.current = fileName;
+    setCurrentFileName(fileName);
   }, []);
 
   const setElapsedTimeStable = useCallback((time: number) => {
-    setElapsedTime(prev => {
-      if (prev === time) return prev;
-      return time;
-    });
+    if (time === prevElapsedTime.current) return;
+    prevElapsedTime.current = time;
+    setElapsedTime(time);
   }, []);
 
   const setConversionStartTimeStable = useCallback((time: number | undefined) => {
-    setConversionStartTime(prev => {
-      if (prev === time) return prev;
-      return time;
-    });
+    if (time === prevConversionStartTime.current) return;
+    prevConversionStartTime.current = time;
+    setConversionStartTime(time);
   }, []);
 
   return {

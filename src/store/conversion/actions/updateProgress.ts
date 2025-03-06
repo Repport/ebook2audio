@@ -1,4 +1,3 @@
-
 import { ConversionState } from '../types';
 import { calculateTimeRemaining } from '../utils';
 import { ChunkProgressData } from '@/services/conversion/types/chunks';
@@ -8,8 +7,11 @@ export const updateProgressAction = (
   get: () => any,
   LoggingService: any
 ) => {
+  // Keep track of last update state to prevent redundant updates
+  let lastUpdateHash = '';
+
   const updateProgress = (data: ChunkProgressData) => {
-    // Obtener estado actual
+    // Get current state
     const state = get();
     
     // If status is completed or error, don't update progress to avoid loops
@@ -18,7 +20,7 @@ export const updateProgressAction = (
       return;
     }
     
-    // Log data ANTES de cualquier validación para debug
+    // Log data for debugging
     console.log(`ConversionStore [RAW]: Progress update received:`, {
       rawData: JSON.stringify(data),
       currentStatus: state.status
@@ -28,7 +30,7 @@ export const updateProgressAction = (
     const uniqueErrors = new Set<string>(state.errors);
     const uniqueWarnings = new Set<string>(state.warnings);
     
-    // Manejar errores y advertencias
+    // Handle errors and warnings
     if (data.error && typeof data.error === 'string' && data.error.trim() !== '') {
       uniqueErrors.add(data.error);
     }
@@ -37,7 +39,7 @@ export const updateProgressAction = (
       uniqueWarnings.add(data.warning);
     }
     
-    // VALIDACIONES CRÍTICAS: verificar que tenemos todos los datos necesarios
+    // Critical validations: check that we have all necessary data
     const hasValidChunksData = typeof data.processedChunks === 'number' && 
                               typeof data.totalChunks === 'number' && 
                               data.totalChunks > 0;
@@ -50,19 +52,19 @@ export const updateProgressAction = (
                                !isNaN(data.progress) && 
                                data.progress >= 0;
     
-    // Si no hay datos válidos pero no es un error, hacemos log pero continuamos
+    // If no valid data and not an error, log but continue
     if (!hasValidChunksData && !hasValidCharData && !hasExplicitProgress && !data.error) {
       console.warn('ConversionStore: Received update with insufficient data:', data);
       
-      // Si no hay datos pero tenemos isCompleted, podemos procesar el evento final
+      // If no data but we have isCompleted, we can process the final event
       if (data.isCompleted !== true) {
-        return; // Ignoramos actualizaciones sin datos suficientes
+        return; // Ignore updates with insufficient data
       }
     }
     
-    // RESOLUCIÓN DE DATOS: priorizar los datos nuevos, pero mantener los existentes si no hay nuevos
+    // Data resolution: prioritize new data, but keep existing if no new data
     
-    // 1. Datos de chunks
+    // 1. Chunk data
     const updatedChunks = {
       processed: hasValidChunksData ? data.processedChunks : state.chunks.processed,
       total: hasValidChunksData ? data.totalChunks : state.chunks.total,
@@ -70,40 +72,40 @@ export const updateProgressAction = (
       totalCharacters: hasValidCharData ? data.totalCharacters : state.chunks.totalCharacters
     };
     
-    // 2. Calcular el progreso - usar la estrategia más fiable disponible
+    // 2. Calculate progress - use the most reliable strategy available
     let newProgress = state.progress;
     let progressSource = 'existing';
     
-    // Prioridad 1: Progreso explícito
+    // Priority 1: Explicit progress
     if (hasExplicitProgress) {
       newProgress = Math.min(99, data.progress);
       progressSource = 'explicit';
     } 
-    // Prioridad 2: Cálculo basado en caracteres procesados
+    // Priority 2: Calculation based on processed characters
     else if (hasValidCharData && updatedChunks.totalCharacters > 0) {
       const calculatedProgress = Math.round((updatedChunks.processedCharacters / updatedChunks.totalCharacters) * 100);
       newProgress = Math.min(99, calculatedProgress);
       progressSource = 'characters';
     }
-    // Prioridad 3: Cálculo basado en chunks procesados
+    // Priority 3: Calculation based on processed chunks
     else if (hasValidChunksData && updatedChunks.total > 0) {
       const calculatedProgress = Math.round((updatedChunks.processed / updatedChunks.total) * 100);
       newProgress = Math.min(99, calculatedProgress);
       progressSource = 'chunks';
     }
     
-    // Asegurar que el progreso siempre avance (nunca retroceda)
-    // Excepción: si hay un cambio muy grande (>10%), aceptarlo (podría ser una corrección)
+    // Ensure progress always advances (never regresses)
+    // Exception: if there's a large change (>10%), accept it (could be a correction)
     if (newProgress < state.progress && Math.abs(newProgress - state.progress) < 10 && !data.isCompleted) {
       console.log(`ConversionStore: Progress regression detected (${newProgress}% < ${state.progress}%), keeping current progress`);
       newProgress = state.progress;
     }
     
-    // Verificar si la conversión está completa
+    // Check if conversion is complete
     const isComplete = data.isCompleted === true || newProgress >= 100;
     const finalProgress = isComplete ? 100 : newProgress;
     
-    // Calcular tiempo restante si no está completado
+    // Calculate remaining time if not completed
     let timeRemaining = state.time.remaining;
     
     if (!isComplete && state.time.elapsed > 5 && newProgress > 5) {
@@ -114,7 +116,7 @@ export const updateProgressAction = (
       );
     }
     
-    // Verificar chunks faltantes si estamos completando
+    // Check for missing chunks if completing
     if (hasValidChunksData && 
         updatedChunks.processed < updatedChunks.total && 
         data.isCompleted === true) {
@@ -135,19 +137,18 @@ export const updateProgressAction = (
       warnings: Array.from(uniqueWarnings)
     };
     
+    // Generate a hash of the new state to detect changes
+    const newStateHash = `${updateObject.status}-${updateObject.progress}-${updatedChunks.processed}/${updatedChunks.total}-${updatedChunks.processedCharacters}/${updatedChunks.totalCharacters}-${uniqueErrors.size}-${uniqueWarnings.size}`;
+    
     // Skip update if nothing has changed
-    const hasStateChanged = state.progress !== finalProgress || 
-                            state.status !== updateObject.status ||
-                            state.chunks.processed !== updatedChunks.processed ||
-                            state.errors.length !== uniqueErrors.size ||
-                            state.warnings.length !== uniqueWarnings.size;
-                            
-    if (!hasStateChanged) {
+    if (newStateHash === lastUpdateHash) {
       console.log('ConversionStore: Skipping update as state has not changed');
       return;
     }
     
-    // Log update summary para verificación
+    lastUpdateHash = newStateHash;
+    
+    // Log update summary for verification
     console.log(`ConversionStore: Updating progress: ${finalProgress}% (source: ${progressSource})`, {
       oldProgress: state.progress,
       oldChunks: `${state.chunks.processed}/${state.chunks.total}`,
@@ -157,10 +158,10 @@ export const updateProgressAction = (
       isComplete
     });
     
-    // Aplicar la actualización con los nuevos datos validados
+    // Apply the update with the validated new data
     set(updateObject);
     
-    // Si necesitamos debugging adicional, logs de sistema
+    // Additional debugging logs for significant updates
     if (isComplete || progressSource === 'characters' || progressSource === 'chunks') {
       LoggingService.debug('conversion', {
         message: 'Actualización significativa del progreso de conversión',

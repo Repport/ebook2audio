@@ -1,13 +1,14 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStats } from './useStats';
 import { useLogs } from './useLogs';
 import { useErrorLogs } from './useErrorLogs';
 import { usePerformanceMetrics } from './usePerformanceMetrics';
-import { MonitoringData } from './types';
+import { MonitoringData } from '../types';
 
 export function useMonitoringData(): MonitoringData {
   const [activeTab, setActiveTab] = useState("overview");
+  const isInitialMount = useRef(true);
   
   const { stats, isLoading: statsLoading, loadStats } = useStats();
   const { logs, isLoading: logsLoading, loadLogs, clearLogs } = useLogs();
@@ -19,6 +20,11 @@ export function useMonitoringData(): MonitoringData {
 
   // Use useCallback to prevent function recreation on every render
   const loadTabData = useCallback(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    
     switch (activeTab) {
       case "overview":
         loadStats();
@@ -36,10 +42,9 @@ export function useMonitoringData(): MonitoringData {
     }
   }, [activeTab, loadStats, loadLogs, loadErrorLogs, loadPerformanceMetrics]);
 
-  // Only load data when the tab changes
+  // Only load data when the tab changes, not on every render
   useEffect(() => {
     loadTabData();
-    // The effect dependency includes only what's needed
   }, [activeTab, loadTabData]);
 
   return {

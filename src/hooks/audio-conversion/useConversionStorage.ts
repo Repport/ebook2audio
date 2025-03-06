@@ -20,6 +20,8 @@ export const useConversionStorage = () => {
   const saveTimerRef = useRef<number | null>(null);
   // Flag to track if the hook is mounted
   const isMounted = useRef(true);
+  // Flag to track initial mount
+  const isInitialLoad = useRef(true);
 
   // Create a safe version of the store state
   const createStorageState = useCallback((state: any) => {
@@ -48,8 +50,8 @@ export const useConversionStorage = () => {
 
   // Function to save the state with debounce
   const saveStateWithDebounce = useCallback((state: any) => {
-    // Skip saving if we're currently loading state or component is unmounted
-    if (isLoadingState.current || !isMounted.current) {
+    // Skip saving if we're currently loading state, component is unmounted, or on initial load
+    if (isLoadingState.current || !isMounted.current || isInitialLoad.current) {
       return;
     }
     
@@ -92,6 +94,7 @@ export const useConversionStorage = () => {
         if (!savedState || !isMounted.current) {
           console.log('No saved conversion state found or component unmounted');
           isLoadingState.current = false;
+          isInitialLoad.current = false;
           return;
         }
 
@@ -125,6 +128,7 @@ export const useConversionStorage = () => {
         // Only clear loading flag if component is still mounted
         if (isMounted.current) {
           isLoadingState.current = false;
+          isInitialLoad.current = false;
         }
       }
     };
@@ -148,6 +152,11 @@ export const useConversionStorage = () => {
     
     // Subscribe to store changes
     const unsubscribe = useConversionStore.subscribe(handleStateChange);
+    
+    // After the first subscription, mark initial load as complete
+    setTimeout(() => {
+      isInitialLoad.current = false;
+    }, 500);
     
     return () => {
       // Set mounted flag to false
