@@ -1,5 +1,5 @@
 
-import React, { useEffect, memo } from 'react';
+import React, { useEffect, memo, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import FileUploadZone from '@/components/FileUploadZone';
 import FileProcessor from '@/components/FileProcessor';
@@ -27,6 +27,8 @@ const MainContent = memo(({
   onNextStep,
   onPreviousStep
 }: MainContentProps) => {
+  
+  // Only log when dependencies actually change to avoid excessive re-renders
   useEffect(() => {
     console.log('MainContent rendered with:', {
       currentStep,
@@ -35,7 +37,44 @@ const MainContent = memo(({
       chaptersCount: chapters?.length || 0,
       language: detectedLanguage
     });
-  }, [currentStep, selectedFile, extractedText, chapters, detectedLanguage]);
+  }, [
+    currentStep, 
+    selectedFile ? selectedFile.name : null, 
+    extractedText?.length, 
+    chapters?.length, 
+    detectedLanguage
+  ]);
+
+  // Memoize the onStepComplete handler to prevent unnecessary re-renders
+  const handleStepComplete = useMemo(() => {
+    return () => {
+      console.log('FileProcessor completed step, advancing to next step');
+      onNextStep();
+    };
+  }, [onNextStep]);
+
+  // Memoize the FileProcessor props to prevent re-renders
+  const fileProcessorProps = useMemo(() => ({
+    onFileSelect,
+    selectedFile,
+    extractedText,
+    chapters,
+    detectedLanguage,
+    onStepComplete: handleStepComplete,
+    currentStep,
+    onNextStep,
+    onPreviousStep
+  }), [
+    onFileSelect,
+    selectedFile,
+    extractedText,
+    chapters,
+    detectedLanguage,
+    handleStepComplete,
+    currentStep,
+    onNextStep,
+    onPreviousStep
+  ]);
 
   return (
     <Card className="p-6 shadow-lg mb-10">
@@ -47,20 +86,7 @@ const MainContent = memo(({
 
       {currentStep >= 2 && selectedFile && (
         <div className="animate-fade-up">
-          <FileProcessor
-            onFileSelect={onFileSelect}
-            selectedFile={selectedFile}
-            extractedText={extractedText}
-            chapters={chapters}
-            detectedLanguage={detectedLanguage}
-            onStepComplete={() => {
-              console.log('FileProcessor completed step, advancing to next step');
-              onNextStep();
-            }}
-            currentStep={currentStep}
-            onNextStep={onNextStep}
-            onPreviousStep={onPreviousStep}
-          />
+          <FileProcessor {...fileProcessorProps} />
         </div>
       )}
     </Card>

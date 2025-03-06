@@ -13,27 +13,30 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import CookieConsent from "@/components/CookieConsent"
 import { LanguageProvider } from "@/hooks/useLanguage";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 function App() {
   return (
-    <BrowserRouter>
-      <LanguageProvider>
-        <ThemeProvider>
-          <Toaster />
-          <CookieConsent />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/conversions" element={<Conversions />} />
-            <Route path="/monitoring" element={<Monitoring />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/cookie-policy" element={<CookiePolicy />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </ThemeProvider>
-      </LanguageProvider>
-    </BrowserRouter>
+    <ErrorBoundary componentName="App">
+      <BrowserRouter>
+        <LanguageProvider>
+          <ThemeProvider>
+            <Toaster />
+            <CookieConsent />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/conversions" element={<Conversions />} />
+              <Route path="/monitoring" element={<Monitoring />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/cookie-policy" element={<CookiePolicy />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ThemeProvider>
+        </LanguageProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

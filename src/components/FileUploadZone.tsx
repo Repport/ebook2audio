@@ -1,5 +1,5 @@
 
-import React, { useEffect, memo } from 'react';
+import React, { useEffect, memo, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Chapter } from '@/utils/textExtraction';
 import { useFileUpload } from '@/hooks/useFileUpload';
@@ -23,6 +23,7 @@ const FileUploadZone = memo(({ onFileSelect }: FileUploadZoneProps) => {
     handleContinue
   } = useFileUpload(onFileSelect);
 
+  // Only log on mount and when dependencies actually change
   useEffect(() => {
     console.log('FileUploadZone rendered with:', {
       hasFile: !!selectedFile,
@@ -30,7 +31,12 @@ const FileUploadZone = memo(({ onFileSelect }: FileUploadZoneProps) => {
       language: processedLanguage,
       chaptersCount: processedChapters?.length || 0
     });
-  }, [selectedFile, processedText, processedLanguage, processedChapters]);
+  }, [
+    selectedFile ? selectedFile.name : null, 
+    processedText?.length, 
+    processedLanguage, 
+    processedChapters?.length
+  ]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleFileDrop,

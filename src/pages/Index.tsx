@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import StepsProgressBar from '@/components/steps/StepsProgressBar';
@@ -38,17 +38,21 @@ const Index = () => {
     }
 
     try {
-      // Batch update for related state to reduce renders
-      setSelectedFile(fileInfo.file);
-      setExtractedText(fileInfo.text || '');
-      setChapters(fileInfo.chapters || []);
-      setDetectedLanguage(fileInfo.language || 'english');
+      // Batch state updates to reduce renders
+      const updatesPromise = Promise.all([
+        setSelectedFile(fileInfo.file),
+        setExtractedText(fileInfo.text || ''),
+        setChapters(fileInfo.chapters || []),
+        setDetectedLanguage(fileInfo.language || 'english')
+      ]);
+      
+      await updatesPromise;
       
       // Only update step after other state is set
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         setCurrentStep(2);
         console.log('Index - Setting detected language:', fileInfo.language);
-      }, 0);
+      });
     } catch (error) {
       console.error('Error handling file selection:', error);
       toast({
@@ -61,20 +65,15 @@ const Index = () => {
 
   const goToNextStep = useCallback(() => {
     if (currentStep < conversionSteps.length) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep(prev => Math.min(prev + 1, conversionSteps.length));
     }
   }, [currentStep, setCurrentStep]);
 
   const goToPreviousStep = useCallback(() => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep(prev => Math.max(prev - 1, 1));
     }
   }, [currentStep, setCurrentStep]);
-
-  // Add initialization state logging
-  useEffect(() => {
-    console.log('Index component - Initialization state:', isInitialized);
-  }, [isInitialized]);
 
   const handleErrorReset = useCallback(() => {
     // Reset application state in case of error
@@ -88,6 +87,27 @@ const Index = () => {
       variant: "default",
     });
   }, [setCurrentStep, setSelectedFile, setExtractedText, setChapters, toast]);
+
+  // Memoized MainContent props to prevent unnecessary re-renders
+  const mainContentProps = useMemo(() => ({
+    currentStep,
+    selectedFile,
+    extractedText,
+    chapters,
+    detectedLanguage,
+    onFileSelect: handleFileSelect,
+    onNextStep: goToNextStep,
+    onPreviousStep: goToPreviousStep
+  }), [
+    currentStep, 
+    selectedFile, 
+    extractedText, 
+    chapters, 
+    detectedLanguage, 
+    handleFileSelect, 
+    goToNextStep, 
+    goToPreviousStep
+  ]);
 
   // Show loading spinner if not initialized
   if (!isInitialized) {
@@ -117,16 +137,7 @@ const Index = () => {
             componentName="MainContent" 
             onReset={handleErrorReset}
           >
-            <MainContent 
-              currentStep={currentStep}
-              selectedFile={selectedFile}
-              extractedText={extractedText}
-              chapters={chapters}
-              detectedLanguage={detectedLanguage}
-              onFileSelect={handleFileSelect}
-              onNextStep={goToNextStep}
-              onPreviousStep={goToPreviousStep}
-            />
+            <MainContent {...mainContentProps} />
           </ErrorBoundary>
         </div>
       </main>
