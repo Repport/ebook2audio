@@ -46,5 +46,21 @@ export const errorWarningActions = (
     });
   };
 
-  return { setError, setWarning };
+  // Limpiar errores
+  const clearErrors = () => {
+    console.log('ConversionStore: Clearing all errors');
+    set({
+      errors: []
+    });
+  };
+  
+  // Limpiar advertencias
+  const clearWarnings = () => {
+    console.log('ConversionStore: Clearing all warnings');
+    set({
+      warnings: []
+    });
+  };
+
+  return { setError, setWarning, clearErrors, clearWarnings };
 };

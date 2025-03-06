@@ -22,6 +22,8 @@ export const useConversionProgress = (conversionId: string | null) => {
       return;
     }
     
+    console.log(`useConversionProgress - Setting up for conversionId: ${conversionId}`);
+    
     // Actualizar la referencia
     prevConversionIdRef.current = conversionId;
     
@@ -47,18 +49,22 @@ export const useConversionProgress = (conversionId: string | null) => {
       try {
         const progress = await getConversionProgress(conversionId);
         if (progress) {
+          console.log('Initial progress data:', progress);
           updateProgress(progress);
           
           // Si el progreso muestra completado o error, actualizar el store
           if (progress.isCompleted && !completionCalledRef.current) {
+            console.log('Marking conversion as completed from initial progress check');
             completionCalledRef.current = true;
             completeConversion(null, conversionId, progress.totalCharacters / 15);
           } else if (progress.error) {
+            console.log('Setting error from initial progress check:', progress.error);
             setError(progress.error);
           }
         }
       } catch (error) {
         console.error('Error fetching initial progress:', error);
+        setError('Error al obtener el progreso inicial: ' + (error as Error).message);
       }
     };
     
@@ -78,6 +84,7 @@ export const useConversionProgress = (conversionId: string | null) => {
       
       // Solo completar la conversión una vez por suscripción
       if (progressData.isCompleted && !completionCalledRef.current) {
+        console.log('Marking conversion as completed from real-time update');
         completionCalledRef.current = true;
         completeConversion(null, conversionId, progressData.totalCharacters / 15);
       } else if (progressData.error) {

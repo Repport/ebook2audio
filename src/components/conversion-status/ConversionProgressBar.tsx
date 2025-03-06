@@ -47,6 +47,13 @@ const ConversionProgressBar = ({
     }
   }, [status]);
   
+  console.log('ConversionProgressBar rendering with:', {
+    progress,
+    status,
+    progressStatus,
+    errorsCount: errors.length
+  });
+  
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center mb-1">

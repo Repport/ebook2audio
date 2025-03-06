@@ -20,6 +20,11 @@ const Progress = React.memo(React.forwardRef<
     animationDuration: 300
   });
 
+  // Log cuando cambie el estado o el valor
+  React.useEffect(() => {
+    console.log(`Progress component: status=${status}, value=${value}, displayValue=${displayValue}`);
+  }, [status, value, displayValue]);
+
   // Define status-based styling
   const statusClasses = {
     idle: "bg-primary",
