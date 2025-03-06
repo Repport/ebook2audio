@@ -20,11 +20,11 @@ const DropZone = ({ getRootProps, getInputProps, isDragActive }: CustomDropZoneP
         <input {...getInputProps()} />
         <div className="flex flex-col items-center justify-center text-center">
           <Upload className="w-12 h-12 mb-4 text-gray-400" />
-          <p className="mb-2 text-lg font-medium text-gray-900">
+          <p className="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
             {isDragActive ? 'Drop the file here' : 'Drag & drop your EPUB or PDF file here'}
           </p>
-          <p className="text-sm text-gray-500">or click to select a file</p>
-          <p className="mt-2 text-xs text-gray-400">Maximum file size: 100MB</p>
+          <p className="text-sm text-gray-500 dark:text-gray-300">or click to select a file</p>
+          <p className="mt-2 text-xs text-gray-400 dark:text-gray-400">Maximum file size: 100MB</p>
         </div>
       </div>
     </div>

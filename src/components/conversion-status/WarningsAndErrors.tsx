@@ -13,10 +13,12 @@ interface WarningsAndErrorsProps {
 const WarningsAndErrors = ({ warnings, errors, isConverting, expanded = false }: WarningsAndErrorsProps) => {
   const [isExpanded, setIsExpanded] = useState(expanded);
   
-  // Update expanded state when prop changes
+  // Update expanded state when prop changes or when errors are added
   useEffect(() => {
-    setIsExpanded(expanded);
-  }, [expanded]);
+    if (expanded || errors.length > 0) {
+      setIsExpanded(true);
+    }
+  }, [expanded, errors.length]);
   
   // Don't render if there are no warnings or errors, or if not converting
   if ((warnings.length === 0 && errors.length === 0) || !isConverting) {
@@ -34,7 +36,7 @@ const WarningsAndErrors = ({ warnings, errors, isConverting, expanded = false }:
       type="single" 
       collapsible 
       className="w-full"
-      defaultValue={expanded ? "integrity-warnings" : undefined}
+      defaultValue={isExpanded ? "integrity-warnings" : undefined}
       value={isExpanded ? "integrity-warnings" : undefined}
       onValueChange={(value) => setIsExpanded(!!value)}
     >
@@ -52,14 +54,14 @@ const WarningsAndErrors = ({ warnings, errors, isConverting, expanded = false }:
             {errors.map((error, index) => (
               <div key={`error-${index}`} className="flex items-start p-2 bg-red-50 dark:bg-red-950 rounded-md">
                 <X className="w-4 h-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-                <span>{error}</span>
+                <span className="text-red-800 dark:text-red-200">{error}</span>
               </div>
             ))}
             
             {warnings.map((warning, index) => (
               <div key={`warning-${index}`} className="flex items-start p-2 bg-amber-50 dark:bg-amber-950 rounded-md">
                 <AlertTriangle className="w-4 h-4 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-                <span>{warning}</span>
+                <span className="text-amber-800 dark:text-amber-200">{warning}</span>
               </div>
             ))}
           </div>

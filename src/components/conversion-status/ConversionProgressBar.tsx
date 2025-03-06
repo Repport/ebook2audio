@@ -51,7 +51,9 @@ const ConversionProgressBar = ({
     progress,
     status,
     progressStatus,
-    errorsCount: errors.length
+    errorsCount: errors.length,
+    timeElapsed: time.elapsed,
+    timeRemaining: time.remaining
   });
   
   return (

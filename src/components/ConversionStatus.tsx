@@ -52,17 +52,34 @@ const ConversionStatus = React.memo(({
   
   // Determinar qué estado usar - preferir el estado del store si no está inactivo
   const effectiveStatus = useMemo(() => {
-    return (storeStatus !== 'idle') ? storeStatus : externalStatus;
+    if (storeStatus !== 'idle') return storeStatus;
+    // Map external "completed" to "success" for internal consistency
+    if (externalStatus === 'completed') return 'success';
+    return externalStatus;
   }, [storeStatus, externalStatus]);
 
   // Mensajes de estado (sin referencia al tipo de archivo)
   const statusMessages = useMemo(() => ({
     idle: translations.readyToConvert || "Ready to convert",
     converting: translations.converting?.replace('{fileType}', '') || "Converting...",
+    success: translations.conversionCompleted || "Conversion completed",
     completed: translations.conversionCompleted || "Conversion completed",
     error: translations.conversionError || "Conversion error",
     processing: translations.converting?.replace('{fileType}', '') || "Processing..."
   }), [translations]);
+
+  // Log debugging information
+  React.useEffect(() => {
+    console.log('ConversionStatus component:', {
+      externalStatus,
+      storeStatus,
+      effectiveStatus,
+      progress: storeProgress,
+      isSubscribed,
+      errors: storeErrors.length,
+      warnings: storeWarnings.length
+    });
+  }, [externalStatus, storeStatus, effectiveStatus, storeProgress, isSubscribed, storeErrors, storeWarnings]);
 
   // Devolver el componente apropiado según el estado
   if (effectiveStatus === 'converting' || effectiveStatus === 'processing') {
@@ -70,7 +87,7 @@ const ConversionStatus = React.memo(({
              showPercentage={showPercentage}
              message={statusMessages[effectiveStatus]} 
            />;
-  } else if (effectiveStatus === 'completed') {
+  } else if (effectiveStatus === 'completed' || effectiveStatus === 'success') {
     return (
       <ConversionStatusCompleted
         message={statusMessages.completed}
