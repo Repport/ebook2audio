@@ -11,14 +11,14 @@ export const createConversionActions = (
   set: (state: Partial<ConversionState>) => void,
   get: () => any
 ): ConversionActions => {
-  // Obtener los creadores de acción individuales y combinarlos
+  // Get action creators
   const startConversion = startConversionAction(set, get, LoggingService);
   const { updateProgress } = updateProgressAction(set, get, LoggingService);
   const { updateElapsedTime } = updateElapsedTimeAction(set, get);
   const { setError, setWarning } = errorWarningActions(set, get, LoggingService);
   const { completeConversion, resetConversion } = completionResetActions(set, get, LoggingService);
 
-  // Devolver las acciones combinadas
+  // Return combined actions
   return {
     startConversion,
     updateProgress,

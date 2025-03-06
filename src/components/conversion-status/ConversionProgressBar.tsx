@@ -32,7 +32,7 @@ const ConversionProgressBar = ({
     if (time.remaining) {
       return formatTimeRemaining(time.remaining);
     } else {
-      return `${Math.floor(time.elapsed)}s`;
+      return formatTimeRemaining(time.elapsed);
     }
   }, [time.elapsed, time.remaining]);
   

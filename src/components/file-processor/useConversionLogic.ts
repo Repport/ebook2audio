@@ -18,7 +18,7 @@ export const useConversionLogic = (
     onStepComplete
   );
   
-  // Get conversion actions - pass the full core object which now implements AudioConversionAPI
+  // Get conversion actions - pass the core object
   const actions = useConversionActions(
     selectedFile,
     extractedText,
@@ -37,8 +37,8 @@ export const useConversionLogic = (
     },
     core.checkTermsAcceptance,
     core.setShowTerms,
-    core.setDetectingChapters,
-    core.detectChapters,
+    () => {}, // Empty setDetectingChapters function
+    false, // No chapters detection
     chapters
   );
   
@@ -50,12 +50,6 @@ export const useConversionLogic = (
     audioDuration: core.audioDuration,
     elapsedTime: core.elapsedTime,
     conversionId: core.conversionId,
-    
-    // Options from core
-    detectChapters: core.detectChapters,
-    setDetectChapters: core.setDetectChapters,
-    detectingChapters: core.detectingChapters,
-    setDetectingChapters: core.setDetectingChapters,
     
     // Terms dialog from core
     showTerms: core.showTerms,

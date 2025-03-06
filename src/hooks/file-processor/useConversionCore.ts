@@ -50,8 +50,6 @@ export const useConversionCore = (
     handleConversion: audioConversion.handleConversion,
     handleDownload: audioConversion.handleDownload,
     
-    // Removed chapter detection options
-    
     // Terms dialog
     showTerms,
     setShowTerms,

@@ -60,7 +60,7 @@ export const useProcessorLogic = ({
     onFileSelect,
     resetConversion,
     conversionStatus,
-    detectingChapters: false, // Removed chapter detection
+    detectingChapters: false,
     isProcessingNextStep
   });
 
@@ -74,8 +74,8 @@ export const useProcessorLogic = ({
     selectedVoice,
     isProcessingNextStep,
     setIsProcessingNextStep,
-    detectingChapters: false, // Removed chapter detection
-    setDetectChapters: () => {}, // Empty function
+    detectingChapters: false,
+    setDetectChapters: () => {},
     onNextStep,
     showTerms,
     setShowTerms,
@@ -100,9 +100,9 @@ export const useProcessorLogic = ({
     
     // Conversion logic
     conversionLogic,
-    detectChapters: false, // Removed chapter detection
-    setDetectChapters: () => {}, // Empty function
-    detectingChapters: false, // Removed chapter detection
+    detectChapters: false,
+    setDetectChapters: () => {},
+    detectingChapters: false,
     showTerms,
     setShowTerms,
     

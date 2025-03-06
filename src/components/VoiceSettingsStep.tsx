@@ -57,8 +57,6 @@ const VoiceSettingsStep = ({
           />
 
           <div className="space-y-4 mt-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
-            {/* Removed chapter detection toggle */}
-
             {user && (
               <div className="flex items-center justify-between">
                 <div>
