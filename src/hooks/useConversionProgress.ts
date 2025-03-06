@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { subscribeToProgress, getConversionProgress } from '@/services/conversion/progressService';
-import { ChunkProgressData } from '@/services/conversion/types/chunks';
 
 export const useConversionProgress = (conversionId: string | null) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -10,35 +9,32 @@ export const useConversionProgress = (conversionId: string | null) => {
   const setError = useConversionStore(state => state.setError);
   const completeConversion = useConversionStore(state => state.completeConversion);
   
-  // Track if completion has been called for this conversion
+  // Referencias para manejo de estado
   const completionCalledRef = useRef(false);
-  // Track current subscription for cleanup
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
-  // Track previous conversion ID to detect changes
   const prevConversionIdRef = useRef<string | null>(null);
-  // Track last update time for throttling
   const lastUpdateTimeRef = useRef(0);
-  const UPDATE_THROTTLE_MS = 150;
+  const UPDATE_THROTTLE_MS = 300; // Incrementado para reducir actualizaciones
   
   useEffect(() => {
-    // Skip if conversionId is the same as before
+    // Evitar efecto si conversionId no ha cambiado
     if (conversionId === prevConversionIdRef.current) {
       return;
     }
     
-    // Update the reference
+    // Actualizar la referencia
     prevConversionIdRef.current = conversionId;
     
-    // Reset completion flag when conversion ID changes
+    // Reiniciar bandera de finalización cuando cambia el ID de conversión
     completionCalledRef.current = false;
     
-    // Clean up previous subscription
+    // Limpiar suscripción anterior
     if (subscriptionRef.current) {
       subscriptionRef.current.unsubscribe();
       subscriptionRef.current = null;
     }
     
-    // If no conversion ID, exit early
+    // Si no hay ID de conversión, salir temprano
     if (!conversionId) {
       setIsSubscribed(false);
       return;
@@ -46,14 +42,14 @@ export const useConversionProgress = (conversionId: string | null) => {
     
     console.log(`Setting up progress subscription for ${conversionId}`);
     
-    // Get initial progress
+    // Obtener progreso inicial
     const fetchInitialProgress = async () => {
       try {
         const progress = await getConversionProgress(conversionId);
         if (progress) {
           updateProgress(progress);
           
-          // If the progress shows completed or error, update the store accordingly
+          // Si el progreso muestra completado o error, actualizar el store
           if (progress.isCompleted && !completionCalledRef.current) {
             completionCalledRef.current = true;
             completeConversion(null, conversionId, progress.totalCharacters / 15);
@@ -68,8 +64,8 @@ export const useConversionProgress = (conversionId: string | null) => {
     
     fetchInitialProgress();
     
-    // Process updates with throttling
-    const processUpdate = (progressData: ChunkProgressData) => {
+    // Procesar actualizaciones con limitación de frecuencia
+    const processUpdate = (progressData: any) => {
       const now = Date.now();
       if (now - lastUpdateTimeRef.current < UPDATE_THROTTLE_MS) {
         return;
@@ -79,7 +75,7 @@ export const useConversionProgress = (conversionId: string | null) => {
       
       updateProgress(progressData);
       
-      // Only complete conversion once per subscription
+      // Solo completar la conversión una vez por suscripción
       if (progressData.isCompleted && !completionCalledRef.current) {
         completionCalledRef.current = true;
         completeConversion(null, conversionId, progressData.totalCharacters / 15);
@@ -88,10 +84,10 @@ export const useConversionProgress = (conversionId: string | null) => {
       }
     };
     
-    // Subscribe to real-time updates
+    // Suscribirse a actualizaciones en tiempo real
     const subscription = subscribeToProgress(conversionId, processUpdate);
     
-    // Store subscription for cleanup
+    // Almacenar suscripción para limpieza
     subscriptionRef.current = subscription;
     setIsSubscribed(true);
     
@@ -103,7 +99,7 @@ export const useConversionProgress = (conversionId: string | null) => {
       }
       setIsSubscribed(false);
     };
-  }, [conversionId, updateProgress, setError, completeConversion]);
+  }, [conversionId]); // ¡Importante! Eliminar updateProgress, setError y completeConversion del array de dependencias
   
   return { isSubscribed };
 };

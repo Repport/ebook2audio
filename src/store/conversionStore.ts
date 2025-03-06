@@ -2,17 +2,17 @@
 import { create } from 'zustand';
 import { ConversionStore } from './conversion/types';
 import { initialState } from './conversion/initialState';
-import { createConversionActions } from './conversion/actions';
+import { createConversionActions } from './conversion/actions/createConversionActions';
 
 export { useConversionTimer } from './conversion/useConversionTimer';
 export type { ConversionStatus } from './conversion/types';
 
-// Create store with explicit type annotation
+// Crear store con anotación de tipo explícita
 export const useConversionStore = create<ConversionStore>((set, get) => {
-  // First create all the actions
+  // Primero crear todas las acciones
   const actions = createConversionActions(set, get);
   
-  // Then return the combined state and actions
+  // Luego devolver el estado y las acciones combinadas
   return {
     ...initialState,
     ...actions

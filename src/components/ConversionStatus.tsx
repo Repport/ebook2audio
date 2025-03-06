@@ -1,10 +1,10 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useConversionProgress } from '@/hooks/useConversionProgress';
 
-// Import our components
+// Importar nuestros componentes
 import ConversionStatusIdle from './conversion-status/ConversionStatusIdle';
 import ConversionStatusError from './conversion-status/ConversionStatusError';
 import ConversionStatusCompleted from './conversion-status/ConversionStatusCompleted';
@@ -35,38 +35,28 @@ const ConversionStatus = React.memo(({
 }: ConversionStatusProps) => {
   const { translations } = useLanguage();
   
-  // Read from store, don't update it directly
+  // Leer del store, no actualizarlo directamente
   const storeStatus = useConversionStore(state => state.status);
   const storeProgress = useConversionStore(state => state.progress);
   const storeWarnings = useConversionStore(state => state.warnings);
   const storeErrors = useConversionStore(state => state.errors);
   const storeConversionId = useConversionStore(state => state.conversionId);
   
-  // Use either the prop conversionId or the one from the store
-  const effectiveConversionId = conversionId || storeConversionId;
+  // Usar el conversionId del prop o el del store
+  const effectiveConversionId = useMemo(() => 
+    conversionId || storeConversionId,
+  [conversionId, storeConversionId]);
   
-  // Subscribe to realtime progress updates if we have a conversion ID
+  // Suscribirse a actualizaciones de progreso en tiempo real si tenemos un ID de conversión
   const { isSubscribed } = useConversionProgress(effectiveConversionId);
   
-  // Log subscription status only when it changes
-  const prevIsSubscribedRef = React.useRef(isSubscribed);
-  React.useEffect(() => {
-    if (isSubscribed !== prevIsSubscribedRef.current && effectiveConversionId) {
-      console.log(`Progress subscription status for ${effectiveConversionId}: ${isSubscribed ? 'active' : 'inactive'}`);
-      prevIsSubscribedRef.current = isSubscribed;
-    }
-  }, [effectiveConversionId, isSubscribed]);
-  
-  // ⚠️ Important: The timer should NOT be initialized here
-  // It creates a new timer instance on every render
-  
-  // Determine which status to use - prefer store status if it's not idle
-  const effectiveStatus = React.useMemo(() => {
+  // Determinar qué estado usar - preferir el estado del store si no está inactivo
+  const effectiveStatus = useMemo(() => {
     return (storeStatus !== 'idle') ? storeStatus : externalStatus;
   }, [storeStatus, externalStatus]);
 
-  // Status messages (without reference to file type)
-  const statusMessages = React.useMemo(() => ({
+  // Mensajes de estado (sin referencia al tipo de archivo)
+  const statusMessages = useMemo(() => ({
     idle: translations.readyToConvert || "Ready to convert",
     converting: translations.converting?.replace('{fileType}', '') || "Converting...",
     completed: translations.conversionCompleted || "Conversion completed",
@@ -74,7 +64,7 @@ const ConversionStatus = React.memo(({
     processing: translations.converting?.replace('{fileType}', '') || "Processing..."
   }), [translations]);
 
-  // Return the appropriate component based on status
+  // Devolver el componente apropiado según el estado
   if (effectiveStatus === 'converting' || effectiveStatus === 'processing') {
     return <ConversionProgressBar 
              showPercentage={showPercentage}

@@ -7,6 +7,12 @@ import { useConversionStore } from '@/store/conversionStore';
 import { LoggingService } from '@/utils/loggingService';
 import { updateConversionProgress } from '../progressService';
 
+// Variable global para throttling
+const progressUpdateState = {
+  lastUpdateTime: 0,
+  lastHash: ''
+};
+
 /**
  * Servicio principal para la conversión de texto a audio
  */
@@ -33,33 +39,51 @@ export async function convertTextToAudio(
       throw new Error('El parámetro text debe ser una cadena no vacía');
     }
 
-    // Initialize the store with proper values at the start
+    // Inicializar el store con valores adecuados al inicio
     const store = useConversionStore.getState();
     store.startConversion(null);
     
-    // Log the store initialization
+    // Registrar la inicialización del store
     console.log(`[CONVERSION-${conversionId}] Store initialized:`, {
       status: store.status,
       progress: store.progress,
       chunks: store.chunks
     });
     
-    // Update total character count
+    // Actualizar recuento total de caracteres
     store.updateProgress({
       processedChunks: 0,
       totalChunks: 0,
       processedCharacters: 0,
       totalCharacters: text.length,
       currentChunk: '',
-      progress: 1 // Start with 1% visible
+      progress: 1 // Comenzar con 1% visible
     });
 
-    // Create a wrapper function for the progress callback with real-time updates
+    // Crear una función wrapper para la devolución de llamada de progreso con actualizaciones en tiempo real
     const progressCallback: TextChunkCallback = async (progressData) => {
-      // Log complete data for debugging
-      console.log(`[CONVERSION-${conversionId}] Raw progress data:`, JSON.stringify(progressData));
+      // Aplicar limitación (throttling) a las actualizaciones
+      const now = Date.now();
+      if (now - progressUpdateState.lastUpdateTime < 250) { // 250ms entre actualizaciones
+        return;
+      }
       
-      // Ensure all fields are present
+      // Generar un hash simple de los datos de progreso para evitar actualizaciones repetidas
+      const progressHash = `${progressData.progress}-${progressData.processedChunks}/${progressData.totalChunks}`;
+      if (progressHash === progressUpdateState.lastHash) {
+        return;
+      }
+      
+      progressUpdateState.lastUpdateTime = now;
+      progressUpdateState.lastHash = progressHash;
+      
+      // Registrar datos completos para depuración
+      console.log(`[CONVERSION-${conversionId}] Progress update:`, {
+        progress: `${progressData.progress}%`, 
+        chunks: `${progressData.processedChunks}/${progressData.totalChunks}`
+      });
+      
+      // Asegurar que todos los campos estén presentes
       const validatedData = {
         processedChunks: progressData.processedChunks || 0,
         totalChunks: progressData.totalChunks || 0,
@@ -74,28 +98,19 @@ export async function convertTextToAudio(
         isCompleted: progressData.isCompleted
       };
       
-      // Update the real-time progress in Supabase
+      // Actualizar el progreso en tiempo real en Supabase
       await updateConversionProgress(conversionId, validatedData);
       
-      // Update the store directly to avoid reference problems
+      // Actualizar el store directamente para evitar problemas de referencia
       store.updateProgress(validatedData);
       
-      // Log validated data
-      console.log(`[CONVERSION-${conversionId}] Validated progress update:`, {
-        progress: `${validatedData.progress}%`,
-        chunks: `${validatedData.processedChunks}/${validatedData.totalChunks}`,
-        chars: `${validatedData.processedCharacters}/${validatedData.totalCharacters}`,
-        storeProgress: store.progress,
-        storeStatus: store.status
-      });
-      
-      // Call the original callback if it exists
+      // Llamar a la devolución de llamada original si existe
       if (onProgress) {
         onProgress(validatedData);
       }
     };
     
-    // Initialize the chunk manager with the centralized callback
+    // Inicializar el administrador de fragmentos con la devolución de llamada centralizada
     const chunkManager = new ChunkManager(text, progressCallback);
     
     console.log(`[CONVERSION-${conversionId}] Chunk manager initialized:`, {
@@ -103,7 +118,7 @@ export async function convertTextToAudio(
       totalCharacters: chunkManager.getTotalCharacters()
     });
     
-    // Log to monitoring system
+    // Registrar en el sistema de monitoreo
     await LoggingService.info('conversion', {
       message: 'Started text to audio conversion',
       text_length: text.length,
@@ -111,10 +126,10 @@ export async function convertTextToAudio(
       chunks_count: chunkManager.getTotalChunks()
     }, { entityId: conversionId });
     
-    // Process chunks in parallel
+    // Procesar fragmentos en paralelo
     await processChunksInParallel(chunkManager, voiceId);
     
-    // Integrity check
+    // Verificación de integridad
     const missingChunks = chunkManager.getMissingChunks();
     if (missingChunks.length > 0) {
       console.error(`[CONVERSION-${conversionId}] CRITICAL INTEGRITY ERROR: Missing chunks after all processing attempts: ${missingChunks.join(', ')}`);
@@ -122,11 +137,11 @@ export async function convertTextToAudio(
       throw new Error(`Error crítico de integridad: No se pudieron procesar todos los chunks después de múltiples intentos`);
     }
     
-    // Combine audio buffers
+    // Combinar buffers de audio
     const orderedBuffers = chunkManager.getOrderedBuffers();
     const finalAudioBuffer = combineAudioBuffers(orderedBuffers);
     
-    // Final integrity check
+    // Verificación final de integridad
     if (!finalAudioBuffer || finalAudioBuffer.byteLength === 0) {
       console.error(`[CONVERSION-${conversionId}] CRITICAL: Final audio buffer is empty after all processing`);
       store.setError('Error crítico: El archivo de audio final está vacío después de todos los intentos');
@@ -140,7 +155,7 @@ export async function convertTextToAudio(
       avgSpeed: `${Math.round(text.length / conversionDuration)} chars/sec`
     });
     
-    // Log completion to monitoring system
+    // Registrar finalización en el sistema de monitoreo
     await LoggingService.info('conversion', {
       message: 'Completed text to audio conversion',
       text_length: text.length,
@@ -149,13 +164,13 @@ export async function convertTextToAudio(
       audio_size_bytes: finalAudioBuffer.byteLength
     }, { entityId: conversionId });
     
-    // Notify completion
+    // Notificar finalización
     chunkManager.notifyCompletion();
     
-    // Complete the conversion in the store
-    store.completeConversion(finalAudioBuffer, conversionId, text.length / 15); // Approx 15 chars/second
+    // Completar la conversión en el store
+    store.completeConversion(finalAudioBuffer, conversionId, text.length / 15); // Aprox. 15 caracteres/segundo
     
-    // Log final store state
+    // Registrar estado final del store
     console.log(`[CONVERSION-${conversionId}] Final store state:`, {
       status: store.status,
       progress: store.progress,
@@ -170,7 +185,7 @@ export async function convertTextToAudio(
     const errorTime = Math.round((Date.now() - conversionStartTime) / 1000);
     console.error(`[CONVERSION-${conversionId}] Fatal error after ${errorTime}s:`, error);
     
-    // Log error to monitoring system
+    // Registrar error en el sistema de monitoreo
     await LoggingService.error('conversion', {
       message: error.message || 'Unknown error in conversion',
       error_time_seconds: errorTime,
@@ -178,7 +193,7 @@ export async function convertTextToAudio(
       text_length: text?.length
     }, { entityId: conversionId });
     
-    // Make sure error is reflected in the store
+    // Asegurarse de que el error se refleje en el store
     const store = useConversionStore.getState();
     store.setError(error.message || 'Error desconocido en la conversión');
     

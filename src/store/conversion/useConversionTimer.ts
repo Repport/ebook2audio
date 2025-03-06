@@ -1,67 +1,47 @@
 
-import React from 'react';
+import { useEffect, useRef } from 'react';
 import { useConversionStore } from '../conversionStore';
 
 /**
- * Hook for automatic conversion time updates
+ * Hook para actualizaciones automáticas del tiempo de conversión
  */
 export const useConversionTimer = () => {
   const updateElapsedTime = useConversionStore(state => state.updateElapsedTime);
   const status = useConversionStore(state => state.status);
   const startTime = useConversionStore(state => state.time.startTime);
   
-  // Store timer ID in a ref to avoid it being part of dependency array
-  const timerRef = React.useRef<number | null>(null);
+  // Almacenar el ID del temporizador en una ref para evitar que sea parte del array de dependencias
+  const timerRef = useRef<number | null>(null);
   
-  // Track if the timer is already running to prevent duplicate timers
-  const isRunningRef = React.useRef(false);
+  // Rastrear si el temporizador ya está en ejecución para evitar temporizadores duplicados
+  const isRunningRef = useRef(false);
   
-  // Track previous values to prevent unnecessary effect triggers
-  const prevStatusRef = React.useRef(status);
-  const prevStartTimeRef = React.useRef(startTime);
-  
-  React.useEffect(() => {
-    // Only run effect if relevant values changed
-    const statusChanged = prevStatusRef.current !== status;
-    const startTimeChanged = prevStartTimeRef.current !== startTime;
+  useEffect(() => {
+    // Solo iniciar el temporizador si estamos en un estado activo y tenemos startTime
+    const isActiveConversion = (status === 'converting' || status === 'processing');
     
-    if (!statusChanged && !startTimeChanged && timerRef.current !== null) {
-      return; // Skip if nothing relevant changed and timer exists
-    }
-    
-    // Update previous values
-    prevStatusRef.current = status;
-    prevStartTimeRef.current = startTime;
-    
-    // Clear any existing timer
+    // Limpiar cualquier temporizador existente primero
     if (timerRef.current !== null) {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
       isRunningRef.current = false;
     }
     
-    // Only start a new timer if we're in an active conversion state and have a startTime
-    const isActiveConversion = (status === 'converting' || status === 'processing');
-    
     if (isActiveConversion && startTime && !isRunningRef.current) {
       isRunningRef.current = true;
       
-      console.log('Starting conversion timer with startTime:', startTime);
-      
-      // Set initial value immediately to avoid delay
+      // Establecer valor inicial inmediatamente para evitar retrasos
       const initialElapsed = Math.floor((Date.now() - startTime) / 1000);
       updateElapsedTime(initialElapsed, startTime);
       
-      // Set up the interval
+      // Configurar el intervalo
       timerRef.current = window.setInterval(() => {
-        if (!isRunningRef.current) return; // Safety check
-        
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         updateElapsedTime(elapsed, startTime);
       }, 1000);
     }
     
-    // Cleanup function to clear interval when component unmounts or status changes
+    // Función de limpieza para borrar el intervalo cuando el componente se desmonta o el estado cambia
     return () => {
       if (timerRef.current !== null) {
         window.clearInterval(timerRef.current);
@@ -69,5 +49,5 @@ export const useConversionTimer = () => {
         isRunningRef.current = false;
       }
     };
-  }, [status, updateElapsedTime, startTime]);
+  }, [status, startTime, updateElapsedTime]);
 };

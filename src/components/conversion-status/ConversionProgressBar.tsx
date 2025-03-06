@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useConversionStore } from '@/store/conversionStore';
 import { Progress } from "@/components/ui/progress";
 import WarningsAndErrors from './WarningsAndErrors';
@@ -13,25 +13,35 @@ const ConversionProgressBar = ({
   message,
   showPercentage = true
 }: ConversionProgressBarProps) => {
+  // Use selectors para minimizar re-renders
   const progress = useConversionStore(state => state.progress);
   const warnings = useConversionStore(state => state.warnings);
   const errors = useConversionStore(state => state.errors);
   const status = useConversionStore(state => state.status);
+  const time = useConversionStore(state => state.time);
   
-  // Calculate remaining time or show elapsed time
-  const { time } = useConversionStore(state => ({
-    time: state.time
-  }));
+  const isConverting = useMemo(() => 
+    status === 'converting' || status === 'processing',
+  [status]);
   
-  const isConverting = status === 'converting' || status === 'processing';
+  // Memoizar el mensaje de tiempo para evitar cálculos innecesarios
+  const timeMessage = useMemo(() => {
+    if (time.elapsed <= 0) return null;
+    
+    if (time.remaining) {
+      return `${Math.ceil(time.remaining)}s restantes`;
+    } else {
+      return `${Math.floor(time.elapsed)}s transcurridos`;
+    }
+  }, [time.elapsed, time.remaining]);
   
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center mb-1">
         <div className="font-medium">{message}</div>
-        {time.elapsed > 0 && (
+        {timeMessage && (
           <div className="text-sm text-muted-foreground">
-            {time.remaining ? `${Math.ceil(time.remaining)}s restantes` : `${Math.floor(time.elapsed)}s transcurridos`}
+            {timeMessage}
           </div>
         )}
       </div>
@@ -42,15 +52,15 @@ const ConversionProgressBar = ({
         showPercentage={showPercentage}
       />
       
-      {/* Warnings and errors accordion */}
+      {/* Acordión de advertencias y errores */}
       <WarningsAndErrors 
         warnings={warnings}
         errors={errors}
         isConverting={isConverting}
-        expanded={errors.length > 0} // Auto expand if there are errors
+        expanded={errors.length > 0} // Expandir automáticamente si hay errores
       />
     </div>
   );
 };
 
-export default ConversionProgressBar;
+export default React.memo(ConversionProgressBar);

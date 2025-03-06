@@ -1,46 +1,47 @@
 
 import { ConversionState } from '../types';
 
+// Esto tiene que estar fuera de la función para mantenerlo entre renders
+const debounceState = {
+  lastUpdateTime: 0,
+  lastElapsedTime: 0,
+  lastTimeRemaining: undefined
+};
+
 export const updateElapsedTimeAction = (
   set: (state: Partial<ConversionState>) => void,
   get: () => any
 ) => {
-  // Create a persistent reference for debounce state that won't be reset between calls
-  const debounceState = {
-    lastUpdateTime: 0,
-    lastElapsedTime: 0,
-    lastTimeRemaining: undefined
-  };
-  
-  const MIN_UPDATE_INTERVAL = 500; // msec
+  const MIN_UPDATE_INTERVAL = 1000; // msec - incrementado para reducir actualizaciones
   
   const updateElapsedTime = (elapsedSeconds: number, startTime: number) => {
     const currentState = get();
     
-    // No need to update if status is not converting or processing
+    // No actualizar si el estado no está en conversión o procesamiento
     if (currentState.status !== 'converting' && currentState.status !== 'processing') {
       return;
     }
     
-    // Debounce updates - only update if significant change or enough time passed
+    // Debounce - solo actualizar si hay un cambio significativo o ha pasado suficiente tiempo
     const now = Date.now();
     const timeElapsed = now - debounceState.lastUpdateTime;
     const secondsDiff = Math.abs(elapsedSeconds - debounceState.lastElapsedTime);
     
+    // Previene actualizaciones demasiado frecuentes
     if (timeElapsed < MIN_UPDATE_INTERVAL && secondsDiff < 2) {
       return;
     }
     
-    // Calculate remaining time based on progress and elapsed time
+    // Calcular tiempo restante basado en progreso y tiempo transcurrido
     let timeRemaining: number | undefined = undefined;
     
     if (currentState.progress > 5 && elapsedSeconds > 5) {
-      // Simple linear projection: if X% took Y seconds, 100% will take (Y / X) * 100
+      // Proyección lineal simple
       const estimatedTotalSeconds = (elapsedSeconds / currentState.progress) * 100;
       timeRemaining = Math.max(1, estimatedTotalSeconds - elapsedSeconds);
     }
     
-    // Skip update if time remaining hasn't changed significantly
+    // Omitir la actualización si el tiempo restante no ha cambiado significativamente
     if (
       typeof timeRemaining === 'number' && 
       typeof debounceState.lastTimeRemaining === 'number' && 
@@ -50,12 +51,12 @@ export const updateElapsedTimeAction = (
       return;
     }
     
-    // Update tracking vars
+    // Actualizar variables de seguimiento
     debounceState.lastUpdateTime = now;
     debounceState.lastElapsedTime = elapsedSeconds;
     debounceState.lastTimeRemaining = timeRemaining;
     
-    // Batch update to minimize renders
+    // Actualización por lotes para minimizar renders
     set({
       time: {
         elapsed: elapsedSeconds,
