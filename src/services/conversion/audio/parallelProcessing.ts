@@ -1,4 +1,3 @@
-
 import { ChunkManager } from './chunkManager';
 import { ProcessChunkResult } from './types/chunkTypes';
 import { processChunk } from './chunkProcessor';
@@ -6,7 +5,7 @@ import { LoggingService } from '@/utils/loggingService';
 
 // Configuración del procesamiento paralelo
 const MAX_PARALLEL_CHUNKS = 3;
-const MAX_CHUNK_RETRIES = 3;
+const MAX_CHUNK_RETRIES = 2; // Reduced from 3 to avoid excessive retries
 
 /**
  * Procesa los chunks en paralelo usando un sistema de colas de prioridad
@@ -28,6 +27,8 @@ export async function processChunksInParallel(
   
   // Creamos una lista para los chunks que fallan y necesitan reintento
   const retryQueue: number[] = [];
+  // Keep track of failed chunks to avoid infinite retries
+  const failedChunks = new Set<number>();
   
   // Implementación del worker que procesa chunks
   const processNextChunk = async (workerId: number): Promise<void> => {
@@ -37,7 +38,16 @@ export async function processChunksInParallel(
     let nextChunkIndex: number | undefined;
     if (retryQueue.length > 0) {
       nextChunkIndex = retryQueue.shift();
-      console.log(`Worker ${workerId} retrying chunk ${nextChunkIndex + 1}/${totalChunks}`);
+      
+      // Skip this chunk if it has permanently failed
+      if (nextChunkIndex !== undefined && failedChunks.has(nextChunkIndex)) {
+        console.log(`Worker ${workerId} skipping permanently failed chunk ${nextChunkIndex + 1}/${totalChunks}`);
+        // Continue with next chunk
+        await processNextChunk(workerId);
+        return;
+      }
+      
+      console.log(`Worker ${workerId} retrying chunk ${nextChunkIndex! + 1}/${totalChunks}`);
     } 
     // Si no hay reintentos pendientes, tomamos el siguiente chunk secuencial
     else if (chunkIndex < totalChunks) {
@@ -88,6 +98,9 @@ export async function processChunksInParallel(
           total_chunks: totalChunks
         });
       } else {
+        // Mark this chunk as permanently failed
+        failedChunks.add(nextChunkIndex);
+        
         // Si excedimos el número de reintentos, registramos un error fatal
         LoggingService.error('conversion', {
           message: `Fallo crítico en chunk ${nextChunkIndex + 1}/${totalChunks} después de ${MAX_CHUNK_RETRIES} intentos`,
@@ -96,9 +109,8 @@ export async function processChunksInParallel(
           total_chunks: totalChunks
         });
         
-        // Establecemos error global si es un fallo crítico
-        hasError = true;
-        throw new Error(`Error crítico en chunk ${nextChunkIndex + 1} después de múltiples intentos: ${error.message}`);
+        // Continue with next chunks instead of failing the entire process
+        console.log(`Chunk ${nextChunkIndex + 1} permanently failed after ${MAX_CHUNK_RETRIES} attempts - continuing with remaining chunks`);
       }
       
       // Continuamos con el siguiente chunk
@@ -131,7 +143,14 @@ export async function processChunksInParallel(
   try {
     await Promise.all(workerPromises);
     isCompleted = true;
-    console.log(`All chunks processed successfully: ${totalChunks} chunks`);
+    
+    // Check if we have any permanently failed chunks
+    if (failedChunks.size > 0) {
+      console.warn(`Completed processing with ${failedChunks.size} permanently failed chunks`);
+      // Continue with processing instead of failing completely
+    } else {
+      console.log(`All chunks processed successfully: ${totalChunks} chunks`);
+    }
   } catch (error) {
     // Solo registramos el error si no ha sido ya registrado por un worker
     if (!hasError) {

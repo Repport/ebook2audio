@@ -23,17 +23,18 @@ export function useConversionInitiation() {
     try {
       console.log('useConversionInitiation - Checking terms acceptance');
       
-      // Only reset if not already converting to prevent duplicate requests
+      // Check if conversion is already in progress to prevent duplicate requests
       const currentStatus = conversionStore.status;
-      if (currentStatus !== 'converting' && currentStatus !== 'processing') {
-        console.log('useConversionInitiation - Resetting conversion state');
-        audioConversion.resetConversion();
-        conversionStore.resetConversion();
-        clearConversionStorage();
-      } else {
-        console.log('useConversionInitiation - Already converting, skipping reset');
+      if (currentStatus === 'converting' || currentStatus === 'processing') {
+        console.log('useConversionInitiation - Already converting, skipping new request');
         return true; // Already converting, don't restart
       }
+      
+      // Only reset if not already converting
+      console.log('useConversionInitiation - Resetting conversion state');
+      audioConversion.resetConversion();
+      conversionStore.resetConversion();
+      clearConversionStorage();
       
       const termsAccepted = await checkTermsAcceptance();
       if (!termsAccepted) {

@@ -1,4 +1,3 @@
-
 import { ChunkManager } from './chunkManager';
 import { processChunksInParallel } from './parallelProcessing';
 import { combineAudioBuffers } from './audioUtils';
@@ -129,16 +128,32 @@ export async function convertTextToAudio(
     // Process chunks in parallel
     await processChunksInParallel(chunkManager, voiceId);
     
-    // Integrity check
+    // Check for processed chunks
+    const orderedBuffers = chunkManager.getOrderedBuffers();
+    
+    // Integrity check - more tolerant approach
     const missingChunks = chunkManager.getMissingChunks();
     if (missingChunks.length > 0) {
-      console.error(`[CONVERSION-${conversionId}] CRITICAL INTEGRITY ERROR: Missing chunks after all processing attempts: ${missingChunks.join(', ')}`);
-      store.setError(`Error crítico de integridad: No se pudieron procesar todos los chunks después de múltiples intentos`);
-      throw new Error(`Error crítico de integridad: No se pudieron procesar todos los chunks después de múltiples intentos`);
+      console.warn(`[CONVERSION-${conversionId}] WARNING: ${missingChunks.length} chunks could not be processed:`, missingChunks.join(', '));
+      
+      // If we have no processed chunks at all, that's a critical error
+      if (orderedBuffers.length === 0) {
+        console.error(`[CONVERSION-${conversionId}] CRITICAL: No chunks processed successfully after all attempts`);
+        store.setError(`Error crítico: Ningún chunk se pudo procesar después de múltiples intentos`);
+        throw new Error(`Error crítico: Ningún chunk se pudo procesar después de múltiples intentos`);
+      }
+      
+      // Otherwise continue with what we have
+      store.setWarning(`Advertencia: ${missingChunks.length} partes del texto no pudieron procesarse`);
     }
     
-    // Combine audio buffers
-    const orderedBuffers = chunkManager.getOrderedBuffers();
+    // Combine available audio buffers
+    if (orderedBuffers.length === 0) {
+      console.error(`[CONVERSION-${conversionId}] CRITICAL: No audio buffers available after processing`);
+      store.setError('Error crítico: No se generaron datos de audio');
+      throw new Error('Error crítico: No se generaron datos de audio');
+    }
+    
     const finalAudioBuffer = combineAudioBuffers(orderedBuffers);
     
     // Final integrity check
@@ -152,7 +167,8 @@ export async function convertTextToAudio(
     console.log(`[CONVERSION-${conversionId}] Audio conversion completed successfully:`, {
       finalSize: `${(finalAudioBuffer.byteLength / 1024).toFixed(2)} KB`,
       duration: `${conversionDuration}s`,
-      avgSpeed: `${Math.round(text.length / conversionDuration)} chars/sec`
+      avgSpeed: `${Math.round(text.length / conversionDuration)} chars/sec`,
+      missingChunks: missingChunks.length
     });
     
     // Log completion in the monitoring system
@@ -161,7 +177,8 @@ export async function convertTextToAudio(
       text_length: text.length,
       voice_id: voiceId,
       duration_seconds: conversionDuration,
-      audio_size_bytes: finalAudioBuffer.byteLength
+      audio_size_bytes: finalAudioBuffer.byteLength,
+      missing_chunks: missingChunks.length
     }, { entityId: conversionId });
     
     // Notify completion

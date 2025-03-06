@@ -1,144 +1,50 @@
 
-import { PostgrestError, PostgrestResponse } from '@supabase/supabase-js';
-
-const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY = 1000;
-
-interface RetryOptions {
-  retryCount?: number;
-  maxRetries?: number;
-  baseDelay?: number;
-  maxDelay?: number;
-  operation?: string;
-  exponentialBackoff?: boolean;
-  logProgress?: boolean;
-}
-
+/**
+ * Utility for retrying operations with exponential backoff
+ */
 export async function retryOperation<T>(
   operation: () => Promise<T>,
-  options: RetryOptions = {}
+  options: {
+    maxRetries?: number;
+    baseDelay?: number;
+    operation?: string;
+    shouldRetry?: (error: any, attempt: number) => boolean;
+  } = {}
 ): Promise<T> {
   const {
-    retryCount = 0,
-    maxRetries = MAX_RETRIES,
-    baseDelay = INITIAL_RETRY_DELAY,
-    maxDelay = 30000,
-    operation: opName = 'Operation',
-    exponentialBackoff = true,
-    logProgress = true
+    maxRetries = 2,
+    baseDelay = 1000,
+    operation: operationName = 'Operation', 
+    shouldRetry = () => true
   } = options;
-
-  try {
-    if (logProgress && retryCount > 0) {
-      console.log(`${opName} - Intento ${retryCount + 1} de ${maxRetries + 1}`);
-    }
-    
-    const result = await operation();
-
-    if (result && typeof result === 'object' && 'error' in result) {
-      const supabaseResult = result as { error: PostgrestError | null };
-      if (supabaseResult.error) {
-        console.error(`${opName} - Supabase error:`, supabaseResult.error);
-        throw supabaseResult.error;
+  
+  let lastError: Error | undefined;
+  
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      if (attempt > 1) {
+        console.log(`${operationName} - Retry attempt ${attempt - 1}/${maxRetries}`);
+      }
+      
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      console.error(`${operationName} attempt ${attempt}/${maxRetries + 1} failed:`, error.message);
+      
+      // Check if we should retry this specific error
+      if (!shouldRetry(error, attempt)) {
+        console.log(`${operationName} - Not retrying after error: ${error.message}`);
+        throw error;
+      }
+      
+      // Only retry if this wasn't the last attempt
+      if (attempt <= maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        console.log(`${operationName} - Waiting ${delay}ms before next attempt...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-
-    return result;
-  } catch (error) {
-    if (retryCount >= maxRetries) {
-      console.error(`${opName} failed after ${maxRetries + 1} attempts:`, error);
-      throw error;
-    }
-
-    if (error instanceof PostgrestError) {
-      console.warn(`⚠️ ${opName} - PostgrestError: ${error.message}`, {
-        details: error.details,
-        hint: error.hint,
-      });
-    }
-
-    // Cálculo de retraso con backoff exponencial o lineal
-    let delay: number;
-    if (exponentialBackoff) {
-      const exponentialDelay = baseDelay * Math.pow(2, retryCount);
-      const jitter = Math.random() * 1000;
-      delay = Math.min(exponentialDelay + jitter, maxDelay);
-    } else {
-      delay = Math.min(baseDelay * (retryCount + 1), maxDelay);
-    }
-    
-    console.log(`🔄 ${opName}: Retry attempt ${retryCount + 1} after ${delay}ms`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-    
-    return retryOperation(operation, {
-      ...options,
-      retryCount: retryCount + 1
-    });
   }
-}
-
-export async function safeSupabaseQuery<T>(
-  supabaseClient: any,
-  table: string,
-  action: 'insert' | 'update' | 'delete',
-  data: Partial<T> | string, // `string` para DELETE, `Partial<T>` para insert/update
-  options: RetryOptions = {}
-): Promise<PostgrestResponse<T>> {
-  return retryOperation(
-    async () => {
-      let query;
-      if (action === 'insert') {
-        query = supabaseClient.from(table).insert(data).select().single();
-      } else if (action === 'update') {
-        query = supabaseClient.from(table).update(data).eq('id', (data as any).id).select().single();
-      } else if (action === 'delete') {
-        query = supabaseClient.from(table).delete().eq('id', data as string);
-      } else {
-        throw new Error(`Unsupported action: ${action}`);
-      }
-
-      const response = await query;
-
-      if (response?.error) {
-        console.error(`❌ ${action.toUpperCase()} ${table} failed:`, response.error);
-        throw new Error(response.error.message);
-      }
-
-      return response;
-    },
-    {
-      ...options,
-      operation: `${action.toUpperCase()} ${table}`
-    }
-  );
-}
-
-export async function safeSupabaseUpdate<T>(
-  supabaseClient: any,
-  table: string,
-  id: string,
-  data: Partial<T>,
-  options: RetryOptions = {}
-): Promise<PostgrestResponse<T>> {
-  return retryOperation(
-    async () => {
-      const response = await supabaseClient
-        .from(table)
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (response?.error) {
-        console.error(`❌ Update ${table} failed:`, response.error);
-        throw new Error(response.error.message);
-      }
-
-      return response;
-    },
-    {
-      ...options,
-      operation: `Update ${table}`
-    }
-  );
+  
+  throw lastError || new Error(`${operationName} failed after ${maxRetries} attempts`);
 }

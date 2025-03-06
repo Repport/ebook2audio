@@ -1,11 +1,11 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { retryOperation } from "../utils";
+import { retryOperation } from "../utils/retryUtils";
 import { LoggingService } from "@/utils/loggingService";
 import { updateConversionProgress } from "../progressService";
 import { ChunkProgressData } from "../types/chunks";
 
-const MAX_RETRIES_PER_CHUNK = 5;
+const MAX_RETRIES_PER_CHUNK = 2; // Reduced from 5 to avoid excessive retries
 
 /**
  * Procesa un chunk de texto y lo convierte en audio
@@ -19,12 +19,16 @@ export async function processChunk(
 ): Promise<ArrayBuffer> {
   console.log(`Processing chunk ${index + 1}/${totalChunks}, size: ${chunk.length} characters`);
   
+  // Generate a unique identifier for this specific chunk processing attempt
+  const chunkRequestId = `chunk-${index}-${Date.now()}`;
+  
   // Log para seguimiento detallado
   LoggingService.debug('conversion', {
     message: `Iniciando procesamiento de chunk ${index + 1}/${totalChunks}`,
     chunk_length: chunk.length,
     chunk_index: index,
-    total_chunks: totalChunks
+    total_chunks: totalChunks,
+    request_id: chunkRequestId
   });
   
   if (!chunk.trim()) {
@@ -59,7 +63,36 @@ export async function processChunk(
     chunkIndex: index,
     totalChunks: totalChunks,
     isChunk: true, // Flag explícito para indicar que es un chunk
-    conversionId: conversionId // Pass the conversionId if available
+    conversionId: conversionId, // Pass the conversionId if available
+    requestId: chunkRequestId // Add a unique request ID
+  };
+  
+  // Custom shouldRetry function to prevent retrying certain errors
+  const shouldRetry = (error: any, attempt: number) => {
+    // Don't retry after too many attempts
+    if (attempt > MAX_RETRIES_PER_CHUNK) {
+      return false;
+    }
+    
+    // Don't retry specific errors that are unlikely to be resolved by retrying
+    const nonRetryableErrors = [
+      'Invalid response format',
+      'Maximum chunk size exceeded',
+      'Unauthorized',
+      'Rate limit exceeded'
+    ];
+    
+    // Check if error message contains any non-retryable phrases
+    if (error && error.message) {
+      for (const phrase of nonRetryableErrors) {
+        if (error.message.includes(phrase)) {
+          console.log(`Not retrying error: ${error.message}`);
+          return false;
+        }
+      }
+    }
+    
+    return true;
   };
   
   // Incrementamos el número de reintentos y añadimos backoff exponencial
@@ -68,7 +101,8 @@ export async function processChunk(
     { 
       maxRetries: MAX_RETRIES_PER_CHUNK, 
       baseDelay: 1000,  
-      operation: `Convert chunk ${index + 1}`
+      operation: `Convert chunk ${index + 1}`,
+      shouldRetry
     }
   );
 
@@ -80,7 +114,8 @@ export async function processChunk(
       message: `Error procesando chunk ${index + 1}/${totalChunks}`,
       error: response.error.message,
       chunk_index: index,
-      total_chunks: totalChunks
+      total_chunks: totalChunks,
+      request_id: chunkRequestId
     });
     
     // Update progress with error if we have a conversion ID
@@ -131,7 +166,8 @@ export async function processChunk(
     hasAudioContent: !!data.audioContent,
     contentLength: data.audioContent ? data.audioContent.length : 0,
     progress: data.progress || 'unknown',
-    processingTime: data.processingTime || 'unknown'
+    processingTime: data.processingTime || 'unknown',
+    requestId: chunkRequestId
   });
 
   if (!data.audioContent) {
@@ -175,7 +211,8 @@ export async function processChunk(
       audio_size: bytes.length,
       chunk_index: index,
       total_chunks: totalChunks,
-      progress: data.progress || Math.round(((index + 1) / totalChunks) * 100)
+      progress: data.progress || Math.round(((index + 1) / totalChunks) * 100),
+      request_id: chunkRequestId
     });
     
     // Update progress for successful chunk
