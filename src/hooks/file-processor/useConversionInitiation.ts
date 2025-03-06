@@ -30,6 +30,14 @@ export function useConversionInitiation() {
         return true; // Already converting, don't restart
       }
       
+      // Generation a unique conversion ID to track this conversion
+      const conversionId = crypto.randomUUID();
+      console.log(`useConversionInitiation - Generated new conversion ID: ${conversionId}`);
+      
+      // Generate a text hash to help identify duplicate conversions
+      const textHash = await generateTextHash(extractedText);
+      console.log(`useConversionInitiation - Text hash: ${textHash}`);
+      
       // Only reset if not already converting
       console.log('useConversionInitiation - Resetting conversion state');
       audioConversion.resetConversion();
@@ -53,4 +61,19 @@ export function useConversionInitiation() {
   return {
     initiateConversion
   };
+}
+
+// Helper function to generate a hash for text
+async function generateTextHash(text: string): Promise<string> {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex.substring(0, 16); // Return first 16 chars of the hash for brevity
+  } catch (error) {
+    console.error('Error generating text hash:', error);
+    return Date.now().toString(36); // Fallback to timestamp if hashing fails
+  }
 }

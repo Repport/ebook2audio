@@ -1,3 +1,4 @@
+
 import { ChunkManager } from './chunkManager';
 import { processChunksInParallel } from './parallelProcessing';
 import { combineAudioBuffers } from './audioUtils';
@@ -97,8 +98,12 @@ export async function convertTextToAudio(
         isCompleted: progressData.isCompleted
       };
       
-      // Update progress in real-time in Supabase
-      await updateConversionProgress(conversionId, validatedData);
+      try {
+        // Update progress in real-time in Supabase
+        await updateConversionProgress(conversionId, validatedData);
+      } catch (updateError) {
+        console.warn('Error updating progress, continuing with conversion:', updateError);
+      }
       
       // Update the store directly to avoid reference issues
       store.updateProgress(validatedData);
@@ -163,12 +168,16 @@ export async function convertTextToAudio(
       throw new Error('Error crítico: El archivo de audio final está vacío después de todos los intentos');
     }
 
+    // Calculate some stats
+    const successRate = ((orderedBuffers.length / chunkManager.getTotalChunks()) * 100).toFixed(1);
     const conversionDuration = Math.round((Date.now() - conversionStartTime) / 1000);
+    
     console.log(`[CONVERSION-${conversionId}] Audio conversion completed successfully:`, {
       finalSize: `${(finalAudioBuffer.byteLength / 1024).toFixed(2)} KB`,
       duration: `${conversionDuration}s`,
       avgSpeed: `${Math.round(text.length / conversionDuration)} chars/sec`,
-      missingChunks: missingChunks.length
+      missingChunks: missingChunks.length,
+      successRate: `${successRate}%`
     });
     
     // Log completion in the monitoring system
@@ -178,7 +187,8 @@ export async function convertTextToAudio(
       voice_id: voiceId,
       duration_seconds: conversionDuration,
       audio_size_bytes: finalAudioBuffer.byteLength,
-      missing_chunks: missingChunks.length
+      missing_chunks: missingChunks.length,
+      success_rate: successRate
     }, { entityId: conversionId });
     
     // Notify completion

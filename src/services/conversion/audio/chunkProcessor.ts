@@ -5,7 +5,7 @@ import { LoggingService } from "@/utils/loggingService";
 import { updateConversionProgress } from "../progressService";
 import { ChunkProgressData } from "../types/chunks";
 
-const MAX_RETRIES_PER_CHUNK = 2; // Reduced from 5 to avoid excessive retries
+const MAX_RETRIES_PER_CHUNK = 1; // Reduced to avoid excessive retries
 
 /**
  * Procesa un chunk de texto y lo convierte en audio
@@ -15,12 +15,11 @@ export async function processChunk(
   index: number,
   voiceId: string,
   totalChunks: number,
-  conversionId?: string
+  conversionId?: string,
+  chunkRequestId?: string
 ): Promise<ArrayBuffer> {
-  console.log(`Processing chunk ${index + 1}/${totalChunks}, size: ${chunk.length} characters`);
-  
-  // Generate a unique identifier for this specific chunk processing attempt
-  const chunkRequestId = `chunk-${index}-${Date.now()}`;
+  const requestId = chunkRequestId || `chunk-${index}-${Date.now()}`; // Ensure unique ID
+  console.log(`Processing chunk ${index + 1}/${totalChunks}, size: ${chunk.length} characters, requestId: ${requestId}`);
   
   // Log para seguimiento detallado
   LoggingService.debug('conversion', {
@@ -28,7 +27,7 @@ export async function processChunk(
     chunk_length: chunk.length,
     chunk_index: index,
     total_chunks: totalChunks,
-    request_id: chunkRequestId
+    request_id: requestId
   });
   
   if (!chunk.trim()) {
@@ -53,9 +52,16 @@ export async function processChunk(
       isCompleted: false
     };
     
-    // Update progress in Supabase
-    await updateConversionProgress(conversionId, progressData);
+    try {
+      // Update progress in Supabase
+      await updateConversionProgress(conversionId, progressData);
+    } catch (progressError) {
+      console.warn('Failed to update progress, continuing with conversion:', progressError);
+    }
   }
+
+  // Create a unique text hash for this chunk to help identify duplicates
+  const chunkHash = await createTextHash(chunk);
 
   const requestBody = {
     text: chunk,
@@ -64,7 +70,8 @@ export async function processChunk(
     totalChunks: totalChunks,
     isChunk: true, // Flag explícito para indicar que es un chunk
     conversionId: conversionId, // Pass the conversionId if available
-    requestId: chunkRequestId // Add a unique request ID
+    requestId: requestId, // Add a unique request ID
+    chunkHash: chunkHash // Add the hash to help identify duplicate processing
   };
   
   // Custom shouldRetry function to prevent retrying certain errors
@@ -79,7 +86,9 @@ export async function processChunk(
       'Invalid response format',
       'Maximum chunk size exceeded',
       'Unauthorized',
-      'Rate limit exceeded'
+      'Rate limit exceeded',
+      'Missing audioContent',
+      'Duplicate chunk'
     ];
     
     // Check if error message contains any non-retryable phrases
@@ -115,7 +124,7 @@ export async function processChunk(
       error: response.error.message,
       chunk_index: index,
       total_chunks: totalChunks,
-      request_id: chunkRequestId
+      request_id: requestId
     });
     
     // Update progress with error if we have a conversion ID
@@ -131,7 +140,11 @@ export async function processChunk(
         isCompleted: false
       };
       
-      await updateConversionProgress(conversionId, errorData);
+      try {
+        await updateConversionProgress(conversionId, errorData);
+      } catch (progressError) {
+        console.warn('Failed to update error progress, continuing:', progressError);
+      }
     }
     
     throw new Error(`Error crítico en chunk ${index + 1}: ${response.error.message}`);
@@ -153,7 +166,11 @@ export async function processChunk(
         isCompleted: false
       };
       
-      await updateConversionProgress(conversionId, errorData);
+      try {
+        await updateConversionProgress(conversionId, errorData);
+      } catch (progressError) {
+        console.warn('Failed to update error progress, continuing:', progressError);
+      }
     }
     
     throw new Error(`No se recibieron datos del edge function para el chunk ${index + 1}`);
@@ -167,7 +184,7 @@ export async function processChunk(
     contentLength: data.audioContent ? data.audioContent.length : 0,
     progress: data.progress || 'unknown',
     processingTime: data.processingTime || 'unknown',
-    requestId: chunkRequestId
+    requestId: requestId
   });
 
   if (!data.audioContent) {
@@ -186,7 +203,11 @@ export async function processChunk(
         isCompleted: false
       };
       
-      await updateConversionProgress(conversionId, errorData);
+      try {
+        await updateConversionProgress(conversionId, errorData);
+      } catch (progressError) {
+        console.warn('Failed to update error progress, continuing:', progressError);
+      }
     }
     
     throw new Error(`Contenido de audio ausente para el chunk ${index + 1}`);
@@ -212,7 +233,7 @@ export async function processChunk(
       chunk_index: index,
       total_chunks: totalChunks,
       progress: data.progress || Math.round(((index + 1) / totalChunks) * 100),
-      request_id: chunkRequestId
+      request_id: requestId
     });
     
     // Update progress for successful chunk
@@ -227,7 +248,11 @@ export async function processChunk(
         isCompleted: index === totalChunks - 1 // Mark as completed if this is the last chunk
       };
       
-      await updateConversionProgress(conversionId, successData);
+      try {
+        await updateConversionProgress(conversionId, successData);
+      } catch (progressError) {
+        console.warn('Failed to update success progress, continuing:', progressError);
+      }
     }
     
     return bytes.buffer;
@@ -247,9 +272,23 @@ export async function processChunk(
         isCompleted: false
       };
       
-      await updateConversionProgress(conversionId, errorData);
+      try {
+        await updateConversionProgress(conversionId, errorData);
+      } catch (progressError) {
+        console.warn('Failed to update error progress, continuing:', progressError);
+      }
     }
     
     throw new Error(`Error al procesar los datos de audio para el chunk ${index + 1}: ${error.message}`);
   }
+}
+
+// Helper function to create a simple hash of text content
+async function createTextHash(text: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex.substring(0, 16); // Return first 16 chars of the hash for brevity
 }

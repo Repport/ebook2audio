@@ -25,45 +25,50 @@ const WarningsAndErrors = ({ warnings, errors, isConverting, expanded = false }:
     return null;
   }
 
-  console.log('Rendering WarningsAndErrors with:', {
-    warningsCount: warnings.length,
-    errorsCount: errors.length,
-    isExpanded
-  });
-
   return (
-    <Accordion 
-      type="single" 
-      collapsible 
-      className="w-full"
-      defaultValue={isExpanded ? "integrity-warnings" : undefined}
-      value={isExpanded ? "integrity-warnings" : undefined}
-      onValueChange={(value) => setIsExpanded(!!value)}
+    <Accordion
+      type="single"
+      collapsible
+      value={isExpanded ? "warnings-errors" : undefined}
+      onValueChange={(value) => setIsExpanded(value === "warnings-errors")}
+      className="mt-2 text-sm"
     >
-      <AccordionItem value="integrity-warnings">
-        <AccordionTrigger className="flex items-center text-amber-500">
-          <AlertTriangle className="w-4 h-4 mr-2" />
-          <span>
-            {errors.length > 0 
-              ? `${errors.length} ${errors.length === 1 ? 'error' : 'errores'}`
-              : `${warnings.length} ${warnings.length === 1 ? 'advertencia' : 'advertencias'}`}
-          </span>
+      <AccordionItem value="warnings-errors" className="border-none">
+        <AccordionTrigger className="py-1 text-xs font-medium flex items-center">
+          <AlertTriangle className="h-3 w-3 mr-1 text-amber-500" />
+          {errors.length > 0 ? (
+            <span className="text-destructive">
+              {errors.length === 1 ? "1 Error" : `${errors.length} Errors`}
+            </span>
+          ) : warnings.length > 0 ? (
+            <span className="text-amber-500">
+              {warnings.length === 1 ? "1 Warning" : `${warnings.length} Warnings`}
+            </span>
+          ) : null}
         </AccordionTrigger>
-        <AccordionContent>
-          <div className="space-y-2 text-sm">
-            {errors.map((error, index) => (
-              <div key={`error-${index}`} className="flex items-start p-2 bg-red-50 dark:bg-red-950 rounded-md">
-                <X className="w-4 h-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-                <span className="text-red-800 dark:text-red-200">{error}</span>
+        <AccordionContent className="pt-2 text-xs">
+          <div className="space-y-2">
+            {errors.length > 0 && (
+              <div className="space-y-1">
+                <h4 className="font-medium text-destructive">Errors:</h4>
+                <ul className="ml-4 list-disc text-destructive">
+                  {errors.map((error, i) => (
+                    <li key={`error-${i}`}>{error}</li>
+                  ))}
+                </ul>
               </div>
-            ))}
+            )}
             
-            {warnings.map((warning, index) => (
-              <div key={`warning-${index}`} className="flex items-start p-2 bg-amber-50 dark:bg-amber-950 rounded-md">
-                <AlertTriangle className="w-4 h-4 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-                <span className="text-amber-800 dark:text-amber-200">{warning}</span>
+            {warnings.length > 0 && (
+              <div className="space-y-1">
+                <h4 className="font-medium text-amber-500">Warnings:</h4>
+                <ul className="ml-4 list-disc text-amber-500">
+                  {warnings.map((warning, i) => (
+                    <li key={`warning-${i}`}>{warning}</li>
+                  ))}
+                </ul>
               </div>
-            ))}
+            )}
           </div>
         </AccordionContent>
       </AccordionItem>

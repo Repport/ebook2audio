@@ -15,7 +15,31 @@ export async function retryOperation<T>(
     maxRetries = 2,
     baseDelay = 1000,
     operation: operationName = 'Operation', 
-    shouldRetry = () => true
+    shouldRetry = (error, attempt) => {
+      // Default retry logic - don't retry if these phrases are in error message
+      const nonRetryableErrors = [
+        'Invalid response format',
+        'Maximum chunk size exceeded',
+        'Unauthorized',
+        'Rate limit exceeded',
+        'Missing audioContent'
+      ];
+      
+      for (const phrase of nonRetryableErrors) {
+        if (error?.message?.includes(phrase)) {
+          console.log(`${operationName} - Not retrying error with phrase "${phrase}"`);
+          return false;
+        }
+      }
+      
+      // Don't retry too many times
+      if (attempt > maxRetries) {
+        console.log(`${operationName} - Maximum retry attempts (${maxRetries}) reached`);
+        return false;
+      }
+      
+      return true;
+    }
   } = options;
   
   let lastError: Error | undefined;

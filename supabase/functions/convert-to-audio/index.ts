@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { processTextInChunks } from './chunkProcessor.ts';
 import { initializeSupabaseClient, getGoogleAccessToken } from './services/clients.ts';
@@ -6,6 +7,19 @@ import { corsHeaders } from '../_shared/cors.ts';
 import type { ConversionRequest, ConversionResponse, ErrorResponse } from './types/index.ts';
 
 console.log('Loading convert-to-audio function...');
+
+// Track processed chunks to prevent duplicates
+const processedChunks = new Map<string, number>();
+// Clear the map periodically to avoid memory leaks
+setInterval(() => {
+  const now = Date.now();
+  // Remove entries older than 10 minutes
+  for (const [key, timestamp] of processedChunks.entries()) {
+    if (now - timestamp > 10 * 60 * 1000) {
+      processedChunks.delete(key);
+    }
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -34,7 +48,9 @@ serve(async (req) => {
         isChunk: body.isChunk,
         chunkIndex: body.chunkIndex,
         totalChunks: body.totalChunks,
-        conversionId: body.conversionId
+        conversionId: body.conversionId,
+        requestId: body.requestId,
+        chunkHash: body.chunkHash
       });
     } catch (e) {
       console.error(`❌ [${requestId}] Failed to parse request body:`, e);
@@ -53,7 +69,7 @@ serve(async (req) => {
       throw new Error('Invalid request body: ' + e.message);
     }
 
-    const { text, voiceId, fileName, chunkIndex, totalChunks, conversionId } = body;
+    const { text, voiceId, fileName, chunkIndex, totalChunks, conversionId, requestId: clientRequestId, chunkHash } = body;
 
     // Validations with improved error messages
     if (!text || typeof text !== 'string') {
@@ -62,6 +78,49 @@ serve(async (req) => {
 
     if (!voiceId || typeof voiceId !== 'string') {
       throw new Error('VoiceId parameter must be a non-empty string');
+    }
+    
+    // Check for duplicate conversion requests using the chunk hash or conversion ID + index
+    const chunkKey = chunkHash || `${conversionId}-${chunkIndex}`;
+    if (chunkKey && processedChunks.has(chunkKey)) {
+      const processingTime = Date.now() - startTime;
+      console.log(`🔄 [${requestId}] Duplicate chunk detected: ${chunkKey}, time: ${processingTime}ms`);
+      
+      await supabase.from('system_logs').insert({
+        event_type: 'conversion_warning',
+        details: {
+          message: 'Duplicate chunk detected and skipped',
+          chunk_key: chunkKey,
+          requestId,
+          clientRequestId,
+          processing_time_ms: processingTime
+        },
+        status: 'warning'
+      });
+      
+      return new Response(
+        JSON.stringify({
+          error: 'Duplicate chunk detected',
+          details: {
+            chunkKey,
+            requestId,
+            clientRequestId,
+            timestamp: new Date().toISOString()
+          }
+        }),
+        { 
+          status: 409, // Conflict
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    }
+    
+    // Mark this chunk as being processed
+    if (chunkKey) {
+      processedChunks.set(chunkKey, Date.now());
     }
 
     // Update the conversion progress if we have a conversionId and this is a chunk
@@ -125,10 +184,16 @@ serve(async (req) => {
           error_type: 'chunk_validation',
           message: error.message,
           text_length: text?.length,
-          requestId
+          requestId,
+          clientRequestId
         },
         status: 'error'
       });
+      
+      // Remove from processed chunks
+      if (chunkKey) {
+        processedChunks.delete(chunkKey);
+      }
       
       throw error;
     }
@@ -190,10 +255,12 @@ serve(async (req) => {
         fileName,
         processing_time_ms: processingTime,
         requestId,
+        clientRequestId,
         chunk_index: chunkIndex,
         total_chunks: totalChunks,
         progress,
-        conversion_id: conversionId
+        conversion_id: conversionId,
+        chunk_hash: chunkHash
       },
       status: 'success'
     });
@@ -222,11 +289,19 @@ serve(async (req) => {
     const processingTime = Date.now() - startTime;
     console.error(`❌ [${requestId}] Error in convert-to-audio function after ${processingTime}ms:`, error);
     
-    // Try to extract the conversionId from the request
+    // Try to extract the conversionId and chunkKey from the request
     let conversionId: string | undefined;
+    let chunkKey: string | undefined;
+    
     try {
       const body = await req.json();
       conversionId = body.conversionId;
+      chunkKey = body.chunkHash || `${body.conversionId}-${body.chunkIndex}`;
+      
+      // Remove from processed chunks map if there was an error
+      if (chunkKey) {
+        processedChunks.delete(chunkKey);
+      }
     } catch {}
     
     // Update progress with error if we have a conversionId
@@ -256,7 +331,8 @@ serve(async (req) => {
           stack: error.stack,
           processing_time_ms: processingTime,
           requestId,
-          conversion_id: conversionId
+          conversion_id: conversionId,
+          chunk_key: chunkKey
         },
         status: 'error'
       });
