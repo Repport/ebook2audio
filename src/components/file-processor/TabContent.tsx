@@ -96,7 +96,7 @@ const TabContent: React.FC<TabContentProps> = ({
         onViewConversions={conversionLogic.handleViewConversions}
         conversionId={conversionLogic.conversionId}
         chapters={chapters}
-        detectingChapters={detectingChapters}
+        detectingChapters={false}
         textLength={extractedText.length}
         elapsedTime={conversionLogic.elapsedTime}
       />

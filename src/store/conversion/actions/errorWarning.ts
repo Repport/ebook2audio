@@ -56,9 +56,14 @@ export const errorWarningActions = (
   // Limpiar errores
   const clearErrors = () => {
     console.log('ConversionStore: Clearing all errors');
+    const currentState = get();
+    
+    // Only reset status if we're in error state
+    const newStatus = currentState.status === 'error' ? 'idle' : currentState.status;
+    
     set({
       errors: [],
-      status: get().status === 'error' ? 'idle' : get().status // Reset status if in error state
+      status: newStatus
     });
   };
   
@@ -72,4 +77,3 @@ export const errorWarningActions = (
 
   return { setError, setWarning, clearErrors, clearWarnings };
 };
-

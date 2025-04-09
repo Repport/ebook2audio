@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Chapter } from '@/utils/textExtraction';
 import { TextChunkCallback } from '@/services/conversion/types/chunks';
 import { useAudioState } from './audio-conversion/useAudioState';
@@ -7,21 +7,73 @@ import { useConversionStorage } from './audio-conversion/useConversionStorage';
 import { useConversionActions } from './audio-conversion/useConversionActions';
 
 export const useAudioConversion = () => {
+  // Use a ref to track if the component is mounted
+  const mountedRef = useRef(true);
+  
   // Use our specialized hooks
   const audioState = useAudioState();
   
   // No longer passing arguments to useConversionStorage
   const { clearConversionStorage } = useConversionStorage();
   
+  // Create safe state updater functions
+  const safeSetConversionStatus = useCallback((status) => {
+    if (mountedRef.current) {
+      audioState.setConversionStatus(status);
+    }
+  }, [audioState]);
+  
+  const safeSetProgress = useCallback((progress) => {
+    if (mountedRef.current) {
+      audioState.setProgress(progress);
+    }
+  }, [audioState]);
+  
+  const safeSetAudioData = useCallback((data) => {
+    if (mountedRef.current) {
+      audioState.setAudioData(data);
+    }
+  }, [audioState]);
+  
+  const safeSetAudioDuration = useCallback((duration) => {
+    if (mountedRef.current) {
+      audioState.setAudioDuration(duration);
+    }
+  }, [audioState]);
+  
+  const safeSetConversionId = useCallback((id) => {
+    if (mountedRef.current) {
+      audioState.setConversionId(id);
+    }
+  }, [audioState]);
+  
+  const safeSetCurrentFileName = useCallback((fileName) => {
+    if (mountedRef.current) {
+      audioState.setCurrentFileName(fileName);
+    }
+  }, [audioState]);
+  
+  const safeSetElapsedTime = useCallback((time) => {
+    if (mountedRef.current) {
+      audioState.setElapsedTime(time);
+    }
+  }, [audioState]);
+  
+  const safeSetConversionStartTime = useCallback((time) => {
+    if (mountedRef.current) {
+      audioState.setConversionStartTime(time);
+    }
+  }, [audioState]);
+  
   const { resetConversion, handleConversion, handleDownload } = useConversionActions(
-    audioState.setConversionStatus,
-    audioState.setProgress,
-    audioState.setAudioData,
-    audioState.setAudioDuration,
-    audioState.setConversionId,
-    audioState.setCurrentFileName,
-    audioState.setElapsedTime,
-    audioState.setConversionStartTime,
+    safeSetConversionStatus,
+    safeSetProgress,
+    safeSetAudioData,
+    safeSetAudioDuration,
+    safeSetConversionId,
+    safeSetCurrentFileName,
+    safeSetElapsedTime,
+    safeSetConversionStartTime,
     clearConversionStorage
   );
 
@@ -33,6 +85,11 @@ export const useAudioConversion = () => {
     }
     handleDownload(fileName, audioState.audioData);
   }, [handleDownload, audioState.audioData]);
+  
+  // Add cleanup effect for component unmounting
+  const cleanup = useCallback(() => {
+    mountedRef.current = false;
+  }, []);
 
   return {
     // State
@@ -47,9 +104,10 @@ export const useAudioConversion = () => {
     handleConversion,
     handleDownload: handleDownloadWithAudioData,
     resetConversion,
+    cleanup,
     
     // State setters
-    setProgress: audioState.setProgress,
-    setConversionStatus: audioState.setConversionStatus
+    setProgress: safeSetProgress,
+    setConversionStatus: safeSetConversionStatus
   };
 };

@@ -112,7 +112,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         
         <BackButton
           conversionStatus={conversionLogic.conversionStatus}
-          detectingChapters={false} // Removed chapter detection
+          detectingChapters={false}
           isProcessingNextStep={isProcessingNextStep}
           resetConversion={resetConversion}
           onGoBack={handleGoBack}
@@ -133,12 +133,12 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                   setSelectedVoice={setSelectedVoice}
                   notifyOnComplete={notifyOnComplete}
                   setNotifyOnComplete={setNotifyOnComplete}
-                  detectChapters={false} // Removed chapter detection
-                  setDetectChapters={() => {}} // Empty function
+                  detectChapters={false}
+                  setDetectChapters={() => {}}
                   handleStartConversion={handleStartConversion}
                   conversionLogic={conversionLogic}
                   resetConversion={resetConversion}
-                  detectingChapters={false} // Removed chapter detection
+                  detectingChapters={false}
                 />
               </TabsContent>
               
@@ -149,12 +149,12 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                   setSelectedVoice={setSelectedVoice}
                   notifyOnComplete={notifyOnComplete}
                   setNotifyOnComplete={setNotifyOnComplete}
-                  detectChapters={false} // Removed chapter detection
-                  setDetectChapters={() => {}} // Empty function
+                  detectChapters={false}
+                  setDetectChapters={() => {}}
                   handleStartConversion={handleStartConversion}
                   conversionLogic={conversionLogic}
                   resetConversion={resetConversion}
-                  detectingChapters={false} // Removed chapter detection
+                  detectingChapters={false}
                 />
               </TabsContent>
               
@@ -165,12 +165,12 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                   setSelectedVoice={setSelectedVoice}
                   notifyOnComplete={notifyOnComplete}
                   setNotifyOnComplete={setNotifyOnComplete}
-                  detectChapters={false} // Removed chapter detection
-                  setDetectChapters={() => {}} // Empty function
+                  detectChapters={false}
+                  setDetectChapters={() => {}}
                   handleStartConversion={handleStartConversion}
                   conversionLogic={conversionLogic}
                   resetConversion={resetConversion}
-                  detectingChapters={false} // Removed chapter detection
+                  detectingChapters={false}
                 />
               </TabsContent>
             </ErrorHandler>

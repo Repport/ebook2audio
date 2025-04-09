@@ -160,13 +160,11 @@ const ConversionStep = React.memo(({
           status={displayStatus}
           progress={displayProgress}
           estimatedSeconds={estimatedSeconds}
-          detectingChapters={false} // Removed chapter detection
+          detectingChapters={false}
           textLength={textLength}
           conversionId={conversionId}
           initialElapsedTime={elapsedTime}
         />
-
-        {/* Removed ChaptersDisplay component */}
       </div>
     </div>
   );
