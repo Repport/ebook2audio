@@ -1,7 +1,6 @@
 
 import { useCallback } from 'react';
 import { toast } from "@/hooks/use-toast";
-import { Chapter } from '@/utils/textExtraction';
 import { ConversionOptions } from './useConversionActions';
 
 interface ConversionActionsProps {
