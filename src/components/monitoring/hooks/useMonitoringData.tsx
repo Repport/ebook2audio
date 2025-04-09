@@ -7,6 +7,16 @@ import { usePerformanceMetrics } from './usePerformanceMetrics';
 import { MonitoringData } from '../types';
 import { DatabaseLogEntry } from '@/utils/loggingService';
 
+// Create a more compatible type that works with both log entry types
+type LogEntryType = Partial<DatabaseLogEntry> & {
+  id?: string;
+  timestamp?: string;
+  level?: string;
+  message?: string;
+  category?: string;
+  details?: any;
+};
+
 export function useMonitoringData(): MonitoringData {
   const [activeTab, setActiveTab] = useState("overview");
   const isInitialMount = useRef(true);
@@ -63,8 +73,8 @@ export function useMonitoringData(): MonitoringData {
     setActiveTab,
     isLoading,
     stats,
-    logs: logs as DatabaseLogEntry[],
-    errorLogs: errorLogs as DatabaseLogEntry[],
+    logs: logs as unknown as LogEntryType[],
+    errorLogs: errorLogs as unknown as LogEntryType[],
     performanceMetrics,
     loadStats,
     loadLogs,

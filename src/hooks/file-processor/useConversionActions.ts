@@ -22,7 +22,7 @@ export const useConversionActions = (
   chapters: Chapter[]
 ) => {
   // Use our smaller, focused hooks
-  const { initiateConversion } = useConversionInitiation();
+  const { startInitialization } = useConversionInitiation();
   const { validateConversionParams } = useConversionValidation();
   const { startConversion } = useConversionProcess();
   const { handleDownload } = useDownloadHandling();
@@ -64,20 +64,10 @@ export const useConversionActions = (
   }, [audioConversion, selectedFile, handleDownload]);
 
   const initiateConversionWrapper = useCallback(async () => {
-    return initiateConversion(
-      selectedFile,
-      extractedText,
-      audioConversion,
-      checkTermsAcceptance,
-      setShowTerms
-    );
+    return startInitialization(selectedFile?.name || null);
   }, [
     selectedFile,
-    extractedText,
-    audioConversion,
-    checkTermsAcceptance,
-    setShowTerms,
-    initiateConversion
+    startInitialization
   ]);
 
   return {

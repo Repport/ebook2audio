@@ -61,6 +61,11 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     isProcessingNextStep
   } = processorLogic;
 
+  // Create wrapper functions that don't require parameters
+  const handleDownloadClick = () => {
+    conversionLogic.handleDownloadClick();
+  };
+
   useEffect(() => {
     if (currentStep === 2) {
       setActiveTab("voice-settings");
@@ -145,7 +150,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                     audioData: conversionLogic.audioData as ArrayBuffer,
                     audioDuration: conversionLogic.audioDuration,
                     elapsedTime: conversionLogic.elapsedTime,
-                    handleDownloadClick: conversionLogic.handleDownloadClick,
+                    handleDownloadClick: handleDownloadClick,
                     handleViewConversions: conversionLogic.handleViewConversions,
                     conversionId: conversionLogic.conversionId,
                     calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
@@ -171,7 +176,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                     audioData: conversionLogic.audioData as ArrayBuffer,
                     audioDuration: conversionLogic.audioDuration,
                     elapsedTime: conversionLogic.elapsedTime,
-                    handleDownloadClick: conversionLogic.handleDownloadClick,
+                    handleDownloadClick: handleDownloadClick,
                     handleViewConversions: conversionLogic.handleViewConversions,
                     conversionId: conversionLogic.conversionId,
                     calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
@@ -197,7 +202,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                     audioData: conversionLogic.audioData as ArrayBuffer,
                     audioDuration: conversionLogic.audioDuration,
                     elapsedTime: conversionLogic.elapsedTime,
-                    handleDownloadClick: conversionLogic.handleDownloadClick,
+                    handleDownloadClick: handleDownloadClick,
                     handleViewConversions: conversionLogic.handleViewConversions,
                     conversionId: conversionLogic.conversionId,
                     calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
