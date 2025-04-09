@@ -53,6 +53,7 @@ export const useProcessorLogic = (props: ProcessorLogicProps) => {
     onStepComplete
   );
   
+  // Make sure we have these properties from conversionLogic
   const {
     showTerms,
     setShowTerms,

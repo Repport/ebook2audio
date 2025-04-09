@@ -8,11 +8,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
 
-// Import from the file processor directory directly
-import { useChaptersDetection } from './useConversionOptions';
-import { useConversionTerms } from './useConversionTerms';
-import { useConversionEstimation } from './useConversionEstimation';
-import { useConversionNavigation } from './useConversionNavigation';
+// Import from hooks/file-processor
+import { useChaptersDetection } from '@/hooks/file-processor/useConversionOptions';
+import { useConversionTerms } from '@/hooks/file-processor/useConversionTerms';
+import { useConversionEstimation } from '@/hooks/file-processor/useConversionEstimation';
+import { useConversionNavigation } from '@/hooks/file-processor/useConversionNavigation';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -72,8 +72,8 @@ export const useConversionLogic = (
       return false;
     }
 
-    // Verificar términos y condiciones
-    const termsAccepted = await checkRecentTermsAcceptance();
+    // Verify terms and conditions
+    const termsAccepted = await checkTermsAcceptance();
     if (!termsAccepted) {
       setShowTerms(true);
       return false;

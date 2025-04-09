@@ -24,3 +24,6 @@ export function useConversionEstimation(text: string) {
     calculateEstimatedSeconds
   };
 }
+
+// Export alias for compatibility
+export const useEstimatedTime = useConversionEstimation;

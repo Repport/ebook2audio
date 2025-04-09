@@ -13,8 +13,8 @@ export function useConversionTerms() {
       
       const { data, error } = await supabase
         .from('terms_acceptance_logs')
-        .select('id, created_at')
-        .order('created_at', { ascending: false })
+        .select('id, accepted_at')
+        .order('accepted_at', { ascending: false })
         .limit(1);
       
       if (error) {
@@ -22,8 +22,8 @@ export function useConversionTerms() {
         return false; // If error, require terms acceptance to be safe
       }
       
-      if (data && data.length > 0 && data[0].created_at) {
-        const lastAcceptance = new Date(data[0].created_at);
+      if (data && data.length > 0 && data[0].accepted_at) {
+        const lastAcceptance = new Date(data[0].accepted_at);
         if (lastAcceptance > twentyFourHoursAgo) {
           console.log('Terms were recently accepted:', lastAcceptance);
           return true; // Terms were accepted within the last 24 hours
