@@ -1,4 +1,3 @@
-
 import { useCallback, useRef } from 'react';
 import { Chapter } from '@/utils/textExtraction';
 import { TextChunkCallback } from '@/services/conversion/types/chunks';
@@ -101,7 +100,7 @@ export const useAudioConversion = () => {
     conversionId: audioState.conversionId,
     
     // Methods
-    handleConversion: (text, voice) => handleConversion(text, voice, false, [], ''),
+    handleConversion: (text, voice) => handleConversion(text, voice),
     handleDownload: handleDownloadWithAudioData,
     resetConversion,
     cleanup,

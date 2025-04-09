@@ -42,3 +42,13 @@ export interface PerformanceMetricsProps {
   isLoading: boolean;
   onRefresh: () => void;
 }
+
+export type Log = {
+  id: string;
+  timestamp: string;
+  level: string;
+  message: string;
+  details?: string;
+};
+
+export type DatabaseLog = DatabaseLogEntry;
