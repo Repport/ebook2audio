@@ -35,12 +35,9 @@ const TabContent: React.FC<TabContentProps> = ({
   setSelectedVoice,
   notifyOnComplete,
   setNotifyOnComplete,
-  detectChapters,
-  setDetectChapters,
   handleStartConversion,
   conversionLogic,
-  resetConversion,
-  detectingChapters
+  resetConversion
 }) => {
   const { 
     selectedFile, 

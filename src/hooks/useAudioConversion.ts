@@ -86,7 +86,7 @@ export const useAudioConversion = () => {
     handleDownload(fileName, audioState.audioData);
   }, [handleDownload, audioState.audioData]);
   
-  // Add cleanup effect for component unmounting
+  // Add cleanup function to handle component unmounting
   const cleanup = useCallback(() => {
     mountedRef.current = false;
   }, []);
@@ -101,7 +101,7 @@ export const useAudioConversion = () => {
     conversionId: audioState.conversionId,
     
     // Methods
-    handleConversion,
+    handleConversion: (text, voice) => handleConversion(text, voice, false, [], ''),
     handleDownload: handleDownloadWithAudioData,
     resetConversion,
     cleanup,
