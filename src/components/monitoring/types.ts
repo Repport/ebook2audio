@@ -1,6 +1,6 @@
 
 // Import from the correct logging service
-import { DatabaseLogEntry as SystemLogEntry } from '@/utils/loggingService';
+import { DatabaseLogEntry } from '@/utils/logging/types';
 import { PerformanceMetric, SystemStats } from './hooks/types';
 
 // Local log interface that matches what the UI needs
@@ -41,8 +41,8 @@ export interface MonitoringData {
   setActiveTab: (tab: string) => void;
   isLoading: boolean;
   stats: SystemStats;
-  logs: SystemLogEntry[];
-  errorLogs: SystemLogEntry[];
+  logs: DatabaseLogEntry[];
+  errorLogs: DatabaseLogEntry[];
   performanceMetrics: PerformanceMetric[];
   loadStats: () => Promise<void>;
   loadLogs: () => Promise<void>;
@@ -53,20 +53,20 @@ export interface MonitoringData {
 
 // Props for log components
 export interface LogsListProps {
-  logs: SystemLogEntry[];
+  logs: DatabaseLogEntry[];
   isLoading?: boolean;
   emptyMessage?: string;
 }
 
 export interface RecentLogsProps {
-  logs: SystemLogEntry[];
+  logs: DatabaseLogEntry[];
   title?: string;
   limit?: number;
 }
 
 export interface ErrorLogsProps {
-  logs: SystemLogEntry[];
+  logs: DatabaseLogEntry[];
 }
 
-// Export the SystemLogEntry type so it can be used in other modules
-export type { SystemLogEntry };
+// Export the DatabaseLogEntry type so it can be used in other modules
+export type { DatabaseLogEntry };
