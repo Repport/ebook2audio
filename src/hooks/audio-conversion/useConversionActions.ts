@@ -34,10 +34,9 @@ export const useConversionActions = (
   const handleConversion = useCallback(async (
     text: string,
     voiceId: string,
-    detectChapters: boolean, // Keep param for compatibility
-    chapters: Chapter[], // Keep param for compatibility
-    fileName?: string,
-    onProgress?: TextChunkCallback
+    onProgress?: TextChunkCallback,
+    chapters?: Chapter[],
+    fileName?: string
   ) => {
     try {
       setConversionStatus('converting');
@@ -87,7 +86,7 @@ export const useConversionActions = (
         variant: "destructive",
       });
       
-      return null;
+      throw error;
     }
   }, [setConversionStatus, setProgress, setAudioData, setAudioDuration, setConversionId, setCurrentFileName, setConversionStartTime, setElapsedTime, toast]);
 
