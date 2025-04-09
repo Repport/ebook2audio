@@ -19,36 +19,42 @@ export const useAudioConversion = () => {
   // Create safe state updater functions
   const safeSetConversionStatus = useCallback((status) => {
     if (mountedRef.current) {
+      console.log(`Setting conversion status: ${status}`);
       audioState.setConversionStatus(status);
     }
   }, [audioState]);
   
   const safeSetProgress = useCallback((progress) => {
     if (mountedRef.current) {
+      console.log(`Setting conversion progress: ${progress}%`);
       audioState.setProgress(progress);
     }
   }, [audioState]);
   
   const safeSetAudioData = useCallback((data) => {
     if (mountedRef.current) {
+      console.log(`Setting audio data: ${data ? 'received' : 'null'}`);
       audioState.setAudioData(data);
     }
   }, [audioState]);
   
   const safeSetAudioDuration = useCallback((duration) => {
     if (mountedRef.current) {
+      console.log(`Setting audio duration: ${duration}s`);
       audioState.setAudioDuration(duration);
     }
   }, [audioState]);
   
   const safeSetConversionId = useCallback((id) => {
     if (mountedRef.current) {
+      console.log(`Setting conversion ID: ${id}`);
       audioState.setConversionId(id);
     }
   }, [audioState]);
   
   const safeSetCurrentFileName = useCallback((fileName) => {
     if (mountedRef.current) {
+      console.log(`Setting current file name: ${fileName}`);
       audioState.setCurrentFileName(fileName);
     }
   }, [audioState]);
@@ -65,6 +71,7 @@ export const useAudioConversion = () => {
     }
   }, [audioState]);
   
+  // Get conversion actions with improved error handling
   const { resetConversion, handleConversion, handleDownload } = useConversionActions(
     safeSetConversionStatus,
     safeSetProgress,
@@ -88,8 +95,20 @@ export const useAudioConversion = () => {
   
   // Add cleanup function to handle component unmounting
   const cleanup = useCallback(() => {
+    console.log('Cleaning up audio conversion resources');
     mountedRef.current = false;
   }, []);
+
+  const debugState = useCallback(() => {
+    console.log('Current audio conversion state:', {
+      status: audioState.conversionStatus,
+      progress: audioState.progress,
+      hasAudioData: !!audioState.audioData,
+      audioDuration: audioState.audioDuration,
+      elapsedTime: audioState.elapsedTime,
+      conversionId: audioState.conversionId
+    });
+  }, [audioState]);
 
   return {
     // State
@@ -106,6 +125,7 @@ export const useAudioConversion = () => {
     handleDownload: handleDownloadWithAudioData,
     resetConversion,
     cleanup,
+    debugState,
     
     // State setters
     setProgress: safeSetProgress,

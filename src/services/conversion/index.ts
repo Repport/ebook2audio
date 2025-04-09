@@ -17,7 +17,11 @@ export const convertToAudio = async (
   voiceId: string,
   onProgress?: TextChunkCallback
 ): Promise<{ audio: ArrayBuffer; id: string }> => {
-  console.log('convertToAudio - Starting conversion');
+  console.log('convertToAudio - Starting conversion with:', {
+    textLength: text?.length || 0,
+    voiceId: voiceId || 'undefined',
+    hasProgressCallback: !!onProgress
+  });
   
   // Validar parámetros de entrada
   if (!text || typeof text !== 'string' || text.trim() === '') {
@@ -42,10 +46,15 @@ export const convertToAudio = async (
       
       // Validar resultado
       if (!result || !result.audio) {
+        console.error('convertToAudio - No valid audio data received:', result);
         throw new Error('No se recibieron datos de audio válidos');
       }
       
-      console.log('convertToAudio - Conversion completed successfully');
+      console.log('convertToAudio - Conversion completed successfully:', {
+        audioSize: result.audio.byteLength,
+        conversionId: result.id
+      });
+      
       return result;
     } catch (error: any) {
       lastError = error;
@@ -62,5 +71,6 @@ export const convertToAudio = async (
   }
   
   // Si llegamos aquí, todos los intentos fallaron
+  console.error('convertToAudio - All attempts failed. Last error:', lastError);
   throw lastError || new Error('La conversión falló después de múltiples intentos');
 };
