@@ -9,6 +9,7 @@ import Tabs from './file-processor/Tabs';
 import TabContent from './file-processor/TabContent';
 import FileProcessorTerms from './file-processor/FileProcessorTerms';
 import { useProcessorLogic } from '@/hooks/file-processor/useProcessorLogic';
+import { ConversionOptions } from '@/hooks/file-processor/useConversionActions';
 
 interface FileProcessorProps {
   selectedFile: File;
@@ -69,6 +70,12 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     conversionLogic.handleViewConversions();
   };
 
+  // Create an options object to pass to terms accept
+  const termsAcceptOptions: ConversionOptions = {
+    selectedVoice,
+    notifyOnComplete
+  };
+
   useEffect(() => {
     if (currentStep === 2) {
       setActiveTab("voice-settings");
@@ -117,10 +124,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         <FileProcessorTerms
           showTerms={showTerms}
           setShowTerms={setShowTerms}
-          handleTermsAccept={() => handleTermsAccept({
-            selectedVoice,
-            notifyOnComplete
-          })}
+          handleTermsAccept={() => handleTermsAccept(termsAcceptOptions)}
           fileName={selectedFile.name}
         />
         

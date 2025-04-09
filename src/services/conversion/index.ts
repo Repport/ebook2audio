@@ -16,61 +16,46 @@ export const convertToAudio = async (
   text: string, 
   voiceId: string,
   onProgress?: TextChunkCallback
-): Promise<{ audio: ArrayBuffer; id: string }> => {
-  console.log('convertToAudio - Starting conversion with:', {
-    textLength: text?.length || 0,
-    voiceId: voiceId || 'undefined',
-    hasProgressCallback: !!onProgress
-  });
-  
-  // Validar parámetros de entrada
-  if (!text || typeof text !== 'string' || text.trim() === '') {
-    throw new Error('El texto para convertir no puede estar vacío');
-  }
-  
-  if (!voiceId || typeof voiceId !== 'string') {
-    throw new Error('Se requiere un ID de voz válido');
-  }
-  
-  let lastError;
-  
-  // Implementar reintentos para mayor robustez
-  for (let retry = 0; retry <= MAX_RETRIES; retry++) {
-    try {
-      if (retry > 0) {
-        console.log(`convertToAudio - Retry attempt ${retry}/${MAX_RETRIES}`);
-      }
-      
-      // Intentar la conversión
-      const result = await convertTextToAudio(text, voiceId, onProgress);
-      
-      // Validar resultado
-      if (!result || !result.audio) {
-        console.error('convertToAudio - No valid audio data received:', result);
-        throw new Error('No se recibieron datos de audio válidos');
-      }
-      
-      console.log('convertToAudio - Conversion completed successfully:', {
-        audioSize: result.audio.byteLength,
-        conversionId: result.id
-      });
-      
-      return result;
-    } catch (error: any) {
-      lastError = error;
-      console.error(`convertToAudio - Error on attempt ${retry + 1}/${MAX_RETRIES + 1}:`, error);
-      
-      // Solo reintentamos si no es el último intento
-      if (retry < MAX_RETRIES) {
-        // Esperar un poco más entre cada reintento (backoff exponencial)
-        const delay = Math.pow(2, retry) * 1000;
-        console.log(`convertToAudio - Waiting ${delay}ms before next attempt`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+): Promise<{ audio: ArrayBuffer, id: string }> => {
+  try {
+    console.log('Starting conversion with text length:', text.length);
+    console.log('Using voice ID:', voiceId);
+    
+    // Intentar la conversión
+    let attempts = 0;
+    let result = null;
+    
+    while (attempts < MAX_RETRIES && !result) {
+      try {
+        attempts++;
+        console.log(`Conversion attempt ${attempts}/${MAX_RETRIES}`);
+        
+        result = await convertTextToAudio(text, voiceId, onProgress);
+        
+        if (!result || !result.audio) {
+          console.warn(`Attempt ${attempts} failed, no audio data received`);
+          result = null;
+        }
+      } catch (error) {
+        console.error(`Conversion attempt ${attempts} failed:`, error);
+        
+        if (attempts >= MAX_RETRIES) {
+          throw error; // Re-throw if this was our last attempt
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
       }
     }
+    
+    if (!result) {
+      throw new Error('Conversion failed after multiple attempts');
+    }
+    
+    console.log('Conversion completed successfully');
+    return result;
+  } catch (error) {
+    console.error('Conversion error:', error);
+    throw error;
   }
-  
-  // Si llegamos aquí, todos los intentos fallaron
-  console.error('convertToAudio - All attempts failed. Last error:', lastError);
-  throw lastError || new Error('La conversión falló después de múltiples intentos');
 };

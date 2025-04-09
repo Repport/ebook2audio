@@ -10,9 +10,9 @@ interface ChapterDetectionToggleProps {
   chaptersFound?: number;
 }
 
-// This component is now a stub that returns null
+// This component is completely disabled and returns null
 const ChapterDetectionToggle = ({ detectChapters, onToggle, chaptersFound = 0 }: ChapterDetectionToggleProps) => {
-  return null; // Return null to completely disable this component
+  return null;
 };
 
 export default ChapterDetectionToggle;
