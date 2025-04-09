@@ -1,5 +1,10 @@
 
-import { DatabaseLogEntry } from '@/utils/loggingService';
+export interface SystemStats {
+  totalConversions: number;
+  completedConversions: number;
+  cachedItems: number;
+  avgProcessingTime: number;
+}
 
 export interface PerformanceMetric {
   operation: string;
@@ -9,24 +14,4 @@ export interface PerformanceMetric {
   count: number;
 }
 
-export interface SystemStats {
-  totalConversions: number;
-  completedConversions: number;
-  cachedItems: number;
-  avgProcessingTime: number;
-}
-
-export interface MonitoringData {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  isLoading: boolean;
-  stats: SystemStats;
-  logs: DatabaseLogEntry[];
-  errorLogs: DatabaseLogEntry[];
-  performanceMetrics: PerformanceMetric[];
-  loadStats: () => Promise<void>;
-  loadLogs: () => Promise<void>;
-  loadErrorLogs: () => Promise<void>;
-  loadPerformanceMetrics: () => Promise<void>;
-  clearLogs: () => Promise<void>;
-}
+export type LogLevel = 'info' | 'error' | 'warning' | 'debug';
