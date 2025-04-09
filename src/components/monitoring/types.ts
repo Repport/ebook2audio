@@ -21,22 +21,6 @@ export interface DatabaseLog {
   status: string;
 }
 
-// Database log entry interface (for internal use)
-export interface DatabaseLogEntry {
-  id: string;
-  created_at: string;
-  event_type: string;
-  details: Record<string, any> | null;
-  status: string;
-}
-
-export interface LogEntryUtils {
-  getTimestamp: (log: DatabaseLogEntry) => string;
-  getLevel: (log: DatabaseLogEntry) => 'info' | 'warn' | 'error' | 'debug';
-  getMessage: (log: DatabaseLogEntry) => string;
-  getDetails: (log: DatabaseLogEntry) => string;
-}
-
 // Props for the system stats component
 export interface SystemStatsProps {
   stats: SystemStats;
