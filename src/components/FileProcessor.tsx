@@ -121,6 +121,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
           showTerms={showTerms}
           setShowTerms={setShowTerms}
           handleTermsAccept={handleTermsAccept}
+          fileName={selectedFile.name} // Add fileName prop here
         />
         
         <BackButton

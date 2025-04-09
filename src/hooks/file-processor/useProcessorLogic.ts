@@ -24,7 +24,7 @@ interface ProcessorLogicProps {
 
 export const useProcessorLogic = (props: ProcessorLogicProps) => {
   const { toast } = useToast();
-  const [isProcessingNextStep, setIsProcessingNextStep] = useState(false);
+  const [isProcessingNextStep, setIsProcessingNextStep] = useState<boolean>(false);
   const navigate = useNavigate();
   
   // Extract props
@@ -63,6 +63,17 @@ export const useProcessorLogic = (props: ProcessorLogicProps) => {
     resetConversion
   } = conversionLogic;
   
+  // Create a fixed handleTermsAccept function that returns void instead of boolean
+  const handleTermsAcceptFixed = async (): Promise<void> => {
+    if (conversionLogic.handleAcceptTerms) {
+      // Call the original function but discard its return value
+      await conversionLogic.handleAcceptTerms({
+        selectedVoice,
+        notifyOnComplete
+      });
+    }
+  };
+  
   // Setup conversion logic handlers
   const { 
     handleStartConversion,
@@ -79,7 +90,7 @@ export const useProcessorLogic = (props: ProcessorLogicProps) => {
     showTerms,
     setShowTerms,
     initiateConversion: conversionLogic.initiateConversion,
-    handleAcceptTerms: conversionLogic.handleAcceptTerms,
+    handleAcceptTerms: handleTermsAcceptFixed, // Use the fixed version
     currentStep,
     notifyOnComplete
   });
