@@ -97,7 +97,8 @@ export function useProcessorConversion({
         console.log('ProcessorLogic - Terms will be shown');
         // Set isProcessingNextStep to false since we're waiting for terms acceptance
         setIsProcessingNextStep(false);
-        // Only move to next step and begin conversion after terms are accepted
+        // DON'T move to next step until terms are accepted
+        setShowTerms(true);
         return true;
       }
 
@@ -140,7 +141,7 @@ export function useProcessorConversion({
     setShowTerms
   ]);
 
-  const handleTermsAccept = useCallback(async () => {
+  const handleTermsAccept = useCallback(async (options: ConversionOptions) => {
     console.log('ProcessorLogic - Terms accepted');
     setShowTerms(false);
     
@@ -153,10 +154,7 @@ export function useProcessorConversion({
       }
       
       // Only start the conversion after terms are accepted
-      await handleAcceptTerms({
-        selectedVoice,
-        notifyOnComplete
-      });
+      await handleAcceptTerms(options);
     } catch (error) {
       console.error('ProcessorLogic - Error in handleTermsAccept:', error);
       
@@ -173,8 +171,6 @@ export function useProcessorConversion({
     currentStep,
     onNextStep,
     handleAcceptTerms,
-    selectedVoice,
-    notifyOnComplete,
     setIsProcessingNextStep
   ]);
   

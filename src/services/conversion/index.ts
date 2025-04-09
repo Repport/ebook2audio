@@ -2,14 +2,14 @@
 import { convertTextToAudio } from './audio/conversionService';
 import { TextChunkCallback } from './types/chunks';
 
-// Número máximo de reintentos
+// Maximum number of retries
 const MAX_RETRIES = 2;
 
 /**
- * Función principal para convertir texto a audio
- * @param text Texto a convertir
- * @param voiceId ID de la voz a utilizar
- * @param onProgress Callback para reportar progreso
+ * Main function to convert text to audio
+ * @param text Text to convert
+ * @param voiceId Voice ID to use
+ * @param onProgress Progress callback
  * @returns Promise<{ audio: ArrayBuffer, id: string }>
  */
 export const convertToAudio = async (
@@ -21,7 +21,7 @@ export const convertToAudio = async (
     console.log('Starting conversion with text length:', text.length);
     console.log('Using voice ID:', voiceId);
     
-    // Intentar la conversión
+    // Attempt conversion
     let attempts = 0;
     let result = null;
     

@@ -46,7 +46,7 @@ export const useConversionProcess = ({
         
         let progressValue: number;
         
-        // Primero intentar usar el progreso directo si está disponible
+        // First try to use direct progress if available
         if (typeof directProgress === 'number' && !isNaN(directProgress)) {
           progressValue = Math.max(1, Math.min(100, directProgress));
           console.log(`Using direct progress value: ${progressValue}%`);
@@ -56,16 +56,16 @@ export const useConversionProcess = ({
           progressValue = Math.round((processedCharacters / totalCharacters) * 100);
           console.log(`Calculated progress value: ${progressValue}% (${processedCharacters}/${totalCharacters} chars)`);
         }
-        // Fallback - usar al menos 1%
+        // Fallback - use at least 1%
         else {
           progressValue = Math.max(1, progressData.progress || 1);
           console.log(`Using fallback progress value: ${progressValue}%`);
         }
         
-        // Asegurar que el progreso esté dentro de límites razonables
+        // Ensure progress is within reasonable limits
         progressValue = Math.max(1, Math.min(100, progressValue));
         
-        // Actualizar el progreso en el estado global
+        // Update progress in global state
         console.log(`Setting conversion progress: ${progressValue}%`);
         setProgress(progressValue);
         
@@ -85,18 +85,18 @@ export const useConversionProcess = ({
       );
       
       if (!result) {
-        throw new Error('La conversión falló o fue cancelada');
+        throw new Error('Conversion failed or was canceled');
       }
       
       console.log('Conversion completed successfully, setting final state');
       
-      // Asegurar que el ID de conversión se establezca correctamente
+      // Ensure conversion ID is set correctly
       if (result.id) {
         setConversionId(result.id);
         console.log('Set conversion ID:', result.id);
       }
       
-      // Asegurar que los datos de audio se establezcan correctamente
+      // Ensure audio data is set correctly
       if (result.audio) {
         setAudioData(result.audio);
         console.log('Audio data set successfully, length:', result.audio.byteLength);
@@ -104,14 +104,14 @@ export const useConversionProcess = ({
         console.warn('No audio data received in result');
       }
       
-      // Calcular la duración aproximada basada en el tamaño del texto
-      const approximateDuration = Math.ceil(extractedText.length / 15); // ~15 caracteres por segundo
+      // Calculate approximate duration based on text size
+      const approximateDuration = Math.ceil(extractedText.length / 15); // ~15 characters per second
       setAudioDuration(approximateDuration);
       
       setConversionStatus('completed');
       setProgress(100);
       
-      // Notificar la finalización a través del callback de progreso
+      // Notify completion through progress callback
       if (onProgressCallback) {
         onProgressCallback({
           progress: 100,
