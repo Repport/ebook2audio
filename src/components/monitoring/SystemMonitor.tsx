@@ -1,86 +1,57 @@
 
 import React from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import SystemStats from './dashboard/SystemStats';
-import { RecentLogs, ErrorLogs, adaptDatabaseLogToLog } from './logs';
-import PerformanceMetrics from './performance/PerformanceMetrics';
-import { useMonitoringData } from './hooks/useMonitoringData';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RecentLogs, ErrorLogs } from './logs';
+import { useSystemMonitoring } from '@/hooks/useSystemMonitoring';
 
-/**
- * Main System Monitor component
- */
-const SystemMonitor = () => {
-  const {
-    activeTab,
-    setActiveTab,
-    isLoading,
-    stats,
-    logs,
-    errorLogs,
-    performanceMetrics,
-    loadStats,
-    loadLogs,
-    loadErrorLogs,
-    loadPerformanceMetrics,
-    clearLogs
-  } = useMonitoringData();
-
-  // Convert database logs to the Log format expected by components
-  // Using useMemo to prevent unnecessary recalculations and infinite loops
-  const adaptedLogs = React.useMemo(() => logs.map(adaptDatabaseLogToLog), [logs]);
-  const adaptedErrorLogs = React.useMemo(() => errorLogs.map(adaptDatabaseLogToLog), [errorLogs]);
-
-  return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">System Monitoring</h1>
+const SystemMonitor: React.FC = () => {
+  const { logs, isLoading, error } = useSystemMonitoring();
+  
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
       </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <p className="font-bold">Error</p>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="container mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">System Monitoring</h1>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="mb-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="logs">System Logs</TabsTrigger>
           <TabsTrigger value="errors">Errors</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="all">All Logs</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="overview">
-          <SystemStats 
-            stats={stats} 
-            isLoading={isLoading} 
-            onRefresh={loadStats} 
-          />
-          <RecentLogs 
-            logs={adaptedLogs} 
-            isLoading={isLoading} 
-            onRefresh={loadLogs} 
-            onClearLogs={clearLogs} 
-          />
-        </TabsContent>
-        
-        <TabsContent value="logs">
-          <RecentLogs 
-            logs={adaptedLogs} 
-            isLoading={isLoading} 
-            onRefresh={loadLogs} 
-            onClearLogs={clearLogs} 
-          />
+        <TabsContent value="overview" className="space-y-6">
+          <RecentLogs logs={logs} title="Recent Activity" limit={10} />
         </TabsContent>
         
         <TabsContent value="errors">
-          <ErrorLogs 
-            logs={adaptedErrorLogs} 
-            isLoading={isLoading} 
-            onRefresh={loadErrorLogs} 
-          />
+          <ErrorLogs logs={logs} />
         </TabsContent>
         
-        <TabsContent value="performance">
-          <PerformanceMetrics 
-            metrics={performanceMetrics} 
-            isLoading={isLoading} 
-            onRefresh={loadPerformanceMetrics} 
-          />
+        <TabsContent value="all">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">All System Logs</h2>
+            <RecentLogs logs={logs} title="All Logs" limit={50} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

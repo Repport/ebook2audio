@@ -1,54 +1,31 @@
 
-import { DatabaseLogEntry } from '@/utils/loggingService';
-
-export interface PerformanceMetric {
-  operation: string;
-  avg_duration_ms: number;
-  max_duration_ms: number;
-  min_duration_ms: number;
-  count: number;
-}
-
-export interface SystemStats {
-  totalConversions: number;
-  completedConversions: number;
-  cachedItems: number;
-  avgProcessingTime: number;
-}
-
-export interface MonitoringData {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  isLoading: boolean;
-  stats: SystemStats;
-  logs: DatabaseLogEntry[];
-  errorLogs: DatabaseLogEntry[];
-  performanceMetrics: PerformanceMetric[];
-  loadStats: () => Promise<void>;
-  loadLogs: () => Promise<void>;
-  loadErrorLogs: () => Promise<void>;
-  loadPerformanceMetrics: () => Promise<void>;
-  clearLogs: () => Promise<void>;
-}
-
-export interface SystemStatsProps {
-  stats: SystemStats;
-  isLoading: boolean;
-  onRefresh: () => void;
-}
-
-export interface PerformanceMetricsProps {
-  metrics: PerformanceMetric[];
-  isLoading: boolean;
-  onRefresh: () => void;
-}
-
-export type Log = {
+export interface Log {
   id: string;
   timestamp: string;
-  level: string;
+  level: 'info' | 'warn' | 'error' | 'debug';
   message: string;
-  details?: string;
-};
+  details: string;
+}
 
-export type DatabaseLog = DatabaseLogEntry;
+export interface DatabaseLog {
+  id: string;
+  created_at: string;
+  event_type: string;
+  details: Record<string, any>;
+  status: string;
+}
+
+export interface DatabaseLogEntry {
+  id: string;
+  created_at: string;
+  event_type: string;
+  details: Record<string, any> | null;
+  status: string;
+}
+
+export interface LogEntryUtils {
+  getTimestamp: (log: DatabaseLogEntry) => string;
+  getLevel: (log: DatabaseLogEntry) => 'info' | 'warn' | 'error' | 'debug';
+  getMessage: (log: DatabaseLogEntry) => string;
+  getDetails: (log: DatabaseLogEntry) => string;
+}
