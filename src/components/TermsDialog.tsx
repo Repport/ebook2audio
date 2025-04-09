@@ -33,6 +33,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
 
     try {
       console.log('Registering terms acceptance...'); // Debugging log
+      
       const { error } = await supabase
         .from('terms_acceptance_logs')
         .insert({

@@ -95,6 +95,8 @@ export function useProcessorConversion({
 
       if (showTerms) {
         console.log('ProcessorLogic - Terms will be shown');
+        // Set isProcessingNextStep to false since we're waiting for terms acceptance
+        setIsProcessingNextStep(false);
         // Only move to next step and begin conversion after terms are accepted
         return true;
       }
@@ -134,7 +136,8 @@ export function useProcessorConversion({
     notifyOnComplete, 
     onNextStep, 
     currentStep,
-    setIsProcessingNextStep
+    setIsProcessingNextStep,
+    setShowTerms
   ]);
 
   const handleTermsAccept = useCallback(async () => {
@@ -142,6 +145,8 @@ export function useProcessorConversion({
     setShowTerms(false);
     
     try {
+      setIsProcessingNextStep(true);
+      
       if (currentStep === 2) {
         console.log('ProcessorLogic - Moving to next step after terms acceptance');
         onNextStep();

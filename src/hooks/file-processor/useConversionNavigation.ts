@@ -1,22 +1,19 @@
 
 import { useCallback } from 'react';
-import { NavigateFunction } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-export const useConversionNavigation = (navigate: NavigateFunction) => {
+export function useConversionNavigation(navigate?: any) {
+  const nav = useNavigate();
+  
   const handleViewConversions = useCallback(() => {
-    console.log('useConversionNavigation - Navigating to conversions');
-    navigate('/conversions');
-  }, [navigate]);
+    if (typeof navigate === 'function') {
+      navigate('/conversions');
+    } else {
+      nav('/conversions');
+    }
+  }, [navigate, nav]);
   
-  const handleTabChange = useCallback((tab: string) => {
-    console.log(`useConversionNavigation - Changing tab to: ${tab}`);
-    // This function now merely passes the tab value through
-    // We're intentionally not using navigate() here to prevent page refreshes
-    return tab;
-  }, []);
-  
-  return { 
-    handleViewConversions,
-    handleTabChange
+  return {
+    handleViewConversions
   };
-};
+}

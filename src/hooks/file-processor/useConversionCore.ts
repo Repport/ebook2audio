@@ -43,7 +43,7 @@ export const useConversionCore = (
     progress: audioConversion.progress,
     audioData: audioConversion.audioData,
     audioDuration: audioConversion.audioDuration,
-    elapsedTime: audioConversion.elapsedTime,
+    elapsedTime: audioConversion.elapsedTime || 0, // Provide default value to fix type error
     conversionId: audioConversion.conversionId,
     
     // These methods need to be passed through from audioConversion

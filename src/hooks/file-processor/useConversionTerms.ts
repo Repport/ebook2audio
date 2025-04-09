@@ -1,41 +1,46 @@
 
 import { useState, useCallback } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
-export const useConversionTerms = () => {
-  const [showTerms, setShowTerms] = useState<boolean>(false);
-  const { user } = useAuth();
+export function useConversionTerms() {
+  const [showTerms, setShowTerms] = useState(false);
 
-  const checkTermsAcceptance = useCallback(async (): Promise<boolean> => {
-    if (!user) {
-      console.log('useConversionTerms - No user, showing terms');
-      return false; // No user, always show terms
-    }
-    
+  const checkTermsAcceptance = useCallback(async () => {
     try {
-      // Use user_consents table instead of user_preferences
+      // Check if we have accepted terms recently (last 24 hours)
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+      
       const { data, error } = await supabase
-        .from('user_consents')
-        .select('terms_accepted')
-        .eq('user_id', user.id)
-        .single();
+        .from('terms_acceptance_logs')
+        .select('id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(1);
       
       if (error) {
-        console.error('useConversionTerms - Error checking terms acceptance:', error);
-        return false;
+        console.error('Error checking terms acceptance:', error);
+        return false; // If error, require terms acceptance to be safe
       }
       
-      return data?.terms_accepted === true;
-    } catch (err) {
-      console.error('useConversionTerms - Error in terms check:', err);
+      if (data && data.length > 0) {
+        const lastAcceptance = new Date(data[0].created_at);
+        if (lastAcceptance > twentyFourHoursAgo) {
+          console.log('Terms were recently accepted:', lastAcceptance);
+          return true; // Terms were accepted within the last 24 hours
+        }
+      }
+      
+      // No recent acceptance found
       return false;
+    } catch (err) {
+      console.error('Error in checkTermsAcceptance:', err);
+      return false; // Require terms acceptance if there's an error
     }
-  }, [user]);
-  
+  }, []);
+
   return {
     showTerms,
     setShowTerms,
     checkTermsAcceptance
   };
-};
+}

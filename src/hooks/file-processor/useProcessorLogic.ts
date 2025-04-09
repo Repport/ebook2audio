@@ -1,115 +1,116 @@
 
+import { useCallback, useState } from 'react';
 import { Chapter } from '@/utils/textExtraction';
-import { useConversionLogic } from '@/components/file-processor/useConversionLogic';
-import { useVoiceSettings } from './useVoiceSettings';
-import { useProcessorUI } from './useProcessorUI';
+import { useToast } from '@/hooks/use-toast';
+import { useFileProcessor } from '@/context/FileProcessorContext';
 import { useProcessorNavigation } from './useProcessorNavigation';
+import { useVoiceSettings } from './useVoiceSettings';
+import { useTermsAndNotifications } from './useTermsAndNotifications';
 import { useProcessorConversion } from './useProcessorConversion';
+import { useProcessorUI } from './useProcessorUI';
+import { ConversionOptions } from './useConversionActions';
 
-interface ProcessorLogicProps {
-  selectedFile: File;
-  extractedText: string;
-  chapters: Chapter[];
-  onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
-  currentStep: number;
-  onNextStep: () => void;
-  onPreviousStep: () => void;
-  onStepComplete?: () => void;
-}
-
-export const useProcessorLogic = ({
-  selectedFile,
-  extractedText,
-  chapters,
-  onFileSelect,
-  currentStep,
-  onNextStep,
-  onPreviousStep,
-  onStepComplete
-}: ProcessorLogicProps) => {
-  // Use our smaller, focused hooks
-  const { 
-    selectedVoice, 
-    setSelectedVoice,
-    notifyOnComplete, 
-    setNotifyOnComplete 
-  } = useVoiceSettings();
+export const useProcessorLogic = () => {
+  const { toast } = useToast();
+  const [isProcessingNextStep, setIsProcessingNextStep] = useState(false);
   
+  // Access file processor context
   const { 
-    activeTab, 
-    setActiveTab,
-    isProcessingNextStep, 
-    setIsProcessingNextStep 
-  } = useProcessorUI();
-
-  // Get conversion logic from existing hook
-  const conversionLogic = useConversionLogic(selectedFile, extractedText, chapters, onStepComplete);
-  const {
-    conversionStatus,
-    resetConversion,
+    selectedFile, 
+    extractedText, 
+    chapters, 
+    onNextStep, 
+    currentStep 
+  } = useFileProcessor();
+  
+  // Get processor hooks
+  const { activeTab, setActiveTab, goToNextTab } = useProcessorNavigation(currentStep);
+  const { selectedVoice, setSelectedVoice, notifyOnComplete, setNotifyOnComplete } = useVoiceSettings();
+  const { showTerms, setShowTerms, hasAcceptedTerms, setHasAcceptedTerms } = useTermsAndNotifications();
+  const { isDetectingChapters, setIsDetectingChapters, detectChapters, setDetectChapters } = useProcessorUI();
+  
+  // Get conversion logic
+  const conversionLogic = {
+    conversionStatus: 'idle',
+    progress: 0,
+    audioData: null,
+    audioDuration: 0,
+    elapsedTime: 0,
+    initiateConversion: () => Promise.resolve(false),
+    handleAcceptTerms: (options: ConversionOptions) => Promise.resolve(),
+    handleDownloadClick: () => {},
+    handleViewConversions: () => {},
+    calculateEstimatedSeconds: () => 0,
+    conversionId: null,
+    setProgress: () => {},
+    setConversionStatus: () => {},
+    resetConversion: () => {},
+    detectChapters,
+    setDetectChapters,
+    detectingChapters: isDetectingChapters,
     showTerms,
-    setShowTerms,
-    initiateConversion,
-    handleAcceptTerms
-  } = conversionLogic;
+    setShowTerms
+  };
 
-  // Use navigation hook
-  const { handleGoBack } = useProcessorNavigation({
-    currentStep,
-    onPreviousStep,
-    onFileSelect,
-    resetConversion,
-    conversionStatus,
-    detectingChapters: false,
-    isProcessingNextStep
-  });
-
-  // Use conversion actions hook
+  // Setup conversion logic handlers
   const { 
-    handleStartConversion, 
-    handleTermsAccept 
+    handleStartConversion,
+    handleTermsAccept
   } = useProcessorConversion({
     selectedFile,
     extractedText,
     selectedVoice,
     isProcessingNextStep,
     setIsProcessingNextStep,
-    detectingChapters: false,
-    setDetectChapters: () => {},
+    detectingChapters: isDetectingChapters,
+    setDetectChapters,
     onNextStep,
     showTerms,
     setShowTerms,
-    initiateConversion,
-    handleAcceptTerms,
+    initiateConversion: conversionLogic.initiateConversion,
+    handleAcceptTerms: conversionLogic.handleAcceptTerms,
     currentStep,
     notifyOnComplete
   });
 
-  // Return all the state and handlers
   return {
+    // File upload form state
+    selectedFile,
+    extractedText,
+    chapters,
+    
+    // Navigation state
+    activeTab,
+    setActiveTab,
+    currentStep,
+    goToNextTab,
+    
     // Voice settings
     selectedVoice,
     setSelectedVoice,
     notifyOnComplete,
     setNotifyOnComplete,
     
-    // UI state
-    activeTab,
-    setActiveTab,
-    isProcessingNextStep,
-    
-    // Conversion logic
-    conversionLogic,
-    detectChapters: false,
-    setDetectChapters: () => {},
-    detectingChapters: false,
+    // Terms
     showTerms,
     setShowTerms,
+    hasAcceptedTerms,
+    setHasAcceptedTerms,
     
-    // Actions
+    // Processing state
+    isProcessingNextStep,
+    setIsProcessingNextStep,
+    detectChapters,
+    setDetectChapters,
+    isDetectingChapters,
+    setIsDetectingChapters,
+    
+    // Conversion actions
     handleStartConversion,
     handleTermsAccept,
-    handleGoBack,
-    resetConversion
+    
+    // Conversion state
+    conversionLogic,
+    toast
   };
 };
