@@ -8,11 +8,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
 
-// Import from the correct locations
-import { useChaptersDetection } from './useConversionOptions'; // Fix the import path
-import { useTermsAcceptance } from './useConversionTerms';     // Fix the import path
-import { useConversionEstimation } from './useConversionEstimation'; // Fix the import path
-import { useConversionNavigation } from './useConversionNavigation'; // Fix the import path
+// Import from the file processor directory directly
+import { useChaptersDetection } from './useConversionOptions';
+import { useConversionTerms } from './useConversionTerms';
+import { useConversionEstimation } from './useConversionEstimation';
+import { useConversionNavigation } from './useConversionNavigation';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -27,7 +27,7 @@ export const useConversionLogic = (
 ) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { showTerms, setShowTerms, checkRecentTermsAcceptance } = useTermsAcceptance();
+  const { showTerms, setShowTerms, checkTermsAcceptance } = useConversionTerms();
   const { detectChapters, setDetectChapters, detectingChapters, setDetectingChapters } = useChaptersDetection();
   const { calculateEstimatedSeconds } = useConversionEstimation(extractedText);
   const { handleViewConversions } = useConversionNavigation();

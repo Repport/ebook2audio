@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
@@ -7,10 +6,12 @@ import { clearConversionStorage } from '@/services/storage/conversionStorageServ
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { retryOperation } from '@/services/conversion/utils/retryUtils';
-import { useChaptersDetection } from './conversion/useChaptersDetection';
-import { useTermsAcceptance } from './conversion/useTermsAcceptance';
-import { useEstimatedTime } from './conversion/useEstimatedTime';
-import { useNavigationHandlers } from './conversion/useNavigationHandlers';
+
+// Import from hooks/file-processor
+import { useChaptersDetection } from '@/hooks/file-processor/useConversionOptions';
+import { useConversionTerms } from '@/hooks/file-processor/useConversionTerms';
+import { useConversionEstimation } from '@/hooks/file-processor/useConversionEstimation';
+import { useConversionNavigation } from '@/hooks/file-processor/useConversionNavigation';
 
 export interface ConversionOptions {
   selectedVoice: string;
@@ -25,10 +26,10 @@ export const useConversionLogic = (
 ) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { showTerms, setShowTerms, checkRecentTermsAcceptance } = useTermsAcceptance();
+  const { showTerms, setShowTerms, checkTermsAcceptance } = useConversionTerms();
   const { detectChapters, setDetectChapters, detectingChapters, setDetectingChapters } = useChaptersDetection();
-  const { calculateEstimatedSeconds } = useEstimatedTime(extractedText);
-  const { handleViewConversions } = useNavigationHandlers();
+  const { calculateEstimatedSeconds } = useConversionEstimation(extractedText);
+  const { handleViewConversions } = useConversionNavigation();
 
   const {
     conversionStatus,
@@ -40,7 +41,8 @@ export const useConversionLogic = (
     resetConversion,
     conversionId,
     setProgress,
-    setConversionStatus
+    setConversionStatus,
+    elapsedTime = 0 // Provide default value to fix type error
   } = useAudioConversion();
 
   useEffect(() => {
@@ -70,11 +72,10 @@ export const useConversionLogic = (
     }
 
     // Verificar términos y condiciones
-    const termsAccepted = await checkRecentTermsAcceptance();
+    const termsAccepted = await checkTermsAcceptance();
     if (!termsAccepted) {
       setShowTerms(true);
-      // We're just showing terms, but not starting conversion yet
-      return true;
+      return false;
     }
     
     return true;
@@ -185,6 +186,7 @@ export const useConversionLogic = (
     progress,
     audioData,
     audioDuration,
+    elapsedTime,
     initiateConversion: handleConversionStart,
     handleAcceptTerms,
     handleDownloadClick,
@@ -192,6 +194,7 @@ export const useConversionLogic = (
     calculateEstimatedSeconds,
     conversionId,
     setProgress,
-    setConversionStatus
+    setConversionStatus,
+    resetConversion
   };
 };

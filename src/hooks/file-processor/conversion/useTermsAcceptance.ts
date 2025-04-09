@@ -2,10 +2,11 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-export function useConversionTerms() {
+export const useTermsAcceptance = () => {
   const [showTerms, setShowTerms] = useState(false);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
 
-  const checkTermsAcceptance = useCallback(async () => {
+  const checkRecentTermsAcceptance = useCallback(async () => {
     try {
       // Check if we have accepted terms recently (last 24 hours)
       const twentyFourHoursAgo = new Date();
@@ -22,15 +23,17 @@ export function useConversionTerms() {
         return false; // If error, require terms acceptance to be safe
       }
       
-      if (data && data.length > 0 && data[0].created_at) {
+      if (data && data.length > 0) {
         const lastAcceptance = new Date(data[0].created_at);
         if (lastAcceptance > twentyFourHoursAgo) {
           console.log('Terms were recently accepted:', lastAcceptance);
+          setHasAcceptedTerms(true);
           return true; // Terms were accepted within the last 24 hours
         }
       }
       
       // No recent acceptance found
+      setHasAcceptedTerms(false);
       return false;
     } catch (err) {
       console.error('Error in checkTermsAcceptance:', err);
@@ -41,9 +44,8 @@ export function useConversionTerms() {
   return {
     showTerms,
     setShowTerms,
-    checkTermsAcceptance
+    hasAcceptedTerms,
+    setHasAcceptedTerms,
+    checkRecentTermsAcceptance
   };
-}
-
-// Add useTermsAcceptance export for compatibility
-export const useTermsAcceptance = useConversionTerms;
+};

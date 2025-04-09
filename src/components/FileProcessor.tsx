@@ -89,6 +89,9 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     }
   };
 
+  // Ensure conversion status is one of the allowed values
+  const typedConversionStatus = conversionLogic.conversionStatus as "idle" | "converting" | "completed" | "error";
+
   const contextValue = {
     selectedFile,
     extractedText,
@@ -111,7 +114,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         />
         
         <BackButton
-          conversionStatus={conversionLogic.conversionStatus}
+          conversionStatus={typedConversionStatus}
           detectingChapters={false}
           isProcessingNextStep={isProcessingNextStep}
           resetConversion={resetConversion}
@@ -136,7 +139,17 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                   detectChapters={false}
                   setDetectChapters={() => {}}
                   handleStartConversion={handleStartConversion}
-                  conversionLogic={conversionLogic}
+                  conversionLogic={{
+                    conversionStatus: typedConversionStatus,
+                    progress: conversionLogic.progress,
+                    audioData: conversionLogic.audioData as ArrayBuffer,
+                    audioDuration: conversionLogic.audioDuration,
+                    elapsedTime: conversionLogic.elapsedTime,
+                    handleDownloadClick: conversionLogic.handleDownloadClick,
+                    handleViewConversions: conversionLogic.handleViewConversions,
+                    conversionId: conversionLogic.conversionId,
+                    calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
+                  }}
                   resetConversion={resetConversion}
                   detectingChapters={false}
                 />
@@ -152,7 +165,17 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                   detectChapters={false}
                   setDetectChapters={() => {}}
                   handleStartConversion={handleStartConversion}
-                  conversionLogic={conversionLogic}
+                  conversionLogic={{
+                    conversionStatus: typedConversionStatus,
+                    progress: conversionLogic.progress,
+                    audioData: conversionLogic.audioData as ArrayBuffer,
+                    audioDuration: conversionLogic.audioDuration,
+                    elapsedTime: conversionLogic.elapsedTime,
+                    handleDownloadClick: conversionLogic.handleDownloadClick,
+                    handleViewConversions: conversionLogic.handleViewConversions,
+                    conversionId: conversionLogic.conversionId,
+                    calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
+                  }}
                   resetConversion={resetConversion}
                   detectingChapters={false}
                 />
@@ -168,7 +191,17 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                   detectChapters={false}
                   setDetectChapters={() => {}}
                   handleStartConversion={handleStartConversion}
-                  conversionLogic={conversionLogic}
+                  conversionLogic={{
+                    conversionStatus: typedConversionStatus,
+                    progress: conversionLogic.progress,
+                    audioData: conversionLogic.audioData as ArrayBuffer,
+                    audioDuration: conversionLogic.audioDuration,
+                    elapsedTime: conversionLogic.elapsedTime,
+                    handleDownloadClick: conversionLogic.handleDownloadClick,
+                    handleViewConversions: conversionLogic.handleViewConversions,
+                    conversionId: conversionLogic.conversionId,
+                    calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
+                  }}
                   resetConversion={resetConversion}
                   detectingChapters={false}
                 />

@@ -3,55 +3,65 @@ import { useCallback, useState } from 'react';
 import { Chapter } from '@/utils/textExtraction';
 import { useToast } from '@/hooks/use-toast';
 import { useFileProcessor } from '@/context/FileProcessorContext';
-import { useProcessorNavigation } from './useProcessorNavigation';
 import { useVoiceSettings } from './useVoiceSettings';
-import { useTermsAndNotifications } from './useTermsAndNotifications';
-import { useProcessorConversion } from './useProcessorConversion';
 import { useProcessorUI } from './useProcessorUI';
 import { ConversionOptions } from './useConversionActions';
+import { useProcessorConversion } from './useProcessorConversion';
+import { useConversionCore } from './useConversionCore';
+import { useNavigate } from 'react-router-dom';
 
-export const useProcessorLogic = () => {
+// Define a proper interface for the props
+interface ProcessorLogicProps {
+  selectedFile: File | null;
+  extractedText: string;
+  chapters: Chapter[];
+  onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
+  currentStep: number;
+  onNextStep: () => void;
+  onPreviousStep: () => void;
+  onStepComplete?: () => void;
+}
+
+export const useProcessorLogic = (props: ProcessorLogicProps) => {
   const { toast } = useToast();
   const [isProcessingNextStep, setIsProcessingNextStep] = useState(false);
+  const navigate = useNavigate();
   
-  // Access file processor context
+  // Extract props
   const { 
     selectedFile, 
     extractedText, 
     chapters, 
     onNextStep, 
-    currentStep 
-  } = useFileProcessor();
+    currentStep,
+    onPreviousStep,
+    onFileSelect,
+    onStepComplete
+  } = props;
   
-  // Get processor hooks
-  const { activeTab, setActiveTab, goToNextTab } = useProcessorNavigation(currentStep);
+  // Get UI state
+  const { activeTab, setActiveTab } = useProcessorUI();
+  
+  // Get voice settings
   const { selectedVoice, setSelectedVoice, notifyOnComplete, setNotifyOnComplete } = useVoiceSettings();
-  const { showTerms, setShowTerms, hasAcceptedTerms, setHasAcceptedTerms } = useTermsAndNotifications();
-  const { isDetectingChapters, setIsDetectingChapters, detectChapters, setDetectChapters } = useProcessorUI();
   
-  // Get conversion logic
-  const conversionLogic = {
-    conversionStatus: 'idle',
-    progress: 0,
-    audioData: null,
-    audioDuration: 0,
-    elapsedTime: 0,
-    initiateConversion: () => Promise.resolve(false),
-    handleAcceptTerms: (options: ConversionOptions) => Promise.resolve(),
-    handleDownloadClick: () => {},
-    handleViewConversions: () => {},
-    calculateEstimatedSeconds: () => 0,
-    conversionId: null,
-    setProgress: () => {},
-    setConversionStatus: () => {},
-    resetConversion: () => {},
+  // Get conversion logic using our specialized hook
+  const conversionLogic = useConversionCore(
+    selectedFile,
+    extractedText,
+    chapters,
+    onStepComplete
+  );
+  
+  const {
+    showTerms,
+    setShowTerms,
     detectChapters,
     setDetectChapters,
-    detectingChapters: isDetectingChapters,
-    showTerms,
-    setShowTerms
-  };
-
+    detectingChapters,
+    resetConversion
+  } = conversionLogic;
+  
   // Setup conversion logic handlers
   const { 
     handleStartConversion,
@@ -62,7 +72,7 @@ export const useProcessorLogic = () => {
     selectedVoice,
     isProcessingNextStep,
     setIsProcessingNextStep,
-    detectingChapters: isDetectingChapters,
+    detectingChapters,
     setDetectChapters,
     onNextStep,
     showTerms,
@@ -72,6 +82,48 @@ export const useProcessorLogic = () => {
     currentStep,
     notifyOnComplete
   });
+  
+  // Handle navigation
+  const handleGoBack = useCallback(() => {
+    console.log('ProcessorLogic - handleGoBack called');
+    
+    if (conversionLogic.conversionStatus !== 'converting' && !detectingChapters && !isProcessingNextStep) {
+      if (currentStep > 1) {
+        console.log('ProcessorLogic - Going to previous step');
+        onPreviousStep();
+      } else {
+        console.log('ProcessorLogic - Returning to file selection');
+        resetConversion();
+        onFileSelect(null);
+      }
+    } else {
+      console.log('ProcessorLogic - Cannot go back during conversion or chapter detection');
+      
+      toast({
+        title: "In Progress",
+        description: "Please wait until the current process completes",
+        variant: "default",
+      });
+    }
+  }, [
+    currentStep, 
+    onPreviousStep, 
+    onFileSelect, 
+    resetConversion, 
+    conversionLogic.conversionStatus, 
+    detectingChapters, 
+    isProcessingNextStep,
+    toast
+  ]);
+  
+  // Function to move to the next tab
+  const goToNextTab = useCallback(() => {
+    if (activeTab === "file-info") {
+      setActiveTab("voice-settings");
+    } else if (activeTab === "voice-settings") {
+      setActiveTab("conversion");
+    }
+  }, [activeTab, setActiveTab]);
 
   return {
     // File upload form state
@@ -94,20 +146,19 @@ export const useProcessorLogic = () => {
     // Terms
     showTerms,
     setShowTerms,
-    hasAcceptedTerms,
-    setHasAcceptedTerms,
     
     // Processing state
     isProcessingNextStep,
     setIsProcessingNextStep,
     detectChapters,
     setDetectChapters,
-    isDetectingChapters,
-    setIsDetectingChapters,
+    detectingChapters,
     
     // Conversion actions
     handleStartConversion,
     handleTermsAccept,
+    handleGoBack,
+    resetConversion,
     
     // Conversion state
     conversionLogic,
