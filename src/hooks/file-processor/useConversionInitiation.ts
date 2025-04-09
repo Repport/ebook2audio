@@ -1,87 +1,43 @@
 
 import { useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { useConversionStore } from '@/store/conversionStore';
-import { clearConversionStorage } from '@/services/storage/conversionStorageService';
-import { clearProcessedCache } from '@/services/conversion/utils/retryUtils';
 import { LoggingService } from '@/utils/loggingService';
 
 export function useConversionInitiation() {
+  const { toast } = useToast();
   const conversionStore = useConversionStore();
-  
-  const initiateConversion = useCallback(async (
-    selectedFile: File | null,
-    extractedText: string,
-    audioConversion: any,
-    checkTermsAcceptance: () => Promise<boolean>,
-    setShowTerms: (show: boolean) => void
-  ) => {
-    console.log('useConversionInitiation - initiateConversion called');
-    
-    if (!selectedFile || !extractedText) {
-      console.log('useConversionInitiation - Missing file or text');
-      return false;
-    }
-    
+
+  const startInitialization = useCallback(async (fileName: string | null) => {
     try {
-      console.log('useConversionInitiation - Checking terms acceptance');
-      
-      // Check if conversion is already in progress to prevent duplicate requests
-      const currentStatus = conversionStore.status;
-      if (currentStatus === 'converting' || currentStatus === 'processing') {
-        console.log('useConversionInitiation - Already converting, skipping new request');
-        LoggingService.warn('conversion', {
-          message: 'Attempted to start a new conversion while one is already in progress',
-          currentStatus,
-          fileName: selectedFile.name
-        });
-        return true; // Already converting, don't restart
-      }
-      
-      // Generation a unique conversion ID to track this conversion
-      const conversionId = crypto.randomUUID();
-      console.log(`useConversionInitiation - Generated new conversion ID: ${conversionId}`);
-      
-      // Generate a text hash to help identify duplicate conversions
-      const textHash = await generateTextHash(extractedText);
-      console.log(`useConversionInitiation - Text hash: ${textHash}`);
-      
-      // Only reset if not already converting
-      console.log('useConversionInitiation - Resetting conversion state');
-      audioConversion.resetConversion();
-      conversionStore.resetConversion();
-      clearConversionStorage();
-      clearProcessedCache(); // Clear the processed cache
-      
-      const termsAccepted = await checkTermsAcceptance();
-      if (!termsAccepted) {
-        setShowTerms(true);
-        return true; // We're showing terms, so this is a successful flow
-      }
+      // Initialize store with initial data
+      conversionStore.startConversion(fileName);
+
+      // Clear existing errors and warnings
+      conversionStore.clearErrors();
+      conversionStore.clearWarnings();
       
       return true;
-    } catch (err) {
-      console.error('useConversionInitiation - Error in terms acceptance check:', err);
-      setShowTerms(true);
+    } catch (error: any) {
+      console.error("Failed to initialize conversion:", error);
+      
+      // Log the error
+      LoggingService.warn('conversion', {
+        message: 'Failed to initialize conversion',
+        error: error.message
+      });
+      
+      toast({
+        title: "Initialization Error",
+        description: error.message || "Could not initialize conversion",
+        variant: "destructive"
+      });
+      
       return false;
     }
-  }, [conversionStore]);
+  }, [conversionStore, toast]);
   
   return {
-    initiateConversion
+    startInitialization
   };
-}
-
-// Helper function to generate a hash for text
-async function generateTextHash(text: string): Promise<string> {
-  try {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex.substring(0, 16); // Return first 16 chars of the hash for brevity
-  } catch (error) {
-    console.error('Error generating text hash:', error);
-    return Date.now().toString(36); // Fallback to timestamp if hashing fails
-  }
 }

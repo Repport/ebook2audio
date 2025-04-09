@@ -53,7 +53,7 @@ export const useProcessorLogic = (props: ProcessorLogicProps) => {
     onStepComplete
   );
   
-  // Make sure we have these properties from conversionLogic
+  // Extract these properties explicitly from conversionLogic for TypeScript
   const {
     showTerms,
     setShowTerms,

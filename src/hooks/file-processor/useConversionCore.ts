@@ -1,72 +1,62 @@
 
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Chapter } from '@/utils/textExtraction';
-import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
-import { useConversionProgress } from './useConversionProgress';
-import { useConversionTerms } from './useConversionTerms';
-import { useConversionNavigation } from './useConversionNavigation';
+import { Chapter } from '@/utils/textExtraction';
+import { useChaptersDetection } from './useChaptersDetection';
+import { useTermsAndNotifications } from './useTermsAndNotifications';
 import { useConversionEstimation } from './useConversionEstimation';
+import { useConversionNavigation } from './useConversionNavigation';
 
-export const useConversionCore = (
+export function useConversionCore(
   selectedFile: File | null,
   extractedText: string,
   chapters: Chapter[],
   onStepComplete?: () => void
-) => {
-  const { toast } = useToast();
-  const navigate = useNavigate();
+) {
+  // Use required hooks
+  const { showTerms, setShowTerms } = useTermsAndNotifications();
+  const { 
+    detectChapters, 
+    setDetectChapters, 
+    detectingChapters, 
+    setDetectingChapters 
+  } = useChaptersDetection();
+  const { calculateEstimatedSeconds } = useConversionEstimation(extractedText);
+  const { handleViewConversions } = useConversionNavigation();
+
+  // Get conversion logic from the audio conversion hook
+  const conversion = useAudioConversion();
   
-  // Use our specialized hooks
-  const audioConversion = useAudioConversion();
-  const { showTerms, setShowTerms, checkTermsAcceptance } = 
-    useConversionTerms();
-  const { handleViewConversions } = 
-    useConversionNavigation(navigate);
-  const { calculateEstimatedSeconds } = 
-    useConversionEstimation(extractedText);
-  
-  // Initialize the progress watcher
-  const { watchConversionProgress } = useConversionProgress(
-    selectedFile,
-    audioConversion,
-    onStepComplete
-  );
-  
-  watchConversionProgress();
-  
-  // Return an object that fully implements the AudioConversionAPI interface
+  // Return all the data and functions needed
   return {
-    // State
-    conversionStatus: audioConversion.conversionStatus,
-    progress: audioConversion.progress,
-    audioData: audioConversion.audioData,
-    audioDuration: audioConversion.audioDuration,
-    elapsedTime: audioConversion.elapsedTime || 0, // Provide default value to fix type error
-    conversionId: audioConversion.conversionId,
-    
-    // These methods need to be passed through from audioConversion
-    handleConversion: audioConversion.handleConversion,
-    handleDownload: audioConversion.handleDownload,
-    
-    // Terms dialog
+    // Terms
     showTerms,
     setShowTerms,
-    checkTermsAcceptance,
     
-    // State setters
-    setProgress: audioConversion.setProgress,
-    setConversionStatus: audioConversion.setConversionStatus,
-    resetConversion: audioConversion.resetConversion,
+    // Chapters detection
+    detectChapters, 
+    setDetectChapters, 
+    detectingChapters, 
+    setDetectingChapters,
     
-    // Methods from other hooks
-    calculateEstimatedSeconds,
+    // Conversion functions
+    handleDownloadClick: conversion.handleDownload,
     handleViewConversions,
+    calculateEstimatedSeconds,
     
-    // These will be implemented in the main useConversionLogic
-    initiateConversion: () => Promise.resolve(false),
-    handleAcceptTerms: async () => {},
-    handleDownloadClick: () => {},
+    // Conversion state
+    conversionStatus: conversion.conversionStatus,
+    progress: conversion.progress,
+    audioData: conversion.audioData,
+    audioDuration: conversion.audioDuration,
+    elapsedTime: conversion.elapsedTime || 0,
+    conversionId: conversion.conversionId,
+    
+    // Conversion methods
+    setProgress: conversion.setProgress,
+    setConversionStatus: conversion.setConversionStatus,
+    handleAcceptTerms: conversion.handleAcceptTerms,
+    initiateConversion: conversion.initiateConversion,
+    resetConversion: conversion.resetConversion,
   };
-};
+}

@@ -35,7 +35,7 @@ class ErrorBoundary extends Component<Props, State> {
     // Log to console
     console.error(`Error caught by ErrorBoundary in ${componentName}:`, error, errorInfo);
     
-    // Log to our monitoring system
+    // Log to our monitoring system - using the new logError method
     LoggingService.error('user_action', {
       message: `React Error: ${error.message}`,
       component: componentName,

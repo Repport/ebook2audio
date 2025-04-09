@@ -5,6 +5,7 @@ import { useLogs } from './useLogs';
 import { useErrorLogs } from './useErrorLogs';
 import { usePerformanceMetrics } from './usePerformanceMetrics';
 import { MonitoringData } from '../types';
+import { DatabaseLogEntry } from '@/utils/loggingService';
 
 export function useMonitoringData(): MonitoringData {
   const [activeTab, setActiveTab] = useState("overview");
@@ -62,8 +63,8 @@ export function useMonitoringData(): MonitoringData {
     setActiveTab,
     isLoading,
     stats,
-    logs,
-    errorLogs,
+    logs: logs as DatabaseLogEntry[],
+    errorLogs: errorLogs as DatabaseLogEntry[],
     performanceMetrics,
     loadStats,
     loadLogs,

@@ -12,7 +12,7 @@ export const startConversionAction = (
 ) => {
   // Return the startConversion function directly
   return (fileName: string | null) => {
-    logger.log('info', 'conversion', { message: 'Starting conversion', fileName });
+    logger.info('conversion', { message: 'Starting conversion', fileName });
     
     set({
       status: 'converting',
