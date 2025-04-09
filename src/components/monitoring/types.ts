@@ -1,4 +1,8 @@
 
+import { Log, DatabaseLogEntry } from '@/utils/logging/types';
+import { DatabaseLogEntry as SystemLogEntry } from '@/utils/loggingService';
+import { PerformanceMetric, SystemStats } from './hooks/types';
+
 export interface Log {
   id: string;
   timestamp: string;
@@ -28,4 +32,51 @@ export interface LogEntryUtils {
   getLevel: (log: DatabaseLogEntry) => 'info' | 'warn' | 'error' | 'debug';
   getMessage: (log: DatabaseLogEntry) => string;
   getDetails: (log: DatabaseLogEntry) => string;
+}
+
+// Props for the system stats component
+export interface SystemStatsProps {
+  stats: SystemStats;
+  isLoading: boolean;
+  onRefresh: () => void;
+}
+
+// Props for performance metrics component
+export interface PerformanceMetricsProps {
+  metrics: PerformanceMetric[];
+  isLoading: boolean;
+  onRefresh: () => void;
+}
+
+// Monitoring data interface
+export interface MonitoringData {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  isLoading: boolean;
+  stats: SystemStats;
+  logs: SystemLogEntry[];
+  errorLogs: SystemLogEntry[];
+  performanceMetrics: PerformanceMetric[];
+  loadStats: () => Promise<void>;
+  loadLogs: () => Promise<void>;
+  loadErrorLogs: () => Promise<void>;
+  loadPerformanceMetrics: () => Promise<void>;
+  clearLogs: () => Promise<void>;
+}
+
+// Props for log components
+export interface LogsListProps {
+  logs: DatabaseLogEntry[];
+  isLoading?: boolean;
+  emptyMessage?: string;
+}
+
+export interface RecentLogsProps {
+  logs: DatabaseLogEntry[];
+  title?: string;
+  limit?: number;
+}
+
+export interface ErrorLogsProps {
+  logs: DatabaseLogEntry[];
 }
