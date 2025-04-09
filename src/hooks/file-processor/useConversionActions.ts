@@ -43,9 +43,7 @@ export const useConversionActions = (
       audioConversion,
       selectedFile,
       extractedText,
-      options,
-      detectChapters,
-      chapters
+      options
     );
   }, [
     selectedFile, 
@@ -53,9 +51,7 @@ export const useConversionActions = (
     validateConversionParams, 
     setDetectingChapters, 
     startConversion, 
-    audioConversion, 
-    detectChapters, 
-    chapters
+    audioConversion
   ]);
 
   const handleDownloadClick = useCallback(() => {

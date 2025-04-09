@@ -60,12 +60,10 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     isProcessingNextStep
   } = processorLogic;
 
-  // Create wrapper functions that don't require parameters
   const handleDownloadClick = () => {
     conversionLogic.handleDownloadClick();
   };
   
-  // Create a viewConversions wrapper function
   const handleViewConversions = () => {
     conversionLogic.handleViewConversions();
   };
@@ -98,7 +96,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     }
   };
 
-  // Ensure conversion status is one of the allowed values
   const typedConversionStatus = conversionLogic.conversionStatus as "idle" | "converting" | "completed" | "error";
 
   const contextValue = {
