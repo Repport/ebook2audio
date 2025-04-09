@@ -63,21 +63,16 @@ export const useProcessorLogic = (props: ProcessorLogicProps) => {
     resetConversion
   } = conversionLogic;
   
-  // Create a fixed handleTermsAccept function that returns void instead of boolean
-  const handleTermsAcceptFixed = async (): Promise<void> => {
+  // Create a fixed handleTermsAccept function with proper typing
+  const handleTermsAccept = async (options: ConversionOptions): Promise<void> => {
     if (conversionLogic.handleAcceptTerms) {
-      // Call the original function but discard its return value
-      await conversionLogic.handleAcceptTerms({
-        selectedVoice,
-        notifyOnComplete
-      });
+      await conversionLogic.handleAcceptTerms(options);
     }
   };
   
   // Setup conversion logic handlers
   const { 
-    handleStartConversion,
-    handleTermsAccept
+    handleStartConversion
   } = useProcessorConversion({
     selectedFile,
     extractedText,
@@ -90,7 +85,7 @@ export const useProcessorLogic = (props: ProcessorLogicProps) => {
     showTerms,
     setShowTerms,
     initiateConversion: conversionLogic.initiateConversion,
-    handleAcceptTerms: handleTermsAcceptFixed, // Use the fixed version
+    handleAcceptTerms: handleTermsAccept, 
     currentStep,
     notifyOnComplete
   });

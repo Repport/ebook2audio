@@ -58,9 +58,9 @@ export function useMonitoringData(): MonitoringData {
     loadTabData();
   }, [activeTab, loadTabData]);
 
-  // Create typed log arrays to ensure they match the expected DatabaseLogEntry type
-  const typedLogs: DatabaseLogEntry[] = logs as unknown as DatabaseLogEntry[];
-  const typedErrorLogs: DatabaseLogEntry[] = errorLogs as unknown as DatabaseLogEntry[];
+  // Safely cast logs to the correct type
+  const typedLogs = (logs || []) as DatabaseLogEntry[];
+  const typedErrorLogs = (errorLogs || []) as DatabaseLogEntry[];
 
   return {
     activeTab,

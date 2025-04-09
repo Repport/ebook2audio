@@ -17,9 +17,7 @@ export function useConversionProcess() {
     audioConversion: any,
     selectedFile: File | null,
     extractedText: string,
-    options: ConversionOptions,
-    detectChapters: boolean, // Keep param for compatibility
-    chapters: Chapter[] // Keep param for compatibility
+    options: ConversionOptions
   ) => {
     if (!selectedFile || !extractedText) {
       console.error('useConversionProcess - Missing file or text');

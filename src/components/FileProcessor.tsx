@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Tabs as UITabs, TabsContent } from "@/components/ui/tabs";
 import { Chapter } from '@/utils/textExtraction';
@@ -120,7 +119,10 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         <FileProcessorTerms
           showTerms={showTerms}
           setShowTerms={setShowTerms}
-          handleTermsAccept={() => handleTermsAccept()}
+          handleTermsAccept={() => handleTermsAccept({
+            selectedVoice,
+            notifyOnComplete
+          })}
           fileName={selectedFile.name}
         />
         
