@@ -1,8 +1,9 @@
 
-import { Log, DatabaseLogEntry } from '@/utils/logging/types';
+// Import from the correct logging service
 import { DatabaseLogEntry as SystemLogEntry } from '@/utils/loggingService';
 import { PerformanceMetric, SystemStats } from './hooks/types';
 
+// Local log interface that matches what the UI needs
 export interface Log {
   id: string;
   timestamp: string;
@@ -11,6 +12,7 @@ export interface Log {
   details: string;
 }
 
+// Database log interface
 export interface DatabaseLog {
   id: string;
   created_at: string;
@@ -19,6 +21,7 @@ export interface DatabaseLog {
   status: string;
 }
 
+// Database log entry interface (for internal use)
 export interface DatabaseLogEntry {
   id: string;
   created_at: string;
@@ -66,17 +69,17 @@ export interface MonitoringData {
 
 // Props for log components
 export interface LogsListProps {
-  logs: DatabaseLogEntry[];
+  logs: SystemLogEntry[];
   isLoading?: boolean;
   emptyMessage?: string;
 }
 
 export interface RecentLogsProps {
-  logs: DatabaseLogEntry[];
+  logs: SystemLogEntry[];
   title?: string;
   limit?: number;
 }
 
 export interface ErrorLogsProps {
-  logs: DatabaseLogEntry[];
+  logs: SystemLogEntry[];
 }

@@ -1,11 +1,10 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Log, DatabaseLogEntry } from '@/components/monitoring/types';
-import { adaptDatabaseLogToLog } from '@/components/monitoring/logs';
+import { DatabaseLogEntry } from '@/utils/loggingService';
 
 export const useSystemMonitoring = () => {
-  const [logs, setLogs] = useState<Log[]>([]);
+  const [logs, setLogs] = useState<DatabaseLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -24,9 +23,8 @@ export const useSystemMonitoring = () => {
           throw error;
         }
         
-        // Convert database logs to application logs format
-        const formattedLogs = (data as DatabaseLogEntry[]).map(adaptDatabaseLogToLog);
-        setLogs(formattedLogs);
+        // Set the logs directly without conversion
+        setLogs(data as DatabaseLogEntry[]);
         
       } catch (err: any) {
         console.error('Error fetching system logs:', err);
@@ -46,7 +44,7 @@ export const useSystemMonitoring = () => {
         schema: 'public', 
         table: 'system_logs' 
       }, (payload) => {
-        const newLog = adaptDatabaseLogToLog(payload.new as DatabaseLogEntry);
+        const newLog = payload.new as DatabaseLogEntry;
         setLogs(prevLogs => [newLog, ...prevLogs].slice(0, 100));
       })
       .subscribe();
