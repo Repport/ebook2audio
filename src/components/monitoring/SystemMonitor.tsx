@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RecentLogs, ErrorLogs } from './logs';
+import { RecentLogs, ErrorLogs, LogsList } from './logs';
 import { useSystemMonitoring } from '@/hooks/useSystemMonitoring';
 
 const SystemMonitor: React.FC = () => {
@@ -50,7 +50,7 @@ const SystemMonitor: React.FC = () => {
         <TabsContent value="all">
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">All System Logs</h2>
-            <RecentLogs logs={logs} title="All Logs" limit={50} />
+            <LogsList logs={logs} />
           </div>
         </TabsContent>
       </Tabs>

@@ -83,3 +83,6 @@ export interface RecentLogsProps {
 export interface ErrorLogsProps {
   logs: SystemLogEntry[];
 }
+
+// Export the SystemLogEntry type so it can be used in other modules
+export type { SystemLogEntry };
