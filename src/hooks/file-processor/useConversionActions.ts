@@ -64,6 +64,7 @@ export const useConversionActions = (
   }, [audioConversion, selectedFile, handleDownload]);
 
   const initiateConversionWrapper = useCallback(async () => {
+    // Pass the filename if available
     return startInitialization(selectedFile?.name || null);
   }, [
     selectedFile,

@@ -65,6 +65,11 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   const handleDownloadClick = () => {
     conversionLogic.handleDownloadClick();
   };
+  
+  // Create a viewConversions wrapper function
+  const handleViewConversions = () => {
+    conversionLogic.handleViewConversions();
+  };
 
   useEffect(() => {
     if (currentStep === 2) {
@@ -151,7 +156,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                     audioDuration: conversionLogic.audioDuration,
                     elapsedTime: conversionLogic.elapsedTime,
                     handleDownloadClick: handleDownloadClick,
-                    handleViewConversions: conversionLogic.handleViewConversions,
+                    handleViewConversions: handleViewConversions,
                     conversionId: conversionLogic.conversionId,
                     calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
                   }}
@@ -177,7 +182,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                     audioDuration: conversionLogic.audioDuration,
                     elapsedTime: conversionLogic.elapsedTime,
                     handleDownloadClick: handleDownloadClick,
-                    handleViewConversions: conversionLogic.handleViewConversions,
+                    handleViewConversions: handleViewConversions,
                     conversionId: conversionLogic.conversionId,
                     calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
                   }}
@@ -203,7 +208,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
                     audioDuration: conversionLogic.audioDuration,
                     elapsedTime: conversionLogic.elapsedTime,
                     handleDownloadClick: handleDownloadClick,
-                    handleViewConversions: conversionLogic.handleViewConversions,
+                    handleViewConversions: handleViewConversions,
                     conversionId: conversionLogic.conversionId,
                     calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
                   }}

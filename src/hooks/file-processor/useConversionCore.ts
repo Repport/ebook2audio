@@ -29,15 +29,17 @@ export function useConversionCore(
   const conversion = useAudioConversion();
   
   // Create wrapper functions to match expected signatures
-  const handleAcceptTermsWrapper = async (options: ConversionOptions) => {
+  const handleAcceptTermsWrapper = useCallback(async (options: ConversionOptions) => {
     console.log('Wrapping handleAcceptTerms call with options:', options);
-    // Add any needed logic here
-  };
+    // This will be implemented by the parent component
+    return true;
+  }, []);
   
-  const initiateConversionWrapper = async () => {
+  const initiateConversionWrapper = useCallback(async () => {
     console.log('Wrapping initiateConversion call');
-    return true; // Return a boolean as expected
-  };
+    // This will be implemented by the parent component
+    return true;
+  }, []);
   
   // Return all the data and functions needed
   return {
