@@ -120,7 +120,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         <FileProcessorTerms
           showTerms={showTerms}
           setShowTerms={setShowTerms}
-          handleTermsAccept={handleTermsAccept}
+          handleTermsAccept={() => handleTermsAccept()}
           fileName={selectedFile.name}
         />
         
