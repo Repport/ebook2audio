@@ -95,6 +95,7 @@ export function useProcessorConversion({
 
       if (showTerms) {
         console.log('ProcessorLogic - Terms will be shown');
+        // Only move to next step and begin conversion after terms are accepted
         return true;
       }
 
@@ -146,6 +147,7 @@ export function useProcessorConversion({
         onNextStep();
       }
       
+      // Only start the conversion after terms are accepted
       await handleAcceptTerms({
         selectedVoice,
         notifyOnComplete

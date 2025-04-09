@@ -48,6 +48,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
         return;
       }
 
+      // Call onAccept only after successfully recording acceptance
       onAccept();
     } catch (error) {
       console.error('Error al procesar aceptación de términos:', error);
@@ -55,7 +56,9 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) onClose();
+    }}>
       <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-none">
           <DialogTitle>{translations.termsTitle}</DialogTitle>
