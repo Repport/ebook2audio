@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { Tabs as UITabs, TabsContent } from "@/components/ui/tabs";
 import { Chapter } from '@/utils/textExtraction';

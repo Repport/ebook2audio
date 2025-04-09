@@ -47,7 +47,7 @@ export const useConversionProcess = () => {
       });
       return false;
     }
-  }, [toast]);
+  }, []);
 
   return {
     startConversion
