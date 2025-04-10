@@ -1,11 +1,12 @@
 
 import React from 'react';
 import TermsDialog from '../TermsDialog';
+import { ConversionOptions } from '@/hooks/file-processor/useConversionActions';
 
 interface FileProcessorTermsProps {
   showTerms: boolean;
   setShowTerms: (show: boolean) => void;
-  handleTermsAccept: () => Promise<void>;
+  handleTermsAccept: (options: ConversionOptions) => Promise<void>;
   fileName?: string;
 }
 
@@ -15,11 +16,17 @@ const FileProcessorTerms: React.FC<FileProcessorTermsProps> = ({
   handleTermsAccept,
   fileName
 }) => {
+  // Create default options for terms acceptance
+  const defaultOptions: ConversionOptions = {
+    selectedVoice: '',
+    notifyOnComplete: false
+  };
+
   return (
     <TermsDialog
       open={showTerms}
       onClose={() => setShowTerms(false)}
-      onAccept={handleTermsAccept}
+      onAccept={() => handleTermsAccept(defaultOptions)}
       fileName={fileName}
     />
   );
