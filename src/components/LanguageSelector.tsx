@@ -7,13 +7,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useLanguage } from "@/hooks/useLanguage.tsx";
+import { useLanguage } from "@/hooks/useLanguage";
 
 const LanguageSelector: React.FC = () => {
   const { language, setLanguage } = useLanguage();
 
   const handleValueChange = (value: string) => {
-    setLanguage(value as 'english' | 'spanish' | 'french' | 'german');
+    setLanguage(value);
   };
 
   return (
@@ -22,10 +22,10 @@ const LanguageSelector: React.FC = () => {
         <SelectValue placeholder="Language" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="english">English</SelectItem>
-        <SelectItem value="spanish">Español</SelectItem>
-        <SelectItem value="french">Français</SelectItem>
-        <SelectItem value="german">Deutsch</SelectItem>
+        <SelectItem value="en">English</SelectItem>
+        <SelectItem value="es">Español</SelectItem>
+        <SelectItem value="fr">Français</SelectItem>
+        <SelectItem value="de">Deutsch</SelectItem>
       </SelectContent>
     </Select>
   );

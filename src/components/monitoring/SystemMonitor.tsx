@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogsList, RecentLogs, ErrorLogs } from './logs';
+import { LogsList, RecentLogs, ErrorLogs } from './logs/index';
 import { useSystemMonitoring } from '@/hooks/useSystemMonitoring';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSystemLogs } from './hooks/useSystemLogs';
