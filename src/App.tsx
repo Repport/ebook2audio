@@ -9,9 +9,9 @@ import Monitoring from '@/pages/Monitoring';
 import Privacy from '@/pages/Privacy';
 import CookiePolicy from '@/pages/CookiePolicy';
 import NotFound from '@/pages/NotFound';
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
-import CookieConsent from "@/components/CookieConsent"
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
+import CookieConsent from "@/components/CookieConsent";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import ErrorBoundary from "@/components/ErrorBoundary";
 

@@ -1,15 +1,15 @@
 
 import React from 'react';
-import { ProcessorLogicType } from '@/hooks/file-processor/useProcessorLogic';
+import { useProcessorLogic } from '@/hooks/file-processor/useProcessorLogic';
 import { ConversionOptions } from '@/hooks/file-processor/useConversionActions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import FileInfo from '@/components/FileInfo';
-import VoiceSettingsStep from '@/components/VoiceSettingsStep';
+import FileInfo from '@/components/file-processor/FileInfo';
+import VoiceSettings from '@/components/file-processor/VoiceSettings';
 import ConversionStep from './ConversionStep';
 import FileProcessorTerms from './FileProcessorTerms';
 
 interface FileProcessorLayoutProps {
-  processorLogic: ProcessorLogicType;
+  processorLogic: ReturnType<typeof useProcessorLogic>;
   termsAcceptOptions: ConversionOptions;
   activeTab: string;
   onTabChange: (value: string) => void;
@@ -72,13 +72,14 @@ const FileProcessorLayout: React.FC<FileProcessorLayoutProps> = ({
         </TabsContent>
 
         <TabsContent value="voice-settings" className="pt-4">
-          <VoiceSettingsStep
-            detectedLanguage="english"
+          <VoiceSettings
             selectedVoice={selectedVoice}
             setSelectedVoice={setSelectedVoice}
             notifyOnComplete={notifyOnComplete}
             setNotifyOnComplete={setNotifyOnComplete}
-            onNextStep={handleStartConversion}
+            onStartConversion={handleStartConversion}
+            onBack={handleGoBack}
+            isProcessingNextStep={isProcessingNextStep}
           />
         </TabsContent>
 
