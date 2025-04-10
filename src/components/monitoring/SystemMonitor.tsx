@@ -1,14 +1,17 @@
+
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogsList, RecentLogs, ErrorLogs } from './logs';
 import { useSystemMonitoring } from '@/hooks/useSystemMonitoring';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSystemLogs } from './hooks/useSystemLogs';
 
 const SystemMonitor: React.FC = () => {
   const { logs, isLoading, error } = useSystemMonitoring();
+  const { getLogLevel } = useSystemLogs();
   
-  const warningLogs = logs.filter(log => log.level === 'warn');
-  const infoLogs = logs.filter(log => log.level === 'info' || log.level === 'debug');
+  const warningLogs = logs.filter(log => getLogLevel(log) === 'warn');
+  const infoLogs = logs.filter(log => getLogLevel(log) === 'info' || getLogLevel(log) === 'debug');
   
   return (
     <div className="space-y-6">
