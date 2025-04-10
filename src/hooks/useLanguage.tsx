@@ -67,7 +67,7 @@ const defaultTranslations = {
   
   // File processor tabs
   fileInfo: 'File Information',
-  voiceSettings: 'Voice Settings',
+  // We removed the duplicate voiceSettings here
   conversionAndDownload: 'Conversion & Download',
   
   // Conversion step

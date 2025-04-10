@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import VoiceSelector from '@/components/VoiceSelector';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useLanguage } from '@/hooks/useLanguage.tsx';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface VoiceSettingsProps {
   selectedVoice: string;
@@ -37,6 +37,7 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({
         <VoiceSelector
           selectedVoice={selectedVoice}
           onVoiceChange={setSelectedVoice}
+          detectedLanguage={null}
         />
         
         <div className="flex items-center justify-between space-x-2">
