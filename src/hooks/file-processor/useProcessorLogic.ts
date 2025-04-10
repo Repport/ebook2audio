@@ -22,6 +22,29 @@ interface ProcessorLogicProps {
   onStepComplete?: () => void;
 }
 
+export interface ProcessorLogicType {
+  selectedFile: File | null;
+  extractedText: string;
+  chapters: Chapter[];
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  currentStep: number;
+  goToNextTab: () => void;
+  selectedVoice: string;
+  setSelectedVoice: (voice: string) => void;
+  notifyOnComplete: boolean;
+  setNotifyOnComplete: (notify: boolean) => void;
+  showTerms: boolean;
+  setShowTerms: (show: boolean) => void;
+  isProcessingNextStep: boolean;
+  setIsProcessingNextStep: (isProcessing: boolean) => void;
+  detectChapters: boolean;
+  setDetectChapters: (detect: boolean) => void;
+  detectingChapters: boolean;
+  conversionLogic: any;
+  toast: any;
+}
+
 export const useProcessorLogic = (props: ProcessorLogicProps) => {
   const { toast } = useToast();
   const [isProcessingNextStep, setIsProcessingNextStep] = useState<boolean>(false);

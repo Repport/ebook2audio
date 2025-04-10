@@ -3,8 +3,8 @@ import React from 'react';
 import { ProcessorLogicType } from '@/hooks/file-processor/useProcessorLogic';
 import { ConversionOptions } from '@/hooks/file-processor/useConversionActions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import FileInfo from './FileInfo';
-import VoiceSettings from './VoiceSettings';
+import FileInfo from '@/components/FileInfo';
+import VoiceSettingsStep from '@/components/VoiceSettingsStep';
 import ConversionStep from './ConversionStep';
 import FileProcessorTerms from './FileProcessorTerms';
 
@@ -65,24 +65,20 @@ const FileProcessorLayout: React.FC<FileProcessorLayoutProps> = ({
 
         <TabsContent value="file-info" className="pt-4">
           <FileInfo
-            selectedFile={selectedFile}
-            extractedText={processorLogic.extractedText}
-            chapters={processorLogic.chapters}
-            isProcessingNextStep={isProcessingNextStep}
-            onNextStep={processorLogic.goToNextTab}
-            onBack={handleGoBack}
+            file={selectedFile}
+            onRemove={resetConversion}
+            onNext={processorLogic.goToNextTab}
           />
         </TabsContent>
 
         <TabsContent value="voice-settings" className="pt-4">
-          <VoiceSettings
+          <VoiceSettingsStep
+            detectedLanguage="english"
             selectedVoice={selectedVoice}
             setSelectedVoice={setSelectedVoice}
             notifyOnComplete={notifyOnComplete}
             setNotifyOnComplete={setNotifyOnComplete}
-            isProcessingNextStep={isProcessingNextStep}
-            onStartConversion={handleStartConversion}
-            onBack={handleGoBack}
+            onNextStep={handleStartConversion}
           />
         </TabsContent>
 
