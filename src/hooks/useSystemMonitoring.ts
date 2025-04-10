@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { DatabaseLogEntry } from '@/utils/loggingService';
+import { DatabaseLogEntry } from '@/utils/logging/types';
 
 export const useSystemMonitoring = () => {
   const [logs, setLogs] = useState<DatabaseLogEntry[]>([]);
@@ -23,8 +23,8 @@ export const useSystemMonitoring = () => {
           throw error;
         }
         
-        // Set the logs directly without conversion
-        setLogs(data as DatabaseLogEntry[]);
+        // Cast data to the correct type to fix type mismatch
+        setLogs(data as unknown as DatabaseLogEntry[]);
         
       } catch (err: any) {
         console.error('Error fetching system logs:', err);
@@ -44,7 +44,7 @@ export const useSystemMonitoring = () => {
         schema: 'public', 
         table: 'system_logs' 
       }, (payload) => {
-        const newLog = payload.new as DatabaseLogEntry;
+        const newLog = payload.new as unknown as DatabaseLogEntry;
         setLogs(prevLogs => [newLog, ...prevLogs].slice(0, 100));
       })
       .subscribe();

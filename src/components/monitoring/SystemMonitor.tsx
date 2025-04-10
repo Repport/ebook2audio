@@ -5,13 +5,16 @@ import { LogsList, RecentLogs, ErrorLogs } from './logs';
 import { useSystemMonitoring } from '@/hooks/useSystemMonitoring';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSystemLogs } from './hooks/useSystemLogs';
+import { DatabaseLogEntry } from '@/utils/logging/types';
 
 const SystemMonitor: React.FC = () => {
   const { logs, isLoading, error } = useSystemMonitoring();
   const { getLogLevel } = useSystemLogs();
   
-  const warningLogs = logs.filter(log => getLogLevel(log) === 'warn');
-  const infoLogs = logs.filter(log => getLogLevel(log) === 'info' || getLogLevel(log) === 'debug');
+  // Cast logs to the correct interface to fix type mismatch
+  const typedLogs = logs as unknown as DatabaseLogEntry[];
+  const warningLogs = typedLogs.filter(log => getLogLevel(log) === 'warn');
+  const infoLogs = typedLogs.filter(log => getLogLevel(log) === 'info' || getLogLevel(log) === 'debug');
   
   return (
     <div className="space-y-6">
