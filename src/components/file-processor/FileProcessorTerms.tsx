@@ -7,6 +7,7 @@ interface FileProcessorTermsProps {
   showTerms: boolean;
   setShowTerms: (show: boolean) => void;
   handleTermsAccept: (options: ConversionOptions) => Promise<void>;
+  termsAcceptOptions: ConversionOptions;
   fileName?: string;
 }
 
@@ -14,19 +15,14 @@ const FileProcessorTerms: React.FC<FileProcessorTermsProps> = ({
   showTerms,
   setShowTerms,
   handleTermsAccept,
+  termsAcceptOptions,
   fileName
 }) => {
-  // Create default options for terms acceptance
-  const defaultOptions: ConversionOptions = {
-    selectedVoice: '',
-    notifyOnComplete: false
-  };
-
   return (
     <TermsDialog
       open={showTerms}
       onClose={() => setShowTerms(false)}
-      onAccept={() => handleTermsAccept(defaultOptions)}
+      onAccept={() => handleTermsAccept(termsAcceptOptions)}
       fileName={fileName}
     />
   );

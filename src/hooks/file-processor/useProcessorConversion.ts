@@ -1,6 +1,6 @@
 
 import { useCallback } from 'react';
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { ConversionOptions } from './useConversionActions';
 
 interface ConversionActionsProps {
@@ -36,6 +36,8 @@ export function useProcessorConversion({
   currentStep,
   notifyOnComplete
 }: ConversionActionsProps) {
+  
+  const { toast } = useToast();
   
   const handleStartConversion = useCallback(async () => {
     console.log('ProcessorLogic - handleStartConversion called', {
@@ -92,7 +94,8 @@ export function useProcessorConversion({
         return false;
       }
 
-      if (showTerms) {
+      // Always show terms on the first conversion
+      if (currentStep === 2 || showTerms) {
         console.log('ProcessorLogic - Terms will be shown');
         // Set isProcessingNextStep to false since we're waiting for terms acceptance
         setIsProcessingNextStep(false);
@@ -137,7 +140,8 @@ export function useProcessorConversion({
     onNextStep, 
     currentStep,
     setIsProcessingNextStep,
-    setShowTerms
+    setShowTerms,
+    toast
   ]);
 
   const handleTermsAccept = useCallback(async (options: ConversionOptions) => {
@@ -170,7 +174,8 @@ export function useProcessorConversion({
     currentStep,
     onNextStep,
     handleAcceptTerms,
-    setIsProcessingNextStep
+    setIsProcessingNextStep,
+    toast
   ]);
   
   return {

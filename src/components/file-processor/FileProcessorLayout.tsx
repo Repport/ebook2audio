@@ -1,19 +1,19 @@
+
 import React from 'react';
-import { Tabs as UITabs, TabsContent } from "@/components/ui/tabs";
+import { ProcessorLogicType } from '@/hooks/file-processor/useProcessorLogic';
 import { ConversionOptions } from '@/hooks/file-processor/useConversionActions';
-import BackButton from './BackButton';
-import ErrorHandler from './ErrorHandler';
-import Tabs from './Tabs';
-import TabContent from './TabContent';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import FileInfo from './FileInfo';
+import VoiceSettings from './VoiceSettings';
+import ConversionStep from './ConversionStep';
 import FileProcessorTerms from './FileProcessorTerms';
 
 interface FileProcessorLayoutProps {
-  processorLogic: any;
+  processorLogic: ProcessorLogicType;
   termsAcceptOptions: ConversionOptions;
   activeTab: string;
-  handleTermsAccept: (options: ConversionOptions) => Promise<void>;
-  onTabChange: (tab: string) => void;
-  typedConversionStatus: "idle" | "converting" | "completed" | "error";
+  onTabChange: (value: string) => void;
+  typedConversionStatus: 'idle' | 'converting' | 'completed' | 'error';
   conversionLogic: any;
   selectedVoice: string;
   setSelectedVoice: (voice: string) => void;
@@ -22,6 +22,7 @@ interface FileProcessorLayoutProps {
   handleStartConversion: () => Promise<boolean>;
   resetConversion: () => void;
   handleGoBack: () => void;
+  handleTermsAccept: (options: ConversionOptions) => Promise<void>;
   isProcessingNextStep: boolean;
   selectedFile: File;
 }
@@ -30,7 +31,6 @@ const FileProcessorLayout: React.FC<FileProcessorLayoutProps> = ({
   processorLogic,
   termsAcceptOptions,
   activeTab,
-  handleTermsAccept,
   onTabChange,
   typedConversionStatus,
   conversionLogic,
@@ -41,150 +41,71 @@ const FileProcessorLayout: React.FC<FileProcessorLayoutProps> = ({
   handleStartConversion,
   resetConversion,
   handleGoBack,
+  handleTermsAccept,
   isProcessingNextStep,
   selectedFile
 }) => {
-  const { showTerms, setShowTerms } = processorLogic;
-  
-  const handleErrorReset = () => {
-    console.log('FileProcessor - Handling error recovery');
-    resetConversion();
-    if (processorLogic.currentStep === 3) {
-      processorLogic.onPreviousStep();
-    }
-  };
-
-  const handleTabChange = (tab: string) => {
-    console.log('FileProcessor - Tab changed to:', tab);
-    
-    if (tab === "file-info" || 
-        (tab === "voice-settings" && processorLogic.currentStep >= 2) || 
-        (tab === "conversion" && processorLogic.currentStep >= 3)) {
-      onTabChange(tab);
-    }
-  };
-
-  const handleDownloadClick = () => {
-    conversionLogic.handleDownloadClick();
-  };
-  
-  const handleViewConversions = () => {
-    conversionLogic.handleViewConversions();
-  };
-
   return (
-    <ErrorHandler onReset={handleErrorReset}>
+    <div className="space-y-6">
+      {/* Terms Dialog */}
       <FileProcessorTerms
-        showTerms={showTerms}
-        setShowTerms={setShowTerms}
-        handleTermsAccept={() => handleTermsAccept(termsAcceptOptions)}
-        fileName={selectedFile.name}
-      />
-      
-      <BackButton
-        conversionStatus={typedConversionStatus}
-        detectingChapters={false}
-        isProcessingNextStep={isProcessingNextStep}
-        resetConversion={resetConversion}
-        onGoBack={handleGoBack}
+        showTerms={processorLogic.showTerms}
+        setShowTerms={processorLogic.setShowTerms}
+        handleTermsAccept={handleTermsAccept}
+        termsAcceptOptions={termsAcceptOptions}
+        fileName={selectedFile?.name}
       />
 
-      <UITabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
-        <Tabs 
-          activeTab={activeTab} 
-          onTabChange={handleTabChange} 
-        />
+      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+        <TabsList className="grid grid-cols-3 w-full">
+          <TabsTrigger value="file-info">File Info</TabsTrigger>
+          <TabsTrigger value="voice-settings">Voice Settings</TabsTrigger>
+          <TabsTrigger value="conversion">Conversion</TabsTrigger>
+        </TabsList>
 
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 transition-all">
-          <ErrorHandler onReset={handleErrorReset}>
-            <TabContentWrapper
-              activeTab={activeTab}
-              selectedVoice={selectedVoice}
-              setSelectedVoice={setSelectedVoice}
-              notifyOnComplete={notifyOnComplete}
-              setNotifyOnComplete={setNotifyOnComplete}
-              handleStartConversion={handleStartConversion}
-              conversionLogic={{
-                conversionStatus: typedConversionStatus,
-                progress: conversionLogic.progress,
-                audioData: conversionLogic.audioData as ArrayBuffer,
-                audioDuration: conversionLogic.audioDuration,
-                elapsedTime: conversionLogic.elapsedTime,
-                handleDownloadClick: handleDownloadClick,
-                handleViewConversions: handleViewConversions,
-                conversionId: conversionLogic.conversionId,
-                calculateEstimatedSeconds: conversionLogic.calculateEstimatedSeconds
-              }}
-              resetConversion={resetConversion}
-            />
-          </ErrorHandler>
-        </div>
-      </UITabs>
-    </ErrorHandler>
-  );
-};
+        <TabsContent value="file-info" className="pt-4">
+          <FileInfo
+            selectedFile={selectedFile}
+            extractedText={processorLogic.extractedText}
+            chapters={processorLogic.chapters}
+            isProcessingNextStep={isProcessingNextStep}
+            onNextStep={processorLogic.goToNextTab}
+            onBack={handleGoBack}
+          />
+        </TabsContent>
 
-// Extract TabContentWrapper to keep the component structure clean
-const TabContentWrapper: React.FC<{
-  activeTab: string;
-  selectedVoice: string;
-  setSelectedVoice: (voice: string) => void;
-  notifyOnComplete: boolean;
-  setNotifyOnComplete: (notify: boolean) => void;
-  handleStartConversion: () => Promise<boolean>;
-  conversionLogic: any;
-  resetConversion: () => void;
-}> = (props) => {
-  return (
-    <>
-      <TabsContent value="file-info" className="mt-0">
-        <TabContent
-          activeTab="file-info"
-          selectedVoice={props.selectedVoice}
-          setSelectedVoice={props.setSelectedVoice}
-          notifyOnComplete={props.notifyOnComplete}
-          setNotifyOnComplete={props.setNotifyOnComplete}
-          detectChapters={false}
-          setDetectChapters={() => {}}
-          handleStartConversion={props.handleStartConversion}
-          conversionLogic={props.conversionLogic}
-          resetConversion={props.resetConversion}
-          detectingChapters={false}
-        />
-      </TabsContent>
-      
-      <TabsContent value="voice-settings" className="mt-0">
-        <TabContent
-          activeTab="voice-settings"
-          selectedVoice={props.selectedVoice}
-          setSelectedVoice={props.setSelectedVoice}
-          notifyOnComplete={props.notifyOnComplete}
-          setNotifyOnComplete={props.setNotifyOnComplete}
-          detectChapters={false}
-          setDetectChapters={() => {}}
-          handleStartConversion={props.handleStartConversion}
-          conversionLogic={props.conversionLogic}
-          resetConversion={props.resetConversion}
-          detectingChapters={false}
-        />
-      </TabsContent>
-      
-      <TabsContent value="conversion" className="mt-0">
-        <TabContent
-          activeTab="conversion"
-          selectedVoice={props.selectedVoice}
-          setSelectedVoice={props.setSelectedVoice}
-          notifyOnComplete={props.notifyOnComplete}
-          setNotifyOnComplete={props.setNotifyOnComplete}
-          detectChapters={false}
-          setDetectChapters={() => {}}
-          handleStartConversion={props.handleStartConversion}
-          conversionLogic={props.conversionLogic}
-          resetConversion={props.resetConversion}
-          detectingChapters={false}
-        />
-      </TabsContent>
-    </>
+        <TabsContent value="voice-settings" className="pt-4">
+          <VoiceSettings
+            selectedVoice={selectedVoice}
+            setSelectedVoice={setSelectedVoice}
+            notifyOnComplete={notifyOnComplete}
+            setNotifyOnComplete={setNotifyOnComplete}
+            isProcessingNextStep={isProcessingNextStep}
+            onStartConversion={handleStartConversion}
+            onBack={handleGoBack}
+          />
+        </TabsContent>
+
+        <TabsContent value="conversion" className="pt-4">
+          <ConversionStep
+            selectedFile={selectedFile}
+            conversionStatus={typedConversionStatus}
+            progress={conversionLogic.progress || 0}
+            audioData={conversionLogic.audioData}
+            audioDuration={conversionLogic.audioDuration || 0}
+            estimatedSeconds={conversionLogic.calculateEstimatedSeconds ? conversionLogic.calculateEstimatedSeconds() : 0}
+            onConvert={handleStartConversion}
+            onDownloadClick={conversionLogic.handleDownloadClick}
+            onViewConversions={conversionLogic.handleViewConversions}
+            conversionId={conversionLogic.conversionId}
+            chapters={processorLogic.chapters}
+            detectingChapters={processorLogic.detectingChapters}
+            textLength={processorLogic.extractedText?.length || 0}
+            elapsedTime={conversionLogic.elapsedTime}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

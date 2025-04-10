@@ -46,13 +46,14 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
 
       if (error) {
         console.error('Error al registrar aceptación de términos:', error);
-        return;
       }
 
-      // Call onAccept only after successfully recording acceptance
+      // Call onAccept regardless of Supabase error (don't block the flow)
       onAccept();
     } catch (error) {
       console.error('Error al procesar aceptación de términos:', error);
+      // Still call onAccept to allow the flow to continue
+      onAccept();
     }
   };
 
@@ -62,40 +63,40 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
     }}>
       <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-none">
-          <DialogTitle>{translations.termsTitle}</DialogTitle>
+          <DialogTitle>{translations?.termsTitle || 'Terms of Service'}</DialogTitle>
           <DialogDescription className="text-sm">
-            {translations.termsDescription}
+            {translations?.termsDescription || 'Please read and accept our terms before continuing.'}
           </DialogDescription>
         </DialogHeader>
         
         <ScrollArea className="flex-1 my-4 h-[60vh] pr-4">
           <div className="space-y-6">
             <section>
-              <h3 className="text-base font-semibold mb-3">{translations.userResponsibility}</h3>
+              <h3 className="text-base font-semibold mb-3">{translations?.userResponsibility || 'User Responsibility'}</h3>
               <p className="text-sm text-muted-foreground">
-                {translations.userResponsibilityDesc}
+                {translations?.userResponsibilityDesc || 'You are responsible for ensuring that you have the right to convert this content.'}
               </p>
             </section>
 
             <section>
-              <h3 className="text-base font-semibold mb-3">{translations.copyrightCompliance}</h3>
+              <h3 className="text-base font-semibold mb-3">{translations?.copyrightCompliance || 'Copyright Compliance'}</h3>
               <p className="text-sm text-muted-foreground">
-                {translations.copyrightComplianceDesc}
+                {translations?.copyrightComplianceDesc || 'Uploading content protected by copyright without permission is prohibited.'}
               </p>
             </section>
 
             <section>
-              <h3 className="text-base font-semibold mb-3">{translations.fileRetention}</h3>
+              <h3 className="text-base font-semibold mb-3">{translations?.fileRetention || 'File Retention'}</h3>
               <ul className="list-disc pl-6 space-y-2 text-sm text-muted-foreground">
-                <li>{translations.fileRetentionDesc1}</li>
-                <li>{translations.fileRetentionDesc2}</li>
+                <li>{translations?.fileRetentionDesc1 || 'Uploaded files are temporarily stored for processing.'}</li>
+                <li>{translations?.fileRetentionDesc2 || 'Files are automatically deleted after the conversion is complete.'}</li>
               </ul>
             </section>
 
             <section>
-              <h3 className="text-base font-semibold mb-3">{translations.privacySection}</h3>
+              <h3 className="text-base font-semibold mb-3">{translations?.privacySection || 'Privacy'}</h3>
               <p className="text-sm text-muted-foreground">
-                {translations.privacyDesc}
+                {translations?.privacyDesc || 'We respect your privacy and only use your data for the requested conversion process.'}
               </p>
             </section>
           </div>
@@ -112,7 +113,7 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               htmlFor="terms"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              {translations.acceptTerms}
+              {translations?.acceptTerms || 'I accept the terms and conditions'}
             </label>
           </div>
         
@@ -122,14 +123,14 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
               onClick={onClose}
               className="flex-1 sm:flex-none"
             >
-              {translations.cancel}
+              {translations?.cancel || 'Cancel'}
             </Button>
             <Button 
               onClick={handleAccept}
               disabled={!accepted}
               className="flex-1 sm:flex-none"
             >
-              {translations.acceptAndContinue}
+              {translations?.acceptAndContinue || 'Accept & Continue'}
             </Button>
           </DialogFooter>
         </div>
