@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import VoiceSelector from '@/components/VoiceSelector';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useLanguage } from '@/hooks/useLanguage';
+import { useLanguage } from '@/hooks/useLanguage.tsx';
 
 interface VoiceSettingsProps {
   selectedVoice: string;

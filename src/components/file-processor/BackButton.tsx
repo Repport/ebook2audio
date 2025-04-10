@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from 'lucide-react';
-import { useLanguage } from "@/hooks/useLanguage";
+import { useLanguage } from "@/hooks/useLanguage.tsx";
 import { useFileProcessor } from '@/context/FileProcessorContext';
 
 interface BackButtonProps {

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useLanguage } from "@/hooks/useLanguage";
+import { useLanguage } from "@/hooks/useLanguage.tsx";
 
 const ConversionStepTitle: React.FC = () => {
   const { translations } = useLanguage();

@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useLanguage } from "@/hooks/useLanguage.tsx";
 
 const LanguageSelector: React.FC = () => {
   const { language, setLanguage } = useLanguage();

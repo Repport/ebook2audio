@@ -1,11 +1,13 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ArrowRight } from 'lucide-react';
-import { useLanguage } from '@/hooks/useLanguage';
+import { useLanguage } from '@/hooks/useLanguage.tsx';
 import { useAuth } from '@/hooks/useAuth';
 import VoiceSelector from '@/components/VoiceSelector';
+
 interface VoiceSettingsStepProps {
   detectedLanguage: string;
   selectedVoice: string;
@@ -14,6 +16,7 @@ interface VoiceSettingsStepProps {
   setNotifyOnComplete: (notify: boolean) => void;
   onNextStep: () => Promise<boolean>;
 }
+
 const VoiceSettingsStep = ({
   detectedLanguage,
   selectedVoice,
@@ -28,6 +31,7 @@ const VoiceSettingsStep = ({
   const {
     user
   } = useAuth();
+  
   const handleContinue = async (e: React.MouseEvent) => {
     // Prevent default to avoid form submissions
     e.preventDefault();
@@ -35,6 +39,7 @@ const VoiceSettingsStep = ({
     console.log('VoiceSettingsStep - handleContinue called');
     await onNextStep();
   };
+  
   return <div className="space-y-8 animate-fade-up">
       <div className="flex flex-col items-center text-center mb-6">
         <h2 className="text-xl font-medium text-gray-800 dark:text-gray-200">
@@ -59,4 +64,5 @@ const VoiceSettingsStep = ({
       </div>
     </div>;
 };
+
 export default VoiceSettingsStep;

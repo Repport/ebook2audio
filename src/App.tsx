@@ -12,7 +12,7 @@ import NotFound from '@/pages/NotFound';
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import CookieConsent from "@/components/CookieConsent";
-import { LanguageProvider } from "@/hooks/useLanguage";
+import { LanguageProvider } from "@/hooks/useLanguage.tsx";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 function App() {
