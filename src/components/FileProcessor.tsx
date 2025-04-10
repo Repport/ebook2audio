@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Tabs as UITabs, TabsContent } from "@/components/ui/tabs";
 import { Chapter } from '@/utils/textExtraction';
@@ -70,7 +69,6 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     conversionLogic.handleViewConversions();
   };
 
-  // Create an options object to pass to terms accept
   const termsAcceptOptions: ConversionOptions = {
     selectedVoice,
     notifyOnComplete
@@ -124,7 +122,7 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
         <FileProcessorTerms
           showTerms={showTerms}
           setShowTerms={setShowTerms}
-          handleTermsAccept={(options) => handleTermsAccept(options)}
+          handleTermsAccept={() => handleTermsAccept(termsAcceptOptions)}
           fileName={selectedFile.name}
         />
         
