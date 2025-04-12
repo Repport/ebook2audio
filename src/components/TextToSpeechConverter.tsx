@@ -162,6 +162,7 @@ const TextToSpeechConverter: React.FC<TextToSpeechConverterProps> = ({
               <Label htmlFor="voice">Select a voice</Label>
               <VoiceSelector 
                 selectedVoice={selectedVoice}
+                onVoiceChange={setSelectedVoice}
                 onVoiceSelect={setSelectedVoice}
               />
             </div>

@@ -61,7 +61,7 @@ export default function VoiceSelector({
           className="w-full justify-between"
           disabled={disabled}
         >
-          {currentVoice ? currentVoice.name : translations.selectVoice}
+          {currentVoice ? currentVoice.name : translations.selectVoice || "Select voice"}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
