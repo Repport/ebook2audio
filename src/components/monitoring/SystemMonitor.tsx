@@ -13,7 +13,7 @@ const SystemMonitor: React.FC = () => {
   
   // Cast logs to the correct interface to fix type mismatch
   const typedLogs = logs as unknown as DatabaseLogEntry[];
-  const warningLogs = typedLogs.filter(log => getLogLevel(log) === 'warn');
+  const warningLogs = typedLogs.filter(log => getLogLevel(log) === 'warning');
   const infoLogs = typedLogs.filter(log => getLogLevel(log) === 'info' || getLogLevel(log) === 'debug');
   
   // Create a proper Error object if error is a string
@@ -32,11 +32,11 @@ const SystemMonitor: React.FC = () => {
         </TabsList>
         
         <TabsContent value="all" className="mt-4">
-          <RecentLogs />
+          <RecentLogs logs={typedLogs} isLoading={isLoading} error={errorObject} />
         </TabsContent>
         
         <TabsContent value="errors" className="mt-4">
-          <ErrorLogs />
+          <ErrorLogs logs={typedLogs} isLoading={isLoading} error={errorObject} />
         </TabsContent>
         
         <TabsContent value="warnings" className="mt-4">
