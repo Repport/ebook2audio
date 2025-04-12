@@ -20,7 +20,8 @@ export function useErrorLogs() {
       
       if (supabaseError) throw supabaseError;
       
-      setErrorLogs(data || []);
+      // Cast data to the correct type
+      setErrorLogs(data as unknown as DatabaseLogEntry[]);
       setError(null);
     } catch (err) {
       console.error('Error loading error logs:', err);
