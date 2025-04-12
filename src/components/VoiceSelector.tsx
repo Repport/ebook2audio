@@ -20,9 +20,10 @@ import { VoiceOption } from "@/types/conversion";
 import { useLanguage } from "@/hooks/useLanguage";
 
 interface VoiceSelectorProps {
-  voices: VoiceOption[];
+  voices?: VoiceOption[];
   selectedVoice: string | null;
   onVoiceChange: (voiceId: string) => void;
+  onVoiceSelect?: (voiceId: string) => void; // For backward compatibility
   disabled?: boolean;
 }
 
@@ -30,6 +31,7 @@ export default function VoiceSelector({
   voices = [],
   selectedVoice,
   onVoiceChange,
+  onVoiceSelect, // Optional prop for backward compatibility
   disabled = false,
 }: VoiceSelectorProps) {
   const [open, setOpen] = useState(false);
@@ -40,6 +42,14 @@ export default function VoiceSelector({
   
   // Find the currently selected voice
   const currentVoice = safeVoices.find((voice) => voice.id === selectedVoice);
+
+  // Handle voice selection, supporting both callback patterns
+  const handleVoiceSelect = (voiceId: string) => {
+    onVoiceChange(voiceId);
+    if (onVoiceSelect) {
+      onVoiceSelect(voiceId);
+    }
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -66,7 +76,7 @@ export default function VoiceSelector({
                   key={voice.id}
                   value={voice.id}
                   onSelect={() => {
-                    onVoiceChange(voice.id);
+                    handleVoiceSelect(voice.id);
                     setOpen(false);
                   }}
                 >

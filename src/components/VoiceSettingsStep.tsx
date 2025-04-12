@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ArrowRight } from 'lucide-react';
-import { useLanguage } from '@/hooks/useLanguage.tsx';
+import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
 import VoiceSelector from '@/components/VoiceSelector';
 
@@ -18,7 +18,6 @@ interface VoiceSettingsStepProps {
 }
 
 const VoiceSettingsStep = ({
-  detectedLanguage,
   selectedVoice,
   setSelectedVoice,
   notifyOnComplete,
@@ -52,9 +51,10 @@ const VoiceSettingsStep = ({
 
       <div className="space-y-6">
         <div className="space-y-4">
-          <VoiceSelector selectedVoice={selectedVoice} onVoiceChange={setSelectedVoice} detectedLanguage={detectedLanguage} />
-
-          
+          <VoiceSelector 
+            selectedVoice={selectedVoice} 
+            onVoiceChange={setSelectedVoice} 
+          />
         </div>
 
         <Button onClick={handleContinue} className="flex w-full items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700" disabled={!selectedVoice} type="button">

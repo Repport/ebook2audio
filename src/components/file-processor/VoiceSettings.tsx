@@ -37,7 +37,6 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({
         <VoiceSelector
           selectedVoice={selectedVoice}
           onVoiceChange={setSelectedVoice}
-          detectedLanguage={null}
         />
         
         <div className="flex items-center justify-between space-x-2">

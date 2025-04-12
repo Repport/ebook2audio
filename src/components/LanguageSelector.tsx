@@ -13,7 +13,10 @@ const LanguageSelector: React.FC = () => {
   const { language, setLanguage } = useLanguage();
 
   const handleValueChange = (value: string) => {
-    setLanguage(value);
+    // Type check to ensure it's a valid language
+    if (value === 'en' || value === 'es' || value === 'fr' || value === 'de') {
+      setLanguage(value);
+    }
   };
 
   return (
