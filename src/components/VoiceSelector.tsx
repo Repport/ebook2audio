@@ -1,84 +1,180 @@
 
-import React, { useEffect } from "react";
-import { RadioGroup } from "@/components/ui/radio-group";
-import { useAudioPrelisten } from "@/hooks/useAudioPrelisten";
-import VoiceOption from "./VoiceOption";
-import { VOICES } from "@/constants/voices";
+import React, { useState, useEffect } from 'react';
+import { Check, Play, Square } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { VoiceOption } from '@/types/conversion';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VoiceSelectorProps {
   selectedVoice: string;
-  onVoiceChange: (value: string) => void;
-  detectedLanguage: string;
+  onVoiceSelect: (voiceId: string) => void;
 }
 
-const VoiceSelector = ({ selectedVoice, onVoiceChange, detectedLanguage }: VoiceSelectorProps) => {
-  const { isPlaying, playPrelisten } = useAudioPrelisten();
+const VoiceSelector: React.FC<VoiceSelectorProps> = ({ selectedVoice, onVoiceSelect }) => {
+  const [open, setOpen] = useState(false);
+  const [voices, setVoices] = useState<VoiceOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [playingPreview, setPlayingPreview] = useState<string | null>(null);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
   
-  // Map detected language to voice language with more variations
-  const languageMap: Record<string, keyof typeof VOICES> = {
-    'eng': 'english',
-    'en': 'english',
-    'english': 'english',
-    'spa': 'spanish',
-    'es': 'spanish',
-    'spanish': 'spanish',
-    'español': 'spanish',
-    'fra': 'french',
-    'fr': 'french',
-    'french': 'french',
-    'deu': 'german',
-    'de': 'german',
-    'german': 'german'
+  useEffect(() => {
+    // For this simplified example, we'll use a hardcoded list of Google TTS voices
+    // In a real app, you might want to fetch this from an API or backend
+    const defaultVoices: VoiceOption[] = [
+      { id: 'es-US-Standard-A', name: 'Sofia', language: 'Spanish (US)' },
+      { id: 'es-US-Standard-B', name: 'Pedro', language: 'Spanish (US)' },
+      { id: 'es-US-Wavenet-A', name: 'Sofia (HD)', language: 'Spanish (US)' },
+      { id: 'es-US-Wavenet-B', name: 'Pedro (HD)', language: 'Spanish (US)' },
+      { id: 'en-US-Standard-A', name: 'Allison', language: 'English (US)' },
+      { id: 'en-US-Standard-B', name: 'George', language: 'English (US)' },
+      { id: 'en-US-Wavenet-A', name: 'Allison (HD)', language: 'English (US)' },
+      { id: 'en-US-Wavenet-B', name: 'George (HD)', language: 'English (US)' },
+    ];
+    
+    setVoices(defaultVoices);
+    setLoading(false);
+  }, []);
+  
+  const handlePlayPreview = async (voiceId: string) => {
+    try {
+      if (playingPreview === voiceId) {
+        // Stop playback if clicking the same voice
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+        setPlayingPreview(null);
+        return;
+      }
+      
+      setPlayingPreview(voiceId);
+      
+      // Call the edge function to get a preview
+      const { data, error } = await supabase.functions.invoke('preview-voice', {
+        body: { voiceId }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!data?.audioContent) {
+        throw new Error('No audio content received');
+      }
+      
+      // Create an audio element if it doesn't exist
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+        audioRef.current.onended = () => {
+          setPlayingPreview(null);
+        };
+      }
+      
+      // Convert base64 to blob URL
+      const binaryString = atob(data.audioContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes.buffer], { type: 'audio/mp3' });
+      const url = URL.createObjectURL(blob);
+      
+      // Play the audio
+      audioRef.current.src = url;
+      audioRef.current.play().catch(e => {
+        console.error('Error playing audio:', e);
+        setPlayingPreview(null);
+      });
+      
+      // Clean up URL when done
+      audioRef.current.onended = () => {
+        URL.revokeObjectURL(url);
+        setPlayingPreview(null);
+      };
+    } catch (err) {
+      console.error('Error playing voice preview:', err);
+      setPlayingPreview(null);
+      setError(err instanceof Error ? err.message : 'Failed to play preview');
+    }
   };
   
-  // Get the mapped language or fallback to english
-  const mappedLanguage = languageMap[detectedLanguage.toLowerCase()] || 'english';
-  const availableVoices = VOICES[mappedLanguage];
-
-  // Reset selected voice when language changes
-  useEffect(() => {
-    if (availableVoices && availableVoices.length > 0) {
-      const newVoice = availableVoices[0].id;
-      console.log('VoiceSelector - Setting initial voice:', newVoice);
-      onVoiceChange(newVoice);
-    }
-  }, [mappedLanguage, availableVoices, onVoiceChange]);
-
-  // Asegurar que siempre tengamos una voz seleccionada si hay voces disponibles
-  useEffect(() => {
-    if (!selectedVoice && availableVoices && availableVoices.length > 0) {
-      const newVoice = availableVoices[0].id;
-      console.log('VoiceSelector - No voice selected, setting default:', newVoice);
-      onVoiceChange(newVoice);
-    }
-  }, [selectedVoice, availableVoices, onVoiceChange]);
-
-  const handleVoiceChange = (value: string) => {
-    console.log('VoiceSelector - Voice selected manually:', value);
-    onVoiceChange(value);
-  };
-
-  if (!availableVoices) {
-    return null;
-  }
-
+  // Find selected voice name
+  const selectedVoiceName = selectedVoice 
+    ? voices.find(v => v.id === selectedVoice)?.name || 'Select a voice'
+    : 'Select a voice';
+  
   return (
-    <div className="w-full max-w-md mx-auto">
-      <RadioGroup
-        value={selectedVoice}
-        onValueChange={handleVoiceChange}
-        className="grid grid-cols-1 md:grid-cols-2 gap-4"
-      >
-        {availableVoices.map((voice) => (
-          <VoiceOption
-            key={voice.id}
-            voiceId={voice.id}
-            label={voice.label}
-            isPlaying={isPlaying === voice.id}
-            onPrelisten={() => playPrelisten(voice.id, mappedLanguage)}
-          />
-        ))}
-      </RadioGroup>
+    <div className="space-y-4">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            {selectedVoice ? selectedVoiceName : "Select a voice..."}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0">
+          <Command>
+            <CommandInput placeholder="Search voices..." />
+            <CommandEmpty>No voice found.</CommandEmpty>
+            {loading ? (
+              <div className="py-6 text-center text-sm">Loading voices...</div>
+            ) : (
+              <CommandGroup>
+                {voices.map((voice) => (
+                  <CommandItem
+                    key={voice.id}
+                    value={voice.id}
+                    onSelect={() => {
+                      onVoiceSelect(voice.id);
+                      setOpen(false);
+                    }}
+                    className="flex items-center justify-between"
+                  >
+                    <div>
+                      <span className={cn(
+                        "mr-2",
+                        selectedVoice === voice.id ? "opacity-100" : "opacity-0"
+                      )}>
+                        <Check className="h-4 w-4" />
+                      </span>
+                      {voice.name} 
+                      <span className="ml-2 text-muted-foreground text-xs">
+                        {voice.language}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayPreview(voice.id);
+                      }}
+                    >
+                      {playingPreview === voice.id ? (
+                        <Square className="h-4 w-4" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </Command>
+        </PopoverContent>
+      </Popover>
+      
+      {error && (
+        <div className="text-sm text-red-500">{error}</div>
+      )}
     </div>
   );
 };
