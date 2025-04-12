@@ -5,13 +5,13 @@ export function useSystemLogs() {
   /**
    * Extract the log level from a database log entry
    */
-  const getLogLevel = (log: DatabaseLogEntry): 'info' | 'warn' | 'error' | 'debug' => {
+  const getLogLevel = (log: DatabaseLogEntry): 'info' | 'warning' | 'error' | 'debug' => {
     // If status is directly available, use it
     if (log.status === 'error') return 'error';
     
     // Check event_type which might contain level information
     if (log.event_type?.includes('error')) return 'error';
-    if (log.event_type?.includes('warn')) return 'warn';
+    if (log.event_type?.includes('warn')) return 'warning';
     if (log.event_type?.includes('debug')) return 'debug';
     
     // Check details if it has a level property
@@ -19,9 +19,10 @@ export function useSystemLogs() {
       if ('level' in log.details) {
         const level = log.details.level;
         if (typeof level === 'string') {
-          if (['error', 'warn', 'debug', 'info'].includes(level)) {
-            return level as 'info' | 'warn' | 'error' | 'debug';
-          }
+          if (level === 'error') return 'error';
+          if (level === 'warn' || level === 'warning') return 'warning';
+          if (level === 'debug') return 'debug';
+          if (level === 'info') return 'info';
         }
       }
       
@@ -30,7 +31,7 @@ export function useSystemLogs() {
         const severity = log.details.severity;
         if (typeof severity === 'string') {
           if (severity.includes('error')) return 'error';
-          if (severity.includes('warn')) return 'warn';
+          if (severity.includes('warn')) return 'warning';
           if (severity.includes('debug')) return 'debug';
         }
       }

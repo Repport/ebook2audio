@@ -43,6 +43,9 @@ export const LogEntryUtils = {
     
     if (log.details && typeof log.details === 'object') {
       const details = log.details as Record<string, any>;
+      // Map 'warn' to 'warning' if needed
+      const logLevel = details.log_level as string;
+      if (logLevel === 'warn') return 'warning';
       return (details.log_level as LogLevel) || 'info';
     }
     
