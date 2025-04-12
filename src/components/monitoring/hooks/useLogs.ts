@@ -1,26 +1,29 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { DatabaseLogEntry } from '@/utils/loggingService';
+import { DatabaseLogEntry } from '@/utils/logging/types';
 
 export function useLogs() {
   const [isLoading, setIsLoading] = useState(true);
   const [logs, setLogs] = useState<DatabaseLogEntry[]>([]);
+  const [error, setError] = useState<Error | null>(null);
 
   const loadLogs = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('system_logs')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
       
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
       
       setLogs(data || []);
-    } catch (error) {
-      console.error('Error loading logs:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading logs:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
@@ -30,16 +33,17 @@ export function useLogs() {
     if (!window.confirm('Are you sure you want to clear all logs?')) return;
     
     try {
-      const { error } = await supabase
+      const { error: supabaseError } = await supabase
         .from('system_logs')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000'); // Dummy condition to delete all
       
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
       
       loadLogs();
-    } catch (error) {
-      console.error('Error clearing logs:', error);
+    } catch (err) {
+      console.error('Error clearing logs:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
     }
   }, [loadLogs]);
 
@@ -47,6 +51,7 @@ export function useLogs() {
     logs,
     isLoading,
     loadLogs,
-    clearLogs
+    clearLogs,
+    error
   };
 }

@@ -16,6 +16,9 @@ const SystemMonitor: React.FC = () => {
   const warningLogs = typedLogs.filter(log => getLogLevel(log) === 'warn');
   const infoLogs = typedLogs.filter(log => getLogLevel(log) === 'info' || getLogLevel(log) === 'debug');
   
+  // Create a proper Error object if error is a string
+  const errorObject = typeof error === 'string' ? new Error(error) : error;
+  
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">System Monitoring</h2>
@@ -43,7 +46,7 @@ const SystemMonitor: React.FC = () => {
               <CardDescription>System warnings and potential issues</CardDescription>
             </CardHeader>
             <CardContent>
-              <LogsList logs={warningLogs} isLoading={isLoading} error={error instanceof Error ? error : null} />
+              <LogsList logs={warningLogs} isLoading={isLoading} error={errorObject} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -55,7 +58,7 @@ const SystemMonitor: React.FC = () => {
               <CardDescription>General system information and debug messages</CardDescription>
             </CardHeader>
             <CardContent>
-              <LogsList logs={infoLogs} isLoading={isLoading} error={error instanceof Error ? error : null} />
+              <LogsList logs={infoLogs} isLoading={isLoading} error={errorObject} />
             </CardContent>
           </Card>
         </TabsContent>

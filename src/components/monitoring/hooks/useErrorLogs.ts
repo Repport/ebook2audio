@@ -1,27 +1,30 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { DatabaseLogEntry } from '@/utils/loggingService';
+import { DatabaseLogEntry } from '@/utils/logging/types';
 
 export function useErrorLogs() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorLogs, setErrorLogs] = useState<DatabaseLogEntry[]>([]);
+  const [error, setError] = useState<Error | null>(null);
 
   const loadErrorLogs = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('system_logs')
         .select('*')
         .eq('status', 'error')
         .order('created_at', { ascending: false })
         .limit(50);
       
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
       
       setErrorLogs(data || []);
-    } catch (error) {
-      console.error('Error loading error logs:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading error logs:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
@@ -30,6 +33,7 @@ export function useErrorLogs() {
   return {
     errorLogs,
     isLoading,
-    loadErrorLogs
+    loadErrorLogs,
+    error
   };
 }
