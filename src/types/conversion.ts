@@ -29,3 +29,10 @@ export interface VoiceOption {
   language: string;
   preview?: string;
 }
+
+export interface ExtractedChapter {
+  title: string;
+  content: string;
+  id: string;
+  level?: number;
+}

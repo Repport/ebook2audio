@@ -10,10 +10,17 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface VoiceSelectorProps {
   selectedVoice: string;
-  onVoiceSelect: (voiceId: string) => void;
+  onVoiceSelect?: (voiceId: string) => void;
+  onVoiceChange?: (voiceId: string) => void;
+  detectedLanguage?: string;
 }
 
-const VoiceSelector: React.FC<VoiceSelectorProps> = ({ selectedVoice, onVoiceSelect }) => {
+const VoiceSelector: React.FC<VoiceSelectorProps> = ({ 
+  selectedVoice, 
+  onVoiceSelect, 
+  onVoiceChange,
+  detectedLanguage 
+}) => {
   const [open, setOpen] = useState(false);
   const [voices, setVoices] = useState<VoiceOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +114,17 @@ const VoiceSelector: React.FC<VoiceSelectorProps> = ({ selectedVoice, onVoiceSel
     ? voices.find(v => v.id === selectedVoice)?.name || 'Select a voice'
     : 'Select a voice';
   
+  // Handle voice selection with proper callback
+  const handleVoiceSelect = (voiceId: string) => {
+    if (onVoiceSelect) {
+      onVoiceSelect(voiceId);
+    }
+    if (onVoiceChange) {
+      onVoiceChange(voiceId);
+    }
+    setOpen(false);
+  };
+  
   return (
     <div className="space-y-4">
       <Popover open={open} onOpenChange={setOpen}>
@@ -132,10 +150,7 @@ const VoiceSelector: React.FC<VoiceSelectorProps> = ({ selectedVoice, onVoiceSel
                   <CommandItem
                     key={voice.id}
                     value={voice.id}
-                    onSelect={() => {
-                      onVoiceSelect(voice.id);
-                      setOpen(false);
-                    }}
+                    onSelect={() => handleVoiceSelect(voice.id)}
                     className="flex items-center justify-between"
                   >
                     <div>
