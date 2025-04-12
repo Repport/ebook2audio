@@ -43,7 +43,7 @@ const SystemMonitor: React.FC = () => {
               <CardDescription>System warnings and potential issues</CardDescription>
             </CardHeader>
             <CardContent>
-              <LogsList logs={warningLogs} isLoading={isLoading} error={error} />
+              <LogsList logs={warningLogs} isLoading={isLoading} error={error instanceof Error ? error : null} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -55,7 +55,7 @@ const SystemMonitor: React.FC = () => {
               <CardDescription>General system information and debug messages</CardDescription>
             </CardHeader>
             <CardContent>
-              <LogsList logs={infoLogs} isLoading={isLoading} error={error} />
+              <LogsList logs={infoLogs} isLoading={isLoading} error={error instanceof Error ? error : null} />
             </CardContent>
           </Card>
         </TabsContent>

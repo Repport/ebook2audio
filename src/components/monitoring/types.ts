@@ -55,17 +55,22 @@ export interface MonitoringData {
 export interface LogsListProps {
   logs: DatabaseLogEntry[];
   isLoading?: boolean;
+  error?: Error | null;
   emptyMessage?: string;
 }
 
 export interface RecentLogsProps {
-  logs: DatabaseLogEntry[];
+  logs?: DatabaseLogEntry[];
   title?: string;
   limit?: number;
+  isLoading?: boolean;
+  error?: Error | null;
 }
 
 export interface ErrorLogsProps {
-  logs: DatabaseLogEntry[];
+  logs?: DatabaseLogEntry[];
+  isLoading?: boolean;
+  error?: Error | null;
 }
 
 // Export the DatabaseLogEntry type so it can be used in other modules
