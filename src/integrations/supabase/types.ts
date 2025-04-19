@@ -97,39 +97,6 @@ export type Database = {
           },
         ]
       }
-      conversion_logs: {
-        Row: {
-          conversion_timestamp: string | null
-          file_name: string | null
-          file_size: number | null
-          id: string
-          ip_address: string
-          output_duration: number | null
-          successful: boolean | null
-          user_id: string | null
-        }
-        Insert: {
-          conversion_timestamp?: string | null
-          file_name?: string | null
-          file_size?: number | null
-          id?: string
-          ip_address: string
-          output_duration?: number | null
-          successful?: boolean | null
-          user_id?: string | null
-        }
-        Update: {
-          conversion_timestamp?: string | null
-          file_name?: string | null
-          file_size?: number | null
-          id?: string
-          ip_address?: string
-          output_duration?: number | null
-          successful?: boolean | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       conversion_notifications: {
         Row: {
           conversion_id: string
@@ -317,53 +284,6 @@ export type Database = {
         }
         Relationships: []
       }
-      storage_logs: {
-        Row: {
-          content_type: string | null
-          conversion_id: string | null
-          created_at: string | null
-          error_message: string | null
-          file_size: number | null
-          id: string
-          operation: string
-          status: string
-          storage_path: string | null
-          user_id: string | null
-        }
-        Insert: {
-          content_type?: string | null
-          conversion_id?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          file_size?: number | null
-          id?: string
-          operation: string
-          status: string
-          storage_path?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          content_type?: string | null
-          conversion_id?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          file_size?: number | null
-          id?: string
-          operation?: string
-          status?: string
-          storage_path?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "storage_logs_conversion_id_fkey"
-            columns: ["conversion_id"]
-            isOneToOne: false
-            referencedRelation: "text_conversions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       system_logs: {
         Row: {
           created_at: string | null
@@ -397,84 +317,6 @@ export type Database = {
           metadata?: Json | null
           status?: string | null
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      terms_acceptance_logs: {
-        Row: {
-          accepted_at: string
-          captcha_token: string | null
-          cookies_acceptance_date: string | null
-          cookies_all_accepted: boolean | null
-          cookies_necessary_only: boolean | null
-          file_name: string | null
-          file_type: string | null
-          id: string
-          ip_address: string
-          recaptcha_score: number | null
-          retention_period_accepted: boolean | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          accepted_at?: string
-          captcha_token?: string | null
-          cookies_acceptance_date?: string | null
-          cookies_all_accepted?: boolean | null
-          cookies_necessary_only?: boolean | null
-          file_name?: string | null
-          file_type?: string | null
-          id?: string
-          ip_address: string
-          recaptcha_score?: number | null
-          retention_period_accepted?: boolean | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          accepted_at?: string
-          captcha_token?: string | null
-          cookies_acceptance_date?: string | null
-          cookies_all_accepted?: boolean | null
-          cookies_necessary_only?: boolean | null
-          file_name?: string | null
-          file_type?: string | null
-          id?: string
-          ip_address?: string
-          recaptcha_score?: number | null
-          retention_period_accepted?: boolean | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      text_cache: {
-        Row: {
-          audio_path: string | null
-          created_at: string | null
-          error_message: string | null
-          expires_at: string
-          id: string
-          status: string | null
-          text_hash: string
-        }
-        Insert: {
-          audio_path?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          expires_at: string
-          id?: string
-          status?: string | null
-          text_hash: string
-        }
-        Update: {
-          audio_path?: string | null
-          created_at?: string | null
-          error_message?: string | null
-          expires_at?: string
-          id?: string
-          status?: string | null
-          text_hash?: string
         }
         Relationships: []
       }
@@ -638,37 +480,18 @@ export type Database = {
         Args:
           | {
               p_ip_address: string
+              chunk_count?: number
               max_conversions?: number
               window_hours?: number
             }
           | {
               p_ip_address: string
-              chunk_count?: number
               max_conversions?: number
               window_hours?: number
             }
         Returns: boolean
       }
-      cleanup_duplicate_conversions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       cleanup_expired: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      increment_processed_characters: {
-        Args: {
-          p_conversion_id: string
-          p_increment: number
-          p_progress: number
-          p_total_characters: number
-          p_processed_chunks: number
-          p_total_chunks: number
-        }
-        Returns: undefined
-      }
-      migrate_logs_to_system_logs: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
