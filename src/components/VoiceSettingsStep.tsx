@@ -7,6 +7,7 @@ import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
 import VoiceSelector from '@/components/VoiceSelector';
+import { useVoices } from '@/hooks/useVoices';
 
 interface VoiceSettingsStepProps {
   detectedLanguage: string;
@@ -18,6 +19,7 @@ interface VoiceSettingsStepProps {
 }
 
 const VoiceSettingsStep = ({
+  detectedLanguage,
   selectedVoice,
   setSelectedVoice,
   notifyOnComplete,
@@ -30,6 +32,7 @@ const VoiceSettingsStep = ({
   const {
     user
   } = useAuth();
+  const { voices } = useVoices(detectedLanguage);
   
   const handleContinue = async (e: React.MouseEvent) => {
     // Prevent default to avoid form submissions
@@ -52,6 +55,7 @@ const VoiceSettingsStep = ({
       <div className="space-y-6">
         <div className="space-y-4">
           <VoiceSelector 
+            voices={voices}
             selectedVoice={selectedVoice} 
             onVoiceChange={setSelectedVoice} 
           />

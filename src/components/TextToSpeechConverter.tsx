@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2, Download, RefreshCw } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import VoiceSelector from './VoiceSelector';
+import { useVoices } from '@/hooks/useVoices';
 
 interface TextToSpeechConverterProps {
   initialText?: string;
@@ -22,6 +23,7 @@ const TextToSpeechConverter: React.FC<TextToSpeechConverterProps> = ({
 }) => {
   const [text, setText] = useState(initialText);
   const [selectedVoice, setSelectedVoice] = useState('');
+  const { voices } = useVoices('english');
   
   const {
     status,
@@ -161,6 +163,7 @@ const TextToSpeechConverter: React.FC<TextToSpeechConverterProps> = ({
             <div className="space-y-2">
               <Label htmlFor="voice">Select a voice</Label>
               <VoiceSelector 
+                voices={voices}
                 selectedVoice={selectedVoice}
                 onVoiceChange={setSelectedVoice}
                 onVoiceSelect={setSelectedVoice}

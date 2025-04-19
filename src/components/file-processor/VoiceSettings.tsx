@@ -5,6 +5,7 @@ import VoiceSelector from '@/components/VoiceSelector';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useVoices } from '@/hooks/useVoices';
 
 interface VoiceSettingsProps {
   selectedVoice: string;
@@ -14,6 +15,7 @@ interface VoiceSettingsProps {
   isProcessingNextStep?: boolean;
   onStartConversion: () => Promise<boolean>;
   onBack?: () => void;
+  detectedLanguage?: string;
 }
 
 const VoiceSettings: React.FC<VoiceSettingsProps> = ({
@@ -23,9 +25,11 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({
   setNotifyOnComplete,
   isProcessingNextStep = false,
   onStartConversion,
-  onBack
+  onBack,
+  detectedLanguage = 'english'
 }) => {
   const { translations } = useLanguage();
+  const { voices } = useVoices(detectedLanguage);
   
   return (
     <div className="animate-fade-up space-y-6">
@@ -35,6 +39,7 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       
       <div className="space-y-6">
         <VoiceSelector
+          voices={voices}
           selectedVoice={selectedVoice}
           onVoiceChange={setSelectedVoice}
         />

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/popover";
 import { VoiceOption } from "@/types/conversion";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useVoices } from "@/hooks/useVoices";
 
 interface VoiceSelectorProps {
   voices?: VoiceOption[];
@@ -28,7 +29,7 @@ interface VoiceSelectorProps {
 }
 
 export default function VoiceSelector({
-  voices = [],
+  voices: propVoices,
   selectedVoice,
   onVoiceChange,
   onVoiceSelect, // Optional prop for backward compatibility
@@ -36,7 +37,11 @@ export default function VoiceSelector({
 }: VoiceSelectorProps) {
   const [open, setOpen] = useState(false);
   const { translations } = useLanguage();
-
+  const { voices: hookVoices } = useVoices();
+  
+  // Use provided voices or fall back to the ones from the hook
+  const voices = propVoices && propVoices.length > 0 ? propVoices : hookVoices;
+  
   // Make sure voices is always an array, even if it's undefined
   const safeVoices = Array.isArray(voices) ? voices : [];
   
