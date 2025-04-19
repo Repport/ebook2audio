@@ -12,8 +12,9 @@ export function useConversionTerms() {
       twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
       
       const { data, error } = await supabase
-        .from('terms_acceptance_logs')
+        .from('user_consents')
         .select('id, accepted_at')
+        .eq('terms_accepted', true)
         .order('accepted_at', { ascending: false })
         .limit(1);
       

@@ -35,12 +35,12 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
       console.log('Registering terms acceptance...'); // Debugging log
       
       const { error } = await supabase
-        .from('terms_acceptance_logs')
+        .from('user_consents')
         .insert({
           ip_address: 'anonymous', // Por privacidad, no registramos la IP real
+          terms_accepted: true,
+          privacy_accepted: true,
           file_name: fileName,
-          file_type: fileType,
-          retention_period_accepted: true,
           user_agent: navigator.userAgent
         });
 

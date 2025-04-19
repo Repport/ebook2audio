@@ -26,18 +26,24 @@ export async function processChunkBatch(
         
         console.log(`Chunk ${startIndex + index} completed. Progress: ${progress}%. Characters: ${chunkCharacters}`);
         
-        const { error: incrementError } = await supabase.rpc('increment_processed_characters', {
-          p_conversion_id: conversionId,
-          p_increment: chunkCharacters,
-          p_progress: progress,
-          p_total_characters: totalCharacters,
-          p_processed_chunks: completedChunks,
-          p_total_chunks: totalChunks
-        });
+        // Update conversion progress directly with SQL
+        const { error: updateError } = await supabase
+          .from('conversion_progress')
+          .upsert({
+            conversion_id: conversionId,
+            processed_chunks: completedChunks,
+            total_chunks: totalChunks,
+            processed_characters: chunkCharacters,
+            total_characters: totalCharacters,
+            progress: progress,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'conversion_id'
+          });
 
-        if (incrementError) {
-          console.error(`Error incrementing processed characters for chunk ${startIndex + index}:`, incrementError);
-          throw incrementError;
+        if (updateError) {
+          console.error(`Error updating progress for chunk ${startIndex + index}:`, updateError);
+          throw updateError;
         }
 
         return audioBuffer;

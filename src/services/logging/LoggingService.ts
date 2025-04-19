@@ -37,4 +37,32 @@ export class LoggingService {
     if (error) throw error;
     return data;
   }
+
+  static async logTermsAcceptance(
+    fileName?: string,
+    fileType?: string,
+    userId?: string
+  ) {
+    try {
+      const { error } = await supabase
+        .from('user_consents')
+        .insert({
+          ip_address: 'anonymous',
+          terms_accepted: true,
+          privacy_accepted: true,
+          user_id: userId,
+          user_agent: navigator.userAgent,
+          accepted_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error logging terms acceptance:', error);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to log terms acceptance:', error);
+      return false;
+    }
+  }
 }

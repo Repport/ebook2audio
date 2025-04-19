@@ -26,13 +26,14 @@ const CookieConsentBanner = () => {
   const logCookiePreference = async (allAccepted: boolean) => {
     try {
       await supabase
-        .from('terms_acceptance_logs')
+        .from('user_consents')
         .insert([
           {
             ip_address: 'anonymous',
-            cookies_all_accepted: allAccepted,
-            cookies_necessary_only: !allAccepted,
-            cookies_acceptance_date: new Date().toISOString()
+            privacy_accepted: true,
+            terms_accepted: true,
+            marketing_accepted: allAccepted,
+            user_agent: navigator.userAgent
           }
         ]);
     } catch (error) {
@@ -136,4 +137,3 @@ const CookieConsentBanner = () => {
 };
 
 export default CookieConsentBanner;
-
