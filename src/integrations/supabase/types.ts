@@ -398,6 +398,8 @@ export type Database = {
       user_consents: {
         Row: {
           accepted_at: string | null
+          file_name: string | null
+          file_type: string | null
           id: string
           ip_address: string | null
           marketing_accepted: boolean | null
@@ -408,6 +410,8 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          file_name?: string | null
+          file_type?: string | null
           id?: string
           ip_address?: string | null
           marketing_accepted?: boolean | null
@@ -418,6 +422,8 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          file_name?: string | null
+          file_type?: string | null
           id?: string
           ip_address?: string | null
           marketing_accepted?: boolean | null

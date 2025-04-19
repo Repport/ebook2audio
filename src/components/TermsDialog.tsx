@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Dialog,
@@ -12,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/hooks/useLanguage";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
 
 interface TermsDialogProps {
   open: boolean;
@@ -37,11 +36,13 @@ const TermsDialog = ({ open, onClose, onAccept, fileName, fileType }: TermsDialo
       const { error } = await supabase
         .from('user_consents')
         .insert({
-          ip_address: 'anonymous', // Por privacidad, no registramos la IP real
+          ip_address: 'anonymous', 
           terms_accepted: true,
           privacy_accepted: true,
           file_name: fileName,
-          user_agent: navigator.userAgent
+          file_type: fileType,
+          user_agent: navigator.userAgent,
+          accepted_at: new Date().toISOString()
         });
 
       if (error) {

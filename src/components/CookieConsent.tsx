@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import CookieConsent from 'react-cookie-consent';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +32,8 @@ const CookieConsentBanner = () => {
             privacy_accepted: true,
             terms_accepted: true,
             marketing_accepted: allAccepted,
-            user_agent: navigator.userAgent
+            user_agent: navigator.userAgent,
+            accepted_at: new Date().toISOString()
           }
         ]);
     } catch (error) {

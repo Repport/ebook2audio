@@ -39,6 +39,9 @@ export function useConversionTerms() {
     }
   }, []);
 
+  // Use the same implementation as useTermsAcceptance for consistency
+  export const useTermsAcceptance = useConversionTerms;
+
   return {
     showTerms,
     setShowTerms,
@@ -46,5 +49,4 @@ export function useConversionTerms() {
   };
 }
 
-// Add useTermsAcceptance export for compatibility
-export const useTermsAcceptance = useConversionTerms;
+export default useConversionTerms;
