@@ -39,8 +39,8 @@ export function useConversionTerms() {
     }
   }, []);
 
-  // Use the same implementation as useTermsAcceptance for consistency
-  export const useTermsAcceptance = useConversionTerms;
+  // Define a separate constant for the export instead of using export modifier
+  const termsAcceptanceHook = useConversionTerms;
 
   return {
     showTerms,
@@ -48,5 +48,8 @@ export function useConversionTerms() {
     checkTermsAcceptance
   };
 }
+
+// Export the hook separately
+export const useTermsAcceptance = useConversionTerms;
 
 export default useConversionTerms;
