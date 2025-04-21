@@ -40,7 +40,12 @@ export default function VoiceSelector({
   const { voices: hookVoices } = useVoices();
   
   // Use provided voices or fall back to the ones from the hook
-  const voices = propVoices && propVoices.length > 0 ? propVoices : hookVoices;
+  // Ensure both are properly checked for being arrays
+  const availablePropVoices = Array.isArray(propVoices) ? propVoices : [];
+  const availableHookVoices = Array.isArray(hookVoices) ? hookVoices : [];
+  
+  // Use provided voices or fall back to the ones from the hook
+  const voices = availablePropVoices.length > 0 ? availablePropVoices : availableHookVoices;
   
   // Make sure voices is always an array, even if it's undefined
   const safeVoices = Array.isArray(voices) ? voices : [];
@@ -76,24 +81,28 @@ export default function VoiceSelector({
           <CommandEmpty>No voice found.</CommandEmpty>
           <CommandList>
             <CommandGroup>
-              {safeVoices.map((voice) => (
-                <CommandItem
-                  key={voice.id}
-                  value={voice.id}
-                  onSelect={() => {
-                    handleVoiceSelect(voice.id);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedVoice === voice.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {voice.name} ({voice.language})
-                </CommandItem>
-              ))}
+              {safeVoices.length > 0 ? (
+                safeVoices.map((voice) => (
+                  <CommandItem
+                    key={voice.id}
+                    value={voice.id}
+                    onSelect={() => {
+                      handleVoiceSelect(voice.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedVoice === voice.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {voice.name} ({voice.language})
+                  </CommandItem>
+                ))
+              ) : (
+                <CommandItem disabled>No voices available</CommandItem>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>
