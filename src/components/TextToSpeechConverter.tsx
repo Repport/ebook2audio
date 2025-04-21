@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import { AlertCircle, CheckCircle2, Download, RefreshCw } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import VoiceSelector from './VoiceSelector';
 import { useVoices } from '@/hooks/useVoices';
+import { useToast } from '@/hooks/use-toast';
 
 interface TextToSpeechConverterProps {
   initialText?: string;
@@ -24,6 +25,15 @@ const TextToSpeechConverter: React.FC<TextToSpeechConverterProps> = ({
   const [text, setText] = useState(initialText);
   const [selectedVoice, setSelectedVoice] = useState('');
   const { voices } = useVoices('english');
+  const { toast } = useToast();
+  
+  // Auto-select the first voice when voices are loaded
+  useEffect(() => {
+    if (!selectedVoice && voices && voices.length > 0) {
+      console.log('TextToSpeechConverter - Auto-selecting first voice:', voices[0].id);
+      setSelectedVoice(voices[0].id);
+    }
+  }, [voices, selectedVoice]);
   
   const {
     status,
@@ -39,6 +49,20 @@ const TextToSpeechConverter: React.FC<TextToSpeechConverterProps> = ({
   
   const handleConvert = async () => {
     if (!text.trim()) {
+      toast({
+        title: "No Text",
+        description: "Please enter some text to convert.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!selectedVoice) {
+      toast({
+        title: "No Voice Selected",
+        description: "Please select a voice for the conversion.",
+        variant: "destructive",
+      });
       return;
     }
     

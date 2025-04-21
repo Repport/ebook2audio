@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import VoiceSelector from '@/components/VoiceSelector';
 import { Switch } from '@/components/ui/switch';
@@ -30,6 +30,14 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({
 }) => {
   const { translations } = useLanguage();
   const { voices } = useVoices(detectedLanguage);
+  
+  // Auto-select the first voice if none is selected and voices are available
+  useEffect(() => {
+    if (!selectedVoice && voices && voices.length > 0) {
+      console.log('Auto-selecting first voice:', voices[0].id);
+      setSelectedVoice(voices[0].id);
+    }
+  }, [voices, selectedVoice, setSelectedVoice]);
   
   return (
     <div className="animate-fade-up space-y-6">

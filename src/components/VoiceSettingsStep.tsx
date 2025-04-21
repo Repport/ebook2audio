@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -33,6 +33,14 @@ const VoiceSettingsStep = ({
     user
   } = useAuth();
   const { voices } = useVoices(detectedLanguage);
+  
+  // Auto-select the first voice if none is selected and voices are available
+  useEffect(() => {
+    if (!selectedVoice && voices && voices.length > 0) {
+      console.log('VoiceSettingsStep - Auto-selecting first voice:', voices[0].id);
+      setSelectedVoice(voices[0].id);
+    }
+  }, [voices, selectedVoice, setSelectedVoice]);
   
   const handleContinue = async (e: React.MouseEvent) => {
     // Prevent default to avoid form submissions

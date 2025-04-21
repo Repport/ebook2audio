@@ -6,6 +6,7 @@ import { FileProcessorProvider } from '@/context/FileProcessorContext';
 import { useProcessorLogic } from '@/hooks/file-processor/useProcessorLogic';
 import { ConversionOptions } from '@/hooks/file-processor/useConversionActions';
 import FileProcessorLayout from './file-processor/FileProcessorLayout';
+import { useVoices } from '@/hooks/useVoices';
 
 interface FileProcessorProps {
   selectedFile: File;
@@ -30,6 +31,8 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
   onNextStep,
   onPreviousStep
 }) => {
+  const { voices } = useVoices(detectedLanguage || 'english');
+  
   const processorLogic = useProcessorLogic({
     selectedFile,
     extractedText,
@@ -58,6 +61,14 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     isProcessingNextStep
   } = processorLogic;
 
+  // Auto-select first voice if none is selected
+  useEffect(() => {
+    if (!selectedVoice && voices && voices.length > 0) {
+      console.log('FileProcessor - Auto-selecting first voice:', voices[0].id);
+      setSelectedVoice(voices[0].id);
+    }
+  }, [voices, selectedVoice, setSelectedVoice]);
+
   // Create options object to pass to terms accept function
   const termsAcceptOptions: ConversionOptions = {
     selectedVoice,
@@ -85,6 +96,13 @@ const FileProcessor: React.FC<FileProcessorProps> = ({
     onPreviousStep,
     onStepComplete
   };
+
+  console.log('FileProcessor rendered with:', {
+    selectedVoice,
+    detectedLanguage,
+    availableVoices: voices?.length || 0,
+    currentStep
+  });
 
   return (
     <FileProcessorProvider value={contextValue}>
