@@ -1,109 +1,35 @@
 
+import { useState, useCallback } from 'react';
 import { DatabaseLogEntry } from '@/utils/logging/types';
 
 export function useSystemLogs() {
-  /**
-   * Extract the log level from a database log entry
-   */
-  const getLogLevel = (log: DatabaseLogEntry): 'info' | 'warning' | 'error' | 'debug' => {
-    // If status is directly available, use it
+  // Helper function to get the log level
+  const getLogLevel = useCallback((log: DatabaseLogEntry): 'error' | 'warning' | 'info' | 'debug' => {
     if (log.status === 'error') return 'error';
-    
-    // Check event_type which might contain level information
-    if (log.event_type?.includes('error')) return 'error';
-    if (log.event_type?.includes('warn')) return 'warning';
-    if (log.event_type?.includes('debug')) return 'debug';
-    
-    // Check details if it has a level property
-    if (log.details && typeof log.details === 'object') {
-      if ('level' in log.details) {
-        const level = log.details.level;
-        if (typeof level === 'string') {
-          if (level === 'error') return 'error';
-          if (level === 'warn' || level === 'warning') return 'warning';
-          if (level === 'debug') return 'debug';
-          if (level === 'info') return 'info';
-        }
-      }
-      
-      // Check severity as an alternative
-      if ('severity' in log.details) {
-        const severity = log.details.severity;
-        if (typeof severity === 'string') {
-          if (severity.includes('error')) return 'error';
-          if (severity.includes('warn')) return 'warning';
-          if (severity.includes('debug')) return 'debug';
-        }
-      }
-    }
-    
-    // Default to info
+    if (log.status === 'warning') return 'warning';
+    if (log.status === 'debug') return 'debug';
     return 'info';
-  };
-  
-  /**
-   * Extract the timestamp from a database log entry and format it
-   */
-  const getLogTimestamp = (log: DatabaseLogEntry): string => {
-    // Use created_at which is common in database records
-    if (log.created_at) {
-      try {
-        const date = new Date(log.created_at);
-        return date.toLocaleString();
-      } catch (e) {
-        // If date parsing fails, return raw timestamp
-        return log.created_at;
-      }
+  }, []);
+
+  // Helper function to get the timestamp
+  const getLogTimestamp = useCallback((log: DatabaseLogEntry): string => {
+    try {
+      const date = new Date(log.created_at);
+      return date.toLocaleString();
+    } catch (e) {
+      return 'Invalid date';
     }
-    
-    // Look for timestamp in details
-    if (log.details && typeof log.details === 'object') {
-      if ('timestamp' in log.details) {
-        return log.details.timestamp as string;
-      }
-      if ('time' in log.details) {
-        return log.details.time as string;
-      }
+  }, []);
+
+  // Helper function to get the message
+  const getLogMessage = useCallback((log: DatabaseLogEntry): string => {
+    if (log.event_type) return log.event_type;
+    if (log.details && typeof log.details === 'object' && 'message' in log.details) {
+      return String(log.details.message);
     }
-    
-    // If no timestamp is found
-    return 'Unknown time';
-  };
-  
-  /**
-   * Extract the message from a database log entry
-   */
-  const getLogMessage = (log: DatabaseLogEntry): string => {
-    // If there's a direct message property
-    if ('message' in log && typeof log.message === 'string') {
-      return log.message;
-    }
-    
-    // Try to find message in details
-    if (log.details && typeof log.details === 'object') {
-      if ('message' in log.details && typeof log.details.message === 'string') {
-        return log.details.message;
-      }
-      
-      if ('error' in log.details && typeof log.details.error === 'string') {
-        return log.details.error;
-      }
-      
-      // If details has a description, use that
-      if ('description' in log.details && typeof log.details.description === 'string') {
-        return log.details.description;
-      }
-    }
-    
-    // Fallback to event_type
-    if (log.event_type) {
-      return `${log.event_type} event`;
-    }
-    
-    // Last resort
-    return 'No message available';
-  };
-  
+    return 'Unknown event';
+  }, []);
+
   return {
     getLogLevel,
     getLogTimestamp,
