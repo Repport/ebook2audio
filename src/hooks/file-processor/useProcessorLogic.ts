@@ -1,60 +1,41 @@
-
 import { useCallback, useState } from 'react';
-import { Chapter } from '@/utils/textExtraction';
 import { useToast } from '@/hooks/use-toast';
-import { useFileProcessor } from '@/context/FileProcessorContext';
 import { useVoiceSettings } from './useVoiceSettings';
 import { useProcessorUI } from './useProcessorUI';
-import { ConversionOptions } from './useConversionActions';
 import { useProcessorConversion } from './useProcessorConversion';
 import { useConversionCore } from './useConversionCore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom'; // Keep for handleGoBack if it navigates outside steps
 
-// Define a proper interface for the props
+import {
+  Chapter,
+  // ConversionOptions, // Not directly used by useProcessorLogic itself for options object
+  UseConversionCoreReturn
+} from '../../types/hooks/conversion';
+import {
+  UseProcessorLogicReturn,
+  UseToastReturn // Used for toast property type
+} from '../../types/hooks/processor';
+
+// Props for the useProcessorLogic hook itself
 interface ProcessorLogicProps {
   selectedFile: File | null;
   extractedText: string;
-  chapters: Chapter[];
+  chapters: Chapter[]; // These are initial chapters from props
   onFileSelect: (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => void;
   currentStep: number;
   onNextStep: () => void;
   onPreviousStep: () => void;
-  onStepComplete?: () => void;
+  onStepComplete?: () => void; // from useConversionCore
 }
 
-export interface ProcessorLogicType {
-  selectedFile: File | null;
-  extractedText: string;
-  chapters: Chapter[];
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  currentStep: number;
-  goToNextTab: () => void;
-  selectedVoice: string;
-  setSelectedVoice: (voice: string) => void;
-  notifyOnComplete: boolean;
-  setNotifyOnComplete: (notify: boolean) => void;
-  showTerms: boolean;
-  setShowTerms: (show: boolean) => void;
-  isProcessingNextStep: boolean;
-  setIsProcessingNextStep: (isProcessing: boolean) => void;
-  detectChapters: boolean;
-  setDetectChapters: (detect: boolean) => void;
-  detectingChapters: boolean;
-  conversionLogic: any;
-  toast: any;
-}
-
-export const useProcessorLogic = (props: ProcessorLogicProps) => {
+export const useProcessorLogic = (props: ProcessorLogicProps): UseProcessorLogicReturn => {
   const { toast } = useToast();
-  const [isProcessingNextStep, setIsProcessingNextStep] = useState<boolean>(false);
-  const navigate = useNavigate();
-  
-  // Extract props
+  const navigate = useNavigate(); // Retained if handleGoBack needs it
+
   const { 
     selectedFile, 
     extractedText, 
-    chapters, 
+    chapters: initialChapters, // chapters from props are initial
     onNextStep, 
     currentStep,
     onPreviousStep,
@@ -62,76 +43,53 @@ export const useProcessorLogic = (props: ProcessorLogicProps) => {
     onStepComplete
   } = props;
   
-  // Get UI state
+  // Internal state for this orchestrator hook
+  const [chapters, setChapters] = useState<Chapter[]>(initialChapters); // Manages current chapters
+  const [isProcessingNextStep, setIsProcessingNextStep] = useState<boolean>(false); // UI feedback flag
+
+  // Composed hooks
   const { activeTab, setActiveTab } = useProcessorUI();
-  
-  // Get voice settings
   const { selectedVoice, setSelectedVoice, notifyOnComplete, setNotifyOnComplete } = useVoiceSettings();
   
-  // Get conversion logic using our specialized hook
-  const conversionLogic = useConversionCore(
+  const conversionLogic: UseConversionCoreReturn = useConversionCore(
     selectedFile,
     extractedText,
-    chapters,
+    chapters, // Pass the current state of chapters to useConversionCore
     onStepComplete
   );
-  
-  // Extract these properties explicitly from conversionLogic for TypeScript
-  const {
-    showTerms,
-    setShowTerms,
-    detectChapters,
-    setDetectChapters,
-    detectingChapters,
-    resetConversion
-  } = conversionLogic;
-  
-  // Create a fixed handleTermsAccept function with proper typing
-  const handleTermsAccept = async (options: ConversionOptions): Promise<void> => {
-    if (conversionLogic.handleAcceptTerms) {
-      await conversionLogic.handleAcceptTerms(options);
-    }
-  };
-  
-  // Setup conversion logic handlers
+
   const { 
-    handleStartConversion
+    handleStartConversion,
+    handleTermsAccept
   } = useProcessorConversion({
     selectedFile,
     extractedText,
+    chapters, // Pass current state of chapters
     selectedVoice,
-    isProcessingNextStep,
-    setIsProcessingNextStep,
-    detectingChapters,
-    setDetectChapters,
-    onNextStep,
-    showTerms,
-    setShowTerms,
-    initiateConversion: conversionLogic.initiateConversion,
-    handleAcceptTerms: handleTermsAccept, 
+    notifyOnComplete,
     currentStep,
-    notifyOnComplete
+    showTerms: conversionLogic.showTerms,
+    setShowTerms: conversionLogic.setShowTerms,
+    onNextStep,
+    startAudioConversionProcess: conversionLogic.startAudioConversionProcess,
+    setIsProcessingGlobal: setIsProcessingNextStep, // Link to local processing flag
   });
-  
-  // Handle navigation
+
   const handleGoBack = useCallback(() => {
-    console.log('ProcessorLogic - handleGoBack called');
-    
-    if (conversionLogic.conversionStatus !== 'converting' && !detectingChapters && !isProcessingNextStep) {
+    // Logic from original implementation using updated state sources
+    if (conversionLogic.conversionStatus !== 'converting' && !conversionLogic.detectingChapters && !isProcessingNextStep) {
       if (currentStep > 1) {
-        console.log('ProcessorLogic - Going to previous step');
         onPreviousStep();
       } else {
-        console.log('ProcessorLogic - Returning to file selection');
-        resetConversion();
+        // Potentially navigate or call onFileSelect(null) to go back to file selection
+        conversionLogic.resetConversion();
         onFileSelect(null);
+        // navigate('/'); // Example if navigating to root
       }
     } else {
-      console.log('ProcessorLogic - Cannot go back during conversion or chapter detection');
-      
       toast({
         title: "In Progress",
-        description: "Please wait until the current process completes",
+        description: "Please wait until the current process completes.",
         variant: "default",
       });
     }
@@ -139,59 +97,52 @@ export const useProcessorLogic = (props: ProcessorLogicProps) => {
     currentStep, 
     onPreviousStep, 
     onFileSelect, 
-    resetConversion, 
+    conversionLogic.resetConversion,
     conversionLogic.conversionStatus, 
-    detectingChapters, 
+    conversionLogic.detectingChapters,
     isProcessingNextStep,
-    toast
+    toast,
+    // navigate // if navigate is used
   ]);
-  
-  // Function to move to the next tab
-  const goToNextTab = useCallback(() => {
-    if (activeTab === "file-info") {
-      setActiveTab("voice-settings");
-    } else if (activeTab === "voice-settings") {
-      setActiveTab("conversion");
-    }
-  }, [activeTab, setActiveTab]);
 
   return {
-    // File upload form state
+    // File and text state (props)
     selectedFile,
     extractedText,
-    chapters,
-    
-    // Navigation state
+    chapters, // Return current internal state of chapters
+
+    // UI State
     activeTab,
     setActiveTab,
-    currentStep,
-    goToNextTab,
-    
-    // Voice settings
+
+    // Voice Settings
     selectedVoice,
     setSelectedVoice,
     notifyOnComplete,
     setNotifyOnComplete,
-    
-    // Terms
-    showTerms,
-    setShowTerms,
-    
-    // Processing state
+
+    // Processing Flag
     isProcessingNextStep,
-    setIsProcessingNextStep,
-    detectChapters,
-    setDetectChapters,
-    detectingChapters,
-    
-    // Conversion actions
+
+    // Core Conversion Logic
+    conversionLogic,
+
+    // Convenience accessors from conversionLogic
+    showTerms: conversionLogic.showTerms,
+    setShowTerms: conversionLogic.setShowTerms,
+    detectChapters: conversionLogic.detectChapters,
+    setDetectChapters: conversionLogic.setDetectChapters,
+    detectingChapters: conversionLogic.detectingChapters,
+
+    // Actions from useProcessorConversion
     handleStartConversion,
     handleTermsAccept,
-    handleGoBack,
-    resetConversion,
     
-    // Conversion state
-    conversionLogic,
-    toast
+    // Local Actions
+    handleGoBack,
+    resetConversion: conversionLogic.resetConversion,
+
+    // Utilities
+    toast: toast as UseToastReturn['toast'], // Cast to ensure type match
   };
 };

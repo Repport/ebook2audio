@@ -1,7 +1,7 @@
 
 import { RefObject } from 'react';
 import { Chapter } from '@/utils/textExtraction';
-import { createStateSnapshot } from './useSessionLoad';
+import { createStateSnapshot } from './sessionStorageUtils'; // Updated import path
 
 interface SessionStorageData {
   currentStep: number;
