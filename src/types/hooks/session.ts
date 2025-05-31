@@ -7,6 +7,13 @@ export interface LoadedSessionState {
   originalFileHash?: string; // Hash of the original file to check for changes
   lastModified?: number; // Timestamp
   // other fields that represent a loaded session
+  currentStep?: number;
+  extractedText?: string;
+  detectedLanguage?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
+  conversionInProgress?: boolean;
 }
 
 export interface UseSessionLoadReturn {

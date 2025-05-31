@@ -1,221 +1,136 @@
-
-import { useEffect, useRef, useState, useCallback } from 'react'; // Added useState, useCallback
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useToast } from '../use-toast';
 import {
   LoadedSessionState,
   UseSessionLoadReturn
 } from '../../types/hooks/session';
-import { Chapter } from '../../types/hooks/conversion'; // Assuming Chapter is here
-import { createStateSnapshot } from './sessionStorageUtils'; // Import the moved function
+import { Chapter } from '../../types/hooks/conversion';
+import { createStateSnapshot } from './sessionStorageUtils';
 
 /**
- * Hook for loading data from session storage
+ * Hook for loading data from session storage.
+ * This hook now manages its own state for the loaded session.
  */
-export const useSessionLoad = (
-  setCurrentStep: (step: number) => void,
-  setExtractedText: (text: string) => void,
-  setChapters: (chapters: any[]) => void,
-  setDetectedLanguage: (language: string) => void,
-  setSelectedFile: (file: File | null) => void,
-  setConversionInProgress: (inProgress: boolean) => void,
-  setIsInitialized: (isInitialized: boolean) => void
-): UseSessionLoadReturn => {
-  // State for the new return type
+export const useSessionLoad = (): UseSessionLoadReturn => {
   const [loadedSession, setLoadedSession] = useState<LoadedSessionState | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState<boolean>(false);
   const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
 
-  // Original refs - may or may not be used by the placeholder logic
-  const isLoadingFromStorage = useRef(false);
-  const isInitialLoad = useRef(true);
-  const lastSavedState = useRef<string>('');
-  const hasLoadedInitialState = useRef(false);
+  const hasLoadedInitialState = useRef(false); // Prevents re-loading
   const { toast } = useToast();
+  // lastSavedState ref from original, might be useful for debugging or if useSessionLoad needs to expose it
+  const lastLoadedSnapshot = useRef<string>('');
 
-  // Load saved state from sessionStorage - only once
   useEffect(() => {
-    // Skip if we've already loaded the initial state
     if (hasLoadedInitialState.current) {
-      console.log('Initial state already loaded, skipping');
       return;
     }
+    hasLoadedInitialState.current = true; // Mark that we've attempted loading once
 
-    const loadFromStorage = () => {
-      // Set loading flag to prevent save during load
-      isLoadingFromStorage.current = true;
-      
-      try {
-        console.log('Loading state from sessionStorage...');
-        const savedStep = sessionStorage.getItem('currentStep');
-        const savedText = sessionStorage.getItem('extractedText');
-        const savedChapters = sessionStorage.getItem('chapters');
-        const savedLanguage = sessionStorage.getItem('detectedLanguage');
-        const savedFileName = sessionStorage.getItem('fileName');
-        const savedFileType = sessionStorage.getItem('fileType');
-        const savedFileLastModified = sessionStorage.getItem('fileLastModified');
-        const savedFileSize = sessionStorage.getItem('fileSize');
-        const savedConversionInProgress = sessionStorage.getItem('conversionInProgress');
+    setIsSessionLoading(true);
+    setSessionLoadError(null);
 
-        let updatedState = false;
+    try {
+      console.log('useSessionLoad: Loading state from sessionStorage...');
+      const savedStep = sessionStorage.getItem('currentStep');
+      const savedText = sessionStorage.getItem('extractedText');
+      const savedChaptersJson = sessionStorage.getItem('chapters'); // Keep as JSON string for snapshot
+      const savedLanguage = sessionStorage.getItem('detectedLanguage');
+      const savedFileName = sessionStorage.getItem('fileName');
+      const savedFileType = sessionStorage.getItem('fileType');
+      const savedFileLastModified = sessionStorage.getItem('fileLastModified');
+      const savedFileSize = sessionStorage.getItem('fileSize');
+      const savedConversionInProgress = sessionStorage.getItem('conversionInProgress');
+
+      if (!savedStep && !savedText && !savedFileName) {
+        console.log('useSessionLoad: No valid saved state found.');
+        setLoadedSession(null); // Explicitly set to null if no session
+      } else {
+        console.log('useSessionLoad: Found saved state, proceeding with restore.');
         
-        // Handle the case when there's no saved state
-        if (!savedStep && !savedText && !savedFileName) {
-          console.log('No valid saved state found in sessionStorage');
-          // Still mark as initialized even if no state was loaded
-          setIsInitialized(true);
-          isLoadingFromStorage.current = false;
-          hasLoadedInitialState.current = true;
-          isInitialLoad.current = false;
-          return;
+        const parsedStep = savedStep ? parseInt(savedStep, 10) : undefined;
+        const parsedChapters: Chapter[] = [];
+        if (savedChaptersJson) {
+          try {
+            // TODO: This is a placeholder mapping. The actual structure from sessionStorage needs to be mapped
+            // to the Chapter interface { id: string; title: string; startTime: number; endTime: number; }
+            const loadedChaptersArray: any[] = JSON.parse(savedChaptersJson);
+            loadedChaptersArray.forEach((chap, index) => {
+              parsedChapters.push({
+                id: chap.id || String(index + 1), // Use existing id or generate one
+                title: chap.title || `Chapter ${index + 1}`,
+                startTime: chap.startTime || 0, // Placeholder if not available
+                endTime: chap.endTime || 0,     // Placeholder if not available
+              });
+            });
+          } catch (err) {
+            console.error('useSessionLoad: Error parsing saved chapters:', err);
+            // Leave parsedChapters as empty array
+          }
         }
 
-        console.log('Found valid saved state, proceeding with restore');
+        const sessionData: LoadedSessionState = {
+          currentStep: parsedStep,
+          extractedText: savedText || undefined,
+          chapters: parsedChapters,
+          detectedLanguage: savedLanguage || undefined,
+          fileName: savedFileName || undefined,
+          fileType: savedFileType || undefined,
+          lastModified: savedFileLastModified ? parseInt(savedFileLastModified, 10) : undefined,
+          fileSize: savedFileSize ? parseInt(savedFileSize, 10) : undefined,
+          conversionInProgress: savedConversionInProgress === 'true',
+          originalFileHash: undefined, // Not implemented yet
+        };
+        setLoadedSession(sessionData);
 
-        // Check if we had a conversion in progress
-        if (savedConversionInProgress === 'true') {
-          setConversionInProgress(true);
-          
-          // Show recovery toast
+        if (sessionData.conversionInProgress) {
           toast({
             title: "Conversion Recovery",
-            description: "Recovering from previous conversion state",
+            description: "Recovering from previous conversion state.",
             variant: "default",
             duration: 5000,
           });
         }
-
-        // Batch state updates to minimize renders
-        const parsedStep = parseInt(savedStep || '1');
         
-        if (!isNaN(parsedStep) && parsedStep > 0) {
-          console.log(`Setting current step to ${parsedStep}`);
-          setCurrentStep(parsedStep);
-          updatedState = true;
-        }
-        
-        if (savedText) {
-          console.log(`Setting extracted text (length: ${savedText.length})`);
-          setExtractedText(savedText);
-          updatedState = true;
-        } else {
-          setExtractedText('');
-        }
-        
-        if (savedChapters) {
-          try {
-            const parsedChapters = JSON.parse(savedChapters);
-            if (Array.isArray(parsedChapters)) {
-              console.log(`Setting chapters (count: ${parsedChapters.length})`);
-              setChapters(parsedChapters);
-              updatedState = true;
-            } else {
-              setChapters([]);
-            }
-          } catch (err) {
-            console.error('Error parsing saved chapters:', err);
-            setChapters([]);
-          }
-        } else {
-          setChapters([]);
-        }
-        
-        if (savedLanguage) {
-          console.log(`Setting detected language to ${savedLanguage}`);
-          setDetectedLanguage(savedLanguage);
-          updatedState = true;
-        } else {
-          setDetectedLanguage('english');
-        }
-
-        if (savedFileType && savedFileLastModified && savedFileSize && savedFileName) {
-          try {
-            const file = new File(
-              [new Blob([])],
-              savedFileName,
-              {
-                type: savedFileType,
-                lastModified: parseInt(savedFileLastModified || '0'),
-              }
-            );
-            console.log(`Setting selected file: ${savedFileName}`);
-            setSelectedFile(file);
-            updatedState = true;
-          } catch (err) {
-            console.error('Error creating file from saved data:', err);
-            setSelectedFile(null);
-          }
-        } else {
-          setSelectedFile(null);
-        }
-        
-        // Create a snapshot of the loaded state for comparison
-        if (updatedState) {
-          lastSavedState.current = createStateSnapshot(
-            savedStep || '1',
-            savedText || '',
-            savedChapters || '[]',
-            savedLanguage || 'english',
-            savedConversionInProgress || 'false'
-          );
-          console.log('Created snapshot of loaded state for comparison');
-        }
-      } catch (err) {
-        console.error('Error loading from sessionStorage:', err);
-      } finally {
-        console.log('Finished loading from sessionStorage');
-        
-        // Mark as initialized regardless of success or failure
-        setIsInitialized(true);
-        
-        // Reset loading flags immediately - removing the setTimeout
-        isLoadingFromStorage.current = false;
-        isInitialLoad.current = false;
-        hasLoadedInitialState.current = true;
-        console.log('Load flags reset immediately');
+        // Update snapshot of what was loaded
+        lastLoadedSnapshot.current = createStateSnapshot(
+          savedStep || '', // Use empty string if null for snapshot consistency
+          savedText || '',
+          savedChaptersJson || '[]', // Use JSON string for snapshot
+          savedLanguage || '',
+          savedConversionInProgress || 'false'
+        );
       }
-    };
-    
-    // Load state if this is our first time
-    loadFromStorage();
-    
-  }, [
-    setCurrentStep, 
-    setExtractedText, 
-    setChapters, 
-    setDetectedLanguage, 
-    setSelectedFile, 
-    setConversionInProgress,
-    setIsInitialized, 
-    toast
-  ]);
+    } catch (err: any) {
+      console.error('useSessionLoad: Error loading from sessionStorage:', err);
+      setSessionLoadError(err.message || 'Failed to load session from storage.');
+      setLoadedSession(null);
+    } finally {
+      setIsSessionLoading(false);
+      console.log('useSessionLoad: Finished loading attempt.');
+    }
+  }, [toast]); // toast is a stable function from useToast, safe for dep array
 
-  // Placeholder implementations for UseSessionLoadReturn
+  // Placeholder implementations for explicit load/clear (not used by useSessionStorage currently)
   const loadSession = useCallback(async (sessionId: string): Promise<LoadedSessionState | null> => {
-    console.log(`loadSession called with sessionId: ${sessionId} - Not implemented`);
+    console.warn(`loadSession by ID (${sessionId}) called but not implemented. Auto-loading on mount is default.`);
     setIsSessionLoading(true);
     setSessionLoadError(null);
-    // Simulate API call or complex loading logic
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    // This should ideally interact with sessionStorage or a backend if sessionId is used.
-    // For now, returns a mock.
-    const mockSession: LoadedSessionState = {
-      chapters: [{id: '1', title: 'Mock Chapter', startTime: 0, endTime: 60}],
-      lastModified: Date.now()
-    };
-    setLoadedSession(mockSession);
+    // This would typically fetch from a backend or specific localStorage key
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setLoadedSession(null); // Default to null for non-implemented targeted load
     setIsSessionLoading(false);
-    return mockSession;
+    setSessionLoadError("Targeted session loading is not implemented.");
+    return null;
   }, []);
 
   const clearLoadedSession = useCallback(() => {
-    console.log('clearLoadedSession called - Not fully implemented');
+    console.warn('clearLoadedSession called but primarily affects local state. SessionStorage clearing should be separate.');
     setLoadedSession(null);
-    // This should also clear relevant items from sessionStorage if applicable
+    // This does not clear sessionStorage itself, only the hook's state.
+    // Actual clearing of sessionStorage is handled by useSessionSave or useSessionStorage.
   }, []);
 
-  // TODO: The original hook's return (refs) is incompatible with UseSessionLoadReturn.
-  // The original useEffect still runs and calls prop setters.
-  // This placeholder return satisfies the type but doesn't integrate the original logic.
   return {
     loadedSession,
     isSessionLoading,

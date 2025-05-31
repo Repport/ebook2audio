@@ -1,136 +1,151 @@
-
-import { useCallback, useEffect, useState as ReactUseState, useRef } from 'react'; // Renamed useState to avoid conflict
+import { useCallback, useEffect, useState as ReactUseState, useRef } from 'react';
 import { useSessionState } from './session-storage/useSessionState';
 import { useSessionLoad } from './session-storage/useSessionLoad';
-import { saveToSessionStorage, clearSessionStorageData as clearStorageData } from './session-storage/useSessionSave';
+import { saveToSessionStorage, clearSessionStorageData as clearStorageDataUtils } from './session-storage/useSessionSave';
+import { createStateSnapshot } from './session-storage/sessionStorageUtils';
 import { useToast } from './use-toast';
 import {
   SessionState,
-  UseSessionStorageReturn
-} from '../types/hooks/session'; // Adjusted path
-import { Chapter } from '../types/hooks/conversion'; // Assuming Chapter is here
+  UseSessionStorageReturn,
+  // LoadedSessionState, // Not directly used for SessionState object, but its fields are applied
+} from '../types/hooks/session';
+import { Chapter } from '../types/hooks/conversion';
 
 export const useSessionStorage = (): UseSessionStorageReturn => {
-  // State for the new return type
-  const [sessionState, setSessionState] = ReactUseState<SessionState | null>(null);
-  const [isSessionReady, setIsSessionReady] = ReactUseState<boolean>(false);
-  const [sessionError, setSessionError] = ReactUseState<string | null>(null);
+  // State for UseSessionStorageReturn (manages explicit session objects)
+  const [currentSessionObject, setCurrentSessionObject] = ReactUseState<SessionState | null>(null);
+  const [isSessionObjectReady, setIsSessionObjectReady] = ReactUseState<boolean>(false);
+  const [sessionObjectError, setSessionObjectError] = ReactUseState<string | null>(null);
 
-  // Original refs and logic (will largely be disconnected from new return type)
+  // Internal state management for general app state persistence (from useSessionState)
+  const {
+    selectedFile, setSelectedFile,
+    extractedText, setExtractedText,
+    chapters, setChapters, // These are the app's main chapters, e.g., from file processing
+    currentStep, setCurrentStep,
+    detectedLanguage, setDetectedLanguage,
+    conversionInProgress, setConversionInProgress,
+    isInitialized, setIsInitialized // This flag indicates if app state has been initialized from session storage
+  } = useSessionState();
+
+  // Auto-loading logic from useSessionLoad (for general app state)
+  const { loadedSession, isSessionLoading, sessionLoadError: sessionLoadHookError } = useSessionLoad();
+
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef(true);
-  const hasLoadedRef = useRef(false);
+  const hasAppliedInitialLoadRef = useRef(false); // Tracks if loadedSession has been applied
   const pendingSaveRef = useRef(false);
+  const lastSavedSnapshotRef = useRef<string>(''); // For the general app state snapshot
   const { toast } = useToast();
 
-  // Get state from useSessionState
-  const {
-    selectedFile,
-    setSelectedFile,
-    extractedText,
-    setExtractedText,
-    chapters,
-    setChapters,
-    currentStep,
-    setCurrentStep,
-    detectedLanguage,
-    setDetectedLanguage,
-    conversionInProgress,
-    setConversionInProgress,
-    isInitialized,
-    setIsInitialized
-  } = useSessionState();
-  
-  // Load from session storage - provides refs to track loading state
-  const { isLoadingFromStorage, isInitialLoad, lastSavedState } = useSessionLoad(
-    setCurrentStep,
-    setExtractedText,
-    setChapters,
-    setDetectedLanguage,
-    setSelectedFile,
-    setConversionInProgress,
-    setIsInitialized
-  );
+  // Effect to apply loaded general app state from useSessionLoad
+  useEffect(() => {
+    if (!isSessionLoading && loadedSession && !hasAppliedInitialLoadRef.current) {
+      console.log('useSessionStorage: Applying loaded session data to app state', loadedSession);
+      setCurrentStep(loadedSession.currentStep || 1);
+      setExtractedText(loadedSession.extractedText || '');
 
-  // Save to session storage with debounce
+      // Map loaded chapters to app's chapter structure if needed
+      // Assuming LoadedSessionState.chapters and app's chapters (type Chapter[]) are compatible for now
+      setChapters(loadedSession.chapters || []);
+
+      setDetectedLanguage(loadedSession.detectedLanguage || 'english');
+
+      if (loadedSession.fileName && loadedSession.fileType) {
+        const file = new File(
+          [new Blob([])], // Empty blob as content is not stored, only metadata
+          loadedSession.fileName,
+          {
+            type: loadedSession.fileType,
+            lastModified: loadedSession.lastModified || Date.now(),
+          }
+        );
+        setSelectedFile(file);
+      } else {
+        setSelectedFile(null);
+      }
+      setConversionInProgress(loadedSession.conversionInProgress || false);
+
+      // Update snapshot after applying loaded state
+      lastSavedSnapshotRef.current = createStateSnapshot(
+        String(loadedSession.currentStep || 1),
+        loadedSession.extractedText || '',
+        JSON.stringify(loadedSession.chapters || []),
+        loadedSession.detectedLanguage || 'english',
+        String(loadedSession.conversionInProgress || false)
+      );
+
+      setIsInitialized(true); // Signal that app state is now initialized
+      hasAppliedInitialLoadRef.current = true; // Mark that this effect has run
+      console.log('useSessionStorage: App state initialized from session.');
+
+      if (pendingSaveRef.current) {
+        // If a save was pending because initialization wasn't complete
+        saveSessionState();
+        pendingSaveRef.current = false;
+      }
+    } else if (!isSessionLoading && !loadedSession && !hasAppliedInitialLoadRef.current) {
+      // No session data was loaded, but loading attempt is complete
+      console.log('useSessionStorage: No session data found, initializing app state as fresh.');
+      setIsInitialized(true);
+      hasAppliedInitialLoadRef.current = true;
+    }
+  }, [loadedSession, isSessionLoading, setCurrentStep, setExtractedText, setChapters, setDetectedLanguage, setSelectedFile, setConversionInProgress, setIsInitialized]);
+
+  // Debounced save function for general app state
   const saveSessionState = useCallback(() => {
-    // Skip if initial load or loading from storage is in progress
-    if (isLoadingFromStorage.current || !isInitialized || !hasLoadedRef.current) {
+    if (isSessionLoading || !isInitialized || !hasAppliedInitialLoadRef.current) {
+      // If session is currently loading, or app hasn't initialized from session yet, defer save.
       pendingSaveRef.current = true;
+      console.log('useSessionStorage: Save deferred, session loading or not initialized.');
       return;
     }
 
-    // Skip if no file is selected or we're on step 1
-    if (currentStep <= 1 || !selectedFile) {
-      if (currentStep <= 1) {
-        console.log('Clearing session storage as we are on step 1');
-        clearStorageData();
+    if (currentStep <= 1 && !selectedFile) { // Adjusted condition slightly
+      if (sessionStorage.length > 0) { // Only clear if there's something to clear
+         console.log('useSessionStorage: Clearing session storage as app is in initial state.');
+         clearStorageDataUtils(); // Utility to clear all session keys used by this app part
+         lastSavedSnapshotRef.current = ''; // Reset snapshot
       }
       return;
     }
 
-    // Clear any existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
-    // Debounce save operations
     saveTimeoutRef.current = setTimeout(() => {
       if (!isMounted.current) return;
 
       try {
-        console.log('Saving state to sessionStorage...');
-        
-        saveToSessionStorage({
+        saveToSessionStorage({ // This is the actual save call
           currentStep,
           extractedText,
           chapters,
           detectedLanguage,
           selectedFile,
           conversionInProgress,
-          lastSavedState
+          lastSavedState: lastSavedSnapshotRef // Pass the ref itself
         });
-        
-        console.log('State saved to sessionStorage successfully');
+        // saveToSessionStorage updates lastSavedSnapshotRef.current internally
         pendingSaveRef.current = false;
       } catch (err) {
-        console.error('Error saving to sessionStorage:', err);
-        
+        console.error('useSessionStorage: Error saving to sessionStorage:', err);
         toast({
           title: "Save Error",
-          description: "Failed to save your progress. Please try again.",
+          description: "Failed to save your progress.",
           variant: "destructive",
         });
       } finally {
         saveTimeoutRef.current = null;
       }
-    }, 1000); // 1000ms debounce
+    }, 1000);
   }, [
-    currentStep,
-    selectedFile,
-    extractedText,
-    chapters,
-    detectedLanguage,
-    conversionInProgress,
-    isLoadingFromStorage,
-    lastSavedState,
-    isInitialized,
-    toast
+    currentStep, selectedFile, extractedText, chapters, detectedLanguage, conversionInProgress,
+    isSessionLoading, isInitialized, toast // Dependencies for save logic
   ]);
 
-  // Set loaded flag after component is mounted and initialized
+  // Effect for component lifecycle
   useEffect(() => {
-    if (isInitialized && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-      // If there was a pending save, do it now
-      if (pendingSaveRef.current) {
-        saveSessionState();
-      }
-    }
-  }, [isInitialized, saveSessionState]);
-
-  // Set up cleanup on unmount
-  useEffect(() => {
+    isMounted.current = true;
     return () => {
       isMounted.current = false;
       if (saveTimeoutRef.current) {
@@ -139,175 +154,119 @@ export const useSessionStorage = (): UseSessionStorageReturn => {
     };
   }, []);
 
-  // Save state when any relevant state changes
+  // Effect to trigger save when relevant app state changes
   useEffect(() => {
-    if (isInitialized && hasLoadedRef.current) {
+    if (isInitialized && hasAppliedInitialLoadRef.current) { // Only save after initial load has been applied
       saveSessionState();
     }
   }, [
-    isInitialized,
-    currentStep,
-    selectedFile,
-    extractedText,
-    chapters,
-    detectedLanguage,
-    conversionInProgress,
-    saveSessionState
+    isInitialized, currentStep, selectedFile, extractedText, chapters,
+    detectedLanguage, conversionInProgress, saveSessionState
   ]);
 
-  // Clear session storage data (using the imported function)
-  const clearSessionStorageData = useCallback(() => {
-    console.log('useSessionStorage: Clearing all session storage data');
-    clearStorageData();
-    
-    // Reset the state
+  // Function to clear the general app state from session storage
+  const clearGeneralAppStateFromStorage = useCallback(() => {
+    console.log('useSessionStorage: Clearing all general app session storage data');
+    clearStorageDataUtils();
+    // Reset local app state
     setSelectedFile(null);
     setExtractedText('');
     setChapters([]);
     setCurrentStep(1);
     setDetectedLanguage('english');
     setConversionInProgress(false);
-    
-    // Reset the last saved state reference
-    if (lastSavedState && typeof lastSavedState === 'object' && 'current' in lastSavedState) {
-      (lastSavedState as { current: string }).current = '';
-    }
+    setIsInitialized(true); // Consider it initialized to a fresh state
+    lastSavedSnapshotRef.current = '';
+    pendingSaveRef.current = false;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    toast({ title: "Session Cleared", description: "Your session data has been cleared." });
   }, [
-    setSelectedFile, 
-    setExtractedText, 
-    setChapters, 
-    setCurrentStep, 
-    setDetectedLanguage, 
-    setConversionInProgress, 
-    lastSavedState
+    setSelectedFile, setExtractedText, setChapters, setCurrentStep,
+    setDetectedLanguage, setConversionInProgress, setIsInitialized, toast
   ]);
 
-  return {
-    selectedFile,
-    setSelectedFile,
-    extractedText,
-    setExtractedText,
-    chapters,
-    setChapters,
-    currentStep,
-    setCurrentStep,
-    detectedLanguage,
-    setDetectedLanguage,
-    conversionInProgress,
-    setConversionInProgress,
-    clearSessionStorageData,
-  // Original state and load logic (from useSessionState, useSessionLoad)
-  // This logic will continue to run but won't directly populate `sessionState`
-  // without significant refactoring.
-  const {
-    selectedFile, setSelectedFile, extractedText, setExtractedText,
-    chapters, setChapters, currentStep, setCurrentStep,
-    detectedLanguage, setDetectedLanguage, conversionInProgress, setConversionInProgress,
-    isInitialized, setIsInitialized
-  } = useSessionState();
-
-  useSessionLoad(
-    setCurrentStep, setExtractedText, setChapters, setDetectedLanguage,
-    setSelectedFile, setConversionInProgress, setIsInitialized
-  );
-
-  // Placeholder implementations for UseSessionStorageReturn methods
+  // --- Placeholder implementations for UseSessionStorageReturn (explicit session object management) ---
   const initializeSession = useCallback(async (file: File): Promise<string> => {
-    console.log('initializeSession called with file:', file.name);
-    setIsSessionReady(false);
-    setSessionError(null);
-    // Simulate session initialization
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const newSessionId = `session_${Date.now()}`;
-    const initialSession: SessionState = {
-      currentSessionId: newSessionId,
-      isActive: true,
-      chapters: [], // Or derive from file if possible
-      originalFileName: file.name,
-      audioSourceUrl: undefined, // Placeholder
+    const newSessionId = `session_${Date.now()}_${file.name.substring(0,10)}`;
+    const initialSessionData: SessionState = {
+      currentSessionId: newSessionId, isActive: true, chapters: [],
+      originalFileName: file.name, audioSourceUrl: undefined,
     };
-    setSessionState(initialSession);
-    setIsSessionReady(true);
-    // This should also ideally save this initial state to sessionStorage/localStorage
-    // using the new session ID as a key.
-    sessionStorage.setItem(newSessionId, JSON.stringify(initialSession));
+    setCurrentSessionObject(initialSessionData);
+    setIsSessionObjectReady(true);
+    setSessionObjectError(null);
+    try {
+      localStorage.setItem(newSessionId, JSON.stringify(initialSessionData)); // Using localStorage for these objects for clarity
+    } catch (e) {
+      setSessionObjectError('Failed to save session object.');
+    }
     return newSessionId;
   }, []);
 
   const updateSession = useCallback(async (newState: Partial<SessionState>): Promise<boolean> => {
-    console.log('updateSession called with:', newState);
-    if (!sessionState || !sessionState.currentSessionId) {
-      setSessionError("No active session to update.");
-      return false;
+    if (!currentSessionObject || !currentSessionObject.currentSessionId) {
+      setSessionObjectError("No active session object to update."); return false;
     }
+    const updatedSession = { ...currentSessionObject, ...newState };
+    setCurrentSessionObject(updatedSession);
     try {
-      // Simulate update
-      await new Promise(resolve => setTimeout(resolve, 300));
-      setSessionState(prev => {
-        const updated = prev ? { ...prev, ...newState } : null;
-        if (updated && updated.currentSessionId) {
-          sessionStorage.setItem(updated.currentSessionId, JSON.stringify(updated));
-        }
-        return updated;
-      });
-      return true;
-    } catch (e: any) {
-      setSessionError(e.message || "Failed to update session.");
-      return false;
+      localStorage.setItem(currentSessionObject.currentSessionId, JSON.stringify(updatedSession));
+    } catch (e) {
+      setSessionObjectError('Failed to save updated session object.'); return false;
     }
-  }, [sessionState]);
+    return true;
+  }, [currentSessionObject]);
 
   const loadSession = useCallback(async (sessionId: string): Promise<SessionState | null> => {
-    console.log('loadSession called with sessionId:', sessionId);
-    setIsSessionReady(false);
-    setSessionError(null);
-    // Simulate loading
-    await new Promise(resolve => setTimeout(resolve, 700));
+    setIsSessionObjectReady(false);
     try {
-      const storedSession = sessionStorage.getItem(sessionId);
-      if (storedSession) {
-        const parsedSession: SessionState = JSON.parse(storedSession);
-        setSessionState(parsedSession);
-        setIsSessionReady(true);
-        return parsedSession;
+      const stored = localStorage.getItem(sessionId);
+      if (stored) {
+        const parsed = JSON.parse(stored) as SessionState;
+        setCurrentSessionObject(parsed);
+        setIsSessionObjectReady(true);
+        return parsed;
       } else {
-        setSessionError("Session not found.");
-        setSessionState(null);
-        return null;
+        setSessionObjectError("Session object not found."); setCurrentSessionObject(null); return null;
       }
-    } catch (e: any) {
-      setSessionError(e.message || "Failed to load session.");
-      setSessionState(null);
-      return null;
+    } catch (e) {
+      setSessionObjectError('Failed to load session object.'); setCurrentSessionObject(null); return null;
     }
   }, []);
 
   const clearSession = useCallback(async (sessionId: string): Promise<boolean> => {
-    console.log('clearSession called for sessionId:', sessionId);
     try {
-      sessionStorage.removeItem(sessionId);
-      if (sessionState && sessionState.currentSessionId === sessionId) {
-        setSessionState(null);
-        setIsSessionReady(false);
+      localStorage.removeItem(sessionId);
+      if (currentSessionObject && currentSessionObject.currentSessionId === sessionId) {
+        setCurrentSessionObject(null); setIsSessionObjectReady(false);
       }
       return true;
-    } catch (e: any) {
-      setSessionError(e.message || "Failed to clear session.");
-      return false;
+    } catch (e) {
+      setSessionObjectError('Failed to clear session object.'); return false;
     }
-  }, [sessionState]);
+  }, [currentSessionObject]);
 
-  // TODO: The original hook's extensive logic for auto-saving individual items
-  // to sessionStorage is not directly compatible with this new SessionState model.
-  // A refactor would be needed to bridge these two approaches.
-  // The original return value is also very different.
+  // This hook now has two roles:
+  // 1. Auto-saving/loading general app state (text, chapters, currentStep, etc.) to sessionStorage.
+  // 2. Providing methods to manage explicit, named SessionState objects (in localStorage for this example).
+  // The `clearSessionStorageData` prop in the original return is replaced by `clearGeneralAppStateFromStorage`
+  // to avoid name clash if `clearSession` was intended for the explicit session objects.
+
+  // The public interface `UseSessionStorageReturn` refers to the explicit session object management.
+  // The general app state persistence is an internal behavior of this hook.
+  // The props like `selectedFile`, `extractedText` etc. are NOT part of UseSessionStorageReturn.
+  // This is a bit of a hybrid hook now. The subtask asks to update useSessionStorage.ts
+  // to *consume* the refactored useSessionLoad, which it does for general app state.
+  // The return type UseSessionStorageReturn is from a previous step.
+
   return {
-    sessionState,
-    isSessionReady,
-    sessionError,
+    sessionState: currentSessionObject,
+    isSessionReady: isSessionObjectReady,
+    sessionError: sessionObjectError,
     initializeSession,
     updateSession,
     loadSession,
     clearSession,
+    // clearGeneralAppState: clearGeneralAppStateFromStorage, // Expose this if needed by UI
   };
 };
