@@ -4,6 +4,10 @@ import { useToast } from '@/hooks/use-toast';
 import { convertToAudio } from '@/services/conversion';
 import { Chapter } from '@/utils/textExtraction';
 import { TextChunkCallback } from '@/services/conversion/types/chunks';
+import {
+  UseAudioConversionActionsReturn,
+  ConvertToAudioResult
+} from '../../types/hooks/conversion';
 
 export const useConversionActions = (
   setConversionStatus: (status: 'idle' | 'converting' | 'completed' | 'error') => void,
@@ -15,7 +19,7 @@ export const useConversionActions = (
   setElapsedTime: (time: number) => void,
   setConversionStartTime: (time: number | undefined) => void,
   clearConversionStorage: () => void
-) => {
+): UseAudioConversionActionsReturn => {
   const { toast } = useToast();
 
   const resetConversion = useCallback(() => {
@@ -37,7 +41,7 @@ export const useConversionActions = (
     onProgress?: TextChunkCallback,
     chapters?: Chapter[],
     fileName?: string
-  ) => {
+  ): Promise<ConvertToAudioResult> => {
     try {
       setConversionStatus('converting');
       setProgress(0);
@@ -52,7 +56,7 @@ export const useConversionActions = (
       console.log(`📊 Text length: ${text.length} characters`);
       
       // No chapter detection
-      const result = await convertToAudio(text, voiceId, onProgress);
+      const result: ConvertToAudioResult = await convertToAudio(text, voiceId, onProgress);
       
       console.log('✅ Conversion completed:', {
         hasAudio: !!result.audio,

@@ -1,7 +1,8 @@
 
 import { useState, useCallback, useRef } from 'react';
+import { UseAudioConversionProcessStateReturn } from '../../types/hooks/conversion';
 
-export const useAudioState = () => {
+export const useAudioState = (): UseAudioConversionProcessStateReturn => {
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'completed' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [audioData, setAudioData] = useState<ArrayBuffer | null>(null);
