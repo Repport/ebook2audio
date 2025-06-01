@@ -1,4 +1,3 @@
-
 import { Json } from "@/integrations/supabase/types";
 
 /**
@@ -22,35 +21,6 @@ export type EventType =
   | 'api_call';
 
 /**
- * Structured log entry interface
- */
-export interface LogEntry {
-  id?: string;
-  event_type: EventType;
-  entity_id?: string | null;
-  user_id?: string | null;
-  details: Record<string, any>;
-  status?: string | null;
-  ip_address?: string | null;
-  created_at?: string | null;
-}
-
-/**
- * Details that might exist in a log entry
- */
-export interface LogDetails {
-  message?: string;
-  log_level?: LogLevel;
-  error?: string | null;
-  error_message?: string | null;
-  path?: string | null;
-  timestamp?: string | null;
-  operation?: string | null;
-  duration_ms?: number | null;
-  [key: string]: any; // Allow other properties
-}
-
-/**
  * Database log entry with extended properties from the table
  */
 export interface DatabaseLogEntry {
@@ -59,7 +29,9 @@ export interface DatabaseLogEntry {
   status?: string;
   event_type?: string;
   message?: string;
-  details?: Record<string, any>;
+  details?: Record<string, any>; // Changed from Json to Record<string, any> for broader compatibility if needed, or keep Json if strict.
+                               // The original was Record<string, any> in LogEntry, details?: Record<string, any> in DatabaseLogEntry.
+                               // Sticking to Record<string, any> to match the original DatabaseLogEntry.
   entity_id?: string;
   entity_type?: string;
   user_id?: string;
