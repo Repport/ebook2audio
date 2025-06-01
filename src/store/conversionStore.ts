@@ -1,10 +1,8 @@
-
 import { create } from 'zustand';
 import { ConversionStore } from './conversion/types';
 import { initialState } from './conversion/initialState';
 import { createConversionActions } from './conversion/actions/createConversionActions';
 
-export { useConversionTimer } from './conversion/useConversionTimer';
 export type { ConversionStatus } from './conversion/types';
 
 // Crear store con anotación de tipo explícita

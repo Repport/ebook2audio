@@ -1,4 +1,3 @@
-
 export type ConversionStatus = 'idle' | 'converting' | 'completed' | 'error' | 'processing';
 
 export interface ConversionChunksState {
@@ -45,7 +44,7 @@ export interface ConversionActions {
   clearWarnings: () => void;
   completeConversion: (audio: ArrayBuffer, id: string, duration: number) => void;
   resetConversion: () => void;
-  updateElapsedTime: (elapsed: number, startTime: number) => void;
+  // updateElapsedTime: (elapsed: number, startTime: number) => void; // Removed
 }
 
 // This specific type combination is what Zustand expects

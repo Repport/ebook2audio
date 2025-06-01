@@ -1,8 +1,7 @@
-
 import { ConversionState, ConversionActions } from '../types';
 import { startConversionAction } from './startConversion';
 import { updateProgressAction } from './updateProgress';
-import { updateElapsedTimeAction } from './updateTime';
+// import { updateElapsedTimeAction } from './updateTime'; // Removed
 import { errorWarningActions } from './errorWarning';
 import { completionResetActions } from './completionReset';
 import { LoggingService } from '@/utils/loggingService';
@@ -14,7 +13,7 @@ export const createConversionActions = (
   // Get action creators
   const startConversion = startConversionAction(set, get, LoggingService);
   const { updateProgress } = updateProgressAction(set, get, LoggingService);
-  const { updateElapsedTime } = updateElapsedTimeAction(set, get);
+  // const { updateElapsedTime } = updateElapsedTimeAction(set, get); // Removed
   const { setError, setWarning, clearErrors, clearWarnings } = errorWarningActions(set, get, LoggingService);
   const { completeConversion, resetConversion } = completionResetActions(set, get, LoggingService);
 
@@ -22,7 +21,7 @@ export const createConversionActions = (
   return {
     startConversion,
     updateProgress,
-    updateElapsedTime,
+    // updateElapsedTime, // Removed
     setError,
     setWarning,
     clearErrors,
