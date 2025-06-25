@@ -55,6 +55,7 @@ export default function VoiceSelector({
 
   // Handle voice selection, supporting both callback patterns
   const handleVoiceSelect = (voiceId: string) => {
+    console.log('Voice selected:', voiceId);
     onVoiceChange(voiceId);
     if (onVoiceSelect) {
       onVoiceSelect(voiceId);
@@ -62,8 +63,13 @@ export default function VoiceSelector({
   };
 
   const handlePrelisten = async (voiceId: string, event: React.MouseEvent) => {
+    console.log('Prelisten requested for voice:', voiceId);
     event.stopPropagation();
-    await playPrelisten(voiceId, detectedLanguage);
+    try {
+      await playPrelisten(voiceId, detectedLanguage);
+    } catch (error) {
+      console.error('Error during prelisten:', error);
+    }
   };
 
   return (
@@ -112,6 +118,7 @@ export default function VoiceSelector({
                       onClick={(e) => handlePrelisten(voice.id, e)}
                       disabled={isPlaying === voice.id}
                       className="ml-2 p-1 h-8 w-8"
+                      type="button"
                     >
                       <Volume2 className="h-3 w-3" />
                     </Button>

@@ -9,21 +9,24 @@ export const useAudioPrelisten = () => {
   const { toast } = useToast();
 
   const playPrelisten = async (voiceId: string, language: string = 'english') => {
+    console.log('Starting voice prelisten for:', voiceId, 'in language:', language);
     setIsPlaying(voiceId);
     let audio: HTMLAudioElement | null = null;
     let audioUrl: string | null = null;
     
     try {
-      console.log('Starting voice prelisten for:', voiceId, 'in language:', language);
       const previewText = DEFAULT_PREVIEW_TEXTS[language as keyof typeof DEFAULT_PREVIEW_TEXTS] || 
                          DEFAULT_PREVIEW_TEXTS.english;
       
+      console.log('Calling voice service with preview text:', previewText);
       const data = await prelistenVoice(voiceId, previewText);
       
       if (!data.audioContent) {
-        throw new Error('No audio content received');
+        throw new Error('No audio content received from service');
       }
 
+      console.log('Audio content received, creating blob...');
+      
       // Convert base64 to blob
       const binaryString = window.atob(data.audioContent);
       const bytes = new Uint8Array(binaryString.length);
@@ -51,28 +54,33 @@ export const useAudioPrelisten = () => {
         }
         setIsPlaying(null);
         toast({
-          title: "Prelisten Failed",
-          description: "Failed to play voice sample. Please try again.",
+          title: "Error de reproducción",
+          description: "No se pudo reproducir la muestra de voz. Inténtalo de nuevo.",
           variant: "destructive",
         });
       };
 
-      console.log('Starting audio playback');
+      console.log('Starting audio playback...');
       await audio.play();
       console.log('Audio playback started successfully');
+      
     } catch (error) {
-      console.error('Prelisten voice error:', error);
+      console.error('Voice prelisten error:', error);
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
       setIsPlaying(null);
 
-      const errorMessage = error.message?.includes('quota exceeded')
-        ? "The voice prelisten feature is currently unavailable due to API limits. Please try again later."
-        : "Failed to play voice sample. Please try again.";
+      let errorMessage = "Error al reproducir la muestra de voz.";
+      
+      if (error.message?.includes('quota exceeded') || error.message?.includes('billing')) {
+        errorMessage = "El servicio de voz no está disponible. Revisa la configuración de facturación de Google Cloud.";
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = "Error de conexión. Verifica tu conexión a internet.";
+      }
 
       toast({
-        title: "Prelisten Failed",
+        title: "Error al reproducir voz",
         description: errorMessage,
         variant: "destructive",
       });
