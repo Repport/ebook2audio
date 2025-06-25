@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,35 +19,35 @@ import {
 import { VoiceOption } from "@/types/conversion";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useVoices } from "@/hooks/useVoices";
+import { useAudioPrelisten } from "@/hooks/useAudioPrelisten";
 
 interface VoiceSelectorProps {
   voices?: VoiceOption[];
   selectedVoice: string | null;
   onVoiceChange: (voiceId: string) => void;
-  onVoiceSelect?: (voiceId: string) => void; // For backward compatibility
+  onVoiceSelect?: (voiceId: string) => void;
   disabled?: boolean;
+  detectedLanguage?: string;
 }
 
 export default function VoiceSelector({
   voices: propVoices,
   selectedVoice,
   onVoiceChange,
-  onVoiceSelect, // Optional prop for backward compatibility
+  onVoiceSelect,
   disabled = false,
+  detectedLanguage = 'english'
 }: VoiceSelectorProps) {
   const [open, setOpen] = useState(false);
   const { translations } = useLanguage();
-  const { voices: hookVoices } = useVoices();
+  const { voices: hookVoices } = useVoices(detectedLanguage);
+  const { isPlaying, playPrelisten } = useAudioPrelisten();
   
   // Use provided voices or fall back to the ones from the hook
-  // Ensure both are properly checked for being arrays
   const availablePropVoices = Array.isArray(propVoices) ? propVoices : [];
   const availableHookVoices = Array.isArray(hookVoices) ? hookVoices : [];
   
-  // Use provided voices or fall back to the ones from the hook
   const voices = availablePropVoices.length > 0 ? availablePropVoices : availableHookVoices;
-  
-  // Make sure voices is always an array, even if it's undefined
   const safeVoices = Array.isArray(voices) ? voices : [];
   
   // Find the currently selected voice
@@ -59,6 +59,11 @@ export default function VoiceSelector({
     if (onVoiceSelect) {
       onVoiceSelect(voiceId);
     }
+  };
+
+  const handlePrelisten = async (voiceId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    await playPrelisten(voiceId, detectedLanguage);
   };
 
   return (
@@ -90,14 +95,26 @@ export default function VoiceSelector({
                       handleVoiceSelect(voice.id);
                       setOpen(false);
                     }}
+                    className="flex items-center justify-between"
                   >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedVoice === voice.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {voice.name} ({voice.language})
+                    <div className="flex items-center">
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedVoice === voice.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {voice.name} ({voice.language})
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => handlePrelisten(voice.id, e)}
+                      disabled={isPlaying === voice.id}
+                      className="ml-2 p-1 h-8 w-8"
+                    >
+                      <Volume2 className="h-3 w-3" />
+                    </Button>
                   </CommandItem>
                 ))
               ) : (
