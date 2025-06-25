@@ -53,16 +53,21 @@ export interface ConvertToAudioResult {
   error?: string;
 }
 
-// Unified TextChunkCallback interface
+// Unified TextChunkCallback interface that matches both implementations
 export type TextChunkCallback = (chunk: {
-  text: string;
-  timestamp: number;
-  isFirstChunk: boolean;
-  isLastChunk: boolean;
+  text?: string;
+  timestamp?: number;
+  isFirstChunk?: boolean;
+  isLastChunk?: boolean;
   progress?: number;
   processedCharacters?: number;
   totalCharacters?: number;
   currentChunk?: string;
+  processedChunks?: number;
+  totalChunks?: number;
+  error?: string;
+  warning?: string;
+  isCompleted?: boolean;
 }) => void;
 
 export interface UseAudioConversionReturn {

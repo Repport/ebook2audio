@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAudioConversion } from '@/hooks/useAudioConversion';
@@ -31,35 +32,23 @@ export const useConversionLogic = (
   const { calculateEstimatedSeconds } = useConversionEstimation(extractedText);
   const { handleViewConversions } = useConversionNavigation();
 
-  const {
-    conversionStatus,
-    progress,
-    audioData,
-    audioDuration,
-    handleConversion,
-    handleDownload,
-    resetConversion,
-    conversionId,
-    setProgress,
-    setConversionStatus,
-    elapsedTime = 0 // Provide default value to fix type error
-  } = useAudioConversion();
+  const audioConversion = useAudioConversion();
 
   useEffect(() => {
     const shouldReset = selectedFile && 
-      (conversionStatus !== 'idle' || audioData !== null);
+      (audioConversion.conversionStatus !== 'idle' || audioConversion.audioData !== null);
     
     if (shouldReset) {
-      resetConversion();
+      audioConversion.resetConversion();
       clearConversionStorage();
     }
-  }, [selectedFile, conversionStatus, audioData, resetConversion]);
+  }, [selectedFile, audioConversion.conversionStatus, audioConversion.audioData, audioConversion.resetConversion]);
 
   useEffect(() => {
-    if (conversionStatus === 'completed' && onStepComplete) {
+    if (audioConversion.conversionStatus === 'completed' && onStepComplete) {
       onStepComplete();
     }
-  }, [conversionStatus, onStepComplete]);
+  }, [audioConversion.conversionStatus, onStepComplete]);
 
   const handleConversionStart = async () => {
     if (!selectedFile || !extractedText) {
@@ -71,7 +60,6 @@ export const useConversionLogic = (
       return false;
     }
 
-    // Verificar términos y condiciones
     const termsAccepted = await checkTermsAcceptance();
     if (!termsAccepted) {
       setShowTerms(true);
@@ -96,7 +84,7 @@ export const useConversionLogic = (
       return;
     }
 
-    if (detectingChapters || conversionStatus === 'converting') {
+    if (detectingChapters || audioConversion.conversionStatus === 'converting') {
       toast({
         title: "Please wait",
         description: "A conversion is already in progress.",
@@ -106,13 +94,34 @@ export const useConversionLogic = (
     }
 
     setDetectingChapters(true);
-    setConversionStatus('converting');
+    audioConversion.setConversionStatus('converting');
     
     try {
-      const result = await handleConversion(
+      // Create proper progress callback
+      const progressCallback = (chunk: {
+        text?: string;
+        timestamp?: number;
+        isFirstChunk?: boolean;
+        isLastChunk?: boolean;
+        progress?: number;
+        processedCharacters?: number;
+        totalCharacters?: number;
+        currentChunk?: string;
+        processedChunks?: number;
+        totalChunks?: number;
+        error?: string;
+        warning?: string;
+        isCompleted?: boolean;
+      }) => {
+        if (chunk.progress !== undefined) {
+          audioConversion.setProgress(chunk.progress);
+        }
+      };
+
+      const result = await audioConversion.handleConversion(
         extractedText,
         options.selectedVoice,
-        detectChapters,
+        progressCallback,
         chapters,
         selectedFile.name
       );
@@ -148,7 +157,7 @@ export const useConversionLogic = (
         description: error.message || "An error occurred during conversion",
         variant: "destructive",
       });
-      resetConversion();
+      audioConversion.resetConversion();
       clearConversionStorage();
     } finally {
       setDetectingChapters(false);
@@ -156,7 +165,7 @@ export const useConversionLogic = (
   };
 
   const handleDownloadClick = useCallback(() => {
-    if (!audioData) {
+    if (!audioConversion.audioData) {
       toast({
         title: "Download Unavailable",
         description: "The audio file is not ready yet. Please try again later.",
@@ -173,8 +182,8 @@ export const useConversionLogic = (
       });
     }
 
-    handleDownload(selectedFile?.name || "converted_audio");
-  }, [audioData, selectedFile, toast, handleDownload]);
+    audioConversion.handleDownload(selectedFile?.name || "converted_audio");
+  }, [audioConversion.audioData, selectedFile, toast, audioConversion.handleDownload]);
 
   return {
     detectChapters,
@@ -182,19 +191,19 @@ export const useConversionLogic = (
     detectingChapters,
     showTerms,
     setShowTerms,
-    conversionStatus,
-    progress,
-    audioData,
-    audioDuration,
-    elapsedTime,
+    conversionStatus: audioConversion.conversionStatus,
+    progress: audioConversion.progress,
+    audioData: audioConversion.audioData,
+    audioDuration: audioConversion.audioDuration,
+    elapsedTime: audioConversion.elapsedTime,
     initiateConversion: handleConversionStart,
     handleAcceptTerms,
     handleDownloadClick,
     handleViewConversions,
     calculateEstimatedSeconds,
-    conversionId,
-    setProgress,
-    setConversionStatus,
-    resetConversion
+    conversionId: audioConversion.conversionId,
+    setProgress: audioConversion.setProgress,
+    setConversionStatus: audioConversion.setConversionStatus,
+    resetConversion: audioConversion.resetConversion
   };
 };

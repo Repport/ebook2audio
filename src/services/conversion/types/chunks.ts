@@ -11,7 +11,8 @@ export interface ChunkProgressData {
   isCompleted?: boolean;
 }
 
-export type TextChunkCallback = (progressData: ChunkProgressData) => void;
+// Use the unified TextChunkCallback from types/hooks/conversion
+export type { TextChunkCallback } from '@/types/hooks/conversion';
 
 export interface ProgressSubscription {
   unsubscribe: () => void;
@@ -20,7 +21,7 @@ export interface ProgressSubscription {
 // Audio response type 
 export interface AudioResponse {
   audioContent: string;
-  data?: any; // Added data property to fix TypeScript errors
+  data?: any;
   duration?: number;
   format?: string;
   sampleRate?: number;
