@@ -103,10 +103,19 @@ export const extractEpubText = async (file: File): Promise<{ text: string; chapt
       const results = await processSpineChunk(chunk, book, fullText.length);
 
       // Aggregate results from the chunk
-      results.forEach(({ text, newChapters }) => {
+      results.forEach(({ text, newChapters }, chunkIndex) => {
         if (text) {
           fullText += text + '\n\n';
-          chapters.push(...newChapters);
+          // Create complete Chapter objects with all required properties
+          newChapters.forEach((chapter, index) => {
+            chapters.push({
+              id: `chapter-${i + chunkIndex}-${index}`,
+              title: chapter.title,
+              startIndex: chapter.startIndex,
+              startTime: 0, // Will be calculated based on text position
+              endTime: 0,   // Will be set during processing
+            });
+          });
         }
       });
     }

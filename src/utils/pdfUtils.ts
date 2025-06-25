@@ -108,9 +108,13 @@ const detectChaptersInPage = (items: TextItem[], startIndex: number): { text: st
           numberPattern.test(str) ||
           (fontSize >= 14 && str.length < 100) // Likely a title
         ) {
+          // Create complete Chapter object with all required properties
           newChapters.push({
+            id: `chapter-${i}`,
             title: str,
-            startIndex: startIndex + text.length
+            startIndex: startIndex + text.length,
+            startTime: 0, // Will be calculated later
+            endTime: 0,   // Will be set during processing
           });
         }
       }

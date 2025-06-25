@@ -1,3 +1,4 @@
+
 import { Chapter } from './textExtraction';
 
 // Enhanced chapter heading patterns
@@ -74,7 +75,7 @@ export const detectChaptersInEpub = (doc: Document, startIndex: number): { text:
     const elements = Array.from(doc.querySelectorAll(HEADING_SELECTORS.join(',')));
     
     // Process elements for chapter detection
-    elements.forEach(element => {
+    elements.forEach((element, index) => {
       const title = element.textContent?.trim();
       
       if (title && title.length >= 3 && title.length < 100) {
@@ -102,9 +103,13 @@ export const detectChaptersInEpub = (doc: Document, startIndex: number): { text:
               fontSize
             });
 
+            // Create complete Chapter object with all required properties
             newChapters.push({
+              id: `chapter-${index}`,
               title,
               startIndex: startIndex + text.length,
+              startTime: minutesMark * 60, // Convert minutes to seconds
+              endTime: 0, // Will be set later when processing is complete
               timestamp: minutesMark,
               confidence,
               type: isChapterPattern ? 'pattern' : isLargeText ? 'style' : 'heading'
