@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 
-export function useChaptersDetection() {
+export const useChaptersDetection = () => {
   const [detectChapters, setDetectChapters] = useState(true);
   const [detectingChapters, setDetectingChapters] = useState(false);
 

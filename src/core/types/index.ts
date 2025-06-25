@@ -1,5 +1,7 @@
 
 // Tipos centrales del dominio
+export * from './domain';
+
 export interface ConversionRequest {
   id: string;
   text: string;
@@ -12,6 +14,7 @@ export interface ConversionOptions {
   detectChapters?: boolean;
   notifyOnComplete?: boolean;
   chunkSize?: number;
+  selectedVoice?: string;
 }
 
 export interface ConversionResult {
@@ -39,20 +42,4 @@ export interface ProcessingProgress {
   error?: string;
   warning?: string;
   isCompleted?: boolean;
-}
-
-export interface Chapter {
-  id: string;
-  title: string;
-  startTime: number;
-  endTime: number;
-  content?: string;
-}
-
-export interface FileMetadata {
-  name: string;
-  type: string;
-  size: number;
-  lastModified: number;
-  hash?: string;
 }

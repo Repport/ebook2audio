@@ -1,27 +1,9 @@
 
 import { extractPdfText } from './pdfUtils';
 import { extractEpubText } from './epubUtils';
+import { Chapter, FileProcessingResult } from '../core/types/domain';
 
-export type Chapter = {
-  title: string;
-  startIndex: number;
-  timestamp?: number;
-  metadata?: {
-    language?: string;
-  };
-  confidence?: number;
-  type?: 'pattern' | 'style' | 'heading';
-};
-
-export type FileProcessingResult = {
-  text: string;
-  metadata?: {
-    totalCharacters: number;
-    processedPages?: number;
-    language?: string;
-    chapters?: Chapter[];
-  };
-};
+export { Chapter, FileProcessingResult };
 
 const LANGUAGE_PATTERNS = {
   english: /\b(the|and|is|in|to|of)\b/gi,
@@ -71,37 +53,52 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
     if (fileExtension === 'pdf') {
       const result = await extractPdfText(file);
       text = result.text;
-      chapters = result.chapters;
+      chapters = result.chapters.map((ch, index) => ({
+        ...ch,
+        id: ch.id || `chapter-${index}`,
+        startTime: 0,
+        endTime: 0,
+        startIndex: ch.startIndex || 0
+      }));
       pagesCount = result.pagesCount;
     } else {
       const result = await extractEpubText(file);
       text = result.text;
-      chapters = result.chapters;
-      // We estimate EPUB pages based on character count (approx 2000 chars per page)
+      chapters = result.chapters.map((ch, index) => ({
+        ...ch,
+        id: ch.id || `chapter-${index}`,
+        startTime: 0,
+        endTime: 0,
+        startIndex: ch.startIndex || 0
+      }));
       pagesCount = Math.max(1, Math.ceil(text.length / 2000));
     }
 
     const detectedLanguage = detectLanguage(text);
-    console.log('Detected language in processFile:', detectedLanguage);
 
     const metadata = {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified,
       totalCharacters: text.length,
       language: detectedLanguage,
       processedPages: pagesCount
     };
 
-    // Create an initial chapter with metadata if no chapters exist
     const firstChapter: Chapter = {
+      id: 'chapter-1',
       title: 'Chapter 1',
       startIndex: 0,
+      startTime: 0,
+      endTime: 0,
       metadata: { 
         language: detectedLanguage 
       }
     };
     
-    // Use the existing chapters or create one with the detected language
     const updatedChapters = chapters?.length > 0 
-      ? chapters.map((chapter, index) => ({
+      ? chapters.map((chapter) => ({
           ...chapter,
           metadata: { 
             ...chapter.metadata,
@@ -109,11 +106,6 @@ export const processFile = async (file: File): Promise<FileProcessingResult> => 
           }
         }))
       : [firstChapter];
-
-    console.log('Returning with language:', detectedLanguage);
-    console.log('First chapter metadata:', updatedChapters[0].metadata);
-    console.log('Total characters:', text.length);
-    console.log('Estimated pages:', pagesCount);
 
     return {
       text,
