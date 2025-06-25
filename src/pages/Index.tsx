@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useMemo } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -10,6 +9,7 @@ import { Chapter } from '@/utils/textExtraction';
 import { Spinner } from '@/components/ui/spinner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/shared/logging';
 
 const Index = () => {
   const { toast } = useToast();
@@ -27,18 +27,36 @@ const Index = () => {
     isInitialized
   } = useSessionStorage();
 
-  const handleFileSelect = useCallback(async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
-    if (!fileInfo) {
-      setSelectedFile(null);
-      setExtractedText('');
-      setChapters([]);
-      setDetectedLanguage('english');
-      setCurrentStep(1);
-      return;
-    }
+  // Log page initialization
+  useEffect(() => {
+    logger.info('system', 'Application initialized', {
+      isInitialized,
+      currentStep,
+      hasFile: !!selectedFile,
+      textLength: extractedText.length
+    });
+  }, [isInitialized, currentStep, selectedFile, extractedText.length]);
 
+  const handleFileSelect = useCallback(async (fileInfo: { file: File, text: string, language?: string, chapters?: Chapter[] } | null) => {
     try {
-      // Batch state updates to reduce renders
+      if (!fileInfo) {
+        logger.info('user', 'File selection cleared');
+        setSelectedFile(null);
+        setExtractedText('');
+        setChapters([]);
+        setDetectedLanguage('english');
+        setCurrentStep(1);
+        return;
+      }
+
+      logger.info('user', 'File selected for processing', {
+        fileName: fileInfo.file.name,
+        fileSize: fileInfo.file.size,
+        textLength: fileInfo.text.length,
+        language: fileInfo.language,
+        chaptersCount: fileInfo.chapters?.length || 0
+      });
+
       const updatesPromise = Promise.all([
         setSelectedFile(fileInfo.file),
         setExtractedText(fileInfo.text || ''),
@@ -48,13 +66,20 @@ const Index = () => {
       
       await updatesPromise;
       
-      // Only update step after other state is set
       requestAnimationFrame(() => {
         setCurrentStep(2);
-        console.log('Index - Setting detected language:', fileInfo.language);
+        logger.info('system', 'File processing completed, moved to step 2', {
+          fileName: fileInfo.file.name,
+          detectedLanguage: fileInfo.language
+        });
       });
     } catch (error) {
-      console.error('Error handling file selection:', error);
+      const processingError = error instanceof Error ? error : new Error('Unknown file processing error');
+      logger.error('system', 'Error handling file selection', {
+        error: processingError.message,
+        fileName: fileInfo?.file.name
+      });
+      
       toast({
         title: "Error",
         description: "Something went wrong processing your file. Please try again.",
@@ -65,18 +90,33 @@ const Index = () => {
 
   const goToNextStep = useCallback(() => {
     if (currentStep < conversionSteps.length) {
-      setCurrentStep(prev => Math.min(prev + 1, conversionSteps.length));
+      const nextStep = Math.min(currentStep + 1, conversionSteps.length);
+      setCurrentStep(nextStep);
+      logger.info('user', 'Navigated to next step', { 
+        fromStep: currentStep, 
+        toStep: nextStep 
+      });
     }
   }, [currentStep, setCurrentStep]);
 
   const goToPreviousStep = useCallback(() => {
     if (currentStep > 1) {
-      setCurrentStep(prev => Math.max(prev - 1, 1));
+      const prevStep = Math.max(currentStep - 1, 1);
+      setCurrentStep(prevStep);
+      logger.info('user', 'Navigated to previous step', { 
+        fromStep: currentStep, 
+        toStep: prevStep 
+      });
     }
   }, [currentStep, setCurrentStep]);
 
   const handleErrorReset = useCallback(() => {
-    // Reset application state in case of error
+    logger.warn('system', 'Application error reset triggered', {
+      currentStep,
+      hasFile: !!selectedFile,
+      textLength: extractedText.length
+    });
+    
     setCurrentStep(1);
     setSelectedFile(null);
     setExtractedText('');
@@ -86,9 +126,8 @@ const Index = () => {
       description: "The application has been reset due to an error.",
       variant: "default",
     });
-  }, [setCurrentStep, setSelectedFile, setExtractedText, setChapters, toast]);
+  }, [setCurrentStep, setSelectedFile, setExtractedText, setChapters, toast, currentStep, selectedFile, extractedText.length]);
 
-  // Memoized MainContent props to prevent unnecessary re-renders
   const mainContentProps = useMemo(() => ({
     currentStep,
     selectedFile,
@@ -109,7 +148,6 @@ const Index = () => {
     goToPreviousStep
   ]);
 
-  // Show loading spinner if not initialized
   if (!isInitialized) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
