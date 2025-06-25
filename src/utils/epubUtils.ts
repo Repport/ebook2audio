@@ -1,4 +1,3 @@
-
 import ePub from 'epubjs';
 import { Chapter } from './textExtraction';
 import { SpineItem, ExtendedSpine, ProcessedChunk } from './epubTypes';
@@ -48,6 +47,32 @@ const processSpineChunk = async (
     })
   );
 };
+
+export async function extractChaptersFromEpub(epub: any): Promise<Chapter[]> {
+  const chapters: Chapter[] = [];
+  
+  try {
+    const spine = epub.spine;
+    
+    for (let i = 0; i < spine.length; i++) {
+      const section = spine.get(i);
+      const doc = await section.load(epub.load.bind(epub));
+      const title = section.navItem?.label || `Chapter ${i + 1}`;
+      
+      chapters.push({
+        id: `chapter-${i}`,
+        title,
+        startIndex: 0,
+        startTime: 0,
+        endTime: 0,
+      });
+    }
+  } catch (error) {
+    console.error('Error extracting chapters from EPUB:', error);
+  }
+  
+  return chapters;
+}
 
 export const extractEpubText = async (file: File): Promise<{ text: string; chapters: Chapter[] }> => {
   try {

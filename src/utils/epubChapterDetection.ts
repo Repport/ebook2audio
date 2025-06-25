@@ -1,4 +1,3 @@
-
 import { Chapter } from './textExtraction';
 
 // Enhanced chapter heading patterns
@@ -133,3 +132,28 @@ export const detectChaptersInEpub = (doc: Document, startIndex: number): { text:
     return { text: '', newChapters: [] };
   }
 };
+
+export function detectChaptersFromDOM(dom: Document, text: string): Chapter[] {
+  const chapters: Chapter[] = [];
+  const headings = dom.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  
+  headings.forEach((heading, index) => {
+    const title = heading.textContent?.trim() || `Chapter ${index + 1}`;
+    const startIndex = text.indexOf(title);
+    
+    if (startIndex !== -1) {
+      chapters.push({
+        id: `chapter-${index}`,
+        title,
+        startIndex,
+        startTime: 0,
+        endTime: 0,
+        timestamp: Date.now(),
+        confidence: 0.8,
+        type: 'heading' as const
+      });
+    }
+  });
+  
+  return chapters;
+}

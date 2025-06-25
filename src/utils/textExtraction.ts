@@ -1,9 +1,9 @@
-
 import { extractPdfText } from './pdfUtils';
 import { extractEpubText } from './epubUtils';
 import { Chapter, FileProcessingResult } from '../core/types/domain';
 
-export { Chapter, FileProcessingResult };
+export type { Chapter } from '../core/types/domain';
+export type { FileMetadata } from '../core/types/domain';
 
 const LANGUAGE_PATTERNS = {
   english: /\b(the|and|is|in|to|of)\b/gi,

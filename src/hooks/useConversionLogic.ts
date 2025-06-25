@@ -107,10 +107,31 @@ export const useConversionLogic = (
     setConversionStatus('converting');
     
     try {
+      // Create proper progress callback
+      const progressCallback = (chunk: {
+        text?: string;
+        timestamp?: number;
+        isFirstChunk?: boolean;
+        isLastChunk?: boolean;
+        progress?: number;
+        processedCharacters?: number;
+        totalCharacters?: number;
+        currentChunk?: string;
+        processedChunks?: number;
+        totalChunks?: number;
+        error?: string;
+        warning?: string;
+        isCompleted?: boolean;
+      }) => {
+        if (chunk.progress !== undefined) {
+          setProgress(chunk.progress);
+        }
+      };
+
       const result = await handleConversion(
         extractedText,
         options.selectedVoice,
-        detectChapters,
+        progressCallback,
         chapters,
         selectedFile.name
       );

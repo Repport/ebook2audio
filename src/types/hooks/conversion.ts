@@ -1,7 +1,6 @@
-
 import { Chapter } from '../../core/types/domain';
 
-export { Chapter };
+export type { Chapter };
 
 export interface ConversionServiceResult {
   success: boolean;

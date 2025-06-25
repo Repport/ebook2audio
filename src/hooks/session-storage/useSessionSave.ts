@@ -1,7 +1,6 @@
-
-import { RefObject } from 'react';
+import { useEffect, useRef } from 'react';
 import { Chapter } from '@/utils/textExtraction';
-import { createStateSnapshot } from './sessionStorageUtils'; // Updated import path
+import { createStateSnapshot } from './sessionStorageUtils';
 
 interface SessionStorageData {
   currentStep: number;
@@ -10,8 +9,26 @@ interface SessionStorageData {
   detectedLanguage: string;
   selectedFile: File | null;
   conversionInProgress: boolean;
-  lastSavedState: RefObject<string>;
+  lastSavedState: React.RefObject<string>;
 }
+
+export const useSessionSave = (sessionState: {
+  currentStep: number;
+  extractedText: string;
+  chapters: Chapter[];
+  detectedLanguage: string;
+  selectedFile: File | null;
+  conversionInProgress: boolean;
+}) => {
+  const lastSavedState = useRef<string>('');
+
+  useEffect(() => {
+    saveToSessionStorage({
+      ...sessionState,
+      lastSavedState
+    });
+  }, [sessionState]);
+};
 
 /**
  * Function to save data to session storage

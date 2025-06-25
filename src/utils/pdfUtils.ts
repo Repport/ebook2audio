@@ -1,4 +1,3 @@
-
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocumentProxy } from 'pdfjs-dist';
 import { Chapter } from './textExtraction';
@@ -40,6 +39,30 @@ export const extractPdfText = async (file: File): Promise<{ text: string; chapte
     throw new Error('Failed to extract text from PDF');
   }
 };
+
+export async function extractChaptersFromPdf(pdfDocument: any): Promise<Chapter[]> {
+  const chapters: Chapter[] = [];
+  
+  try {
+    const outline = await pdfDocument.getOutline();
+    
+    if (outline) {
+      outline.forEach((item: any, index: number) => {
+        chapters.push({
+          id: `chapter-${index}`,
+          title: item.title || `Chapter ${index + 1}`,
+          startIndex: 0,
+          startTime: 0,
+          endTime: 0,
+        });
+      });
+    }
+  } catch (error) {
+    console.error('Error extracting chapters from PDF:', error);
+  }
+  
+  return chapters;
+}
 
 const extractPagesAndChaptersFromPdf = async (pdf: PDFDocumentProxy): Promise<{ pages: string[]; chapters: Chapter[] }> => {
   const pages: string[] = [];

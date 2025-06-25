@@ -36,7 +36,7 @@ export interface ChunkProcessingOptions {
   retryDelayMs?: number;
   maxRetries?: number;
   timeout?: number;
-  progressCallback?: TextChunkCallback;
+  progressCallback?: import('@/types/hooks/conversion').TextChunkCallback;
   
   // Additional properties needed by batchProcessor
   voiceId?: string;
