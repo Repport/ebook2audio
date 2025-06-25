@@ -1,9 +1,10 @@
+
 import {
   Chapter,
   ConversionOptions,
   UseConversionCoreReturn,
   ConvertToAudioResult,
-  TextChunkCallbackPlaceholder
+  TextChunkCallback
 } from './conversion';
 
 // Defined first as it's used by UseProcessorLogicReturn
@@ -26,34 +27,31 @@ export interface UseProcessorConversionProps {
   showTerms: boolean;
   setShowTerms: (show: boolean) => void;
   onNextStep: () => void;
-  // Pass the actual function that starts the TTS audio conversion
   startAudioConversionProcess: (
     text: string,
     voiceId: string,
     chapters?: Chapter[],
     fileName?: string,
-    onProgress?: TextChunkCallbackPlaceholder
+    onProgress?: TextChunkCallback
   ) => Promise<ConvertToAudioResult>;
-  // Pass the setter for the parent's processing flag
   setIsProcessingGlobal: (isProcessing: boolean) => void;
 }
 
 export interface UseProcessorConversionReturn {
-  handleStartConversion: () => Promise<boolean>; // Manages pre-checks and terms UI
-  handleTermsAccept: (options: { selectedVoice: string; notifyOnComplete: boolean; }) => Promise<void>; // Called after terms are accepted by UI
+  handleStartConversion: () => Promise<boolean>;
+  handleTermsAccept: (options: { selectedVoice: string; notifyOnComplete: boolean; }) => Promise<void>;
 }
 
-// Note: ProcessorLogicProps (for the hook's arguments) is defined locally in useProcessorLogic.ts
-// This UseProcessorLogicReturn is for the hook's return value.
 export interface UseProcessorLogicReturn {
   // From props or local state
   selectedFile: File | null;
   extractedText: string;
-  chapters: Chapter[]; // Current chapters state within useProcessorLogic
+  chapters: Chapter[];
 
   // UI State from useProcessorUI
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  goToNextTab: () => void; // Added this missing property
 
   // Voice Settings from useVoiceSettings
   selectedVoice: string;
@@ -62,9 +60,9 @@ export interface UseProcessorLogicReturn {
   setNotifyOnComplete: (notify: boolean) => void;
 
   // Processing Flag
-  isProcessingNextStep: boolean; // UI feedback flag, should be controlled by this hook
+  isProcessingNextStep: boolean;
 
-  // Core Conversion Logic (already correctly typed)
+  // Core Conversion Logic
   conversionLogic: UseConversionCoreReturn;
 
   // Terms state (convenience access from conversionLogic)
@@ -77,18 +75,11 @@ export interface UseProcessorLogicReturn {
   detectingChapters: boolean;
 
   // Actions
-  handleStartConversion: () => Promise<boolean>; // From useProcessorConversion
-  handleTermsAccept: (options: { selectedVoice: string; notifyOnComplete: boolean; }) => Promise<void>; // From useProcessorConversion
+  handleStartConversion: () => Promise<boolean>;
+  handleTermsAccept: (options: { selectedVoice: string; notifyOnComplete: boolean; }) => Promise<void>;
   handleGoBack: () => void;
-  resetConversion: () => void; // From conversionLogic
+  resetConversion: () => void;
 
   // Utilities
   toast: UseToastReturn['toast'];
 }
-
-// The minimal ProcessorLogicProps that was in this file previously is removed
-// as the main props for the useProcessorLogic hook are defined in its own file.
-// The UseProcessorLogicReturn interface is the key definition from this file for that hook.
-// If there was a `ProcessorLogicProps` here for the return type, it's superseded by `UseProcessorLogicReturn`.
-// Also removing UseProcessorConversionProps from previous version if it was minimal and different
-// and ProcessorLogicType (old name for UseProcessorLogicReturn).

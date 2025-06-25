@@ -43,7 +43,7 @@ export const useConversionLogic = (
     conversionId,
     setProgress,
     setConversionStatus,
-    elapsedTime = 0 // Provide default value to fix type error
+    elapsedTime = 0
   } = useAudioConversion();
 
   useEffect(() => {
@@ -72,7 +72,6 @@ export const useConversionLogic = (
       return false;
     }
 
-    // Verify terms and conditions
     const termsAccepted = await checkTermsAcceptance();
     if (!termsAccepted) {
       setShowTerms(true);
@@ -110,10 +109,26 @@ export const useConversionLogic = (
     setConversionStatus('converting');
     
     try {
+      // Create proper progress callback
+      const progressCallback = (chunk: {
+        text: string;
+        timestamp: number;
+        isFirstChunk: boolean;
+        isLastChunk: boolean;
+        progress?: number;
+        processedCharacters?: number;
+        totalCharacters?: number;
+        currentChunk?: string;
+      }) => {
+        if (chunk.progress !== undefined) {
+          setProgress(chunk.progress);
+        }
+      };
+
       const result = await handleConversion(
         extractedText,
         options.selectedVoice,
-        detectChapters,
+        progressCallback,
         chapters,
         selectedFile.name
       );

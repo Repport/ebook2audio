@@ -53,6 +53,7 @@ export interface ConvertToAudioResult {
   error?: string;
 }
 
+// Unified TextChunkCallback interface
 export type TextChunkCallback = (chunk: {
   text: string;
   timestamp: number;
